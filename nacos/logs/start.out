@@ -1,0 +1,39 @@
+/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home/bin/java   -Xms512m -Xmx512m -Xmn256m -Dnacos.standalone=true -Dnacos.member.list= -Xlog:gc*:file=/Users/master/CodeBuddy/art12/nacos/logs/nacos_gc.log:time,tags:filecount=10,filesize=100m -Dloader.path=/Users/master/CodeBuddy/art12/nacos/plugins,/Users/master/CodeBuddy/art12/nacos/plugins/health,/Users/master/CodeBuddy/art12/nacos/plugins/cmdb,/Users/master/CodeBuddy/art12/nacos/plugins/selector -Dnacos.home=/Users/master/CodeBuddy/art12/nacos -jar /Users/master/CodeBuddy/art12/nacos/target/nacos-server.jar  --spring.config.additional-location=file:/Users/master/CodeBuddy/art12/nacos/conf/ --logging.config=/Users/master/CodeBuddy/art12/nacos/conf/nacos-logback.xml --server.max-http-header-size=524288
+
+         ,--.
+       ,--.'|
+   ,--,:  : |                                           Nacos 2.2.3
+,`--.'`|  ' :                       ,---.               Running in stand alone mode, All function modules
+|   :  :  | |                      '   ,'\   .--.--.    Port: 8848
+:   |   \ | :  ,--.--.     ,---.  /   /   | /  /    '   Pid: 69012
+|   : '  '; | /       \   /     \.   ; ,. :|  :  /`./   Console: http://192.168.1.176:8848/nacos/index.html
+'   ' ;.    ;.--.  .-. | /    / ''   | |: :|  :  ;_
+|   | | \   | \__\/: . ..    ' / '   | .; : \  \    `.      https://nacos.io
+'   : |  ; .' ," .--.; |'   ; :__|   :    |  `----.   \
+|   | '`--'  /  /  ,.  |'   | '.'|\   \  /  /  /`--'  /
+'   : |     ;  :   .'   \   :    : `----'  '--'.     /
+;   |.'     |  ,     .-./\   \  /            `--'---'
+'---'        `--`---'     `----'
+
+2026-04-20 00:06:13,908 INFO Tomcat initialized with port(s): 8848 (http)
+
+2026-04-20 00:06:13,939 INFO Root WebApplicationContext: initialization completed in 1058 ms
+
+2026-04-20 00:06:16,417 INFO Adding welcome page: class path resource [static/index.html]
+
+2026-04-20 00:06:16,557 WARN You are asking Spring Security to ignore Ant [pattern='/**']. This is not recommended -- please use permitAll via HttpSecurity#authorizeHttpRequests instead.
+
+2026-04-20 00:06:16,558 INFO Will not secure Ant [pattern='/**']
+
+2026-04-20 00:06:16,565 INFO Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@76f881d9, org.springframework.security.web.context.SecurityContextPersistenceFilter@40ac6b76, org.springframework.security.web.header.HeaderWriterFilter@1860f3be, org.springframework.security.web.csrf.CsrfFilter@16ac5d35, org.springframework.security.web.authentication.logout.LogoutFilter@1d858300, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@f0020b1, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@294f9d50, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@6dd36ab6, org.springframework.security.web.session.SessionManagementFilter@4887de2b, org.springframework.security.web.access.ExceptionTranslationFilter@3965bdf9]
+
+2026-04-20 00:06:16,573 INFO Exposing 1 endpoint(s) beneath base path '/actuator'
+
+2026-04-20 00:06:16,588 INFO Tomcat started on port(s): 8848 (http) with context path '/nacos'
+
+2026-04-20 00:06:16,596 INFO Nacos started successfully in stand alone mode. use embedded storage
+
+2026-04-20 00:06:32,912 INFO Initializing Servlet 'dispatcherServlet'
+
+2026-04-20 00:06:32,916 INFO Completed initialization in 3 ms
+

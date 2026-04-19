@@ -1,0 +1,45 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: shiyiju-user
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/shiyiju_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: root123456
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 0
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.shiyiju.user.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT 配置
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing
+  expiration: 604800000
+
+# 微信小程序配置
+wechat:
+  appid: wx4b7015f42a4fa49c
+  secret: your-wechat-secret
+
+# 日志配置
+logging:
+  level:
+    com.shiyiju: DEBUG

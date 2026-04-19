@@ -1,0 +1,22 @@
+server:
+  port: 8086
+spring:
+  application:
+    name: shiyiju-community
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: root123456
+  redis:
+    host: 127.0.0.1
+    port: 6379
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+logging:
+  level:
+    com.shiyiju: DEBUG

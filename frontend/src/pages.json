@@ -1,0 +1,229 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "拾艺局",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/gallery/index",
+      "style": {
+        "navigationBarTitleText": "画廊"
+      }
+    },
+    {
+      "path": "pages/gallery/detail",
+      "style": {
+        "navigationBarTitleText": "作品详情",
+        "navigationBarBackgroundColor": "#ffffff"
+      }
+    },
+    {
+      "path": "pages/cart/index",
+      "style": {
+        "navigationBarTitleText": "购物车"
+      }
+    },
+    {
+      "path": "pages/order/confirm",
+      "style": {
+        "navigationBarTitleText": "确认订单"
+      }
+    },
+    {
+      "path": "pages/order/list",
+      "style": {
+        "navigationBarTitleText": "我的订单"
+      }
+    },
+    {
+      "path": "pages/order/detail",
+      "style": {
+        "navigationBarTitleText": "订单详情"
+      }
+    },
+    {
+      "path": "pages/user/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/address",
+      "style": {
+        "navigationBarTitleText": "收货地址"
+      }
+    },
+    {
+      "path": "pages/user/addressEdit",
+      "style": {
+        "navigationBarTitleText": "编辑地址"
+      }
+    },
+    {
+      "path": "pages/user/favorites",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "pages/login",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "登录"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/auction",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "拍卖大厅"
+          }
+        },
+        {
+          "path": "session",
+          "style": {
+            "navigationBarTitleText": "专场详情"
+          }
+        },
+        {
+          "path": "bidding",
+          "style": {
+            "navigationBarTitleText": "竞拍出价"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/artcircle",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "艺术圈"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "帖子详情"
+          }
+        },
+        {
+          "path": "publish",
+          "style": {
+            "navigationBarTitleText": "发布帖子"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/artist",
+      "pages": [
+        {
+          "path": "home",
+          "style": {
+            "navigationBarTitleText": "艺术家主页"
+          }
+        },
+        {
+          "path": "cert",
+          "style": {
+            "navigationBarTitleText": "艺术家认证"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/promoter",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "推广中心"
+          }
+        },
+        {
+          "path": "performance",
+          "style": {
+            "navigationBarTitleText": "业绩详情"
+          }
+        },
+        {
+          "path": "commission",
+          "style": {
+            "navigationBarTitleText": "佣金明细"
+          }
+        },
+        {
+          "path": "team",
+          "style": {
+            "navigationBarTitleText": "我的团队"
+          }
+        },
+        {
+          "path": "withdraw",
+          "style": {
+            "navigationBarTitleText": "申请提现"
+          }
+        },
+        {
+          "path": "withdrawLog",
+          "style": {
+            "navigationBarTitleText": "提现记录"
+          }
+        }
+      ]
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "拾艺局",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#333333",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/gallery/index",
+        "text": "画廊",
+        "iconPath": "static/tabbar/gallery.png",
+        "selectedIconPath": "static/tabbar/gallery-active.png"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "购物车",
+        "iconPath": "static/tabbar/cart.png",
+        "selectedIconPath": "static/tabbar/cart-active.png"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/user.png",
+        "selectedIconPath": "static/tabbar/user-active.png"
+      }
+    ]
+  },
+  "uniIdRouter": {}
+}
