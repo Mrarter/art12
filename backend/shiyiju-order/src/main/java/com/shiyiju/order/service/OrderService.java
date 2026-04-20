@@ -48,7 +48,6 @@ public class OrderService {
     
     // 佣金比例
     private static final BigDecimal DIRECT_COMMISSION_RATE = new BigDecimal("0.05"); // 一级佣金 5%
-    private static final BigDecimal TEAM_COMMISSION_RATE = new BigDecimal("0.02"); // 二级团队奖励 2%
 
     /** 获取购物车列表 */
     public List<CartVO> getCartList(Long userId) {

@@ -1,11 +1,9 @@
 package com.shiyiju.product.controller;
 
-import com.shiyiju.common.dto.SystemConfigDTO;
 import com.shiyiju.common.result.Result;
 import com.shiyiju.product.service.PriceGrowthConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.web.bind.annotation.*;
 
@@ -122,24 +120,28 @@ public class SystemConfigController {
         try {
             // 更新交易配置
             if (config.containsKey("trade")) {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> trade = (Map<String, Object>) config.get("trade");
                 CONFIG_CACHE.put("trade", trade);
             }
             
             // 更新分销配置
             if (config.containsKey("promotion")) {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> promotion = (Map<String, Object>) config.get("promotion");
                 CONFIG_CACHE.put("promotion", promotion);
             }
             
             // 更新拍卖配置
             if (config.containsKey("auction")) {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> auction = (Map<String, Object>) config.get("auction");
                 CONFIG_CACHE.put("auction", auction);
             }
             
             // 更新审核配置
             if (config.containsKey("audit")) {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> audit = (Map<String, Object>) config.get("audit");
                 CONFIG_CACHE.put("audit", audit);
             }

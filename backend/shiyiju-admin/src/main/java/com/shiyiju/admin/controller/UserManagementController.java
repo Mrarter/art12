@@ -210,9 +210,7 @@ public class UserManagementController {
     public Result<Void> addArtist(@RequestBody Map<String, Object> params) {
         String phone = (String) params.get("phone");
         String realName = (String) params.get("realName");
-        String idCard = (String) params.get("idCard");
         String badge = params.containsKey("badge") ? (String) params.get("badge") : "";
-        String resume = params.containsKey("resume") ? (String) params.get("resume") : "";
         
         log.info("添加艺术家: phone={}, realName={}, badge={}", phone, realName, badge);
         return Result.success();
@@ -237,38 +235,6 @@ public class UserManagementController {
         Map<String, Object> artist = createArtist(id, "艺术家", "13800138000", "***", "***************", 
                 1, "", "", LocalDateTime.now());
         return Result.success(artist);
-    }
-
-    /**
-     * 艺荐官列表
-     */
-    @GetMapping("/promoter/list")
-    public Result<Map<String, Object>> getPromoterList(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("total", 1256);
-        stats.put("monthlyNew", 89);
-        stats.put("pendingCommission", 258000);
-        
-        List<Map<String, Object>> list = new ArrayList<>();
-        Map<String, Object> promoter = new HashMap<>();
-        promoter.put("userId", "20001");
-        promoter.put("nickname", "艺荐官A");
-        promoter.put("level", 3);
-        promoter.put("teamCount", 156);
-        promoter.put("directCount", 28);
-        promoter.put("totalCommission", 125000);
-        promoter.put("withdrawable", 8500);
-        promoter.put("status", 1);
-        promoter.put("becomeTime", "2023-06-01 10:00:00");
-        list.add(promoter);
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("list", list);
-        result.put("stats", stats);
-        return Result.success(result);
     }
 
     /**

@@ -49,7 +49,7 @@
         
         <el-sub-menu index="/auction">
           <template #title>
-            <el-icon><Hammer /></el-icon>
+            <el-icon><Tools /></el-icon>
             <span>拍卖管理</span>
           </template>
           <el-menu-item index="/auction/session">专场管理</el-menu-item>

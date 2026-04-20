@@ -89,3 +89,4 @@
 0:0:0:0:0:0:0:1 - - [20/Apr/2026:08:42:39 +0800] "GET /nacos/v1/ns/instance/list?serviceName=shiyiju-promotion HTTP/1.1" 200 544 4 curl/8.7.1 -
 0:0:0:0:0:0:0:1 - - [20/Apr/2026:08:42:39 +0800] "GET /nacos/v1/ns/instance/list?serviceName=shiyiju-community HTTP/1.1" 200 544 7 curl/8.7.1 -
 0:0:0:0:0:0:0:1 - - [20/Apr/2026:14:20:15 +0800] "GET /nacos/v1/ns/instance/list?serviceName=shiyiju-product HTTP/1.1" 200 540 77 curl/8.7.1 -
+0:0:0:0:0:0:0:1 - - [20/Apr/2026:21:27:58 +0800] "GET /nacos/v1/ns/instance/list?serviceName=shiyiju-admin HTTP/1.1" 200 226 88 curl/8.7.1 -

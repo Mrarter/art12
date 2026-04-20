@@ -421,7 +421,7 @@ const loadData = async () => {
 
 const loadCategories = async () => {
   try {
-    categories.value = await request.get('/product/categories')
+    categories.value = await requestApi.get('/product/categories')
   } catch (e) {
     categories.value = [
       { id: 1, name: '国画' },

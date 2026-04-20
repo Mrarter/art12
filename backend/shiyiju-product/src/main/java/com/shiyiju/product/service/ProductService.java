@@ -19,7 +19,6 @@ import com.shiyiju.product.mapper.CategoryMapper;
 import com.shiyiju.common.vo.ArtworkVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +36,6 @@ public class ProductService {
     private final ArtworkMapper artworkMapper;
     private final ArtworkFavoriteMapper favoriteMapper;
     private final BannerMapper bannerMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
     private final PriceGrowthService priceGrowthService;
 
     /** 获取艺术门类列表（按权重降序，权重大的在前） */
@@ -156,7 +154,7 @@ public class ProductService {
                 .map(ArtworkFavorite::getArtworkId)
                 .collect(Collectors.toList());
 
-        List<Artwork> artworks = artworkMapper.selectBatchIds(artworkIds);
+        List<Artwork> artworks = artworkMapper.selectByIds(artworkIds);
         List<ArtworkVO> voList = artworks.stream()
                 .map(a -> convertToVO(a, userId))
                 .collect(Collectors.toList());

@@ -25,6 +25,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
     /** 无需认证的路径 */
     private static final List<String> WHITE_LIST = Arrays.asList(
             "/user/auth/wx-login",
+            "/admin/login",
+            "/admin/info",
             "/product/categories",
             "/product/artwork/list",
             "/product/artwork/detail",

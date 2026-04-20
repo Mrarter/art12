@@ -11,7 +11,6 @@ import com.shiyiju.auction.entity.*;
 import com.shiyiju.auction.mapper.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +31,6 @@ public class AuctionController {
     private final AuctionLotMapper lotMapper;
     private final AuctionBidMapper bidMapper;
     private final AuctionDepositMapper depositMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -304,7 +302,7 @@ public class AuctionController {
                 .map(AuctionDeposit::getLotId)
                 .collect(Collectors.toList());
         
-        List<AuctionLot> lots = lotIds.isEmpty() ? List.of() : lotMapper.selectBatchIds(lotIds);
+        List<AuctionLot> lots = lotIds.isEmpty() ? List.of() : lotMapper.selectByIds(lotIds);
         
         Map<String, Object> result = new HashMap<>();
         result.put("list", lots);

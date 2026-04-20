@@ -2,7 +2,6 @@ package com.shiyiju.user.controller;
 
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
-import com.shiyiju.common.vo.ArtworkVO;
 import com.shiyiju.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

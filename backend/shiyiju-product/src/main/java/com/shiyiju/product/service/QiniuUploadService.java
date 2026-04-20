@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -40,8 +41,8 @@ public class QiniuUploadService {
      */
     private UploadManager getUploadManager() {
         if (uploadManager == null) {
-            // 使用华东区域
-            Configuration cfg = new Configuration(Region.huadong());
+            // 使用自动区域选择
+            Configuration cfg = new Configuration(Region.autoRegion());
             uploadManager = new UploadManager(cfg);
         }
         return uploadManager;
@@ -71,7 +72,7 @@ public class QiniuUploadService {
 
         // 写入临时文件
         File tempFile = Files.createTempFile("qiniu-upload-", "." + extension).toFile();
-        file.transferTo(tempFile);
+        file.transferTo(Objects.requireNonNull(tempFile));
 
         try {
             return uploadFile(tempFile, key);

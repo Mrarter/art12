@@ -17,7 +17,6 @@ import com.shiyiju.user.mapper.UserMapper;
 import com.shiyiju.user.vo.LoginVO;
 import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
-import com.shiyiju.user.vo.ArtistHomepageVO;
 import com.shiyiju.common.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

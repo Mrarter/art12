@@ -3,8 +3,6 @@ package com.shiyiju.common.service;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.XmlUtil;
 import cn.hutool.http.HttpUtil;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.shiyiju.common.config.WxPayConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -266,7 +264,7 @@ public class WxPayService {
         String sign = generateSignature(params, wxPayConfig.getMchKey());
         params.put("sign", sign);
         
-        String xmlData = buildXmlRequest(params);
+        buildXmlRequest(params);
         
         // 注意: 使用证书需要KeyStore，这里简化处理
         // 实际生产环境建议使用官方SDK或Apache HttpClient with SSL
