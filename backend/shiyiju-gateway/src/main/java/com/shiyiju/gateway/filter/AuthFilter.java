@@ -28,7 +28,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/admin/login",
             "/admin/info",
             "/admin/dashboard",
-            "/admin/",  // 管理后台所有接口无需认证（前端会处理）
+            "/admin/",
             "/product/categories",
             "/product/artwork/list",
             "/product/artwork/detail",
@@ -36,6 +36,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/product/list",
             "/product/search",
             "/product/banners",
+            "/product/recommend",
+            "/product/following",
             "/product/update",
             "/product/create",
             "/product/delete",
