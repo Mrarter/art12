@@ -27,36 +27,50 @@ export default defineConfig({
       // 管理员接口 -> admin服务(8090)
       '/api/admin': {
         target: 'http://localhost:8090',
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/admin/, '/admin')
       },
-      // 小程序API接口 -> 网关(8080)
+      // 用户服务 -> 8081
       '/api/user': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/user/, '/user')
       },
+      // 商品服务 -> 8082
       '/api/product': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/product/, '/product')
       },
+      // 订单服务 -> 8082
       '/api/order': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/order/, '/order')
       },
+      // 拍卖服务 -> 8082
       '/api/auction': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/auction/, '/auction')
       },
+      // 社区服务 -> 8082
       '/api/community': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/community/, '/community')
       },
+      // 分销服务 -> 8082
       '/api/promotion': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/promotion/, '/promoter')
       },
+      // 文件服务 -> 8082
       '/api/file': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/file/, '/upload')
       }
     }
   }

@@ -116,13 +116,13 @@ CREATE TABLE `artwork_category` (
     `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL COMMENT '分类名称',
     `icon` VARCHAR(255) DEFAULT NULL COMMENT '分类图标',
-    `sort` INT DEFAULT 0 COMMENT '排序',
+    `weight` INT DEFAULT 0 COMMENT '权重，数值越大排序越靠前',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-启用',
     `parent_id` BIGINT DEFAULT NULL COMMENT '父级ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY `idx_parent_id` (`parent_id`),
-    KEY `idx_sort` (`sort`)
+    KEY `idx_weight` (`weight`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='作品分类表';
 
 -- 作品表
@@ -553,14 +553,14 @@ CREATE TABLE `system_notification` (
 -- 8. 初始化数据
 -- ============================================
 
--- 插入默认分类
-INSERT INTO `artwork_category` (`name`, `sort`, `status`) VALUES
-('油画', 1, 1),
-('水墨', 2, 1),
-('版画', 3, 1),
-('雕塑', 4, 1),
-('摄影', 5, 1),
-('装置', 6, 1);
+-- 插入默认分类（按权重降序，数值大的排前面）
+INSERT INTO `artwork_category` (`name`, `weight`, `status`) VALUES
+('油画', 100, 1),
+('水墨', 90, 1),
+('版画', 80, 1),
+('雕塑', 70, 1),
+('摄影', 60, 1),
+('装置', 50, 1);
 
 -- 插入默认系统配置
 INSERT INTO `system_config` (`config_key`, `config_value`, `config_type`, `group_name`, `remark`) VALUES

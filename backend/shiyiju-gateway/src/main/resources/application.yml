@@ -67,6 +67,20 @@ spring:
             - Path=/api/file/**
           filters:
             - StripPrefix=1
+        # 运营后台管理接口（配置管理）
+        - id: shiyiju-admin-config
+          uri: lb://shiyiju-product
+          predicates:
+            - Path=/api/admin/config/**
+          filters:
+            - StripPrefix=1
+        # 运营后台 - 用户与艺术家管理
+        - id: shiyiju-admin-user
+          uri: lb://shiyiju-admin
+          predicates:
+            - Path=/api/admin/user/**
+          filters:
+            - StripPrefix=1
       globalcors:
         cors-configurations:
           '[/**]':

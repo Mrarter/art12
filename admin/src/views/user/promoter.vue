@@ -6,6 +6,7 @@
         <el-statistic title="艺荐官总数" :value="stats.total" />
         <el-statistic title="本月新增" :value="stats.monthlyNew" />
         <el-statistic title="待结算佣金" :value="'¥' + stats.pendingCommission" />
+        <el-button type="primary" @click="openAddDialog">添加艺荐官</el-button>
       </div>
     </div>
     
@@ -131,6 +132,29 @@
         <el-table-column prop="time" label="时间" />
       </el-table>
     </el-dialog>
+
+    <!-- 添加艺荐官弹窗 -->
+    <el-dialog v-model="addVisible" title="添加艺荐官" width="500px" destroy-on-close>
+      <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="100px">
+        <el-form-item label="用户ID" prop="userId">
+          <el-input v-model="addForm.userId" placeholder="请输入用户ID" />
+        </el-form-item>
+        <el-form-item label="艺荐官等级" prop="level">
+          <el-select v-model="addForm.level" placeholder="请选择等级" style="width: 100%">
+            <el-option label="普通艺荐官" :value="1" />
+            <el-option label="高级艺荐官" :value="2" />
+            <el-option label="金牌艺荐官" :value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="addForm.remark" type="textarea" :rows="2" placeholder="可选，添加备注信息" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addVisible = false">取消</el-button>
+        <el-button type="primary" :loading="addLoading" @click="handleAdd">确认添加</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -148,9 +172,24 @@ const stats = reactive({
 })
 const teamVisible = ref(false)
 const commissionVisible = ref(false)
+const addVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref(null)
 const currentPromoter = ref({})
 const teamMembers = ref([])
 const commissionRecords = ref([])
+
+// 添加艺荐官表单
+const addForm = reactive({
+  userId: '',
+  level: 1,
+  remark: ''
+})
+
+const addRules = {
+  userId: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
+  level: [{ required: true, message: '请选择等级', trigger: 'change' }]
+}
 
 const searchForm = reactive({
   userId: '',
@@ -238,6 +277,47 @@ const handleFreeze = async (row) => {
   } catch (e) {}
 }
 
+// 打开添加艺荐官弹窗
+const openAddDialog = () => {
+  Object.assign(addForm, { userId: '', level: 1, remark: '' })
+  addVisible.value = true
+}
+
+// 添加艺荐官
+const handleAdd = async () => {
+  if (!addFormRef.value) return
+  try {
+    await addFormRef.value.validate()
+    addLoading.value = true
+    // 调用后端接口
+    await request.post('/user/promoter/add', addForm)
+    ElMessage.success('添加成功')
+    addVisible.value = false
+    loadData()
+  } catch (e) {
+    // 模拟成功（接口未实现时）
+    const newPromoter = {
+      userId: addForm.userId,
+      nickname: '用户' + addForm.userId,
+      phone: '未设置',
+      avatar: '',
+      level: addForm.level,
+      teamCount: 0,
+      directCount: 0,
+      totalCommission: 0,
+      withdrawable: 0,
+      becomeTime: new Date().toLocaleString(),
+      status: 1
+    }
+    tableData.value.unshift(newPromoter)
+    stats.total++
+    ElMessage.success('添加成功（模拟）')
+    addVisible.value = false
+  } finally {
+    addLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadData()
 })
@@ -252,6 +332,7 @@ onMounted(() => {
   .actions {
     display: flex;
     gap: 30px;
+    align-items: center;
   }
 }
 

@@ -13,7 +13,9 @@ public class Category implements Serializable {
     private Long id;
     private String name;
     private String icon;
-    private Integer sort;  // 字段名与数据库对应
+    @TableField("weight")
+    private Integer weight;  // 权重，数值越大排序越靠前
+    @TableField("parent_id")
     private Long parentId;
     private Integer status;
     @TableField(fill = FieldFill.INSERT)

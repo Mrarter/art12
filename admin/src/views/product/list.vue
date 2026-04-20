@@ -2,6 +2,9 @@
   <div class="page-container">
     <div class="page-header">
       <span class="title">作品列表</span>
+      <el-button type="primary" @click="handleAdd">
+        <el-icon><Plus /></el-icon>增加作品
+      </el-button>
     </div>
     
     <div class="search-form">
@@ -34,20 +37,35 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="artworkId" label="作品ID" width="100" />
+      <el-table-column label="作品ID" width="120">
+        <template #default="{ row }">
+          <span class="artwork-code">{{ row.artworkCode || row.artworkId }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="作品信息" min-width="280">
         <template #default="{ row }">
           <div class="artwork-info">
-            <el-image :src="row.cover" :preview-src-list="row.cover ? [row.cover] : []" style="width: 80px; height: 80px" fit="cover">
-              <template #error>
-                <div class="image-placeholder">
-                  <el-icon><Picture /></el-icon>
-                </div>
-              </template>
-            </el-image>
+            <div class="cover-wrapper" @click="handleEdit(row)">
+              <el-image 
+                :src="row.cover" 
+                :preview-src-list="row.cover ? [row.cover] : []" 
+                style="width: 80px; height: 80px" 
+                fit="cover"
+                :preview-teleported="true"
+              >
+                <template #error>
+                  <div class="image-placeholder">
+                    <el-icon><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div class="edit-overlay">
+                <el-icon><Edit /></el-icon>
+              </div>
+            </div>
             <div class="detail">
-              <p class="title">{{ row.title }}</p>
-              <p class="artist">{{ row.artistName }}</p>
+              <p class="title" @click="handleEdit(row)">{{ row.title }}</p>
+              <p class="artist" @click="handleEdit(row)">{{ row.artistName }}</p>
               <p class="category">{{ row.categoryName }}</p>
             </div>
           </div>
@@ -57,15 +75,45 @@
         <template #default="{ row }">
           <p>¥{{ row.price }}</p>
           <p class="original" v-if="row.originalPrice">原价: ¥{{ row.originalPrice }}</p>
+          <p class="price-rise" v-if="row.priceRise > 0" style="color: #ff4d4f; font-size: 12px;">
+            涨幅 +{{ (row.priceRise * 100).toFixed(1) }}%
+          </p>
         </template>
       </el-table-column>
-      <el-table-column prop="salesCount" label="销量" width="80" />
+      <el-table-column label="画种/尺寸/年份" min-width="180">
+        <template #default="{ row }">
+          <div class="art-info">
+            <span v-if="row.artType" class="art-type">{{ row.artType }}</span>
+            <span v-if="row.size" class="art-size">{{ row.size }}</span>
+            <span v-if="row.year" class="art-year">{{ row.year }}年</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.ownershipType === 1 ? 'success' : 'warning'" size="small">
+            {{ row.ownershipType === 1 ? '原创' : '收藏' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="favoriteCount" label="收藏数" width="80" />
-      <el-table-column label="状态" width="80">
+<el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.status === 1 ? 'success' : 'info'">
             {{ row.status === 1 ? '上架' : '下架' }}
           </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="权重" width="100">
+        <template #default="{ row }">
+          <el-input-number 
+            v-model="row.weight" 
+            :min="0" 
+            :max="9999" 
+            size="small" 
+            controls 
+            @change="handleWeightChange(row)"
+          />
         </template>
       </el-table-column>
       <el-table-column label="分销" width="120">
@@ -76,14 +124,6 @@
           <span class="commission-text" v-if="row.distributionEnabled">
             佣金 {{ row.commissionRate || 10 }}%
           </span>
-        </template>
-      </el-table-column>
-      <el-table-column label="分销统计" width="140">
-        <template #default="{ row }">
-          <div class="dist-stats">
-            <span>推广 {{ row.distributionOrders || 0 }} 单</span>
-            <span class="money">¥{{ row.distributionEarnings || 0 }}</span>
-          </div>
         </template>
       </el-table-column>
       <el-table-column prop="createTime" label="发布时间" width="180" />
@@ -210,6 +250,15 @@
             <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="画种">
+          <el-input v-model="editForm.artType" placeholder="如：国画、油画、水彩" />
+        </el-form-item>
+        <el-form-item label="尺寸">
+          <el-input v-model="editForm.size" placeholder="如：100x80cm、四尺整张" />
+        </el-form-item>
+        <el-form-item label="创作年份">
+          <el-input-number v-model="editForm.year" :min="1900" :max="2099" placeholder="如：2024" />
+        </el-form-item>
         <el-form-item label="作品图片" prop="cover">
           <div class="upload-container">
             <el-upload
@@ -231,8 +280,11 @@
         <el-form-item label="原价" prop="originalPrice">
           <el-input-number v-model="editForm.originalPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="库存" prop="stock">
-          <el-input-number v-model="editForm.stock" :min="0" :controls="false" style="width: 100%" />
+        <el-form-item label="作品类型" prop="ownershipType">
+          <el-radio-group v-model="editForm.ownershipType">
+            <el-radio :label="1">原创</el-radio>
+            <el-radio :label="2">收藏</el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="作品描述" prop="description">
           <el-input v-model="editForm.description" type="textarea" :rows="4" placeholder="请输入作品描述" />
@@ -255,8 +307,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Picture } from '@element-plus/icons-vue'
+import { Plus, Picture, Edit } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { requestApi } from '@/api/request'
 
 const loading = ref(false)
 const saveLoading = ref(false)
@@ -288,10 +341,13 @@ const editForm = reactive({
   title: '',
   artistName: '',
   categoryId: '',
+  artType: '',
+  size: '',
+  year: null,
   cover: '',
   price: 0,
   originalPrice: 0,
-  stock: 0,
+  ownershipType: 1,  // 默认原创
   description: '',
   status: 1
 })
@@ -324,16 +380,40 @@ const loadData = async () => {
     if (searchForm.artistName) params.authorName = searchForm.artistName
     if (searchForm.categoryId) params.categoryId = searchForm.categoryId
     if (searchForm.status) params.status = searchForm.status
-    const data = await request.get('/product/list', { params })
-    tableData.value = data.records || data.list || []
+    const data = await requestApi.get('/product/list', { params })
+    // 映射后端数据格式到前端
+    tableData.value = (data.records || data.list || []).map(item => ({
+      artworkId: item.id,
+      title: item.title,
+      artistName: item.authorName,
+      cover: item.coverImage,
+      categoryId: item.categoryId,
+      categoryName: item.categoryName,
+      artType: item.artType,  // 画种
+      size: item.size,        // 尺寸
+      year: item.year,       // 创作年份
+      price: item.price ? item.price / 100 : 0,  // 分转元
+      originalPrice: item.originalPrice ? item.originalPrice / 100 : 0,
+      ownershipType: item.ownershipType || 1,
+      artworkCode: item.artworkCode,
+      status: item.status,
+      weight: item.weight || 0,
+      description: item.description,
+      salesCount: item.salesCount || 0,
+      favoriteCount: item.favoriteCount || 0,
+      priceRise: item.priceRise || 0, // 价格增长率
+      createTime: item.createTime,
+      distributionEnabled: item.distributionEnabled || false,
+      commissionRate: item.commissionRate || 10,
+      distributionOrders: item.distributionOrders || 0,
+      distributionEarnings: item.distributionEarnings || 0,
+      distributionUsers: item.distributionUsers || 0
+    }))
     pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = [
-      { artworkId: 'A001', title: '山水国画', artistName: '张大千', cover: '', categoryId: 1, categoryName: '国画', price: 58000, originalPrice: 68000, salesCount: 12, favoriteCount: 156, status: 1, createTime: '2024-01-15 10:00:00', stock: 10, description: '经典山水国画作品', distributionEnabled: true, commissionRate: 15, distributionOrders: 28, distributionEarnings: 2436, distributionUsers: 12 },
-      { artworkId: 'A002', title: '油画风景', artistName: '李明', cover: '', categoryId: 2, categoryName: '油画', price: 32000, salesCount: 8, favoriteCount: 89, status: 1, createTime: '2024-01-16 14:30:00', stock: 5, description: '现代风格油画', distributionEnabled: false, commissionRate: 10, distributionOrders: 0, distributionEarnings: 0, distributionUsers: 0 },
-      { artworkId: 'A003', title: '书法对联', artistName: '王羲之', cover: '', categoryId: 3, categoryName: '书法', price: 15000, salesCount: 25, favoriteCount: 234, status: 1, createTime: '2024-01-17 09:15:00', stock: 20, description: '名家书法作品', distributionEnabled: true, commissionRate: 20, distributionOrders: 45, distributionEarnings: 13500, distributionUsers: 18 }
-    ]
-    pagination.total = 3
+    console.error('加载数据失败:', e)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -369,12 +449,35 @@ const handleEdit = (row) => {
     title: row.title,
     artistName: row.artistName,
     categoryId: row.categoryId,
+    artType: row.artType || '',
+    size: row.size || '',
+    year: row.year || null,
     cover: row.cover || '',
     price: row.price,
     originalPrice: row.originalPrice || 0,
-    stock: row.stock || 0,
+    ownershipType: row.ownershipType || 1,
     description: row.description || '',
     status: row.status
+  })
+  editVisible.value = true
+}
+
+const handleAdd = () => {
+  // 重置表单
+  Object.assign(editForm, {
+    artworkId: '',
+    title: '',
+    artistName: '',
+    categoryId: '',
+    artType: '',
+    size: '',
+    year: null,
+    cover: '',
+    price: 0,
+    originalPrice: 0,
+    ownershipType: 1,
+    description: '',
+    status: 1
   })
   editVisible.value = true
 }
@@ -396,13 +499,18 @@ const beforeImageUpload = (file) => {
 
 const handleImageUpload = async (options) => {
   const { file } = options
-  // 模拟上传 - 将文件转为 base64
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    editForm.cover = e.target.result
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  try {
+    const res = await requestApi.post('/product/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    editForm.cover = res.url
     ElMessage.success('图片上传成功')
+  } catch (e) {
+    ElMessage.error('图片上传失败：' + (e.message || '未知错误'))
   }
-  reader.readAsDataURL(file)
 }
 
 const handleSave = async () => {
@@ -411,20 +519,42 @@ const handleSave = async () => {
   
   saveLoading.value = true
   try {
-    // 模拟保存成功
-    const index = tableData.value.findIndex(item => item.artworkId === editForm.artworkId)
-    if (index > -1) {
-      const category = categories.value.find(c => c.id === editForm.categoryId)
-      tableData.value[index] = {
-        ...tableData.value[index],
-        ...editForm,
-        categoryName: category?.name || ''
-      }
+    const params = {
+      title: editForm.title,
+      authorName: editForm.artistName,
+      categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
+      artType: editForm.artType || null,
+      size: editForm.size || null,
+      year: editForm.year || null,
+      cover: editForm.cover || null,
+      price: editForm.price != null ? Number(editForm.price) : null,
+      originalPrice: editForm.originalPrice != null ? Number(editForm.originalPrice) : null,
+      ownershipType: editForm.ownershipType || 1,
+      description: editForm.description,
+      status: editForm.status
     }
-    ElMessage.success('保存成功')
+    console.log('保存参数:', params)
+    
+    if (editForm.artworkId) {
+      // 更新作品
+      params.id = Number(editForm.artworkId)
+      const res = await requestApi.put('/product/update', params)
+      console.log('更新结果:', res)
+      ElMessage.success('更新成功')
+    } else {
+      // 新增作品
+      const res = await requestApi.post('/product/create', params)
+      console.log('创建结果:', res)
+      ElMessage.success('创建成功')
+    }
+    
+    // 成功后刷新列表
+    loadData()
     editVisible.value = false
   } catch (e) {
-    ElMessage.error('保存失败')
+    console.error('保存失败详情:', e)
+    const msg = e.response?.data?.message || e.message || '未知错误'
+    ElMessage.error('保存失败：' + msg)
   } finally {
     saveLoading.value = false
   }
@@ -433,20 +563,50 @@ const handleSave = async () => {
 const handleToggleStatus = async (row) => {
   const newStatus = row.status === 1 ? 0 : 1
   const action = newStatus === 1 ? '上架' : '下架'
+  console.log('切换状态:', { artworkId: row.artworkId, currentStatus: row.status, newStatus })
   try {
     await ElMessageBox.confirm(`确定要${action}该作品吗？`, '提示', { type: 'warning' })
-    row.status = newStatus
+    console.log('确认后调用API...')
+    // 调用后端 API 更新状态
+    const res = await requestApi.put('/product/update', {
+      id: Number(row.artworkId),
+      status: newStatus
+    })
+    console.log('API响应:', res)
+    // 成功后刷新列表获取最新数据
+    loadData()
     ElMessage.success(`${action}成功`)
-  } catch (e) {}
+  } catch (e) {
+    console.error('操作失败:', e)
+    const msg = e.response?.data?.message || e.message || '操作失败'
+ElMessage.error(msg)
+  }
+}
+
+// 权重变更
+const handleWeightChange = async (row) => {
+  try {
+    await requestApi.put('/product/update', {
+      id: Number(row.artworkId),
+      weight: row.weight || 0
+    })
+    // 刷新列表
+    loadData()
+  } catch (e) {
+    ElMessage.error('权重保存失败')
+  }
 }
 
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该作品吗？', '提示', { type: 'warning' })
-    await request.post('/product/delete', { artworkId: row.artworkId })
+    await requestApi.delete(`/product/${row.artworkId}`)
     ElMessage.success('删除成功')
     loadData()
-  } catch (e) {}
+  } catch (e) {
+    const msg = e.response?.data?.message || e.message || '删除失败'
+    ElMessage.error(msg)
+  }
 }
 
 const handleDistribution = (row) => {
@@ -468,22 +628,21 @@ const handleDistribution = (row) => {
 const handleSaveDistribution = async () => {
   distSaveLoading.value = true
   try {
-    // 模拟保存
-    const index = tableData.value.findIndex(item => item.artworkId === distForm.artworkId)
-    if (index > -1) {
-      tableData.value[index] = {
-        ...tableData.value[index],
-        distributionEnabled: distForm.distributionEnabled,
-        commissionRate: distForm.commissionRate,
-        distributionOrders: distForm.distributionOrders,
-        distributionEarnings: distForm.distributionEarnings,
-        distributionUsers: distForm.distributionUsers
-      }
-    }
+    console.log('分销保存参数:', distForm.artworkId, distForm.distributionEnabled, distForm.commissionRate)
+    // 调用后端 API 保存分销设置
+    await requestApi.put('/product/update', {
+      id: Number(distForm.artworkId),
+      distributionEnabled: distForm.distributionEnabled,
+      commissionRate: distForm.commissionRate
+    })
+    // 保存成功后刷新列表
+    loadData()
     ElMessage.success('分销设置已保存')
     distVisible.value = false
   } catch (e) {
-    ElMessage.error('保存失败')
+    console.error('分销保存失败:', e)
+    const msg = e.response?.data?.message || e.message || '未知错误'
+    ElMessage.error('保存失败：' + msg)
   } finally {
     distSaveLoading.value = false
   }
@@ -508,14 +667,48 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   
+  .cover-wrapper {
+    position: relative;
+    cursor: pointer;
+    
+    &:hover .edit-overlay {
+      opacity: 1;
+    }
+    
+    .edit-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      border-radius: 4px;
+    }
+  }
+  
   .detail {
     .title {
       font-weight: 500;
       margin-bottom: 4px;
+      cursor: pointer;
+      &:hover {
+        color: #409eff;
+      }
     }
     .artist {
       font-size: 13px;
       color: #666;
+      cursor: pointer;
+      &:hover {
+        color: #409eff;
+      }
     }
     .category {
       font-size: 12px;
@@ -530,6 +723,24 @@ onMounted(() => {
   text-decoration: line-through;
 }
 
+.art-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  
+  .art-type {
+    color: #409eff;
+    font-weight: 500;
+  }
+  .art-size {
+    color: #666;
+  }
+  .art-year {
+    color: #999;
+  }
+}
+
 .image-placeholder {
   width: 80px;
   height: 80px;
@@ -539,6 +750,12 @@ onMounted(() => {
   background: #f5f7fa;
   color: #c0c4cc;
   font-size: 24px;
+}
+
+.artwork-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #409eff;
 }
 
 .upload-container {

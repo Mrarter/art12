@@ -40,8 +40,8 @@
         <view class="price-row">
           <text class="current-price">¥{{ formatPrice(detail.price) }}</text>
           <text class="original-price" v-if="detail.originalPrice">¥{{ formatPrice(detail.originalPrice) }}</text>
-          <view class="rate-badge" v-if="detail.priceChangeRate > 0">
-            <text>该作品已累计上涨 +{{ detail.priceChangeRate }}%</text>
+          <view class="rate-badge" v-if="detail.priceRise > 0">
+            <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
           </view>
         </view>
       </view>

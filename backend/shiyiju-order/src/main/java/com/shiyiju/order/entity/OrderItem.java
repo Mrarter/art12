@@ -50,6 +50,12 @@ public class OrderItem implements Serializable {
     /** 小计金额 */
     private Long subtotal;
     
+    /** 归属艺荐官ID */
+    private Long promoterId;
+    
+    /** 佣金状态：0-未结算，1-已结算 */
+    private Integer commissionStatus;
+    
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

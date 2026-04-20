@@ -3,15 +3,23 @@ package com.shiyiju.product.controller;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
 import com.shiyiju.product.dto.ArtworkQueryDTO;
+import com.shiyiju.product.dto.ArtworkUpdateDTO;
+import com.shiyiju.product.dto.BatchStatusDTO;
 import com.shiyiju.product.entity.Banner;
 import com.shiyiju.product.entity.Category;
 import com.shiyiju.product.service.ProductService;
+import com.shiyiju.product.service.QiniuUploadService;
 import com.shiyiju.common.vo.ArtworkVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -20,6 +28,37 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final QiniuUploadService qiniuUploadService;
+
+    @Value("${upload.cdn-url:https://cdn.shiyiju.com}")
+    private String cdnUrl;
+
+    /** 上传作品图片 (POST /product/upload) */
+    @PostMapping("/upload")
+    public Result<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return Result.fail(400, "文件不能为空");
+        }
+        if (file.getSize() > 10 * 1024 * 1024) {
+            return Result.fail(400, "文件大小不能超过 10MB");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return Result.fail(400, "只支持图片文件");
+        }
+
+        try {
+            String fileUrl = qiniuUploadService.upload(file, "images");
+            Map<String, String> result = new HashMap<>();
+            result.put("url", fileUrl);
+            result.put("filename", file.getOriginalFilename());
+            return Result.success(result);
+        } catch (IOException e) {
+            log.error("文件上传失败", e);
+            return Result.fail(500, "文件上传失败: " + e.getMessage());
+        }
+    }
 
     /**
      * 获取作品列表 (GET /product/list)
@@ -197,6 +236,43 @@ public class ProductController {
             @RequestHeader("X-User-Id") Long userId
     ) {
         productService.unfavoriteArtwork(id, userId);
+        return Result.success();
+    }
+
+    /**
+     * 更新作品 (PUT /product/update)
+     * 用于管理后台编辑作品
+     */
+    @PutMapping("/update")
+    public Result<Void> updateProduct(@RequestBody ArtworkUpdateDTO updateDTO) {
+        productService.updateArtwork(updateDTO);
+        return Result.success();
+    }
+
+    /**
+     * 批量更新作品状态 ( PUT /product/batch/status)
+     */
+    @PutMapping("/batch/status")
+    public Result<Void> batchUpdateStatus(@RequestBody BatchStatusDTO dto) {
+        productService.batchUpdateStatus(dto.getIds(), dto.getStatus());
+        return Result.success();
+    }
+
+    /**
+     * 创建作品 (POST /product/create)
+     */
+    @PostMapping("/create")
+    public Result<Long> createProduct(@RequestBody ArtworkUpdateDTO dto) {
+        Long id = productService.createArtwork(dto);
+        return Result.success(id);
+    }
+
+    /**
+     * 删除作品 (DELETE /product/{id})
+     */
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteProduct(@PathVariable Long id) {
+        productService.deleteArtwork(id);
         return Result.success();
     }
 }

@@ -14,6 +14,9 @@ public class Artwork implements Serializable {
     private Long id;
     private String title;
     private Long authorId;
+    private String authorName;
+    private String authorBadge;
+    private String authorAvatar;
     private Long categoryId;
     private String artType;
     private String medium;
@@ -30,10 +33,19 @@ public class Artwork implements Serializable {
     private Long originalPrice;
     private Integer stock;
     private Integer status;
+    private Integer weight; // 权重，数值越大越靠前
+    private Integer ownershipType; // 作品类型: 1-原创, 2-收藏
+    private String artworkCode; // 作品编号，如 yh202604200001
     private BigDecimal priceRise;
     private Integer viewCount;
     private Integer favoriteCount;
     private Integer saleCount;
+    // 分销相关
+    private Boolean distributionEnabled;
+    private Integer commissionRate;
+    private Integer distributionOrders;
+    private Long distributionEarnings;
+    private Integer distributionUsers;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

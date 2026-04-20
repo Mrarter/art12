@@ -13,7 +13,11 @@
           <el-icon :size="24"><component :is="row.icon" /></el-icon>
         </template>
       </el-table-column>
-      <el-table-column prop="sort" label="排序" width="100" />
+      <el-table-column prop="weight" label="权重" width="100">
+        <template #default="{ row }">
+          <el-tag type="info">{{ row.weight || 0 }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="artworkCount" label="作品数" width="100" />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
@@ -39,8 +43,9 @@
         <el-form-item label="分类图标" prop="icon">
           <el-input v-model="form.icon" placeholder="请输入图标名称" />
         </el-form-item>
-        <el-form-item label="排序" prop="sort">
-          <el-input-number v-model="form.sort" :min="0" :max="999" />
+        <el-form-item label="权重" prop="weight">
+          <el-input-number v-model="form.weight" :min="0" :max="999" />
+          <span class="tip">数值越大排序越靠前</span>
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
@@ -72,7 +77,7 @@ const form = reactive({
   id: null,
   name: '',
   icon: '',
-  sort: 0,
+  weight: 0,
   status: 1
 })
 
@@ -90,11 +95,11 @@ const loadData = async () => {
     // 使用本地模拟数据
     if (!tableData.value.length) {
       tableData.value = [
-        { id: 1, name: '国画', icon: 'Picture', sort: 1, artworkCount: 256, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 2, name: '油画', icon: 'Picture', sort: 2, artworkCount: 189, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 3, name: '书法', icon: 'EditPen', sort: 3, artworkCount: 145, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 4, name: '版画', icon: 'Picture', sort: 4, artworkCount: 78, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 5, name: '雕塑', icon: 'Box', sort: 5, artworkCount: 56, status: 1, createTime: '2023-01-01 00:00:00' }
+        { id: 1, name: '国画', icon: 'Picture', weight: 100, artworkCount: 256, status: 1, createTime: '2023-01-01 00:00:00' },
+        { id: 2, name: '油画', icon: 'Picture', weight: 90, artworkCount: 189, status: 1, createTime: '2023-01-01 00:00:00' },
+        { id: 3, name: '书法', icon: 'EditPen', weight: 80, artworkCount: 145, status: 1, createTime: '2023-01-01 00:00:00' },
+        { id: 4, name: '版画', icon: 'Picture', weight: 70, artworkCount: 78, status: 1, createTime: '2023-01-01 00:00:00' },
+        { id: 5, name: '雕塑', icon: 'Box', weight: 60, artworkCount: 56, status: 1, createTime: '2023-01-01 00:00:00' }
       ]
     }
   } finally {
@@ -105,7 +110,7 @@ const loadData = async () => {
 const showDialog = (type, row = null) => {
   if (type === 'add') {
     isEdit.value = false
-    Object.assign(form, { id: null, name: '', icon: '', sort: 0, status: 1 })
+    Object.assign(form, { id: null, name: '', icon: '', weight: 0, status: 1 })
   } else {
     isEdit.value = true
     Object.assign(form, row)
@@ -158,3 +163,24 @@ onMounted(() => {
   loadData()
 })
 </script>
+
+<style scoped>
+.page-container {
+  padding: 20px;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.title {
+  font-size: 18px;
+  font-weight: 600;
+}
+.tip {
+  margin-left: 10px;
+  color: #909399;
+  font-size: 12px;
+}
+</style>

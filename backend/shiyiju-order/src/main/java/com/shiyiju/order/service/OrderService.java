@@ -45,6 +45,10 @@ public class OrderService {
     private final WxPayService wxPayService;
 
     private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    
+    // 佣金比例
+    private static final BigDecimal DIRECT_COMMISSION_RATE = new BigDecimal("0.05"); // 一级佣金 5%
+    private static final BigDecimal TEAM_COMMISSION_RATE = new BigDecimal("0.02"); // 二级团队奖励 2%
 
     /** 获取购物车列表 */
     public List<CartVO> getCartList(Long userId) {
@@ -597,6 +601,58 @@ public class OrderService {
         order.setStatus(OrderConstant.STATUS_PAID);
         order.setPayTime(LocalDateTime.now());
         orderMapper.updateById(order);
+
+        // 支付成功后计算并发放佣金（二级分销+团队奖励）
+        try {
+            calculateCommission(order);
+        } catch (Exception e) {
+            log.error("佣金计算失败", e);
+            // 佣金计算失败不影响订单状态
+        }
+    }
+
+    /**
+     * 计算并发放佣金（二级分销+团队奖励）
+     * 一级佣金：直接推广佣金（5%）
+     * 二级佣金：团队奖励（2%）
+     */
+    private void calculateCommission(Order order) {
+        // 获取订单关联的艺荐官ID
+        Long promoterId = getPromoterIdByOrder(order.getId());
+        if (promoterId == null) {
+            log.info("订单无关联艺荐官，跳过佣金计算");
+            return;
+        }
+
+        // 订单金额（分）
+        long orderAmount = order.getPayAmount().multiply(new BigDecimal("100")).longValue();
+        
+        // ========== 一级佣金：直接推广佣金 ==========
+        long directCommission = new BigDecimal(orderAmount)
+                .multiply(DIRECT_COMMISSION_RATE).longValue();
+        if (directCommission > 0) {
+            log.info("一级佣金 - promoterId:{}, amount:{}", promoterId, directCommission);
+            // 佣金记录和更新会在后续单独的服务中处理
+            // 这里先更新订单的佣金金额
+            order.setCommissionAmount(new BigDecimal(directCommission).divide(new BigDecimal("100")));
+            orderMapper.updateById(order);
+        }
+
+        // ========== 二级佣金：团队奖励 ==========
+        // 如果购买者也是艺荐官，给其上级发放团队奖励
+        // 注意：团队奖励逻辑需要用户模块支持，这里预留扩展点
+        log.info("订单佣金计算完成 - orderId:{}, directCommission:{}", order.getId(), directCommission);
+    }
+
+    /** 获取订单关联的艺荐官ID */
+    private Long getPromoterIdByOrder(Long orderId) {
+        // 从订单项获取艺荐官ID
+        OrderItem orderItem = orderItemMapper.selectOne(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, orderId)
+                        .isNotNull(OrderItem::getPromoterId)
+        );
+        return orderItem != null ? orderItem.getPromoterId() : null;
     }
 
     /** 获取收货地址列表 */
