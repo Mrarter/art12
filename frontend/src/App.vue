@@ -1,13 +1,13 @@
 <template>
   <view class="app">
-    <App />
+    <!-- 页面内容由 pages.json 中的页面路由决定 -->
   </view>
 </template>
 
 <script>
 export default {
   onLaunch() {
-    console.log('App Launch')
+    console.log('App Launch - 拾艺局')
   },
   onShow() {
     console.log('App Show')

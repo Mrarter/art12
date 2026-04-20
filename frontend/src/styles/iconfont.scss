@@ -1,61 +1,62 @@
-/* iconfont 使用 text 组件的 CSS 替代方案 */
+/* iconfont - 微信小程序兼容版本（纯文字） */
 
 .iconfont {
   font-family: sans-serif;
   font-style: normal;
+  font-weight: normal;
 }
 
-/* 搜索图标 - 使用Unicode */
-.icon-search::before { content: "🔍"; }
+/* 搜索 */
+.icon-search::before { content: "搜索"; }
 
-/* 消息/铃铛图标 */
-.icon-bell::before { content: "🔔"; }
+/* 铃铛 */
+.icon-bell::before { content: "消息"; }
 
 /* 箭头 */
-.icon-arrow-right::before { content: "›"; }
-.icon-arrow-down::before { content: "⌄"; }
-.icon-arrow-up::before { content: "⌃"; }
+.icon-arrow-right::before { content: ">"; }
+.icon-arrow-up::before { content: "上"; }
+.icon-arrow-down::before { content: "下"; }
 
 /* 分享 */
-.icon-share::before { content: "↗"; }
+.icon-share::before { content: "分享"; }
 
-/* 收藏/星星 */
-.icon-star::before { content: "☆"; }
-.icon-star-filled::before { content: "★"; }
+/* 星星 */
+.icon-star::before { content: "收藏"; }
+.icon-star-filled::before { content: "已收藏"; }
 
 /* 播放 */
-.icon-play::before { content: "▶"; }
+.icon-play::before { content: "播放"; }
 
 /* 设置 */
-.icon-settings::before { content: "⚙"; }
+.icon-settings::before { content: "设置"; }
 
-/* 订单图标 */
-.icon-wait-pay::before { content: "⏳"; }
-.icon-paid::before { content: "✓"; }
-.icon-shipped::before { content: "📦"; }
-.icon-refund::before { content: "↩"; }
+/* 订单 */
+.icon-wait-pay::before { content: "待付款"; }
+.icon-paid::before { content: "已付款"; }
+.icon-shipped::before { content: "已发货"; }
+.icon-refund::before { content: "退款"; }
 
-/* 菜单图标 */
-.icon-favorite::before { content: "♥"; }
-.icon-history::before { content: "⏱"; }
-.icon-location::before { content: "📍"; }
-.icon-cert::before { content: "📜"; }
-.icon-medal::before { content: "🏅"; }
-.icon-help::before { content: "❓"; }
-.icon-info::before { content: "ℹ"; }
+/* 菜单 */
+.icon-favorite::before { content: "喜欢"; }
+.icon-history::before { content: "历史"; }
+.icon-location::before { content: "地址"; }
+.icon-cert::before { content: "认证"; }
+.icon-medal::before { content: "勋章"; }
+.icon-help::before { content: "帮助"; }
+.icon-info::before { content: "信息"; }
 
-/* 登录图标 */
-.icon-wechat::before { content: "💬"; }
-.icon-phone::before { content: "📱"; }
+/* 登录 */
+.icon-wechat::before { content: "微信"; }
+.icon-phone::before { content: "手机"; }
 
 /* 关闭 */
-.icon-close::before { content: "✕"; }
+.icon-close::before { content: "关闭"; }
 
 /* 皇冠 */
-.icon-crown::before { content: "👑"; }
+.icon-crown::before { content: "皇冠"; }
 
 /* 勾选 */
-.icon-check::before { content: "✓"; }
+.icon-check::before { content: "对"; }
 
 /* 筛选 */
-.icon-filter::before { content: "☰"; }
+.icon-filter::before { content: "筛选"; }

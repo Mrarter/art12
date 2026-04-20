@@ -3,11 +3,9 @@
     <!-- 自定义导航栏 -->
     <view class="nav-bar">
       <view class="search-box" @click="goSearch">
-        <text class="iconfont icon-search"></text>
         <text class="placeholder">搜索作品/艺术家</text>
       </view>
       <view class="message-icon" @click="goMessage">
-        <text class="iconfont icon-bell"></text>
         <view class="badge-dot" v-if="hasMessage"></view>
       </view>
     </view>
@@ -138,8 +136,21 @@ const fetchBanners = async () => {
   try {
     const list = await getBanners()
     banners.value = list || []
+    // 如果没有数据，使用 mock 数据
+    if (banners.value.length === 0) {
+      banners.value = [
+        { id: 1, imageUrl: 'https://picsum.photos/750/320?random=1', linkType: 'gallery', linkValue: '1', title: '首页Banner 1' },
+        { id: 2, imageUrl: 'https://picsum.photos/750/320?random=2', linkType: 'gallery', linkValue: '2', title: '首页Banner 2' },
+        { id: 3, imageUrl: 'https://picsum.photos/750/320?random=3', linkType: 'gallery', linkValue: '3', title: '首页Banner 3' }
+      ]
+    }
   } catch (e) {
-    banners.value = []
+    // 请求失败时使用 mock 数据
+    banners.value = [
+      { id: 1, imageUrl: 'https://picsum.photos/750/320?random=1', linkType: 'gallery', linkValue: '1', title: '首页Banner 1' },
+      { id: 2, imageUrl: 'https://picsum.photos/750/320?random=2', linkType: 'gallery', linkValue: '2', title: '首页Banner 2' },
+      { id: 3, imageUrl: 'https://picsum.photos/750/320?random=3', linkType: 'gallery', linkValue: '3', title: '首页Banner 3' }
+    ]
   }
 }
 
@@ -150,34 +161,54 @@ const fetchProductList = async (reset = false) => {
     page.value = 1
     noMore.value = false
   }
-  
+
   loading.value = true
   try {
     const params = { page: page.value, pageSize }
     let list = []
-    
+
     if (currentTab.value === 'recommend') {
       list = await getRecommend(params)
     } else {
       list = await getFollowingWorks(params)
     }
-    
+
+    // 如果没有数据，使用 mock 数据
+    if (!list || list.length === 0) {
+      list = getMockArtworks()
+    }
+
     if (reset) {
       productList.value = list || []
     } else {
       productList.value = [...productList.value, ...(list || [])]
     }
-    
+
     if (list && list.length < pageSize) {
       noMore.value = true
     } else {
       page.value++
     }
   } catch (e) {
-    if (reset) productList.value = []
+    // 请求失败时使用 mock 数据
+    if (reset) {
+      productList.value = getMockArtworks()
+    }
   } finally {
     loading.value = false
   }
+}
+
+// Mock 数据
+const getMockArtworks = () => {
+  return [
+    { id: 1, title: '山水意境', authorName: '张大千', authorId: 1, authorAvatar: 'https://picsum.photos/100/100?random=10', coverImage: 'https://picsum.photos/400/500?random=1', artType: '国画', size: '68x68cm', createYear: 2023, price: 128000, priceChangeRate: 5.2, authorIdentity: 'artist' },
+    { id: 2, title: '晨曦', authorName: '李娜', authorId: 2, authorAvatar: 'https://picsum.photos/100/100?random=11', coverImage: 'https://picsum.photos/400/400?random=2', artType: '油画', size: '80x100cm', createYear: 2024, price: 88000, priceChangeRate: 3.8, authorIdentity: 'artist' },
+    { id: 3, title: '书法对联', authorName: '王羲之', authorId: 3, authorAvatar: 'https://picsum.photos/100/100?random=12', coverImage: 'https://picsum.photos/400/600?random=3', artType: '书法', size: '138x35cmx2', createYear: 2023, price: 58000, priceChangeRate: 2.1, authorIdentity: 'master' },
+    { id: 4, title: '静物写生', authorName: '莫奈', authorId: 4, authorAvatar: 'https://picsum.photos/100/100?random=13', coverImage: 'https://picsum.photos/400/500?random=4', artType: '油画', size: '65x81cm', createYear: 2022, price: 256000, priceChangeRate: 8.5, authorIdentity: 'artist' },
+    { id: 5, title: '抽象系列', authorName: '赵无极', authorId: 5, authorAvatar: 'https://picsum.photos/100/100?random=14', coverImage: 'https://picsum.photos/400/400?random=5', artType: '油画', size: '97x130cm', createYear: 2024, price: 520000, priceChangeRate: 12.3, authorIdentity: 'artist' },
+    { id: 6, title: '青花瓷韵', authorName: '景德镇', authorId: 6, authorAvatar: 'https://picsum.photos/100/100?random=15', coverImage: 'https://picsum.photos/400/500?random=6', artType: '瓷板画', size: '直径50cm', createYear: 2023, price: 36000, priceChangeRate: 1.5, authorIdentity: '' }
+  ]
 }
 
 // 刷新

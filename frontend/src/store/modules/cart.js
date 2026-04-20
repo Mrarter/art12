@@ -40,6 +40,28 @@ export const useCartStore = defineStore('cart', {
   },
   
   actions: {
+    // 从本地存储初始化
+    initFromStorage() {
+      try {
+        const savedCart = uni.getStorageSync('cartList')
+        if (savedCart) {
+          this.cartList = JSON.parse(savedCart)
+          this.recalculate()
+        }
+      } catch (e) {
+        console.error('初始化购物车失败', e)
+      }
+    },
+
+    // 保存到本地存储
+    saveToStorage() {
+      try {
+        uni.setStorageSync('cartList', JSON.stringify(this.cartList))
+      } catch (e) {
+        console.error('保存购物车失败', e)
+      }
+    },
+
     // 获取购物车列表
     async fetchCartList() {
       try {
@@ -132,6 +154,27 @@ export const useCartStore = defineStore('cart', {
       const selectedItems = this.cartList.filter(item => this.selectedIds.includes(item.id))
       this.totalCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0)
       this.totalAmount = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+      this.saveToStorage()
+    },
+
+    // 从购物车移除
+    removeFromCart(id) {
+      this.cartList = this.cartList.filter(item => item.id !== id)
+      this.selectedIds = this.selectedIds.filter(sid => sid !== id)
+      this.recalculate()
+    },
+
+    // 取消全选
+    unselectAll() {
+      this.selectedIds = []
+      this.totalAmount = 0
+      this.totalCount = 0
+    },
+
+    // 全选
+    selectAll() {
+      this.selectedIds = this.cartList.map(item => item.id)
+      this.recalculate()
     }
   }
 })
