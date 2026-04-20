@@ -89,13 +89,23 @@ const onWechatLogin = async () => {
   
   try {
     // 获取微信登录code
-    const { code } = await new Promise((resolve, reject) => {
+    const loginRes = await new Promise((resolve, reject) => {
       uni.login({
         provider: 'weixin',
-        success: resolve,
-        fail: reject
+        success: (res) => {
+          if (res && res.code) {
+            resolve(res)
+          } else {
+            reject(new Error('获取微信授权码失败'))
+          }
+        },
+        fail: (err) => {
+          reject(err || new Error('微信登录失败'))
+        }
       })
     })
+    
+    const { code } = loginRes
     
     // 调用后端登录接口
     const data = await wxLogin(code)
