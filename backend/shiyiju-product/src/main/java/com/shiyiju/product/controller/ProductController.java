@@ -267,12 +267,44 @@ public class ProductController {
         return Result.success(id);
     }
 
-    /**
-     * 删除作品 (DELETE /product/{id})
-     */
-    @DeleteMapping("/{id}")
-    public Result<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteArtwork(id);
-        return Result.success();
-    }
+/**
+ * 删除作品 (DELETE /product/{id})
+ */
+@DeleteMapping("/{id}")
+public Result<Void> deleteProduct(@PathVariable Long id) {
+  productService.deleteArtwork(id);
+  return Result.success();
+}
+
+/**
+ * 获取推荐作品 (GET /product/recommend)
+ * 复用作品列表接口
+ */
+@GetMapping("/recommend")
+public Result<PageResult<ArtworkVO>> getRecommend(
+        @RequestParam(defaultValue = "1") Integer page,
+        @RequestParam(defaultValue = "10") Integer pageSize,
+        @RequestHeader(value = "X-User-Id", required = false) Long userId
+) {
+  ArtworkQueryDTO query = new ArtworkQueryDTO();
+  query.setPage(page);
+  query.setPageSize(pageSize);
+  return Result.success(productService.getProductList(query, userId));
+}
+
+/**
+ * 获取关注艺术家作品 (GET /product/following)
+ * 复用作品列表接口
+ */
+@GetMapping("/following")
+public Result<PageResult<ArtworkVO>> getFollowingWorks(
+        @RequestParam(defaultValue = "1") Integer page,
+        @RequestParam(defaultValue = "10") Integer pageSize,
+        @RequestHeader(value = "X-User-Id", required = false) Long userId
+) {
+  ArtworkQueryDTO query = new ArtworkQueryDTO();
+  query.setPage(page);
+  query.setPageSize(pageSize);
+  return Result.success(productService.getProductList(query, userId));
+}
 }

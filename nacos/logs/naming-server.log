@@ -430,3 +430,9 @@
 
 2026-04-20 21:28:57,725 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=30}, 1776691737578_127.0.0.1_61293
 
+2026-04-20 21:55:02,444 INFO Client connection 1776691737578_127.0.0.1_61293 disconnect, remove instances and subscribers
+
+2026-04-20 21:55:09,279 INFO Client connection 1776693309253_127.0.0.1_56161 connect
+
+2026-04-20 21:55:09,396 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=32}, 1776693309253_127.0.0.1_56161
+

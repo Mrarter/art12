@@ -1620,3 +1620,9 @@ java.lang.IllegalStateException: call already closed
 
 2026-04-20 21:28:57,578 INFO Connection transportReady,connectionId = 1776691737578_127.0.0.1_61293 
 
+2026-04-20 21:55:02,436 INFO Connection transportTerminated,connectionId = 1776691737578_127.0.0.1_61293 
+
+2026-04-20 21:55:02,449 INFO [1776691737578_127.0.0.1_61293]client disconnected,clear config listen context
+
+2026-04-20 21:55:09,253 INFO Connection transportReady,connectionId = 1776693309253_127.0.0.1_56161 
+
