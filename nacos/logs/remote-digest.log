@@ -1626,3 +1626,31 @@ java.lang.IllegalStateException: call already closed
 
 2026-04-20 21:55:09,253 INFO Connection transportReady,connectionId = 1776693309253_127.0.0.1_56161 
 
+2026-04-20 22:01:24,006 INFO Connection transportTerminated,connectionId = 1776693309253_127.0.0.1_56161 
+
+2026-04-20 22:01:24,015 INFO [1776693309253_127.0.0.1_56161]client disconnected,clear config listen context
+
+2026-04-20 22:01:24,032 INFO Connection transportTerminated,connectionId = 1776650835633_127.0.0.1_54060 
+
+2026-04-20 22:01:24,033 INFO [1776650835633_127.0.0.1_54060]client disconnected,clear config listen context
+
+2026-04-20 22:01:24,067 INFO Connection transportTerminated,connectionId = 1776685219989_127.0.0.1_56093 
+
+2026-04-20 22:01:24,067 INFO [1776685219989_127.0.0.1_56093]client disconnected,clear config listen context
+
+2026-04-20 22:01:34,778 INFO Connection transportReady,connectionId = 1776693694778_127.0.0.1_58201 
+
+2026-04-20 22:04:56,192 INFO Connection transportReady,connectionId = 1776693896192_127.0.0.1_59306 
+
+2026-04-20 22:09:44,762 INFO Connection transportTerminated,connectionId = 1776693694778_127.0.0.1_58201 
+
+2026-04-20 22:09:44,767 INFO [1776693694778_127.0.0.1_58201]client disconnected,clear config listen context
+
+2026-04-20 22:09:54,482 INFO Connection transportReady,connectionId = 1776694194482_127.0.0.1_60843 
+
+2026-04-20 22:10:37,499 INFO Connection transportTerminated,connectionId = 1776694194482_127.0.0.1_60843 
+
+2026-04-20 22:10:37,500 INFO [1776694194482_127.0.0.1_60843]client disconnected,clear config listen context
+
+2026-04-20 22:10:39,729 INFO Connection transportReady,connectionId = 1776694239729_127.0.0.1_61062 
+

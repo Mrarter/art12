@@ -436,3 +436,33 @@
 
 2026-04-20 21:55:09,396 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=32}, 1776693309253_127.0.0.1_56161
 
+2026-04-20 22:01:24,013 INFO Client connection 1776693309253_127.0.0.1_56161 disconnect, remove instances and subscribers
+
+2026-04-20 22:01:24,033 INFO Client connection 1776650835633_127.0.0.1_54060 disconnect, remove instances and subscribers
+
+2026-04-20 22:01:24,067 INFO Client connection 1776685219989_127.0.0.1_56093 disconnect, remove instances and subscribers
+
+2026-04-20 22:01:34,811 INFO Client connection 1776693694778_127.0.0.1_58201 connect
+
+2026-04-20 22:01:34,923 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=34}, 1776693694778_127.0.0.1_58201
+
+2026-04-20 22:02:54,463 WARN namespace : public, [DEFAULT_GROUP@@shiyiju-user] services are automatically cleaned
+
+2026-04-20 22:02:54,464 WARN namespace : public, [DEFAULT_GROUP@@shiyiju-product] services are automatically cleaned
+
+2026-04-20 22:04:56,221 INFO Client connection 1776693896192_127.0.0.1_59306 connect
+
+2026-04-20 22:04:56,333 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=0}, 1776693896192_127.0.0.1_59306
+
+2026-04-20 22:09:44,766 INFO Client connection 1776693694778_127.0.0.1_58201 disconnect, remove instances and subscribers
+
+2026-04-20 22:09:54,508 INFO Client connection 1776694194482_127.0.0.1_60843 connect
+
+2026-04-20 22:09:54,651 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=36}, 1776694194482_127.0.0.1_60843
+
+2026-04-20 22:10:37,500 INFO Client connection 1776694194482_127.0.0.1_60843 disconnect, remove instances and subscribers
+
+2026-04-20 22:10:39,753 INFO Client connection 1776694239729_127.0.0.1_61062 connect
+
+2026-04-20 22:10:39,864 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=38}, 1776694239729_127.0.0.1_61062
+

@@ -87,7 +87,7 @@ spring:
           predicates:
             - Path=/api/admin/**
           filters:
-            - RewritePath=/api/admin(?<segment>/?.*), $\{segment}
+            - StripPrefix=1
       globalcors:
         cors-configurations:
           '[/**]':

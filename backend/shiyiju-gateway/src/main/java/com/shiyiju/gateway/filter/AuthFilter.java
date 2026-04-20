@@ -27,6 +27,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/user/auth/wx-login",
             "/admin/login",
             "/admin/info",
+            "/admin/dashboard",
+            "/admin/",  // 管理后台所有接口无需认证（前端会处理）
             "/product/categories",
             "/product/artwork/list",
             "/product/artwork/detail",
