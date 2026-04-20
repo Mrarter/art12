@@ -69,25 +69,25 @@ spring:
             - StripPrefix=1
         # 运营后台管理接口（配置管理）
         - id: shiyiju-admin-config
-          uri: http://localhost:8082
+          uri: http://localhost:8090
           predicates:
             - Path=/api/admin/config/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/api/admin(?<segment>/?.*), $\{segment}
         # 运营后台 - 用户与艺术家管理
         - id: shiyiju-admin-user
           uri: http://localhost:8090
           predicates:
             - Path=/api/admin/user/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/api/admin(?<segment>/?.*), $\{segment}
         # 运营后台 - 其他管理接口
         - id: shiyiju-admin
           uri: http://localhost:8090
           predicates:
             - Path=/api/admin/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/api/admin(?<segment>/?.*), $\{segment}
       globalcors:
         cors-configurations:
           '[/**]':
