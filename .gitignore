@@ -1,22 +1,22 @@
-# Windows
-[Dd]esktop.ini
-Thumbs.db
-$RECYCLE.BIN/
+# 日志文件
+nacos/logs/*.log
+nacos/logs/*.log.*
 
-# macOS
-.DS_Store
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
+# 编译产物
+frontend/dist/
+frontend/unpackage/
 
-# Node.js
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Node
 node_modules/
 
-# Java build
-**/target/
+# Maven
+backend/target/
 
-# Nacos
-nacos/target/
-nacos-server.tar.gz
-nacos/data/
+# 配置文件（避免提交私有配置）
+project.private.config.json
+frontend/project.private.config.json
