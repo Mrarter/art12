@@ -8,3 +8,241 @@
 
 2026-04-20 00:06:16,309 INFO Load instance extension handler []
 
+2026-04-20 08:10:19,900 INFO Client connection 1776643819770_127.0.0.1_61885 connect
+
+2026-04-20 08:10:19,971 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=0}, 1776643819770_127.0.0.1_61885
+
+2026-04-20 08:12:25,215 INFO Client connection 1776643819770_127.0.0.1_61885 disconnect, remove instances and subscribers
+
+2026-04-20 08:12:35,638 INFO Client connection 1776643955525_127.0.0.1_62695 connect
+
+2026-04-20 08:12:35,758 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=0}, 1776643955525_127.0.0.1_62695
+
+2026-04-20 08:12:36,106 INFO Client connection 1776643956008_127.0.0.1_62700 connect
+
+2026-04-20 08:12:36,149 INFO Client connection 1776643956053_127.0.0.1_62701 connect
+
+2026-04-20 08:12:36,226 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=0}, 1776643956008_127.0.0.1_62700
+
+2026-04-20 08:12:36,267 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=2}, 1776643956053_127.0.0.1_62701
+
+2026-04-20 08:12:36,282 INFO Client connection 1776643956203_127.0.0.1_62702 connect
+
+2026-04-20 08:12:36,396 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-message', ephemeral=true, revision=0}, 1776643956203_127.0.0.1_62702
+
+2026-04-20 08:12:36,426 INFO Client connection 1776643956333_127.0.0.1_62703 connect
+
+2026-04-20 08:12:36,544 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-community', ephemeral=true, revision=0}, 1776643956333_127.0.0.1_62703
+
+2026-04-20 08:12:36,591 INFO Client connection 1776643956511_127.0.0.1_62704 connect
+
+2026-04-20 08:12:36,713 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-promotion', ephemeral=true, revision=0}, 1776643956511_127.0.0.1_62704
+
+2026-04-20 08:12:36,721 INFO Client connection 1776643956639_127.0.0.1_62705 connect
+
+2026-04-20 08:12:36,834 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-auction', ephemeral=true, revision=0}, 1776643956639_127.0.0.1_62705
+
+2026-04-20 08:13:24,755 INFO Client connection 1776644004715_127.0.0.1_63031 connect
+
+2026-04-20 08:13:24,866 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-file', ephemeral=true, revision=0}, 1776644004715_127.0.0.1_63031
+
+2026-04-20 08:21:58,067 INFO Client connection 1776643955525_127.0.0.1_62695 disconnect, remove instances and subscribers
+
+2026-04-20 08:22:04,213 INFO Client connection 1776644524171_127.0.0.1_49874 connect
+
+2026-04-20 08:22:04,323 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=2}, 1776644524171_127.0.0.1_49874
+
+2026-04-20 08:23:11,988 INFO Client connection 1776644591951_127.0.0.1_50319 connect
+
+2026-04-20 08:23:12,097 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=0}, 1776644591951_127.0.0.1_50319
+
+2026-04-20 08:23:55,382 INFO Client connection 1776644591951_127.0.0.1_50319 disconnect, remove instances and subscribers
+
+2026-04-20 08:24:00,436 INFO Client connection 1776644640396_127.0.0.1_50643 connect
+
+2026-04-20 08:24:00,546 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=2}, 1776644640396_127.0.0.1_50643
+
+2026-04-20 08:24:34,292 INFO Client connection 1776644640396_127.0.0.1_50643 disconnect, remove instances and subscribers
+
+2026-04-20 08:24:40,143 INFO Client connection 1776644680106_127.0.0.1_50879 connect
+
+2026-04-20 08:24:40,253 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=4}, 1776644680106_127.0.0.1_50879
+
+2026-04-20 08:25:14,651 INFO Client connection 1776644680106_127.0.0.1_50879 disconnect, remove instances and subscribers
+
+2026-04-20 08:25:57,579 INFO Client connection 1776644757543_127.0.0.1_51475 connect
+
+2026-04-20 08:25:57,690 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=6}, 1776644757543_127.0.0.1_51475
+
+2026-04-20 08:32:01,624 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=3}, 1776643956053_127.0.0.1_62701
+
+2026-04-20 08:32:01,645 INFO Client connection 1776643956053_127.0.0.1_62701 disconnect, remove instances and subscribers
+
+2026-04-20 08:32:05,546 INFO Client connection 1776645125505_127.0.0.1_53847 connect
+
+2026-04-20 08:32:05,656 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=4}, 1776645125505_127.0.0.1_53847
+
+2026-04-20 08:33:01,144 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=5}, 1776645125505_127.0.0.1_53847
+
+2026-04-20 08:33:01,169 INFO Client connection 1776645125505_127.0.0.1_53847 disconnect, remove instances and subscribers
+
+2026-04-20 08:33:09,607 INFO Client connection 1776645189572_127.0.0.1_54232 connect
+
+2026-04-20 08:33:09,715 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=6}, 1776645189572_127.0.0.1_54232
+
+2026-04-20 08:35:12,721 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=1}, 1776643956008_127.0.0.1_62700
+
+2026-04-20 08:35:12,734 INFO Client connection 1776643956008_127.0.0.1_62700 disconnect, remove instances and subscribers
+
+2026-04-20 08:35:12,741 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=7}, 1776645189572_127.0.0.1_54232
+
+2026-04-20 08:35:12,755 INFO Client connection 1776645189572_127.0.0.1_54232 disconnect, remove instances and subscribers
+
+2026-04-20 08:35:12,781 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=7}, 1776644757543_127.0.0.1_51475
+
+2026-04-20 08:35:12,790 INFO Client connection 1776644757543_127.0.0.1_51475 disconnect, remove instances and subscribers
+
+2026-04-20 08:35:35,187 INFO Client connection 1776645335134_127.0.0.1_55192 connect
+
+2026-04-20 08:35:35,302 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=8}, 1776645335134_127.0.0.1_55192
+
+2026-04-20 08:35:35,478 INFO Client connection 1776645335420_127.0.0.1_55193 connect
+
+2026-04-20 08:35:35,538 INFO Client connection 1776645335498_127.0.0.1_55194 connect
+
+2026-04-20 08:35:35,585 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=8}, 1776645335420_127.0.0.1_55193
+
+2026-04-20 08:35:35,646 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=2}, 1776645335498_127.0.0.1_55194
+
+2026-04-20 08:37:00,484 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=3}, 1776645335498_127.0.0.1_55194
+
+2026-04-20 08:37:00,493 INFO Client connection 1776645335498_127.0.0.1_55194 disconnect, remove instances and subscribers
+
+2026-04-20 08:37:04,978 INFO Client connection 1776645424945_127.0.0.1_55715 connect
+
+2026-04-20 08:37:05,088 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=4}, 1776645424945_127.0.0.1_55715
+
+2026-04-20 08:38:59,201 INFO Client connection 1776645424945_127.0.0.1_55715 disconnect, remove instances and subscribers
+
+2026-04-20 08:39:00,587 INFO Client connection 1776645540550_127.0.0.1_56417 connect
+
+2026-04-20 08:39:00,698 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=6}, 1776645540550_127.0.0.1_56417
+
+2026-04-20 08:40:10,876 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=7}, 1776645540550_127.0.0.1_56417
+
+2026-04-20 08:40:10,883 INFO Client connection 1776645540550_127.0.0.1_56417 disconnect, remove instances and subscribers
+
+2026-04-20 08:40:12,564 INFO Client connection 1776645612528_127.0.0.1_56907 connect
+
+2026-04-20 08:40:12,675 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=8}, 1776645612528_127.0.0.1_56907
+
+2026-04-20 08:41:20,197 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=9}, 1776645612528_127.0.0.1_56907
+
+2026-04-20 08:41:20,209 INFO Client connection 1776645612528_127.0.0.1_56907 disconnect, remove instances and subscribers
+
+2026-04-20 08:41:21,992 INFO Client connection 1776645681957_127.0.0.1_57308 connect
+
+2026-04-20 08:41:22,101 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=10}, 1776645681957_127.0.0.1_57308
+
+2026-04-20 08:42:23,902 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-auction', ephemeral=true, revision=1}, 1776643956639_127.0.0.1_62705
+
+2026-04-20 08:42:23,927 INFO Client connection 1776643956639_127.0.0.1_62705 disconnect, remove instances and subscribers
+
+2026-04-20 08:42:23,955 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-promotion', ephemeral=true, revision=1}, 1776643956511_127.0.0.1_62704
+
+2026-04-20 08:42:23,974 INFO Client connection 1776643956511_127.0.0.1_62704 disconnect, remove instances and subscribers
+
+2026-04-20 08:42:23,998 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-community', ephemeral=true, revision=1}, 1776643956333_127.0.0.1_62703
+
+2026-04-20 08:42:24,016 INFO Client connection 1776643956333_127.0.0.1_62703 disconnect, remove instances and subscribers
+
+2026-04-20 08:42:26,931 INFO Client connection 1776645746863_127.0.0.1_57742 connect
+
+2026-04-20 08:42:27,053 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-community', ephemeral=true, revision=2}, 1776645746863_127.0.0.1_57742
+
+2026-04-20 08:42:27,063 INFO Client connection 1776645746989_127.0.0.1_57743 connect
+
+2026-04-20 08:42:27,085 INFO Client connection 1776645747011_127.0.0.1_57748 connect
+
+2026-04-20 08:42:27,175 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-promotion', ephemeral=true, revision=2}, 1776645746989_127.0.0.1_57743
+
+2026-04-20 08:42:27,197 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-auction', ephemeral=true, revision=2}, 1776645747011_127.0.0.1_57748
+
+2026-04-20 09:43:05,062 INFO Client connection 1776645681957_127.0.0.1_57308 disconnect, remove instances and subscribers
+
+2026-04-20 09:43:07,758 INFO Client connection 1776649387717_127.0.0.1_61636 connect
+
+2026-04-20 09:43:07,871 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=12}, 1776649387717_127.0.0.1_61636
+
+2026-04-20 09:45:00,988 INFO Client connection 1776649387717_127.0.0.1_61636 disconnect, remove instances and subscribers
+
+2026-04-20 09:45:05,767 INFO Client connection 1776649505735_127.0.0.1_62400 connect
+
+2026-04-20 09:45:05,880 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=14}, 1776649505735_127.0.0.1_62400
+
+2026-04-20 09:50:30,043 INFO Client connection 1776649505735_127.0.0.1_62400 disconnect, remove instances and subscribers
+
+2026-04-20 09:50:34,852 INFO Client connection 1776649834815_127.0.0.1_64454 connect
+
+2026-04-20 09:50:34,966 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=16}, 1776649834815_127.0.0.1_64454
+
+2026-04-20 09:52:19,951 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=17}, 1776649834815_127.0.0.1_64454
+
+2026-04-20 09:52:20,364 INFO Client connection 1776649834815_127.0.0.1_64454 disconnect, remove instances and subscribers
+
+2026-04-20 09:53:50,019 WARN namespace : public, [DEFAULT_GROUP@@shiyiju-order] services are automatically cleaned
+
+2026-04-20 09:56:42,493 INFO Client connection 1776650202453_127.0.0.1_50101 connect
+
+2026-04-20 09:56:42,605 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=0}, 1776650202453_127.0.0.1_50101
+
+2026-04-20 09:59:31,077 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=1}, 1776650202453_127.0.0.1_50101
+
+2026-04-20 09:59:31,524 INFO Client connection 1776650202453_127.0.0.1_50101 disconnect, remove instances and subscribers
+
+2026-04-20 09:59:50,039 INFO Client connection 1776650389993_127.0.0.1_51379 connect
+
+2026-04-20 09:59:50,151 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=2}, 1776650389993_127.0.0.1_51379
+
+2026-04-20 10:02:20,161 INFO Client connection 1776650389993_127.0.0.1_51379 disconnect, remove instances and subscribers
+
+2026-04-20 10:02:25,036 INFO Client connection 1776650544998_127.0.0.1_52400 connect
+
+2026-04-20 10:02:25,149 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=4}, 1776650544998_127.0.0.1_52400
+
+2026-04-20 10:07:10,556 INFO Client connection 1776645335420_127.0.0.1_55193 disconnect, remove instances and subscribers
+
+2026-04-20 10:07:10,557 INFO Client connection 1776645335134_127.0.0.1_55192 disconnect, remove instances and subscribers
+
+2026-04-20 10:07:14,427 INFO Client connection 1776650834380_127.0.0.1_54053 connect
+
+2026-04-20 10:07:14,539 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=10}, 1776650834380_127.0.0.1_54053
+
+2026-04-20 10:07:15,669 INFO Client connection 1776650835633_127.0.0.1_54060 connect
+
+2026-04-20 10:07:15,780 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=10}, 1776650835633_127.0.0.1_54060
+
+2026-04-20 12:25:39,250 INFO Client connection 1776650834380_127.0.0.1_54053 disconnect, remove instances and subscribers
+
+2026-04-20 12:25:43,087 INFO Client connection 1776659143046_127.0.0.1_64673 connect
+
+2026-04-20 12:25:43,201 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=12}, 1776659143046_127.0.0.1_64673
+
+2026-04-20 12:26:11,905 INFO Client connection 1776659143046_127.0.0.1_64673 disconnect, remove instances and subscribers
+
+2026-04-20 12:26:15,738 INFO Client connection 1776659175694_127.0.0.1_65220 connect
+
+2026-04-20 12:26:15,844 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=14}, 1776659175694_127.0.0.1_65220
+
+2026-04-20 12:27:16,816 INFO Client connection 1776659175694_127.0.0.1_65220 disconnect, remove instances and subscribers
+
+2026-04-20 12:27:20,496 INFO Client connection 1776659240460_127.0.0.1_49253 connect
+
+2026-04-20 12:27:20,607 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=16}, 1776659240460_127.0.0.1_49253
+
+2026-04-20 13:34:04,308 INFO Client remove for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-community', ephemeral=true, revision=3}, 1776645746863_127.0.0.1_57742
+
+2026-04-20 13:34:04,421 INFO Client connection 1776645746863_127.0.0.1_57742 disconnect, remove instances and subscribers
+
+2026-04-20 13:35:51,251 WARN namespace : public, [DEFAULT_GROUP@@shiyiju-community] services are automatically cleaned
+

@@ -1,0 +1,112 @@
+2026-04-20 08:23:12,166 INFO [PUSH] Task merge for Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=1}
+
+2026-04-20 08:23:12,641 INFO [PUSH-SUCC] 25ms, all delay time 543ms, SLA 543ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=1}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 08:23:12,713 INFO [PUSH-SUCC] 4ms, all delay time 546ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,714 INFO [PUSH-SUCC] 5ms, all delay time 548ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,717 INFO [PUSH-SUCC] 8ms, all delay time 550ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-community', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,718 INFO [PUSH-SUCC] 9ms, all delay time 552ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-promotion', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,718 INFO [PUSH-SUCC] 9ms, all delay time 551ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,719 INFO [PUSH-SUCC] 10ms, all delay time 552ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-file', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,720 INFO [PUSH-SUCC] 9ms, all delay time 553ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-auction', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:23:12,720 INFO [PUSH-SUCC] 10ms, all delay time 553ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-message', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:00,575 INFO [PUSH] Task merge for Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=3}
+
+2026-04-20 08:24:01,144 INFO [PUSH-SUCC] 27ms, all delay time 569ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-file', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,145 INFO [PUSH-SUCC] 29ms, all delay time 570ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-promotion', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,147 INFO [PUSH-SUCC] 30ms, all delay time 572ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,148 INFO [PUSH-SUCC] 31ms, all delay time 573ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,149 INFO [PUSH-SUCC] 22ms, all delay time 574ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-message', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,152 INFO [PUSH-SUCC] 35ms, all delay time 576ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,153 INFO [PUSH-SUCC] 36ms, all delay time 578ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-community', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:01,155 INFO [PUSH-SUCC] 28ms, all delay time 580ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-auction', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:24:06,122 ERROR [PUSH-FAIL] 5005ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=3}, reason=Timeout After 5000 milliseconds,requestId =12, target=192.168.1.176
+
+2026-04-20 08:24:06,139 ERROR Reason detail: 
+
+java.util.concurrent.TimeoutException: Timeout After 5000 milliseconds,requestId =12
+	at com.alibaba.nacos.api.remote.DefaultRequestFuture$TimeoutHandler.run(DefaultRequestFuture.java:194)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-20 08:24:07,219 INFO [PUSH-SUCC] 5ms, all delay time 1078ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:26:09,740 INFO [PUSH-SUCC] 24ms, all delay time 602ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:29:31,117 INFO [PUSH-SUCC] 8ms, all delay time 549ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:32:02,153 INFO [PUSH-SUCC] 15ms, all delay time 529ms, SLA 529ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=4}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 08:32:06,205 INFO [PUSH-SUCC] 11ms, all delay time 549ms, SLA 549ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=5}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 08:33:01,755 INFO [PUSH-SUCC] 8ms, all delay time 610ms, SLA 610ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=6}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 08:33:10,241 INFO [PUSH-SUCC] 9ms, all delay time 526ms, SLA 526ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=7}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 08:34:21,038 INFO [PUSH-SUCC] 6ms, all delay time 573ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=1}, originalSize=1, DataSize=1
+
+2026-04-20 08:35:53,560 INFO [PUSH-SUCC] 15ms, all delay time 544ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-user', ephemeral=true, revision=9}, originalSize=1, DataSize=1
+
+2026-04-20 08:36:00,284 INFO [PUSH-SUCC] 6ms, all delay time 521ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+
+2026-04-20 08:37:01,101 INFO [PUSH-SUCC] 16ms, all delay time 616ms, SLA 616ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=4}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 08:37:05,664 INFO [PUSH-SUCC] 11ms, all delay time 576ms, SLA 576ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=5}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 08:38:59,772 INFO [PUSH-SUCC] 9ms, all delay time 570ms, SLA 570ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=6}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 08:39:01,213 INFO [PUSH-SUCC] 8ms, all delay time 515ms, SLA 515ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=7}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 08:40:11,409 INFO [PUSH-SUCC] 5ms, all delay time 532ms, SLA 532ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=8}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 08:40:13,287 INFO [PUSH-SUCC] 11ms, all delay time 612ms, SLA 612ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=9}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 08:41:20,762 INFO [PUSH-SUCC] 4ms, all delay time 564ms, SLA 564ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=10}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 08:41:22,627 INFO [PUSH-SUCC] 8ms, all delay time 526ms, SLA 526ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=11}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 09:43:05,678 INFO [PUSH-SUCC] 22ms, all delay time 614ms, SLA 614ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=12}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 09:43:08,454 INFO [PUSH-SUCC] 6ms, all delay time 583ms, SLA 583ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=13}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 09:45:01,584 INFO [PUSH-SUCC] 17ms, all delay time 595ms, SLA 595ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=14}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 09:45:06,430 INFO [PUSH-SUCC] 10ms, all delay time 550ms, SLA 550ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=15}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 09:50:30,630 INFO [PUSH-SUCC] 27ms, all delay time 586ms, SLA 586ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=16}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 09:50:35,583 INFO [PUSH-SUCC] 27ms, all delay time 617ms, SLA 617ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=17}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 09:52:20,506 INFO [PUSH-SUCC] 11ms, all delay time 555ms, SLA 555ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=18}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 09:56:43,188 INFO [PUSH-SUCC] 20ms, all delay time 583ms, SLA 583ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=1}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 09:59:31,599 INFO [PUSH-SUCC] 8ms, all delay time 521ms, SLA 522ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=2}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 09:59:50,733 INFO [PUSH-SUCC] 9ms, all delay time 581ms, SLA 581ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=3}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 10:02:20,758 INFO [PUSH-SUCC] 14ms, all delay time 596ms, SLA 597ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=4}, originalSize=0, DataSize=0, target=192.168.1.176
+
+2026-04-20 10:02:25,735 INFO [PUSH-SUCC] 21ms, all delay time 586ms, SLA 586ms, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-order', ephemeral=true, revision=5}, originalSize=1, DataSize=1, target=192.168.1.176
+
+2026-04-20 12:27:44,186 INFO [PUSH-SUCC] 18ms, all delay time 522ms for subscriber 192.168.1.176, Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-product', ephemeral=true, revision=3}, originalSize=1, DataSize=1
+

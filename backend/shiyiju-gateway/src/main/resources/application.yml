@@ -11,8 +11,7 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
-          lower-case-service-id: true
+          enabled: false
       routes:
         # 用户服务
         - id: shiyiju-user
@@ -33,8 +32,6 @@ spring:
           uri: lb://shiyiju-order
           predicates:
             - Path=/api/order/**
-          filters:
-            - StripPrefix=1
         # 拍卖服务
         - id: shiyiju-auction
           uri: lb://shiyiju-auction
@@ -83,7 +80,8 @@ spring:
             allowedHeaders: "*"
             allowCredentials: true
             maxAge: 3600
-  redis:
+  data:
+    redis:
     host: 127.0.0.1
     port: 6379
     database: 0

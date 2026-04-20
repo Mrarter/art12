@@ -23,6 +23,7 @@
         <module>shiyiju-community</module>
         <module>shiyiju-message</module>
         <module>shiyiju-file</module>
+        <module>shiyiju-admin</module>
     </modules>
 
     <properties>
@@ -30,10 +31,10 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-boot.version>3.2.5</spring-boot.version>
-        <spring-cloud.version>2023.0.1</spring-cloud.version>
-        <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
-        <mybatis-plus.version>3.5.6</mybatis-plus.version>
+        <spring-boot.version>3.1.5</spring-boot.version>
+        <spring-cloud.version>2022.0.5</spring-cloud.version>
+        <spring-cloud-alibaba.version>2022.0.0.2</spring-cloud-alibaba.version>
+        <mybatis-plus.version>3.5.8</mybatis-plus.version>
         <jwt.version>0.12.6</jwt.version>
         <hutool.version>5.8.26</hutool.version>
         <fastjson2.version>2.0.49</fastjson2.version>

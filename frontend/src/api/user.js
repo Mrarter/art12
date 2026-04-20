@@ -73,3 +73,61 @@ export const becomeArtist = (data) => {
     data
   })
 }
+
+// 获取个人中心数据
+export const getUserCenter = () => {
+  return request({
+    url: '/user/center'
+  })
+}
+
+// 获取收货地址列表
+export const getAddressList = () => {
+  return request({
+    url: '/user/addresses'
+  })
+}
+
+// 添加收货地址
+export const addAddress = (data) => {
+  return request({
+    url: '/user/address',
+    method: 'POST',
+    data
+  })
+}
+
+// 删除收货地址
+export const deleteAddress = (id) => {
+  return request({
+    url: `/user/address/${id}`,
+    method: 'DELETE'
+  })
+}
+
+// 关注艺术家
+export const followArtist = (artistId) => {
+  return request({
+    url: '/user/follow',
+    method: 'POST',
+    data: { artistId }
+  })
+}
+
+// 取消关注艺术家
+export const unfollowArtist = (artistId) => {
+  return request({
+    url: '/user/unfollow',
+    method: 'POST',
+    data: { artistId }
+  })
+}
+
+// 绑定手机号
+export const bindPhone = (data) => {
+  return request({
+    url: '/user/bind-phone',
+    method: 'POST',
+    data
+  })
+}

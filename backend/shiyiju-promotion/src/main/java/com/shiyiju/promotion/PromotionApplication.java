@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 @EnableDiscoveryClient
-@MapperScan("com.shiyiju.promotion.mapper")
+@MapperScan({"com.shiyiju.promotion.mapper", "com.shiyiju.common.mapper"})
 @SpringBootApplication(scanBasePackages = {"com.shiyiju.promotion", "com.shiyiju.common"})
 public class PromotionApplication {
     public static void main(String[] args) {

@@ -3,21 +3,53 @@ package com.shiyiju.order.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * 订单项实体
+ */
 @Data
-@TableName("order_items")
+@TableName("trade_order_item")
 public class OrderItem implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
+    
+    /** 订单ID */
+    @TableField("order_id")
     private Long orderId;
+    
+    /** 艺术品ID */
+    @TableField("artwork_id")
     private Long artworkId;
+    
+    /** 艺术家ID */
+    @TableField("artist_id")
+    private Long artistId;
+    
+    /** 物品类型 */
+    @TableField("item_type")
+    private String itemType;
+    
+    /** SKU编码 */
+    private String skuNo;
+    
+    /** 物品标题 */
+    @TableField("item_title")
     private String title;
+    
+    /** 封面图 */
     private String coverImage;
-    private String authorName;
+    
+    /** 单价 */
     private Long price;
+    
+    /** 数量 */
     private Integer quantity;
+    
+    /** 小计金额 */
     private Long subtotal;
+    
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

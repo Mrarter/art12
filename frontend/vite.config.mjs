@@ -1,7 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import Uni from '@uni-helper/plugin-uni'
-import uView from 'uview-ui/vite'
 
 export default defineConfig({
   resolve: {
@@ -10,9 +9,6 @@ export default defineConfig({
     }
   },
   plugins: [
-    Uni(),
-    uView()
+    Uni()
   ]
 })
-
-

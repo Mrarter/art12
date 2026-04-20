@@ -5,36 +5,36 @@ package com.shiyiju.common.constant;
  */
 public class OrderConstant {
 
-    /** 订单状态 - 待付款 */
-    public static final Integer STATUS_PENDING_PAYMENT = 1;
-
     /** 订单状态 - 已取消 */
-    public static final Integer STATUS_CANCELLED = 0;
+    public static final String STATUS_CANCELLED = "CANCELLED";
+
+    /** 订单状态 - 待付款 */
+    public static final String STATUS_PENDING_PAYMENT = "PENDING_PAYMENT";
 
     /** 订单状态 - 已付款（待发货） */
-    public static final Integer STATUS_PAID = 2;
+    public static final String STATUS_PAID = "PAID";
 
     /** 订单状态 - 已发货 */
-    public static final Integer STATUS_SHIPPED = 3;
+    public static final String STATUS_SHIPPED = "SHIPPED";
 
-    /** 订单状态 - 已收货（待评价） */
-    public static final Integer STATUS_RECEIVED = 4;
+    /** 订单状态 - 已收货 */
+    public static final String STATUS_RECEIVED = "RECEIVED";
 
     /** 订单状态 - 已完成 */
-    public static final Integer STATUS_COMPLETED = 5;
+    public static final String STATUS_COMPLETED = "COMPLETED";
 
     /** 订单状态 - 退款中 */
-    public static final Integer STATUS_REFUNDING = 6;
+    public static final String STATUS_REFUNDING = "REFUNDING";
 
     /** 订单状态 - 已退款 */
-    public static final Integer STATUS_REFUNDED = 7;
+    public static final String STATUS_REFUNDED = "REFUNDED";
 
     /** 订单来源 - 立即购买 */
-    public static final Integer SOURCE_DIRECT = 1;
+    public static final String SOURCE_DIRECT = "DIRECT";
 
     /** 订单来源 - 购物车 */
-    public static final Integer SOURCE_CART = 2;
+    public static final String SOURCE_CART = "CART";
 
     /** 订单来源 - 拍卖成交 */
-    public static final Integer SOURCE_AUCTION = 3;
+    public static final String SOURCE_AUCTION = "AUCTION";
 }

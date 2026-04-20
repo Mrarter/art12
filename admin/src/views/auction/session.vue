@@ -171,19 +171,19 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await request.get('/auction/session/list', { params: { page: pagination.page, size: pagination.size, ...searchForm } })
-    tableData.value = data.list
-    pagination.total = data.total
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.name) params.name = searchForm.name
+    if (searchForm.status) params.status = searchForm.status
+    const data = await request.get('/auction/session/list', { params })
+    tableData.value = data.records || data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
-    if (!tableData.value.length) {
-      tableData.value = [
-        { sessionId: 'S001', name: '2024春季艺术品拍卖会', cover: '', previewStart: '2024-02-01 09:00', previewEnd: '2024-02-05 18:00', auctionStart: '2024-02-06 10:00', auctionEnd: '2024-02-06 18:00', status: 'ended', totalAmount: 2580000 },
-        { sessionId: 'S002', name: '当代艺术专场', cover: '', previewStart: '2024-03-01 09:00', previewEnd: '2024-03-05 18:00', auctionStart: '2024-03-06 10:00', auctionEnd: '2024-03-06 18:00', status: 'ongoing', totalAmount: 0 },
-        { sessionId: 'S003', name: '书画精品专场', cover: '', previewStart: '2024-03-15 09:00', previewEnd: '2024-03-20 18:00', auctionStart: '2024-03-21 10:00', auctionEnd: '2024-03-21 18:00', status: 'preview', totalAmount: 0 }
-      ]
-      pagination.total = 3
-    }
-    pagination.total = 1
+    tableData.value = [
+      { sessionId: 'S001', name: '2024春季艺术品拍卖会', cover: '', previewStart: '2024-02-01 09:00', previewEnd: '2024-02-05 18:00', auctionStart: '2024-02-06 10:00', auctionEnd: '2024-02-06 18:00', status: 'ended', totalAmount: 2580000 },
+      { sessionId: 'S002', name: '当代艺术专场', cover: '', previewStart: '2024-03-01 09:00', previewEnd: '2024-03-05 18:00', auctionStart: '2024-03-06 10:00', auctionEnd: '2024-03-06 18:00', status: 'ongoing', totalAmount: 0 },
+      { sessionId: 'S003', name: '书画精品专场', cover: '', previewStart: '2024-03-15 09:00', previewEnd: '2024-03-20 18:00', auctionStart: '2024-03-21 10:00', auctionEnd: '2024-03-21 18:00', status: 'preview', totalAmount: 0 }
+    ]
+    pagination.total = 3
   } finally {
     loading.value = false
   }

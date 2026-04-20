@@ -144,18 +144,20 @@ const loadData = async () => {
   try {
     const params = {
       page: pagination.page,
-      size: pagination.size,
-      ...searchForm
+      size: pagination.size
     }
+    if (searchForm.userId) params.userId = searchForm.userId
+    if (searchForm.phone) params.phone = searchForm.phone
+    if (searchForm.role) params.identity = searchForm.role
     if (searchForm.dateRange?.length === 2) {
       params.startDate = searchForm.dateRange[0]
       params.endDate = searchForm.dateRange[1]
     }
     const data = await request.get('/user/list', { params })
-    tableData.value = data.list
-    pagination.total = data.total
+    tableData.value = data.records || data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
-    // 模拟数据
+    console.error('API 调用失败，使用模拟数据:', e)
     tableData.value = [
       { userId: '10001', nickname: '张三', phone: '13800138001', avatar: '', isArtist: true, isPromoter: false, balance: 5000, orderCount: 12, createTime: '2024-01-15 10:30:00', status: 1 },
       { userId: '10002', nickname: '李四', phone: '13800138002', avatar: '', isArtist: false, isPromoter: true, balance: 12000, orderCount: 28, createTime: '2024-01-16 14:20:00', status: 1 },

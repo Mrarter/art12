@@ -38,10 +38,10 @@ public class UserManagementController {
         }
         
         PageResult<Map<String, Object>> result = new PageResult<>();
-        result.setList(list);
-        result.setTotal(3);
+        result.setRecords(list);
+        result.setTotal(3L);
         result.setPage(page);
-        result.setSize(size);
+        result.setPageSize(size);
         return Result.success(result);
     }
 
@@ -68,8 +68,8 @@ public class UserManagementController {
         list.add(artist);
         
         PageResult<Map<String, Object>> result = new PageResult<>();
-        result.setList(list);
-        result.setTotal(1);
+        result.setRecords(list);
+        result.setTotal(1L);
         return Result.success(result);
     }
 

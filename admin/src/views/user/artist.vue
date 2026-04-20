@@ -150,10 +150,11 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { page: pagination.page, size: pagination.size, ...searchForm }
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.status) params.status = searchForm.status
     const data = await request.get('/user/artist/list', { params })
-    tableData.value = data.list
-    pagination.total = data.total
+    tableData.value = data.records || data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [
       { id: 1, nickname: '艺术家A', phone: '13800138001', avatar: '', realName: '张伟', idCard: '110101199001011234', status: 'pending', createTime: '2024-01-20 10:00:00', bio: '毕业于中央美术学院', images: [] },

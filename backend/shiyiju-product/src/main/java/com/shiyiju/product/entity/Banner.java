@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 /** Banner表 */
 @Data
-@TableName("banners")
+@TableName("banner")
 public class Banner implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -15,7 +15,7 @@ public class Banner implements Serializable {
     private String imageUrl;
     private String linkType;
     private String linkValue;
-    private Integer sortOrder;
+    private Integer sort;  // 字段名与数据库对应
     private Integer status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

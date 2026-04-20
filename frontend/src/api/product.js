@@ -23,6 +23,11 @@ export const getProductList = (params) => {
   return request.get('/product/list', params)
 }
 
+// 获取画廊列表（别名）
+export const getGalleryList = (params) => {
+  return getProductList(params)
+}
+
 /**
  * 获取作品详情
  * GET /product/{id}

@@ -8,14 +8,16 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+        enabled: true
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/shiyiju_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
     password: root123456
-  redis:
-    host: 127.0.0.1
-    port: 6379
-    database: 0
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

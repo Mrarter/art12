@@ -164,24 +164,23 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { page: pagination.page, size: pagination.size, ...searchForm }
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.userId) params.userId = searchForm.userId
+    if (searchForm.status) params.status = searchForm.status
     if (searchForm.dateRange?.length === 2) {
       params.startDate = searchForm.dateRange[0]
       params.endDate = searchForm.dateRange[1]
     }
     const data = await request.get('/promotion/withdraw/list', { params })
-    tableData.value = data.list
-    pagination.total = data.total
+    tableData.value = data.records || data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
-    // 使用本地模拟数据
-    if (!tableData.value.length) {
-      tableData.value = [
-        { id: 1, userName: '艺荐官A', phone: '13900139001', amount: 5000, type: 'wechat', account: 'wx123456', realName: '张三', status: 'pending', createTime: '2024-01-21 10:00:00' },
-        { id: 2, userName: '艺荐官B', phone: '13900139002', amount: 8000, type: 'alipay', account: '139****9002', realName: '李四', status: 'pending', createTime: '2024-01-20 14:30:00' },
-        { id: 3, userName: '艺荐官C', phone: '13900139003', amount: 3000, type: 'bank', account: '6222****1234', realName: '王五', status: 'approved', createTime: '2024-01-19 09:00:00' }
-      ]
-      pagination.total = 3
-    }
+    tableData.value = [
+      { id: 1, userName: '艺荐官A', phone: '13900139001', amount: 5000, type: 'wechat', account: 'wx123456', realName: '张三', status: 'pending', createTime: '2024-01-21 10:00:00' },
+      { id: 2, userName: '艺荐官B', phone: '13900139002', amount: 8000, type: 'alipay', account: '139****9002', realName: '李四', status: 'pending', createTime: '2024-01-20 14:30:00' },
+      { id: 3, userName: '艺荐官C', phone: '13900139003', amount: 3000, type: 'bank', account: '6222****1234', realName: '王五', status: 'approved', createTime: '2024-01-19 09:00:00' }
+    ]
+    pagination.total = 3
   } finally {
     loading.value = false
   }

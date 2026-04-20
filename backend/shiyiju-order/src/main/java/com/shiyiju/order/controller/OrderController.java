@@ -87,7 +87,6 @@ public class OrderController {
 
     /**
      * 锁定购物车项（结算前）(POST /cart/lock)
-     * 使用 Redis 设置过期时间防止超卖
      */
     @PostMapping("/cart/lock")
     public Result<Map<String, Object>> lockCart(
@@ -132,20 +131,6 @@ public class OrderController {
     }
 
     /**
-     * 从购物车创建订单 (POST /orders/cart-create)
-     */
-    @PostMapping("/orders/cart-create")
-    public Result<Order> createOrderFromCart(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
-            @RequestBody CreateOrderDTO dto
-    ) {
-        if (userId == null) {
-            return Result.fail(401, "请先登录");
-        }
-        return Result.success(orderService.createOrderFromCart(userId, dto));
-    }
-
-    /**
      * 直接购买 (POST /orders/direct)
      */
     @PostMapping("/orders/direct")
@@ -172,8 +157,7 @@ public class OrderController {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
-        Integer statusValue = "all".equals(status) ? null : Integer.valueOf(status);
-        return Result.success(orderService.getOrderList(userId, statusValue, page, pageSize));
+        return Result.success(orderService.getOrderList(userId, status, page, pageSize));
     }
 
     /**
@@ -236,8 +220,11 @@ public class OrderController {
         return Result.success();
     }
 
+    // ==================== 支付模块 ====================
+
     /**
      * 微信支付统一下单 (POST /pay/unified-order)
+     * 返回支付二维码链接或预支付ID
      */
     @PostMapping("/pay/unified-order")
     public Result<String> unifiedOrder(
@@ -247,9 +234,51 @@ public class OrderController {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
+        String openId = params.get("openId") != null ? params.get("openId").toString() : null;
         return Result.success(orderService.unifiedOrder(
                 Long.valueOf(params.get("orderId").toString()), 
-                userId));
+                userId,
+                openId));
+    }
+
+    /**
+     * 微信支付 - 获取JSAPI支付参数 (POST /pay/jsapi-params)
+     * 返回小程序调起支付的必要参数
+     */
+    @PostMapping("/pay/jsapi-params")
+    public Result<Map<String, Object>> getJsApiParams(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        String openId = params.get("openId") != null ? params.get("openId").toString() : null;
+        if (openId == null || openId.isEmpty()) {
+            return Result.fail(400, "缺少openId参数");
+        }
+        return Result.success(orderService.unifiedOrderWithParams(
+                Long.valueOf(params.get("orderId").toString()), 
+                userId,
+                openId));
+    }
+
+    /**
+     * 微信支付 - 查询订单状态 (GET /pay/query/{orderId})
+     */
+    @GetMapping("/pay/query/{orderId}")
+    public Result<Map<String, String>> queryPayStatus(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long orderId
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Order order = orderService.getOrderById(orderId, userId);
+        if (order == null) {
+            return Result.fail(404, "订单不存在");
+        }
+        return Result.success(orderService.queryPayStatus(order.getOrderNo()));
     }
 
     // ==================== 个人中心 - 地址管理 ====================
@@ -317,7 +346,7 @@ public class OrderController {
     @GetMapping("/list")
     public Result<PageResult<OrderVO>> getOrderListLegacy(
             @RequestHeader("X-User-Id") Long userId,
-            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
     ) {

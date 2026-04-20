@@ -24,7 +24,37 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '/api': {
+      // 管理员接口 -> admin服务(8090)
+      '/api/admin': {
+        target: 'http://localhost:8090',
+        changeOrigin: true
+      },
+      // 小程序API接口 -> 网关(8080)
+      '/api/user': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/api/product': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/api/order': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/api/auction': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/api/community': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/api/promotion': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/api/file': {
         target: 'http://localhost:8080',
         changeOrigin: true
       }

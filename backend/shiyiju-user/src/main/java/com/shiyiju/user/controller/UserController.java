@@ -36,9 +36,19 @@ public class UserController {
     }
 
     /**
+     * 微信登录兼容路径 (POST /user/wxlogin) - 兼容前端
+     */
+    @PostMapping("/wxlogin")
+    public Result<LoginVO> wxLoginLegacy(@RequestBody WxLoginDTO dto) {
+        log.info("微信登录请求(兼容), code: {}", dto.getCode());
+        LoginVO vo = userService.wxLogin(dto);
+        return Result.success(vo);
+    }
+
+    /**
      * 获取用户信息 (GET /user/info)
      */
-    @GetMapping("/user/info")
+    @GetMapping("/info")
     public Result<UserInfoVO> getUserInfo(@RequestHeader(value = "X-User-Id", required = false) Long userId) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
@@ -97,7 +107,7 @@ public class UserController {
     /**
      * 获取艺术家认证状态 (GET /user/artist/cert/status)
      */
-    @GetMapping("/user/artist/cert/status")
+    @GetMapping("/artist/cert/status")
     public Result<ArtistCertStatusVO> getArtistCertStatus(
             @RequestHeader(value = "X-User-Id", required = false) Long userId
     ) {

@@ -1,0 +1,113 @@
+# 拾艺局 Nacos 部署配置
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+  namespace: shiyiju
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+    spec:
+      containers:
+        - name: nacos
+          image: nacos/nacos-server:v2.2.3
+          ports:
+            - containerPort: 8848
+              name: nacos-web
+            - containerPort: 9848
+              name: nacos-grpc
+          env:
+            - name: MODE
+              value: "standalone"
+            - name: NACOS_AUTH_ENABLE
+              value: "false"
+            - name: MYSQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: MYSQL_HOST
+            - name: MYSQL_SERVICE_DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: MYSQL_DATABASE
+            - name: MYSQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: MYSQL_PORT
+            - name: MYSQL_SERVICE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: MYSQL_USER
+            - name: MYSQL_SERVICE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: MYSQL_PASSWORD
+          volumeMounts:
+            - name: nacos-data
+              mountPath: /home/nacos/data
+            - name: nacos-logs
+              mountPath: /home/nacos/logs
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /nacos/
+              port: 8848
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: nacos-data
+          persistentVolumeClaim:
+            claimName: nacos-data-pvc
+        - name: nacos-logs
+          emptyDir: {}
+
+---
+# Nacos Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos
+  namespace: shiyiju
+spec:
+  type: NodePort
+  ports:
+    - port: 8848
+      targetPort: 8848
+      nodePort: 30048
+      name: web
+    - port: 9848
+      targetPort: 9848
+      name: grpc
+  selector:
+    app: nacos
+
+---
+# Nacos PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nacos-data-pvc
+  namespace: shiyiju
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

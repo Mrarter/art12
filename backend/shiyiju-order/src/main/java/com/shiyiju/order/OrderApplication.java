@@ -8,7 +8,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @EnableDiscoveryClient
 @EnableFeignClients
-@MapperScan("com.shiyiju.order.mapper")
+@MapperScan({"com.shiyiju.order.mapper", "com.shiyiju.common.mapper"})
 @SpringBootApplication(scanBasePackages = {"com.shiyiju.order", "com.shiyiju.common"})
 public class OrderApplication {
     public static void main(String[] args) {

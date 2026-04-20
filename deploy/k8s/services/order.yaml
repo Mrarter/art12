@@ -1,0 +1,118 @@
+# 拾艺局 Order 订单服务部署
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+  namespace: shiyiju
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order
+  template:
+    metadata:
+      labels:
+        app: order
+    spec:
+      containers:
+        - name: order
+          image: shiyiju/order:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8083
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: NACOS_SERVER_ADDR
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: MYSQL_HOST
+            - name: MYSQL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: MYSQL_PORT
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: MYSQL_DATABASE
+            - name: MYSQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: MYSQL_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: shiyiju-config
+                  key: REDIS_HOST
+            - name: WX_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: WX_APP_ID
+            - name: WX_MCH_ID
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: WX_MCH_ID
+            - name: WX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: WX_API_KEY
+            - name: WX_NOTIFY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: shiyiju-secrets
+                  key: WX_NOTIFY_URL
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 20
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order
+  namespace: shiyiju
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8083
+      targetPort: 8083
+  selector:
+    app: order

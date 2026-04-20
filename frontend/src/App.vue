@@ -20,6 +20,7 @@ export default {
 
 <style lang="scss">
 @import '@/styles/common.scss';
+@import '@/styles/iconfont.scss';
 
 /* 全局样式 */
 page {

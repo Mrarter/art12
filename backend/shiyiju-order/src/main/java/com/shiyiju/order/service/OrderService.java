@@ -9,20 +9,22 @@ import com.shiyiju.common.exception.BusinessException;
 import com.shiyiju.common.mapper.AddressMapper;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.ResultCode;
+import com.shiyiju.common.service.WxPayService;
 import com.shiyiju.order.dto.CreateOrderDTO;
 import com.shiyiju.order.entity.*;
 import com.shiyiju.order.mapper.*;
 import com.shiyiju.order.vo.CartVO;
 import com.shiyiju.order.vo.OrderItemVO;
 import com.shiyiju.order.vo.OrderVO;
-import com.shiyiju.product.entity.Artwork;
-import com.shiyiju.product.mapper.ArtworkMapper;
+import com.shiyiju.common.entity.Artwork;
+import com.shiyiju.common.mapper.ArtworkMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -40,6 +42,7 @@ public class OrderService {
     private final AddressMapper addressMapper;
     private final ArtworkMapper artworkMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final WxPayService wxPayService;
 
     private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
@@ -48,7 +51,7 @@ public class OrderService {
         List<Cart> carts = cartMapper.selectList(
                 new LambdaQueryWrapper<Cart>()
                         .eq(Cart::getUserId, userId)
-                        .orderByDesc(Cart::getCreateTime)
+                        .orderByDesc(Cart::getCreatedAt)
         );
 
         return carts.stream().map(cart -> {
@@ -98,7 +101,7 @@ public class OrderService {
             cart.setUserId(userId);
             cart.setArtworkId(artworkId);
             cart.setQuantity(quantity);
-            cart.setCreateTime(LocalDateTime.now());
+            cart.setCreatedAt(LocalDateTime.now());
             cartMapper.insert(cart);
         }
     }
@@ -131,13 +134,12 @@ public class OrderService {
         }
         
         cart.setQuantity(quantity);
-        cart.setUpdateTime(LocalDateTime.now());
+        cart.setUpdatedAt(LocalDateTime.now());
         cartMapper.updateById(cart);
     }
 
     /** 锁定购物车项（结算前）- 使用 Redis 防止超卖 */
     public Map<String, Object> lockCartItems(Long userId, List<Long> cartIds) {
-        String lockKey = "cart:lock:" + userId;
         List<Map<String, Object>> lockedItems = new ArrayList<>();
         List<Long> failedItems = new ArrayList<>();
         
@@ -203,10 +205,9 @@ public class OrderService {
         }
     }
 
-    /** 从购物车创建订单 (POST /orders/cart-create) */
+    /** 从购物车创建订单 */
     @Transactional
     public Order createOrderFromCart(Long userId, CreateOrderDTO dto) {
-        // 验证锁定状态
         if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
             for (Long cartId : dto.getCartIds()) {
                 String itemLockKey = "cart:item:lock:" + cartId;
@@ -219,78 +220,10 @@ public class OrderService {
         return createOrder(userId, dto);
     }
 
-    /** 直接购买 (POST /orders/direct) */
+    /** 直接购买 */
     @Transactional
     public Order createDirectOrder(Long userId, CreateOrderDTO dto) {
         return createOrder(userId, dto);
-    }
-
-    /** 申请售后 (POST /orders/{id}/refund) */
-    @Transactional
-    public void applyRefund(Long orderId, Long userId, String reason) {
-        Order order = orderMapper.selectOne(
-                new LambdaQueryWrapper<Order>()
-                        .eq(Order::getId, orderId)
-                        .eq(Order::getUserId, userId)
-        );
-        if (order == null) {
-            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
-        }
-        if (order.getStatus() != OrderConstant.STATUS_COMPLETED && 
-            order.getStatus() != OrderConstant.STATUS_SHIPPED) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不允许申请售后");
-        }
-
-        order.setStatus(OrderConstant.STATUS_REFUNDING);
-        order.setUpdateTime(LocalDateTime.now());
-        orderMapper.updateById(order);
-
-        // TODO: 发送退款申请消息
-    }
-
-    /** 更新收货地址 */
-    @Transactional
-    public void updateAddress(Long addressId, Long userId, Address addressUpdate) {
-        Address address = addressMapper.selectOne(
-                new LambdaQueryWrapper<Address>()
-                        .eq(Address::getId, addressId)
-                        .eq(Address::getUserId, userId)
-        );
-        if (address == null) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "收货地址不存在");
-        }
-
-        if (addressUpdate.getReceiverName() != null) {
-            address.setReceiverName(addressUpdate.getReceiverName());
-        }
-        if (addressUpdate.getPhone() != null) {
-            address.setReceiverPhone(addressUpdate.getPhone());
-        }
-        if (addressUpdate.getProvince() != null) {
-            address.setProvince(addressUpdate.getProvince());
-        }
-        if (addressUpdate.getCity() != null) {
-            address.setCity(addressUpdate.getCity());
-        }
-        if (addressUpdate.getDistrict() != null) {
-            address.setDistrict(addressUpdate.getDistrict());
-        }
-        if (addressUpdate.getDetailAddress() != null) {
-            address.setDetailAddress(addressUpdate.getDetailAddress());
-        }
-        if (addressUpdate.getIsDefault() != null) {
-            if (addressUpdate.getIsDefault() == 1) {
-                // 清除其他默认地址
-                addressMapper.update(null,
-                        new LambdaQueryWrapper<Address>()
-                                .eq(Address::getUserId, userId)
-                                .eq(Address::getIsDefault, 1)
-                );
-            }
-            address.setIsDefault(addressUpdate.getIsDefault());
-        }
-        address.setUpdateTime(LocalDateTime.now());
-        addressMapper.updateById(address);
     }
 
     /** 创建订单 */
@@ -302,7 +235,7 @@ public class OrderService {
         }
 
         List<OrderItem> orderItems = new ArrayList<>();
-        long totalAmount = 0;
+        BigDecimal totalAmount = BigDecimal.ZERO;
 
         // 从购物车创建
         if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
@@ -320,16 +253,9 @@ public class OrderService {
                     throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, "作品【" + artwork.getTitle() + "】库存不足");
                 }
 
-                OrderItem item = new OrderItem();
-                item.setArtworkId(artwork.getId());
-                item.setTitle(artwork.getTitle());
-                item.setCoverImage(artwork.getCoverImage());
-                item.setAuthorName("艺术家");
-                item.setPrice(artwork.getPrice());
-                item.setQuantity(cart.getQuantity());
-                item.setSubtotal(artwork.getPrice() * cart.getQuantity());
+                OrderItem item = createOrderItem(artwork, cart.getQuantity());
                 orderItems.add(item);
-                totalAmount += artwork.getPrice() * cart.getQuantity();
+                totalAmount = totalAmount.add(BigDecimal.valueOf(artwork.getPrice()).multiply(BigDecimal.valueOf(cart.getQuantity())));
             }
 
             // 清空购物车
@@ -351,16 +277,9 @@ public class OrderService {
                 throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH);
             }
 
-            OrderItem item = new OrderItem();
-            item.setArtworkId(artwork.getId());
-            item.setTitle(artwork.getTitle());
-            item.setCoverImage(artwork.getCoverImage());
-            item.setAuthorName("艺术家");
-            item.setPrice(artwork.getPrice());
-            item.setQuantity(qty);
-            item.setSubtotal(artwork.getPrice() * qty);
+            OrderItem item = createOrderItem(artwork, qty);
             orderItems.add(item);
-            totalAmount += artwork.getPrice() * qty;
+            totalAmount = totalAmount.add(BigDecimal.valueOf(artwork.getPrice()).multiply(BigDecimal.valueOf(qty)));
         }
 
         if (orderItems.isEmpty()) {
@@ -376,9 +295,9 @@ public class OrderService {
         order.setOrderNo(orderNo);
         order.setUserId(userId);
         order.setTotalAmount(totalAmount);
-        order.setDiscountAmount(0L);
+        order.setDiscountAmount(BigDecimal.ZERO);
         order.setPayAmount(totalAmount);
-        order.setCommissionAmount(0L);
+        order.setCommissionAmount(BigDecimal.ZERO);
         order.setAddressId(address.getId());
         order.setReceiverName(address.getReceiverName());
         order.setReceiverPhone(address.getReceiverPhone());
@@ -407,11 +326,24 @@ public class OrderService {
         return order;
     }
 
+    private OrderItem createOrderItem(Artwork artwork, int quantity) {
+        OrderItem item = new OrderItem();
+        item.setArtworkId(artwork.getId());
+        item.setArtistId(artwork.getAuthorId());  // 使用 authorId
+        item.setItemType("ARTWORK");
+        item.setTitle(artwork.getTitle());
+        item.setCoverImage(artwork.getCoverImage());
+        item.setPrice(artwork.getPrice());
+        item.setQuantity(quantity);
+        item.setSubtotal(artwork.getPrice() * quantity);
+        return item;
+    }
+
     /** 获取订单列表 */
-    public PageResult<OrderVO> getOrderList(Long userId, Integer status, Integer page, Integer pageSize) {
+    public PageResult<OrderVO> getOrderList(Long userId, String status, Integer page, Integer pageSize) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Order::getUserId, userId);
-        if (status != null) {
+        if (status != null && !"all".equals(status)) {
             wrapper.eq(Order::getStatus, status);
         }
         wrapper.orderByDesc(Order::getCreateTime);
@@ -437,6 +369,15 @@ public class OrderService {
         return convertToVO(order);
     }
 
+    /** 根据ID查询订单 */
+    public Order getOrderById(Long orderId, Long userId) {
+        return orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getId, orderId)
+                        .eq(Order::getUserId, userId)
+        );
+    }
+
     /** 取消订单 */
     @Transactional
     public void cancelOrder(Long orderId, Long userId) {
@@ -448,7 +389,7 @@ public class OrderService {
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
-        if (order.getStatus() != OrderConstant.STATUS_PENDING_PAYMENT) {
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
             throw new BusinessException(ResultCode.ORDER_CANNOT_CANCEL);
         }
 
@@ -459,7 +400,7 @@ public class OrderService {
         for (OrderItem item : items) {
             Artwork artwork = artworkMapper.selectById(item.getArtworkId());
             artwork.setStock(artwork.getStock() + item.getQuantity());
-            if (artwork.getStatus() == ProductConstant.STATUS_SOLD_OUT) {
+            if (ProductConstant.STATUS_SOLD_OUT.equals(artwork.getStatus())) {
                 artwork.setStatus(ProductConstant.STATUS_ON_SALE);
             }
             artworkMapper.updateById(artwork);
@@ -481,19 +422,18 @@ public class OrderService {
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
-        if (order.getStatus() != OrderConstant.STATUS_SHIPPED) {
+        if (!OrderConstant.STATUS_SHIPPED.equals(order.getStatus())) {
             throw new BusinessException(ResultCode.ORDER_CANNOT_CONFIRM);
         }
 
         order.setStatus(OrderConstant.STATUS_COMPLETED);
         order.setReceiveTime(LocalDateTime.now());
         orderMapper.updateById(order);
-
-        // TODO: 解锁佣金（如果是分销订单）
     }
 
-    /** 微信支付统一下单 */
-    public String unifiedOrder(Long orderId, Long userId) {
+    /** 申请售后 */
+    @Transactional
+    public void applyRefund(Long orderId, Long userId, String reason) {
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
@@ -502,18 +442,148 @@ public class OrderService {
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
-        if (order.getStatus() != OrderConstant.STATUS_PENDING_PAYMENT) {
+        if (!OrderConstant.STATUS_COMPLETED.equals(order.getStatus()) && 
+            !OrderConstant.STATUS_SHIPPED.equals(order.getStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不允许申请售后");
+        }
+
+        order.setStatus(OrderConstant.STATUS_REFUNDING);
+        order.setUpdateTime(LocalDateTime.now());
+        orderMapper.updateById(order);
+    }
+
+    /** 微信支付统一下单 */
+    public String unifiedOrder(Long orderId, Long userId) {
+        return unifiedOrder(orderId, userId, null);
+    }
+
+    /** 微信支付统一下单 (支持支付方式) */
+    public String unifiedOrder(Long orderId, Long userId, String openId) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getId, orderId)
+                        .eq(Order::getUserId, userId)
+        );
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
         }
 
-        // TODO: 调用微信支付统一下单接口
-        // 返回预支付交易会话标识
-        String prepayId = "prepay_" + System.currentTimeMillis();
+        // 计算订单金额(转为分)
+        long totalAmount = order.getPayAmount().multiply(BigDecimal.valueOf(100)).longValue();
         
-        // 存入Redis，设置支付过期时间（30分钟）
-        redisTemplate.opsForValue().set("pay:order:" + orderId, prepayId, 30, TimeUnit.MINUTES);
+        // 商品描述
+        List<OrderItem> items = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId)
+        );
+        String description = items.isEmpty() ? "艺术品购买" : items.get(0).getTitle();
+        if (description.length() > 50) {
+            description = description.substring(0, 47) + "...";
+        }
+
+        try {
+            String codeUrl;
+            
+            if (openId != null && !openId.isEmpty()) {
+                // JSAPI支付 (小程序/公众号)
+                Map<String, String> jsApiResult = wxPayService.unifiedOrderJsApi(
+                        order.getOrderNo(), 
+                        String.valueOf(totalAmount), 
+                        openId, 
+                        description
+                );
+                codeUrl = jsApiResult.get("prepay_id");
+            } else {
+                // Native支付 (二维码支付)
+                codeUrl = wxPayService.unifiedOrderNative(
+                        order.getOrderNo(), 
+                        String.valueOf(totalAmount), 
+                        description
+                );
+            }
+            
+            // 存入Redis，设置支付过期时间（30分钟）
+            redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
+            
+            log.info("微信支付下单成功 - 订单ID: {}, OrderNo: {}, codeUrl: {}", 
+                    orderId, order.getOrderNo(), codeUrl);
+            
+            return codeUrl;
+            
+        } catch (Exception e) {
+            log.error("微信支付统一下单失败", e);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "支付下单失败: " + e.getMessage());
+        }
+    }
+
+    /** 微信支付统一下单 - 返回完整支付参数 */
+    public Map<String, Object> unifiedOrderWithParams(Long orderId, Long userId, String openId) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getId, orderId)
+                        .eq(Order::getUserId, userId)
+        );
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
+        }
+
+        long totalAmount = order.getPayAmount().multiply(BigDecimal.valueOf(100)).longValue();
         
-        return prepayId;
+        List<OrderItem> items = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId)
+        );
+        String description = items.isEmpty() ? "艺术品购买" : items.get(0).getTitle();
+
+        try {
+            Map<String, String> jsApiResult = wxPayService.unifiedOrderJsApi(
+                    order.getOrderNo(), 
+                    String.valueOf(totalAmount), 
+                    openId, 
+                    description
+            );
+            
+            String prepayId = jsApiResult.get("prepay_id");
+            
+            redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
+            
+            Map<String, Object> payParams = new HashMap<>();
+            payParams.put("prepay_id", prepayId);
+            payParams.put("order_no", order.getOrderNo());
+            payParams.put("pay_amount", order.getPayAmount());
+            payParams.put("description", description);
+            
+            return payParams;
+            
+        } catch (Exception e) {
+            log.error("微信支付统一下单失败", e);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "支付下单失败: " + e.getMessage());
+        }
+    }
+
+    /** 查询支付状态 */
+    public Map<String, String> queryPayStatus(String orderNo) {
+        try {
+            Map<String, String> result = wxPayService.queryOrder(orderNo);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("trade_state", result.get("trade_state"));
+            response.put("trade_state_desc", result.get("trade_state_desc"));
+            response.put("transaction_id", result.get("transaction_id"));
+            response.put("total_fee", result.get("total_fee"));
+            
+            return response;
+        } catch (Exception e) {
+            log.error("查询支付状态失败", e);
+            Map<String, String> response = new HashMap<>();
+            response.put("trade_state", "ERROR");
+            response.put("trade_state_desc", "查询失败");
+            return response;
+        }
     }
 
     /** 支付回调处理 */
@@ -527,8 +597,6 @@ public class OrderService {
         order.setStatus(OrderConstant.STATUS_PAID);
         order.setPayTime(LocalDateTime.now());
         orderMapper.updateById(order);
-
-        // TODO: 发送订单状态消息通知
     }
 
     /** 获取收货地址列表 */
@@ -545,8 +613,7 @@ public class OrderService {
     @Transactional
     public void addAddress(Long userId, Address address) {
         address.setUserId(userId);
-        if (address.getIsDefault() == null || address.getIsDefault() == 1) {
-            // 清除其他默认地址
+        if (address.getIsDefault() == null || address.getIsDefault().equals(1)) {
             addressMapper.update(null,
                     new LambdaQueryWrapper<Address>()
                             .eq(Address::getUserId, userId)
@@ -567,32 +634,57 @@ public class OrderService {
         );
     }
 
-    /** 设置默认地址 */
+    /** 更新收货地址 */
     @Transactional
-    public void setDefaultAddress(Long addressId, Long userId) {
-        addressMapper.update(null,
-                new LambdaQueryWrapper<Address>()
-                        .eq(Address::getUserId, userId)
-                        .eq(Address::getIsDefault, 1)
-        );
+    public void updateAddress(Long addressId, Long userId, Address addressUpdate) {
         Address address = addressMapper.selectOne(
                 new LambdaQueryWrapper<Address>()
                         .eq(Address::getId, addressId)
                         .eq(Address::getUserId, userId)
         );
-        if (address != null) {
-            address.setIsDefault(1);
-            addressMapper.updateById(address);
+        if (address == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "收货地址不存在");
         }
+
+        if (addressUpdate.getReceiverName() != null) {
+            address.setReceiverName(addressUpdate.getReceiverName());
+        }
+        if (addressUpdate.getReceiverPhone() != null) {
+            address.setReceiverPhone(addressUpdate.getReceiverPhone());
+        }
+        if (addressUpdate.getProvince() != null) {
+            address.setProvince(addressUpdate.getProvince());
+        }
+        if (addressUpdate.getCity() != null) {
+            address.setCity(addressUpdate.getCity());
+        }
+        if (addressUpdate.getDistrict() != null) {
+            address.setDistrict(addressUpdate.getDistrict());
+        }
+        if (addressUpdate.getDetailAddress() != null) {
+            address.setDetailAddress(addressUpdate.getDetailAddress());
+        }
+        if (addressUpdate.getIsDefault() != null) {
+            if (addressUpdate.getIsDefault().equals(1)) {
+                addressMapper.update(null,
+                        new LambdaQueryWrapper<Address>()
+                                .eq(Address::getUserId, userId)
+                                .eq(Address::getIsDefault, 1)
+                );
+            }
+            address.setIsDefault(addressUpdate.getIsDefault());
+        }
+        address.setUpdateTime(LocalDateTime.now());
+        addressMapper.updateById(address);
     }
 
     private OrderVO convertToVO(Order order) {
         OrderVO vo = new OrderVO();
         vo.setId(order.getId());
         vo.setOrderNo(order.getOrderNo());
-        vo.setTotalAmount(order.getTotalAmount());
-        vo.setDiscountAmount(order.getDiscountAmount());
-        vo.setPayAmount(order.getPayAmount());
+        vo.setTotalAmount(order.getTotalAmount() != null ? order.getTotalAmount().longValue() : 0L);
+        vo.setDiscountAmount(order.getDiscountAmount() != null ? order.getDiscountAmount().longValue() : 0L);
+        vo.setPayAmount(order.getPayAmount() != null ? order.getPayAmount().longValue() : 0L);
         vo.setReceiverName(order.getReceiverName());
         vo.setReceiverPhone(order.getReceiverPhone());
         vo.setReceiverAddress(order.getReceiverAddress());
@@ -604,7 +696,7 @@ public class OrderService {
         vo.setReceiveTime(order.getReceiveTime() != null ? order.getReceiveTime().toString() : null);
         vo.setCreateTime(order.getCreateTime() != null ? order.getCreateTime().toString() : null);
 
-        vo.setSourceText(order.getSource() == 1 ? "立即购买" : order.getSource() == 2 ? "购物车" : "拍卖");
+        vo.setSourceText(getSourceText(order.getSource()));
         vo.setStatusText(getStatusText(order.getStatus()));
 
         // 加载订单项
@@ -617,7 +709,7 @@ public class OrderService {
             itemVO.setArtworkId(item.getArtworkId());
             itemVO.setTitle(item.getTitle());
             itemVO.setCoverImage(item.getCoverImage());
-            itemVO.setAuthorName(item.getAuthorName());
+            itemVO.setAuthorName("");
             itemVO.setPrice(item.getPrice());
             itemVO.setQuantity(item.getQuantity());
             itemVO.setSubtotal(item.getSubtotal());
@@ -627,16 +719,27 @@ public class OrderService {
         return vo;
     }
 
-    private String getStatusText(Integer status) {
+    private String getSourceText(String source) {
+        if (source == null) return "未知";
+        return switch (source) {
+            case OrderConstant.SOURCE_DIRECT -> "立即购买";
+            case OrderConstant.SOURCE_CART -> "购物车";
+            case OrderConstant.SOURCE_AUCTION -> "拍卖";
+            default -> "未知";
+        };
+    }
+
+    private String getStatusText(String status) {
+        if (status == null) return "未知";
         return switch (status) {
-            case 0 -> "已取消";
-            case 1 -> "待付款";
-            case 2 -> "已付款";
-            case 3 -> "已发货";
-            case 4 -> "已收货";
-            case 5 -> "已完成";
-            case 6 -> "退款中";
-            case 7 -> "已退款";
+            case OrderConstant.STATUS_CANCELLED -> "已取消";
+            case OrderConstant.STATUS_PENDING_PAYMENT -> "待付款";
+            case OrderConstant.STATUS_PAID -> "已付款";
+            case OrderConstant.STATUS_SHIPPED -> "已发货";
+            case OrderConstant.STATUS_RECEIVED -> "已收货";
+            case OrderConstant.STATUS_COMPLETED -> "已完成";
+            case OrderConstant.STATUS_REFUNDING -> "退款中";
+            case OrderConstant.STATUS_REFUNDED -> "已退款";
             default -> "未知";
         };
     }

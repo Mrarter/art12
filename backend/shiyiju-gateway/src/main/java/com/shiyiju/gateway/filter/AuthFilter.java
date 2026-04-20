@@ -24,12 +24,11 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
     /** 无需认证的路径 */
     private static final List<String> WHITE_LIST = Arrays.asList(
-            "/user/wx/login",
-            "/user/wx/auth",
-            "/product/category/list",
+            "/user/auth/wx-login",
+            "/product/categories",
             "/product/artwork/list",
             "/product/artwork/detail",
-            "/product/homepage",
+            "/product/homepage/banners",
             "/auction/session/list",
             "/auction/session/detail",
             "/auction/lot/detail",
@@ -45,8 +44,14 @@ public class AuthFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
         
+        // 去掉 /api 前缀（Gateway路由StripPrefix在后置过滤器中处理）
+        String internalPath = path;
+        if (path.startsWith("/api/")) {
+            internalPath = path.substring(4);
+        }
+        
         // 白名单路径直接放行
-        if (isWhiteList(path)) {
+        if (isWhiteList(internalPath)) {
             return chain.filter(exchange);
         }
 

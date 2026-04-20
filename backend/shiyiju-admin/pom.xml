@@ -6,8 +6,9 @@
     
     <parent>
         <groupId>com.shiyiju</groupId>
-        <artifactId>shiyiju</artifactId>
-        <version>1.0.0</version>
+        <artifactId>shiyiju-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     
     <artifactId>shiyiju-admin</artifactId>
@@ -21,7 +22,7 @@
         <dependency>
             <groupId>com.shiyiju</groupId>
             <artifactId>shiyiju-common</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>

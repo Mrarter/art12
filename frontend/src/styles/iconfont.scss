@@ -1,73 +1,61 @@
-/* 字体图标 - 使用 Unicode 私有区域 */
-@font-face {
-  font-family: "iconfont";
-  src: url('https://at.alicdn.com/t/font_1234567890.woff2') format('woff2');
-}
+/* iconfont 使用 text 组件的 CSS 替代方案 */
 
 .iconfont {
-  font-family: "iconfont" !important;
-  font-size: 32rpx;
+  font-family: sans-serif;
   font-style: normal;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 通用图标 - 使用 CSS 绘制 */
-.iconfont::before {
-  display: inline-block;
-}
+/* 搜索图标 - 使用Unicode */
+.icon-search::before { content: "🔍"; }
 
-/* 搜索 */
-.icon-search::before { content: "\e618"; }
-
-/* 消息/铃铛 */
-.icon-bell::before { content: "\e7e7"; }
+/* 消息/铃铛图标 */
+.icon-bell::before { content: "🔔"; }
 
 /* 箭头 */
-.icon-arrow-right::before { content: "\e6b3"; }
-.icon-arrow-down::before { content: "\e6b4"; }
-.icon-arrow-up::before { content: "\e6b5"; }
+.icon-arrow-right::before { content: "›"; }
+.icon-arrow-down::before { content: "⌄"; }
+.icon-arrow-up::before { content: "⌃"; }
 
 /* 分享 */
-.icon-share::before { content: "\e6c0"; }
+.icon-share::before { content: "↗"; }
 
 /* 收藏/星星 */
-.icon-star::before { content: "\e6ce"; }
-.icon-star-filled::before { content: "\e6cf"; }
+.icon-star::before { content: "☆"; }
+.icon-star-filled::before { content: "★"; }
 
 /* 播放 */
-.icon-play::before { content: "\e6aa"; }
+.icon-play::before { content: "▶"; }
 
 /* 设置 */
-.icon-settings::before { content: "\e6ca"; }
+.icon-settings::before { content: "⚙"; }
 
 /* 订单图标 */
-.icon-wait-pay::before { content: "\e6d0"; }
-.icon-paid::before { content: "\e6d1"; }
-.icon-shipped::before { content: "\e6d2"; }
-.icon-refund::before { content: "\e6d3"; }
+.icon-wait-pay::before { content: "⏳"; }
+.icon-paid::before { content: "✓"; }
+.icon-shipped::before { content: "📦"; }
+.icon-refund::before { content: "↩"; }
 
 /* 菜单图标 */
-.icon-favorite::before { content: "\e6c4"; }
-.icon-history::before { content: "\e6c5"; }
-.icon-location::before { content: "\e6c6"; }
-.icon-cert::before { content: "\e6c7"; }
-.icon-medal::before { content: "\e6c8"; }
-.icon-help::before { content: "\e6c9"; }
-.icon-info::before { content: "\e6cb"; }
+.icon-favorite::before { content: "♥"; }
+.icon-history::before { content: "⏱"; }
+.icon-location::before { content: "📍"; }
+.icon-cert::before { content: "📜"; }
+.icon-medal::before { content: "🏅"; }
+.icon-help::before { content: "❓"; }
+.icon-info::before { content: "ℹ"; }
 
 /* 登录图标 */
-.icon-wechat::before { content: "\e6cc"; }
-.icon-phone::before { content: "\e6cd"; }
+.icon-wechat::before { content: "💬"; }
+.icon-phone::before { content: "📱"; }
 
 /* 关闭 */
-.icon-close::before { content: "\e6d4"; }
+.icon-close::before { content: "✕"; }
 
 /* 皇冠 */
-.icon-crown::before { content: "\e6d5"; }
+.icon-crown::before { content: "👑"; }
 
 /* 勾选 */
-.icon-check::before { content: "\e6d6"; }
+.icon-check::before { content: "✓"; }
 
 /* 筛选 */
-.icon-filter::before { content: "\e6d7"; }
+.icon-filter::before { content: "☰"; }

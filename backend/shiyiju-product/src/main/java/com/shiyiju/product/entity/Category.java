@@ -7,13 +7,13 @@ import java.time.LocalDateTime;
 
 /** 艺术门类表 */
 @Data
-@TableName("categories")
+@TableName("artwork_category")
 public class Category implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String name;
     private String icon;
-    private Integer sortOrder;
+    private Integer sort;  // 字段名与数据库对应
     private Long parentId;
     private Integer status;
     @TableField(fill = FieldFill.INSERT)

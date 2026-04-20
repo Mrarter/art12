@@ -1,0 +1,44 @@
+# 拾艺局 ConfigMap 配置
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shiyiju-config
+  namespace: shiyiju
+data:
+  # 时区配置
+  TZ: "Asia/Shanghai"
+  
+  # Spring 配置
+  SPRING_PROFILES_ACTIVE: "prod"
+  
+  # MySQL 配置
+  MYSQL_HOST: "mysql"
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: "shiyiju"
+  
+  # Redis 配置
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  
+  # Nacos 配置
+  NACOS_SERVER_ADDR: "nacos:8848"
+  NACOS_USERNAME: "nacos"
+  NACOS_PASSWORD: "nacos"
+
+---
+# MySQL 配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: shiyiju
+data:
+  my.cnf: |
+    [mysqld]
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    default-authentication-plugin=mysql_native_password
+    max_connections=1000
+    wait_timeout=28800
+    interactive_timeout=28800

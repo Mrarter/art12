@@ -15,9 +15,9 @@ public class OrderVO implements Serializable {
     private String receiverPhone;
     private String receiverAddress;
     private String remark;
-    private Integer source;
+    private String source;
     private String sourceText;
-    private Integer status;
+    private String status;
     private String statusText;
     private String payTime;
     private String shipTime;

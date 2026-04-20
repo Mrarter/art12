@@ -193,24 +193,51 @@ const initCharts = () => {
 }
 
 onMounted(async () => {
-  // 直接使用模拟数据，无需调用后端 API
-  stats.userCount = 12580
-  stats.artworkCount = 3560
-  stats.orderCount = 8920
-  stats.totalSales = 2568000
+  // 调用后端 API 获取统计数据
+  try {
+    const data = await request.get('/dashboard/stats')
+    stats.userCount = data.userCount || 0
+    stats.artworkCount = data.artworkCount || 0
+    stats.orderCount = data.orderCount || 0
+    stats.totalSales = data.totalSales || 0
+  } catch (e) {
+    // 使用模拟数据
+    stats.userCount = 12580
+    stats.artworkCount = 3560
+    stats.orderCount = 8920
+    stats.totalSales = 2568000
+  }
   
-  pendingArtworks.value = [
-    { id: 1, title: '山水长卷', artistName: '李明轩' },
-    { id: 2, title: '花开富贵', artistName: '王芳' },
-    { id: 3, title: '书法对联', artistName: '张强' }
-  ]
+  // 获取待审核作品
+  try {
+    const auditData = await request.get('/product/audit/list')
+    pendingArtworks.value = (auditData.records || []).slice(0, 5)
+  } catch (e) {
+    pendingArtworks.value = [
+      { id: 1, title: '山水长卷', artistName: '李明轩' },
+      { id: 2, title: '花开富贵', artistName: '王芳' },
+      { id: 3, title: '书法对联', artistName: '张强' }
+    ]
+  }
   
-  latestOrders.value = [
-    { id: 1, orderNo: 'ORD202310010001', amount: 1680, status: 'completed', createTime: '2023-10-15 14:30:22' },
-    { id: 2, orderNo: 'ORD202310010002', amount: 3680, status: 'paid', createTime: '2023-10-15 15:20:11' },
-    { id: 3, orderNo: 'ORD202310010003', amount: 880, status: 'shipped', createTime: '2023-10-15 16:45:33' },
-    { id: 4, orderNo: 'ORD202310010004', amount: 5200, status: 'pending', createTime: '2023-10-15 17:10:05' }
-  ]
+  // 获取最新订单
+  try {
+    const orderData = await request.get('/order/list', { params: { page: 1, size: 5 } })
+    latestOrders.value = (orderData.records || []).map(item => ({
+      id: item.id,
+      orderNo: item.orderNo,
+      amount: item.amount || item.totalAmount,
+      status: item.status,
+      createTime: item.createTime || item.createDate
+    }))
+  } catch (e) {
+    latestOrders.value = [
+      { id: 1, orderNo: 'ORD202310010001', amount: 1680, status: 'completed', createTime: '2023-10-15 14:30:22' },
+      { id: 2, orderNo: 'ORD202310010002', amount: 3680, status: 'paid', createTime: '2023-10-15 15:20:11' },
+      { id: 3, orderNo: 'ORD202310010003', amount: 880, status: 'shipped', createTime: '2023-10-15 16:45:33' },
+      { id: 4, orderNo: 'ORD202310010004', amount: 5200, status: 'pending', createTime: '2023-10-15 17:10:05' }
+    ]
+  }
   
   initCharts()
 })

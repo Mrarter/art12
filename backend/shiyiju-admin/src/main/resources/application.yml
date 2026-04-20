@@ -8,7 +8,8 @@ spring:
     url: jdbc:mysql://localhost:3306/shiyiju?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: root123456
-  redis:
+  data:
+    redis:
     host: localhost
     port: 6379
     password:

@@ -120,14 +120,17 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { page: pagination.page, size: pagination.size, ...searchForm }
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.orderNo) params.orderNo = searchForm.orderNo
+    if (searchForm.buyerName) params.buyerName = searchForm.buyerName
+    if (searchForm.status) params.status = searchForm.status
     if (searchForm.dateRange?.length === 2) {
       params.startDate = searchForm.dateRange[0]
       params.endDate = searchForm.dateRange[1]
     }
     const data = await request.get('/order/list', { params })
-    tableData.value = data.list
-    pagination.total = data.total
+    tableData.value = data.records || data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [
       { orderNo: 'SYJ20240120001', buyerName: '张三', buyerPhone: '13800138001', cover: '', artworkTitle: '山水国画', amount: 58000, freight: 0, status: 'completed', createTime: '2024-01-20 10:30:00' },

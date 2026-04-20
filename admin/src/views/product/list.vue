@@ -318,10 +318,15 @@ const rules = {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { page: pagination.page, size: pagination.size, ...searchForm }
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.artworkId) params.id = searchForm.artworkId
+    if (searchForm.title) params.title = searchForm.title
+    if (searchForm.artistName) params.authorName = searchForm.artistName
+    if (searchForm.categoryId) params.categoryId = searchForm.categoryId
+    if (searchForm.status) params.status = searchForm.status
     const data = await request.get('/product/list', { params })
-    tableData.value = data.list
-    pagination.total = data.total
+    tableData.value = data.records || data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [
       { artworkId: 'A001', title: '山水国画', artistName: '张大千', cover: '', categoryId: 1, categoryName: '国画', price: 58000, originalPrice: 68000, salesCount: 12, favoriteCount: 156, status: 1, createTime: '2024-01-15 10:00:00', stock: 10, description: '经典山水国画作品', distributionEnabled: true, commissionRate: 15, distributionOrders: 28, distributionEarnings: 2436, distributionUsers: 12 },

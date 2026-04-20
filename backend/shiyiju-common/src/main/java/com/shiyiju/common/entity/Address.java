@@ -9,18 +9,18 @@ import java.time.LocalDateTime;
  * 收货地址实体
  */
 @Data
-@TableName("addresses")
+@TableName("user_address")
 public class Address implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
     private String receiverName;
+    @TableField("phone")
     private String receiverPhone;
     private String province;
     private String city;
     private String district;
     private String detailAddress;
-    private String postalCode;
     private Integer isDefault;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

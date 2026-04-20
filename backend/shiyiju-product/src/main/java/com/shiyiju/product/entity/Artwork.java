@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 /** 作品表 */
 @Data
-@TableName("artworks")
+@TableName("artwork")
 public class Artwork implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;

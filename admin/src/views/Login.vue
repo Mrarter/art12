@@ -66,26 +66,11 @@ const handleLogin = async () => {
   
   loading.value = true
   try {
-    // 模拟登录 - 演示模式下直接验证
-    if (form.username === 'admin' && form.password === 'admin123') {
-      const mockData = {
-        token: 'admin_token_' + Date.now(),
-        admin: {
-          id: 1,
-          username: 'admin',
-          role: 'super'
-        }
-      }
-      localStorage.setItem('admin_token', mockData.token)
-      localStorage.setItem('admin_info', JSON.stringify(mockData.admin))
-      router.replace('/')
-    } else {
-      // 尝试请求后端
-      const data = await request.post('/login', form)
-      localStorage.setItem('admin_token', data.token)
-      localStorage.setItem('admin_info', JSON.stringify(data.admin))
-      router.replace('/')
-    }
+    const data = await request.post('/login', form)
+    localStorage.setItem('admin_token', data.token)
+    localStorage.setItem('admin_info', JSON.stringify(data.admin))
+    ElMessage.success('登录成功')
+    router.replace('/')
   } catch (error) {
     console.error(error)
   } finally {

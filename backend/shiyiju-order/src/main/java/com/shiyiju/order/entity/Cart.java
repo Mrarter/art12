@@ -6,17 +6,17 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("carts")
+@TableName("user_cart")
 public class Cart implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
     private Long artworkId;
     private Integer quantity;
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+    @TableField("created_at")
+    private LocalDateTime createdAt;
+    @TableField("updated_at")
+    private LocalDateTime updatedAt;
     @TableLogic
     private Integer deleted;
 }

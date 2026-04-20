@@ -43,7 +43,7 @@ public class ProductService {
         return categoryMapper.selectList(
                 new LambdaQueryWrapper<Category>()
                         .eq(Category::getStatus, 1)
-                        .orderByAsc(Category::getSortOrder)
+                        .orderByAsc(Category::getSort)
         );
     }
 
@@ -211,7 +211,7 @@ public class ProductService {
                         .eq(Banner::getStatus, 1)
                         .le(Banner::getStartTime, LocalDateTime.now())
                         .ge(Banner::getEndTime, LocalDateTime.now())
-                        .orderByAsc(Banner::getSortOrder)
+                        .orderByAsc(Banner::getSort)
         );
     }
 

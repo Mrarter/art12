@@ -58,3 +58,13 @@ export const lockCartItems = (ids) => {
 export const unlockCartItems = (ids) => {
   return request.post('/cart/unlock', { ids })
 }
+
+// 更新购物车数量（别名）
+export const updateCartNum = (id, quantity) => {
+  return updateCartQuantity(id, quantity)
+}
+
+// 从购物车删除（别名）
+export const removeFromCart = (ids) => {
+  return deleteCartItems(ids)
+}
