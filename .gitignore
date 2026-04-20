@@ -12,3 +12,11 @@ $RECYCLE.BIN/
 
 # Node.js
 node_modules/
+
+# Java build
+**/target/
+
+# Nacos
+nacos/target/
+nacos-server.tar.gz
+nacos/data/
