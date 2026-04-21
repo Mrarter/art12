@@ -239,6 +239,12 @@
           "style": {
             "navigationBarTitleText": "发布作品"
           }
+        },
+        {
+          "path": "apply",
+          "style": {
+            "navigationBarTitleText": "艺术家入驻申请"
+          }
         }
       ]
     },
