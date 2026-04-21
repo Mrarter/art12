@@ -111,6 +111,12 @@ const routes = [
             name: 'AuctionRecord',
             component: () => import('@/views/auction/record.vue'),
             meta: { title: '竞拍记录' }
+          },
+          {
+            path: 'deal-report',
+            name: 'AuctionDealReport',
+            component: () => import('@/views/auction/deal-report.vue'),
+            meta: { title: '成交统计' }
           }
         ]
       },
@@ -130,6 +136,12 @@ const routes = [
             name: 'Withdraw',
             component: () => import('@/views/promotion/withdraw.vue'),
             meta: { title: '提现管理' }
+          },
+          {
+            path: 'report',
+            name: 'PromotionReport',
+            component: () => import('@/views/promotion/report.vue'),
+            meta: { title: '统计报表' }
           }
         ]
       },
@@ -180,6 +192,12 @@ const routes = [
             name: 'Admin',
             component: () => import('@/views/system/admin.vue'),
             meta: { title: '管理员' }
+          },
+          {
+            path: 'operation-log',
+            name: 'OperationLog',
+            component: () => import('@/views/system/operation-log.vue'),
+            meta: { title: '操作日志' }
           }
         ]
       }
