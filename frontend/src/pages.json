@@ -45,6 +45,18 @@
       }
     },
     {
+      "path": "pages/order/pay",
+      "style": {
+        "navigationBarTitleText": "支付"
+      }
+    },
+    {
+      "path": "pages/order/logistics",
+      "style": {
+        "navigationBarTitleText": "物流详情"
+      }
+    },
+    {
       "path": "pages/user/index",
       "style": {
         "navigationBarTitleText": "我的",
@@ -205,6 +217,29 @@
           "path": "withdraw-list",
           "style": {
             "navigationBarTitleText": "提现记录"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/search",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "搜索",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/setting",
+      "pages": [
+        {
+          "path": "notification",
+          "style": {
+            "navigationBarTitleText": "通知设置"
           }
         }
       ]
