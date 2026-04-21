@@ -136,3 +136,23 @@ export const getOrderCommission = (orderId) => {
 export const getProductCommission = (productId) => {
   return request.get('/promoter/product-commission', { productId })
 }
+
+/**
+ * 获取佣金配置
+ * GET /promoter/commission/config
+ */
+export const getCommissionConfig = () => {
+  return request.get('/promoter/commission/config')
+}
+
+/**
+ * 获取佣金明细列表
+ * GET /promoter/commission/list
+ * @param {Object} params
+ * @param {number} params.page - 页码
+ * @param {number} params.pageSize - 每页数量
+ * @param {number} params.level - 佣金级别：1-一级 2-二级
+ */
+export const getCommissionList = (params) => {
+  return request.get('/promoter/commission/list', params)
+}
