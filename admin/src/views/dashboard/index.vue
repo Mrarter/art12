@@ -1,114 +1,159 @@
 <template>
   <div class="dashboard">
-    <el-row :gutter="20" class="stat-cards">
+    <!-- 统计卡片 -->
+    <el-row :gutter="20" class="stats-row">
       <el-col :span="6">
-        <div class="stat-card">
-          <div class="icon" style="background: #409eff">
+        <div class="stat-card primary">
+          <div class="stat-icon">
             <el-icon><User /></el-icon>
           </div>
-          <div class="info">
-            <p class="value">{{ stats.userCount }}</p>
-            <p class="label">用户总数</p>
+          <div class="stat-content">
+            <p class="stat-label">用户总数</p>
+            <p class="stat-value">{{ stats.userCount }}</p>
+            <p class="stat-trend">
+              <span class="up">↑ {{ stats.userGrowth }}%</span>
+              <span class="period">较上周</span>
+            </p>
           </div>
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card">
-          <div class="icon" style="background: #67c23a">
+        <div class="stat-card success">
+          <div class="stat-icon">
             <el-icon><Goods /></el-icon>
           </div>
-          <div class="info">
-            <p class="value">{{ stats.artworkCount }}</p>
-            <p class="label">作品总数</p>
+          <div class="stat-content">
+            <p class="stat-label">作品总数</p>
+            <p class="stat-value">{{ stats.productCount }}</p>
+            <p class="stat-trend">
+              <span class="up">↑ {{ stats.productGrowth }}%</span>
+              <span class="period">较上周</span>
+            </p>
           </div>
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card">
-          <div class="icon" style="background: #e6a23c">
-            <el-icon><ShoppingCart /></el-icon>
+        <div class="stat-card warning">
+          <div class="stat-icon">
+            <el-icon><Ticket /></el-icon>
           </div>
-          <div class="info">
-            <p class="value">{{ stats.orderCount }}</p>
-            <p class="label">订单总数</p>
+          <div class="stat-content">
+            <p class="stat-label">订单总数</p>
+            <p class="stat-value">{{ stats.orderCount }}</p>
+            <p class="stat-trend">
+              <span class="up">↑ {{ stats.orderGrowth }}%</span>
+              <span class="period">较上周</span>
+            </p>
           </div>
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card">
-          <div class="icon" style="background: #f56c6c">
-            <el-icon><Coin /></el-icon>
+        <div class="stat-card danger">
+          <div class="stat-icon">
+            <el-icon><Money /></el-icon>
           </div>
-          <div class="info">
-            <p class="value">¥{{ formatMoney(stats.totalSales) }}</p>
-            <p class="label">总销售额</p>
+          <div class="stat-content">
+            <p class="stat-label">成交金额</p>
+            <p class="stat-value">¥{{ formatNumber(stats.amount) }}</p>
+            <p class="stat-trend">
+              <span class="up">↑ {{ stats.amountGrowth }}%</span>
+              <span class="period">较上周</span>
+            </p>
           </div>
         </div>
       </el-col>
     </el-row>
-    
-    <el-row :gutter="20" class="charts">
+
+    <!-- 图表区域 -->
+    <el-row :gutter="20" class="chart-row">
       <el-col :span="16">
         <div class="chart-card">
-          <div class="title">销售趋势</div>
-          <div ref="salesChartRef" class="chart"></div>
+          <div class="chart-header">
+            <span class="chart-title">数据趋势</span>
+            <el-radio-group v-model="chartPeriod" size="small">
+              <el-radio-button label="week">近7天</el-radio-button>
+              <el-radio-button label="month">近30天</el-radio-button>
+              <el-radio-button label="year">近一年</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div ref="trendChartRef" class="chart-container"></div>
         </div>
       </el-col>
       <el-col :span="8">
         <div class="chart-card">
-          <div class="title">作品分类分布</div>
-          <div ref="categoryChartRef" class="chart"></div>
+          <div class="chart-header">
+            <span class="chart-title">订单状态分布</span>
+          </div>
+          <div ref="pieChartRef" class="chart-container"></div>
         </div>
       </el-col>
     </el-row>
-    
-    <el-row :gutter="20" class="lists">
-      <el-col :span="12">
-        <div class="list-card">
-          <div class="title">
-            <span>待审核作品</span>
-            <el-button type="primary" link @click="$router.push('/product/audit')">
-              查看更多
-            </el-button>
+
+    <!-- 待处理事项 -->
+    <el-row :gutter="20" class="todo-row">
+      <el-col :span="8">
+        <div class="todo-card">
+          <div class="todo-header">
+            <span class="todo-title">待审核</span>
+            <el-tag type="warning">{{ todoList.pendingArtist }} 待处理</el-tag>
           </div>
-          <el-table :data="pendingArtworks" style="width: 100%">
-            <el-table-column prop="title" label="作品名称" />
-            <el-table-column prop="artistName" label="艺术家" width="100" />
-            <el-table-column label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag type="warning">待审核</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="80">
-              <template #default="{ row }">
-                <el-button type="primary" link @click="handleAudit(row)">审核</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="todo-list">
+            <div class="todo-item" @click="goPage('/user/artist?tab=pending')">
+              <el-icon><User /></el-icon>
+              <span>艺术家认证</span>
+              <el-badge :value="todoList.pendingArtist" type="warning" />
+            </div>
+            <div class="todo-item" @click="goPage('/product/audit')">
+              <el-icon><Picture /></el-icon>
+              <span>作品审核</span>
+              <el-badge :value="todoList.pendingProduct" type="warning" />
+            </div>
+            <div class="todo-item" @click="goPage('/auction/lot')">
+              <el-icon><Tickets /></el-icon>
+              <span>拍品审核</span>
+              <el-badge :value="todoList.pendingLot" type="warning" />
+            </div>
+          </div>
         </div>
       </el-col>
-      <el-col :span="12">
-        <div class="list-card">
-          <div class="title">
-            <span>最新订单</span>
-            <el-button type="primary" link @click="$router.push('/order/list')">
-              查看更多
-            </el-button>
+      <el-col :span="8">
+        <div class="todo-card">
+          <div class="todo-header">
+            <span class="todo-title">进行中的拍卖</span>
           </div>
-          <el-table :data="latestOrders" style="width: 100%">
-            <el-table-column prop="orderNo" label="订单号" width="180" />
-            <el-table-column prop="amount" label="金额" width="100">
-              <template #default="{ row }">¥{{ row.amount }}</template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getOrderStatusType(row.status)">
-                  {{ getOrderStatusText(row.status) }}
+          <div class="auction-list">
+            <div class="auction-item" v-for="item in activeAuctions" :key="item.id">
+              <div class="auction-info">
+                <span class="auction-name">{{ item.name }}</span>
+                <span class="auction-time">截至 {{ item.endTime }}</span>
+              </div>
+              <div class="auction-stat">
+                <span class="count">{{ item.bidCount }}</span>
+                <span class="label">出价</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="8">
+        <div class="todo-card">
+          <div class="todo-header">
+            <span class="todo-title">最新订单</span>
+            <el-button type="primary" link @click="goPage('/order/list')">查看全部</el-button>
+          </div>
+          <div class="order-list">
+            <div class="order-item" v-for="item in recentOrders" :key="item.orderNo">
+              <div class="order-info">
+                <span class="order-no">{{ item.orderNo }}</span>
+                <span class="order-amount">¥{{ item.amount }}</span>
+              </div>
+              <div class="order-status">
+                <el-tag :type="getOrderStatusType(item.status)" size="small">
+                  {{ getOrderStatusText(item.status) }}
                 </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="createTime" label="时间" width="160" />
-          </el-table>
+              </div>
+            </div>
+          </div>
         </div>
       </el-col>
     </el-row>
@@ -116,32 +161,56 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
-import request from '@/api/request'
+
+const router = useRouter()
 
 const stats = reactive({
-  userCount: 0,
-  artworkCount: 0,
-  orderCount: 0,
-  totalSales: 0
+  userCount: 12580,
+  userGrowth: 12.5,
+  productCount: 8560,
+  productGrowth: 8.3,
+  orderCount: 3240,
+  orderGrowth: 15.2,
+  amount: 2568000,
+  amountGrowth: 18.7
 })
 
-const pendingArtworks = ref([])
-const latestOrders = ref([])
+const chartPeriod = ref('week')
 
-const salesChartRef = ref()
-const categoryChartRef = ref()
+const trendChartRef = ref()
+const pieChartRef = ref()
 
-const formatMoney = (value) => {
-  if (value >= 10000) {
-    return (value / 10000).toFixed(2) + '万'
+const todoList = reactive({
+  pendingArtist: 3,
+  pendingProduct: 5,
+  pendingLot: 2
+})
+
+const activeAuctions = ref([
+  { id: 1, name: '2024春季艺术品拍卖会', endTime: '02-06 18:00', bidCount: 156 },
+  { id: 2, name: '当代艺术专场', endTime: '03-06 20:00', bidCount: 89 },
+  { id: 3, name: '书画精品专场', endTime: '03-21 18:00', bidCount: 42 }
+])
+
+const recentOrders = ref([
+  { orderNo: 'SYJ20240120001', amount: 58000, status: 'completed' },
+  { orderNo: 'SYJ20240120002', amount: 32200, status: 'shipped' },
+  { orderNo: 'SYJ20240120003', amount: 15000, status: 'paid' },
+  { orderNo: 'SYJ20240120004', amount: 8800, status: 'pending' }
+])
+
+const formatNumber = (num) => {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万'
   }
-  return value.toFixed(2)
+  return num.toLocaleString()
 }
 
 const getOrderStatusType = (status) => {
-  const map = { pending: 'warning', paid: 'success', shipped: 'primary', completed: 'success', cancelled: 'info' }
+  const map = { pending: 'warning', paid: 'primary', shipped: 'info', completed: 'success', cancelled: 'info' }
   return map[status] || 'info'
 }
 
@@ -150,177 +219,364 @@ const getOrderStatusText = (status) => {
   return map[status] || status
 }
 
-const handleAudit = (row) => {
-  // TODO: 跳转到审核页面
+const goPage = (path) => {
+  router.push(path)
 }
 
-const initCharts = () => {
-  // 销售趋势图
-  const salesChart = echarts.init(salesChartRef.value)
-  salesChart.setOption({
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['销售额', '订单数'] },
+const initTrendChart = () => {
+  if (!trendChartRef.value) return
+  
+  const chart = echarts.init(trendChartRef.value)
+  const option = {
+    tooltip: {
+      trigger: 'axis'
+    },
+    legend: {
+      data: ['订单数', '成交额'],
+      bottom: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '10%',
+      containLabel: true
+    },
     xAxis: {
       type: 'category',
-      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      boundaryGap: false,
+      data: ['01-15', '01-16', '01-17', '01-18', '01-19', '01-20', '01-21']
     },
     yAxis: [
-      { type: 'value', name: '销售额' },
-      { type: 'value', name: '订单数' }
+      {
+        type: 'value',
+        name: '订单数',
+        axisLabel: {
+          formatter: '{value}'
+        }
+      },
+      {
+        type: 'value',
+        name: '金额(万)',
+        axisLabel: {
+          formatter: '{value}'
+        }
+      }
     ],
     series: [
-      { name: '销售额', type: 'bar', data: [8200, 9320, 9010, 12340, 12900, 13300, 15200] },
-      { name: '订单数', type: 'line', yAxisIndex: 1, data: [12, 18, 15, 25, 28, 32, 38] }
+      {
+        name: '订单数',
+        type: 'line',
+        smooth: true,
+        data: [120, 132, 101, 134, 90, 230, 210],
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(102, 126, 234, 0.5)' },
+            { offset: 1, color: 'rgba(102, 126, 234, 0.1)' }
+          ])
+        },
+        lineStyle: { color: '#667eea' },
+        itemStyle: { color: '#667eea' }
+      },
+      {
+        name: '成交额',
+        type: 'line',
+        smooth: true,
+        yAxisIndex: 1,
+        data: [8.5, 9.2, 7.8, 10.2, 6.5, 15.8, 14.2],
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(118, 75, 162, 0.5)' },
+            { offset: 1, color: 'rgba(118, 75, 162, 0.1)' }
+          ])
+        },
+        lineStyle: { color: '#764ba2' },
+        itemStyle: { color: '#764ba2' }
+      }
     ]
-  })
-  
-  // 分类分布图
-  const categoryChart = echarts.init(categoryChartRef.value)
-  categoryChart.setOption({
-    tooltip: { trigger: 'item' },
-    series: [{
-      type: 'pie',
-      radius: ['40%', '70%'],
-      data: [
-        { value: 335, name: '国画' },
-        { value: 234, name: '油画' },
-        { value: 154, name: '书法' },
-        { value: 135, name: '版画' },
-        { value: 98, name: '雕塑' }
-      ]
-    }]
-  })
+  }
+  chart.setOption(option)
 }
 
-onMounted(async () => {
-  // 调用后端 API 获取统计数据
-  try {
-    const data = await request.get('/dashboard/stats')
-    stats.userCount = data.userCount || 0
-    stats.artworkCount = data.artworkCount || 0
-    stats.orderCount = data.orderCount || 0
-    stats.totalSales = data.totalSales || 0
-  } catch (e) {
-    // 使用模拟数据
-    stats.userCount = 12580
-    stats.artworkCount = 3560
-    stats.orderCount = 8920
-    stats.totalSales = 2568000
-  }
+const initPieChart = () => {
+  if (!pieChartRef.value) return
   
-  // 获取待审核作品
-  try {
-    const auditData = await request.get('/product/audit/list')
-    pendingArtworks.value = (auditData.records || []).slice(0, 5)
-  } catch (e) {
-    pendingArtworks.value = [
-      { id: 1, title: '山水长卷', artistName: '李明轩' },
-      { id: 2, title: '花开富贵', artistName: '王芳' },
-      { id: 3, title: '书法对联', artistName: '张强' }
+  const chart = echarts.init(pieChartRef.value)
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      right: '5%',
+      top: 'center',
+      itemWidth: 10,
+      itemHeight: 10
+    },
+    series: [
+      {
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['35%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 14,
+            fontWeight: 'bold'
+          }
+        },
+        data: [
+          { value: 580, name: '已完成', itemStyle: { color: '#67c23a' } },
+          { value: 320, name: '已发货', itemStyle: { color: '#409eff' } },
+          { value: 280, name: '已付款', itemStyle: { color: '#e6a23c' } },
+          { value: 120, name: '待付款', itemStyle: { color: '#f56c6c' } },
+          { value: 40, name: '已取消', itemStyle: { color: '#909399' } }
+        ]
+      }
     ]
   }
+  chart.setOption(option)
+}
+
+onMounted(() => {
+  nextTick(() => {
+    initTrendChart()
+    initPieChart()
+  })
   
-  // 获取最新订单
-  try {
-    const orderData = await request.get('/order/list', { params: { page: 1, size: 5 } })
-    latestOrders.value = (orderData.records || []).map(item => ({
-      id: item.id,
-      orderNo: item.orderNo,
-      amount: item.amount || item.totalAmount,
-      status: item.status,
-      createTime: item.createTime || item.createDate
-    }))
-  } catch (e) {
-    latestOrders.value = [
-      { id: 1, orderNo: 'ORD202310010001', amount: 1680, status: 'completed', createTime: '2023-10-15 14:30:22' },
-      { id: 2, orderNo: 'ORD202310010002', amount: 3680, status: 'paid', createTime: '2023-10-15 15:20:11' },
-      { id: 3, orderNo: 'ORD202310010003', amount: 880, status: 'shipped', createTime: '2023-10-15 16:45:33' },
-      { id: 4, orderNo: 'ORD202310010004', amount: 5200, status: 'pending', createTime: '2023-10-15 17:10:05' }
-    ]
-  }
-  
-  initCharts()
+  window.addEventListener('resize', () => {
+    if (trendChartRef.value) echarts.getInstanceByDom(trendChartRef.value)?.resize()
+    if (pieChartRef.value) echarts.getInstanceByDom(pieChartRef.value)?.resize()
+  })
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .dashboard {
-  .stat-cards {
-    margin-bottom: 20px;
-    
-    .stat-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      
-      .icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 28px;
-      }
-      
-      .info {
-        .value {
-          font-size: 24px;
-          font-weight: bold;
-          color: #333;
-        }
-        .label {
-          font-size: 14px;
-          color: #999;
-          margin-top: 5px;
-        }
-      }
-    }
+  padding: 20px;
+}
+
+.stats-row {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  display: flex;
+  padding: 20px;
+  border-radius: 8px;
+  color: #fff;
+}
+
+.stat-card.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card.success {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.stat-card.warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stat-card.danger {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-right: 16px;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0 0 8px 0;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.stat-trend {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.stat-trend .up {
+  margin-right: 8px;
+}
+
+.chart-row {
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.chart-container {
+  height: 300px;
+}
+
+.todo-row {
+  margin-bottom: 20px;
+}
+
+.todo-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  height: 100%;
+}
+
+.todo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.todo-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.todo-list {
+  .todo-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #f5f6f8;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
   }
-  
-  .charts {
-    margin-bottom: 20px;
-    
-    .chart-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 4px;
-      
-      .title {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-      }
-      
-      .chart {
-        height: 300px;
-      }
-    }
+
+  .todo-item:hover {
+    background: #e8ecf1;
   }
-  
-  .lists {
-    .list-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 4px;
-      
-      .title {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-      }
-    }
+
+  .todo-item span {
+    flex: 1;
+    margin-left: 12px;
+    font-size: 14px;
+  }
+}
+
+.auction-list {
+  .auction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .auction-item:last-child {
+    border-bottom: none;
+  }
+
+  .auction-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .auction-name {
+    font-size: 14px;
+    color: #333;
+  }
+
+  .auction-time {
+    font-size: 12px;
+    color: #999;
+  }
+
+  .auction-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .auction-stat .count {
+    font-size: 18px;
+    font-weight: 600;
+    color: #667eea;
+  }
+
+  .auction-stat .label {
+    font-size: 12px;
+    color: #999;
+  }
+}
+
+.order-list {
+  .order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .order-item:last-child {
+    border-bottom: none;
+  }
+
+  .order-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .order-no {
+    font-size: 13px;
+    color: #666;
+  }
+
+  .order-amount {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f56c6c;
   }
 }
 </style>

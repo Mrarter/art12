@@ -1,25 +1,31 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <span class="title">用户列表</span>
-      <div class="actions">
-        <el-button type="primary" @click="exportData">导出</el-button>
+      <span class="title">用户管理</span>
+      <div class="header-actions">
+        <el-button type="primary" @click="exportData">
+          <el-icon><Download /></el-icon>
+          导出数据
+        </el-button>
       </div>
     </div>
-    
+
+    <!-- 筛选表单 -->
     <div class="search-form">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="用户ID">
           <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
         </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="searchForm.nickname" placeholder="请输入昵称" clearable />
+        </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable />
         </el-form-item>
-        <el-form-item label="用户身份">
-          <el-select v-model="searchForm.role" placeholder="全部" clearable>
-            <el-option label="全部" value="" />
+        <el-form-item label="身份">
+          <el-select v-model="searchForm.identity" placeholder="全部" clearable>
+            <el-option label="普通用户" value="user" />
             <el-option label="艺术家" value="artist" />
-            <el-option label="收藏家" value="collector" />
             <el-option label="艺荐官" value="promoter" />
           </el-select>
         </el-form-item>
@@ -39,51 +45,95 @@
         </el-form-item>
       </el-form>
     </div>
-    
+
+    <!-- 用户统计 -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">总用户数</span>
+        <span class="stat-value">{{ stats.total }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">艺术家</span>
+        <span class="stat-value">{{ stats.artist }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">艺荐官</span>
+        <span class="stat-value">{{ stats.promoter }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">今日新增</span>
+        <span class="stat-value">{{ stats.todayNew }}</span>
+      </div>
+    </div>
+
+    <!-- 用户列表 -->
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="userId" label="用户ID" width="100" />
       <el-table-column label="用户信息" min-width="200">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="row.avatar" :size="40" />
-            <div>
-              <p>{{ row.nickname }}</p>
-              <p class="phone">{{ row.phone }}</p>
+            <el-avatar :src="row.avatar" :size="50" />
+            <div class="user-detail">
+              <p class="nickname">
+                {{ row.nickname }}
+                <el-tag v-if="row.isVip" type="warning" size="small">VIP</el-tag>
+              </p>
+              <p class="user-id">ID: {{ row.userId }}</p>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="身份" width="120">
+      <el-table-column label="联系方式" width="140">
         <template #default="{ row }">
-          <el-tag v-if="row.isArtist" type="success" size="small">艺术家</el-tag>
-          <el-tag v-if="row.isPromoter" type="warning" size="small">艺荐官</el-tag>
-          <el-tag v-if="!row.isArtist && !row.isPromoter" size="small">收藏家</el-tag>
+          <p>{{ row.phone || '-' }}</p>
+          <p class="email" v-if="row.email">{{ row.email }}</p>
         </template>
       </el-table-column>
-      <el-table-column prop="balance" label="余额" width="120">
-        <template #default="{ row }">¥{{ row.balance }}</template>
-      </el-table-column>
-      <el-table-column prop="orderCount" label="订单数" width="100" />
-      <el-table-column prop="createTime" label="注册时间" width="180" />
-      <el-table-column label="状态" width="100">
+      <el-table-column label="身份" width="140">
         <template #default="{ row }">
-          <el-switch
-            v-model="row.status"
-            :active-value="1"
-            :inactive-value="0"
-            @change="handleStatusChange(row)"
-          />
+          <div class="identity-tags">
+            <el-tag v-if="row.isArtist" type="success" size="small">艺术家</el-tag>
+            <el-tag v-if="row.isPromoter" type="warning" size="small">艺荐官</el-tag>
+            <el-tag v-if="!row.isArtist && !row.isPromoter" type="info" size="small">普通用户</el-tag>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="资产" width="140">
+        <template #default="{ row }">
+          <p class="balance">¥{{ row.balance || 0 }}</p>
+          <p class="coupon" v-if="row.couponCount">优惠券 {{ row.couponCount }} 张</p>
+        </template>
+      </el-table-column>
+      <el-table-column label="消费" width="120">
+        <template #default="{ row }">
+          <p class="consume">¥{{ row.totalConsume || 0 }}</p>
+          <p class="order-count">{{ row.orderCount || 0 }} 笔订单</p>
+        </template>
+      </el-table-column>
+      <el-table-column label="注册信息" width="160">
+        <template #default="{ row }">
+          <p>{{ row.registerTime }}</p>
+          <p class="source">{{ getSourceText(row.source) }}</p>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.status === 'normal' ? 'success' : 'danger'" size="small">
+            {{ row.status === 'normal' ? '正常' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="viewDetail(row)">详情</el-button>
-          <el-button type="primary" link @click="viewOrders(row)">订单</el-button>
-          <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+          <el-button type="primary" link @click="editUser(row)">编辑</el-button>
+          <el-button :type="row.status === 'normal' ? 'danger' : 'success'" link @click="toggleStatus(row)">
+            {{ row.status === 'normal' ? '禁用' : '启用' }}
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
-    
+
     <div class="pagination">
       <el-pagination
         v-model:current-page="pagination.page"
@@ -95,23 +145,57 @@
         @current-change="loadData"
       />
     </div>
-    
+
     <!-- 用户详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="用户详情" width="700px">
-      <el-descriptions :column="2" border>
+    <el-dialog v-model="detailVisible" title="用户详情" width="800px">
+      <el-descriptions :column="2" border v-if="currentUser">
         <el-descriptions-item label="用户ID">{{ currentUser.userId }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ currentUser.phone }}</el-descriptions-item>
         <el-descriptions-item label="昵称">{{ currentUser.nickname }}</el-descriptions-item>
-        <el-descriptions-item label="性别">{{ currentUser.gender === 1 ? '男' : '女' }}</el-descriptions-item>
-        <el-descriptions-item label="身份" :span="2">
-          <el-tag v-if="currentUser.isArtist" type="success">艺术家</el-tag>
-          <el-tag v-if="currentUser.isPromoter" type="warning">艺荐官</el-tag>
-          <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter">收藏家</el-tag>
+        <el-descriptions-item label="手机号">{{ currentUser.phone || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="邮箱">{{ currentUser.email || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="性别">
+          {{ currentUser.gender === 'male' ? '男' : currentUser.gender === 'female' ? '女' : '未知' }}
         </el-descriptions-item>
-        <el-descriptions-item label="余额">¥{{ currentUser.balance }}</el-descriptions-item>
-        <el-descriptions-item label="订单数">{{ currentUser.orderCount }}</el-descriptions-item>
-        <el-descriptions-item label="注册时间" :span="2">{{ currentUser.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="生日">{{ currentUser.birthday || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间">{{ currentUser.registerTime }}</el-descriptions-item>
+        <el-descriptions-item label="注册来源">{{ getSourceText(currentUser.source) }}</el-descriptions-item>
+        <el-descriptions-item label="账户余额">¥{{ currentUser.balance || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="累计消费">¥{{ currentUser.totalConsume || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="订单数量">{{ currentUser.orderCount || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="收藏数量">{{ currentUser.favoriteCount || 0 }}</el-descriptions-item>
       </el-descriptions>
+      
+      <div class="user-tags" v-if="currentUser">
+        <p class="tags-title">身份标签</p>
+        <el-tag v-if="currentUser.isArtist" type="success" size="large">艺术家</el-tag>
+        <el-tag v-if="currentUser.isPromoter" type="warning" size="large">艺荐官</el-tag>
+        <el-tag v-if="currentUser.isVip" type="danger" size="large">VIP会员</el-tag>
+      </div>
+    </el-dialog>
+
+    <!-- 编辑用户弹窗 -->
+    <el-dialog v-model="editVisible" title="编辑用户" width="500px">
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="editForm.nickname" placeholder="请输入昵称" />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="editForm.phone" placeholder="请输入手机号" />
+        </el-form-item>
+        <el-form-item label="身份">
+          <el-checkbox-group v-model="editForm.identities">
+            <el-checkbox label="artist">艺术家</el-checkbox>
+            <el-checkbox label="promoter">艺荐官</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="editForm.remark" type="textarea" :rows="3" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveEdit">确定</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -119,19 +203,41 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
+import { Download } from '@element-plus/icons-vue'
 
 const loading = ref(false)
-const detailVisible = ref(false)
-const currentUser = ref({})
 const tableData = ref([])
+const detailVisible = ref(false)
+const editVisible = ref(false)
+const currentUser = ref({})
+const editFormRef = ref()
+
+const stats = reactive({
+  total: 12580,
+  artist: 856,
+  promoter: 342,
+  todayNew: 28
+})
 
 const searchForm = reactive({
   userId: '',
+  nickname: '',
   phone: '',
-  role: '',
+  identity: '',
   dateRange: []
 })
+
+const editForm = reactive({
+  nickname: '',
+  phone: '',
+  identities: [],
+  remark: ''
+})
+
+const editRules = {
+  nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
+  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }]
+}
 
 const pagination = reactive({
   page: 1,
@@ -139,31 +245,26 @@ const pagination = reactive({
   total: 0
 })
 
+const getSourceText = (source) => {
+  const map = { wechat: '微信', app: 'APP', web: '网页', other: '其他' }
+  return map[source] || source
+}
+
 const loadData = async () => {
   loading.value = true
   try {
-    const params = {
-      page: pagination.page,
-      size: pagination.size
-    }
-    if (searchForm.userId) params.userId = searchForm.userId
-    if (searchForm.phone) params.phone = searchForm.phone
-    if (searchForm.role) params.identity = searchForm.role
-    if (searchForm.dateRange?.length === 2) {
-      params.startDate = searchForm.dateRange[0]
-      params.endDate = searchForm.dateRange[1]
-    }
-    const data = await request.get('/user/list', { params })
-    tableData.value = data.records || data.list || []
-    pagination.total = data.total || 0
+    // 实际API调用
+    // const data = await request.get('/user/list', { params: {...pagination, ...searchForm} })
   } catch (e) {
-    console.error('API 调用失败，使用模拟数据:', e)
+    // 模拟数据
     tableData.value = [
-      { userId: '10001', nickname: '张三', phone: '13800138001', avatar: '', isArtist: true, isPromoter: false, balance: 5000, orderCount: 12, createTime: '2024-01-15 10:30:00', status: 1 },
-      { userId: '10002', nickname: '李四', phone: '13800138002', avatar: '', isArtist: false, isPromoter: true, balance: 12000, orderCount: 28, createTime: '2024-01-16 14:20:00', status: 1 },
-      { userId: '10003', nickname: '王五', phone: '13800138003', avatar: '', isArtist: true, isPromoter: true, balance: 25000, orderCount: 45, createTime: '2024-01-17 09:15:00', status: 1 }
+      { userId: 10001, nickname: '艺术收藏家', avatar: '', phone: '13800138001', email: 'collector@test.com', isVip: true, isArtist: true, isPromoter: false, balance: 5000, couponCount: 5, totalConsume: 125000, orderCount: 12, registerTime: '2023-06-15 10:30:00', source: 'wechat', status: 'normal' },
+      { userId: 10002, nickname: '油画爱好者', avatar: '', phone: '13800138002', email: '', isVip: false, isArtist: false, isPromoter: true, balance: 1200, couponCount: 2, totalConsume: 35000, orderCount: 5, registerTime: '2023-07-20 14:20:00', source: 'app', status: 'normal' },
+      { userId: 10003, nickname: '画家李明', avatar: '', phone: '13800138003', email: 'liming@test.com', isVip: true, isArtist: true, isPromoter: false, balance: 28000, couponCount: 0, totalConsume: 5000, orderCount: 1, registerTime: '2023-08-10 09:15:00', source: 'wechat', status: 'normal' },
+      { userId: 10004, nickname: '张三', avatar: '', phone: '13800138004', email: '', isVip: false, isArtist: false, isPromoter: false, balance: 500, couponCount: 1, totalConsume: 8800, orderCount: 2, registerTime: '2023-09-05 16:45:00', source: 'web', status: 'normal' },
+      { userId: 10005, nickname: '艺术推手', avatar: '', phone: '13800138005', email: '', isVip: true, isArtist: false, isPromoter: true, balance: 15000, couponCount: 8, totalConsume: 68000, orderCount: 8, registerTime: '2023-10-12 11:30:00', source: 'wechat', status: 'normal' }
     ]
-    pagination.total = 3
+    pagination.total = 5
   } finally {
     loading.value = false
   }
@@ -175,39 +276,56 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
-  Object.assign(searchForm, { userId: '', phone: '', role: '', dateRange: [] })
+  Object.assign(searchForm, { userId: '', nickname: '', phone: '', identity: '', dateRange: [] })
   handleSearch()
 }
 
-const handleStatusChange = async (row) => {
-  try {
-    await request.post('/user/updateStatus', { userId: row.userId, status: row.status })
-    ElMessage.success('状态更新成功')
-  } catch (e) {
-    row.status = row.status === 1 ? 0 : 1
-  }
+const exportData = () => {
+  ElMessage.info('正在导出数据...')
+  // TODO: 实现导出功能
 }
 
 const viewDetail = (row) => {
-  currentUser.value = row
+  currentUser.value = { ...row }
   detailVisible.value = true
 }
 
-const viewOrders = (row) => {
-  // TODO: 跳转订单页面
+const editUser = (row) => {
+  currentUser.value = row
+  Object.assign(editForm, {
+    nickname: row.nickname,
+    phone: row.phone,
+    identities: [
+      row.isArtist ? 'artist' : '',
+      row.isPromoter ? 'promoter' : ''
+    ].filter(Boolean),
+    remark: row.remark || ''
+  })
+  editVisible.value = true
 }
 
-const handleDelete = async (row) => {
+const saveEdit = async () => {
+  const valid = await editFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  // 本地模拟更新
+  currentUser.value.nickname = editForm.nickname
+  currentUser.value.phone = editForm.phone
+  currentUser.value.isArtist = editForm.identities.includes('artist')
+  currentUser.value.isPromoter = editForm.identities.includes('promoter')
+  
+  editVisible.value = false
+  ElMessage.success('保存成功')
+  loadData()
+}
+
+const toggleStatus = async (row) => {
+  const action = row.status === 'normal' ? '禁用' : '启用'
   try {
-    await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
-    await request.post('/user/delete', { userId: row.userId })
-    ElMessage.success('删除成功')
-    loadData()
+    await ElMessageBox.confirm(`确定要${action}该用户吗？`, '提示', { type: 'warning' })
+    row.status = row.status === 'normal' ? 'disabled' : 'normal'
+    ElMessage.success(`${action}成功`)
   } catch (e) {}
-}
-
-const exportData = () => {
-  ElMessage.info('导出功能开发中')
 }
 
 onMounted(() => {
@@ -216,14 +334,107 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-container {
+  padding: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.search-form {
+  margin-bottom: 20px;
+}
+
+.stats-bar {
+  display: flex;
+  gap: 40px;
+  padding: 20px 30px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .stat-label {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+    }
+  }
+}
+
 .user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  
-  .phone {
-    font-size: 12px;
-    color: #999;
+  gap: 12px;
+
+  .user-detail {
+    .nickname {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 4px 0;
+    }
+
+    .user-id {
+      font-size: 12px;
+      color: #999;
+      margin: 0;
+    }
+  }
+}
+
+.identity-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.balance, .consume {
+  font-weight: 600;
+  color: #f56c6c;
+  margin: 0 0 4px 0;
+}
+
+.coupon, .order-count, .email, .source {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.user-tags {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+
+  .tags-title {
+    margin-bottom: 12px;
+    font-weight: 500;
   }
 }
 </style>
