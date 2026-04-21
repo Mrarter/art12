@@ -131,3 +131,11 @@ export const bindPhone = (data) => {
     data
   })
 }
+
+// 获取关注列表
+export const getFollowingList = (params) => {
+  return request({
+    url: '/user/following',
+    data: params
+  })
+}

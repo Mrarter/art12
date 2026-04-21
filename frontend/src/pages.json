@@ -92,6 +92,12 @@
       "style": {
         "navigationBarTitleText": "我的收藏"
       }
+    },
+    {
+      "path": "pages/user/following",
+      "style": {
+        "navigationBarTitleText": "我的关注"
+      }
     }
   ],
   "subPackages": [
@@ -171,6 +177,18 @@
           "path": "cert",
           "style": {
             "navigationBarTitleText": "艺术家认证"
+          }
+        },
+        {
+          "path": "manage",
+          "style": {
+            "navigationBarTitleText": "作品管理"
+          }
+        },
+        {
+          "path": "publish",
+          "style": {
+            "navigationBarTitleText": "发布作品"
           }
         }
       ]

@@ -101,3 +101,57 @@ export const getRecommend = (params) => {
 export const getFollowingWorks = (params) => {
   return request.get('/product/following', params)
 }
+
+/**
+ * 获取我的作品列表（艺术家）
+ * GET /product/my-works
+ */
+export const getMyWorks = (params) => {
+  return request.get('/product/my-works', params)
+}
+
+/**
+ * 发布作品
+ * POST /product/publish
+ * @param {Object} data - 作品信息
+ */
+export const publishArtwork = (data) => {
+  return request.post('/product/publish', data)
+}
+
+/**
+ * 更新作品
+ * PUT /product/{id}
+ * @param {number} id - 作品ID
+ * @param {Object} data - 作品信息
+ */
+export const updateArtwork = (id, data) => {
+  return request.put(`/product/${id}`, data)
+}
+
+/**
+ * 更新作品状态
+ * PUT /product/{id}/status
+ * @param {number} id - 作品ID
+ * @param {string} status - 状态: online/offline
+ */
+export const updateWorkStatus = (id, status) => {
+  return request.put(`/product/${id}/status`, { status })
+}
+
+/**
+ * 删除作品
+ * DELETE /product/{id}
+ * @param {number} id - 作品ID
+ */
+export const deleteWork = (id) => {
+  return request.delete(`/product/${id}`)
+}
+
+/**
+ * 获取作品价格变动记录
+ * GET /product/price-records
+ */
+export const getPriceRecords = (params) => {
+  return request.get('/product/price-records', params)
+}
