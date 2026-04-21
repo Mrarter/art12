@@ -105,6 +105,42 @@
       }
     },
     {
+      "path": "pages/distribution/index",
+      "style": {
+        "navigationBarTitleText": "分销中心"
+      }
+    },
+    {
+      "path": "pages/distribution/team",
+      "style": {
+        "navigationBarTitleText": "我的团队"
+      }
+    },
+    {
+      "path": "pages/distribution/customer",
+      "style": {
+        "navigationBarTitleText": "我的客户"
+      }
+    },
+    {
+      "path": "pages/distribution/performance",
+      "style": {
+        "navigationBarTitleText": "分销业绩"
+      }
+    },
+    {
+      "path": "pages/distribution/poster",
+      "style": {
+        "navigationBarTitleText": "推广海报"
+      }
+    },
+    {
+      "path": "pages/distribution/rules",
+      "style": {
+        "navigationBarTitleText": "分销规则"
+      }
+    },
+    {
       "path": "pages/user/index",
       "style": {
         "navigationBarTitleText": "我的",
