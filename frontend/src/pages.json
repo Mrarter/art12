@@ -212,6 +212,12 @@
         "selectedIconPath": "static/tabbar/gallery-active.png"
       },
       {
+        "pagePath": "pages/auction/index",
+        "text": "拍卖",
+        "iconPath": "static/tabbar/auction.png",
+        "selectedIconPath": "static/tabbar/auction-active.png"
+      },
+      {
         "pagePath": "pages/cart/index",
         "text": "购物车",
         "iconPath": "static/tabbar/cart.png",

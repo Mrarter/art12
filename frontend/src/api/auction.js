@@ -1,0 +1,103 @@
+/**
+ * 拍卖模块 API
+ */
+import { request } from './request'
+
+/**
+ * 获取拍卖专场列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 页码
+ * @param {number} params.pageSize - 每页数量
+ * @param {number} params.status - 状态：0-预展中 1-进行中 2-已结束
+ */
+export function getAuctionSessions(params) {
+  return request({
+    url: '/auction/sessions',
+    method: 'GET',
+    data: params
+  })
+}
+
+/**
+ * 获取专场详情
+ * @param {number} sessionId - 专场ID
+ */
+export function getSessionDetail(sessionId) {
+  return request({
+    url: `/auction/sessions/${sessionId}`,
+    method: 'GET'
+  })
+}
+
+/**
+ * 获取专场下的拍品
+ * @param {number} sessionId - 专场ID
+ */
+export function getSessionLots(sessionId) {
+  return request({
+    url: `/auction/sessions/${sessionId}/lots`,
+    method: 'GET'
+  })
+}
+
+/**
+ * 获取拍品详情
+ * @param {number} lotId - 拍品ID
+ */
+export function getLotDetail(lotId) {
+  return request({
+    url: `/auction/lots/${lotId}`,
+    method: 'GET'
+  })
+}
+
+/**
+ * 缴纳保证金
+ * @param {number} sessionId - 专场ID
+ */
+export function payDeposit(sessionId) {
+  return request({
+    url: `/auction/sessions/${sessionId}/deposit`,
+    method: 'POST'
+  })
+}
+
+/**
+ * 竞拍出价
+ * @param {number} lotId - 拍品ID
+ * @param {number} bidPrice - 出价金额
+ */
+export function placeBid(lotId, bidPrice) {
+  return request({
+    url: `/auction/lots/${lotId}/bid`,
+    method: 'POST',
+    data: { bidPrice }
+  })
+}
+
+/**
+ * 获取出价记录
+ * @param {number} lotId - 拍品ID
+ * @param {number} page - 页码
+ * @param {number} pageSize - 每页数量
+ */
+export function getLotBids(lotId, page = 1, pageSize = 20) {
+  return request({
+    url: `/auction/lots/${lotId}/bids`,
+    method: 'GET',
+    data: { page, pageSize }
+  })
+}
+
+/**
+ * 获取我的竞拍
+ * @param {number} page - 页码
+ * @param {number} pageSize - 每页数量
+ */
+export function getMyBids(page = 1, pageSize = 20) {
+  return request({
+    url: '/auction/my-bids',
+    method: 'GET',
+    data: { page, pageSize }
+  })
+}

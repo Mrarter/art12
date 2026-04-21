@@ -1,203 +1,315 @@
 <template>
   <view class="artcircle-page">
-    <!-- 顶部Tab -->
-    <view class="header-tabs">
-      <view class="tab-item" :class="{ active: currentTab === 'follow' }" @click="switchTab('follow')">
-        关注
-      </view>
-      <view class="tab-item" :class="{ active: currentTab === 'hot' }" @click="switchTab('hot')">
-        热门
-      </view>
-      <view class="tab-item" :class="{ active: currentTab === 'latest' }" @click="switchTab('latest')">
-        最新
-      </view>
-    </view>
+    <!-- 顶部话题栏 -->
+    <scroll-view class="topic-scroll" scroll-x>
+      <view
+        class="topic-item"
+        :class="{ active: !currentTopicId }"
+        @click="selectTopic(null)"
+      >全部</view>
+      <view
+        class="topic-item"
+        :class="{ active: currentTopicId === topic.id }"
+        v-for="topic in topics"
+        :key="topic.id"
+        @click="selectTopic(topic.id)"
+      >{{ topic.name }}</view>
+    </scroll-view>
 
     <!-- 内容列表 -->
-    <scroll-view class="content-list" scroll-y @scrolltolower="loadMore">
-      <view class="post-card" v-for="post in postList" :key="post.id">
+    <scroll-view
+      class="content-list"
+      scroll-y
+      @scrolltolower="loadMore"
+    >
+      <view class="post-card" v-for="post in postList" :key="post.id" @click="goDetail(post.id)">
         <!-- 用户信息 -->
         <view class="post-header">
-          <image class="user-avatar" :src="post.userAvatar" mode="aspectFill"></image>
+          <image
+            class="user-avatar"
+            :src="post.userAvatar || '/static/icons/avatar-default.png'"
+            mode="aspectFill"
+          ></image>
           <view class="user-info">
-            <view class="user-name">
-              {{ post.userName }}
-              <view class="identity-badge" v-if="post.identityType">{{ getIdentityLabel(post.identityType) }}</view>
+            <view class="user-name-row">
+              <text class="user-name">{{ post.authorName || '用户' + post.userId }}</text>
+              <view class="identity-badge" v-if="post.identityType">
+                {{ getIdentityLabel(post.identityType) }}
+              </view>
             </view>
-            <text class="post-time">{{ post.createTime }}</text>
+            <text class="post-time">{{ formatTime(post.createTime) }}</text>
           </view>
-          <view class="follow-btn" v-if="!post.isFollowed" @click="followUser(post)">+ 关注</view>
+          <view class="more-btn" @click.stop="showMore(post)">
+            <text>...</text>
+          </view>
         </view>
-        
+
         <!-- 内容 -->
         <view class="post-content">
           <text class="content-text">{{ post.content }}</text>
-          <!-- 图片 -->
-          <view class="content-images" v-if="post.images && post.images.length > 0" :class="'images-' + post.images.length">
-            <image 
-              v-for="(img, idx) in post.images" 
-              :key="idx" 
-              :src="img" 
+
+          <!-- 图片网格 -->
+          <view
+            class="content-images"
+            :class="'images-' + (post.images ? Math.min(post.images.length, 4) : 0)"
+            v-if="post.images && post.images.length > 0"
+          >
+            <image
+              v-for="(img, idx) in post.images.slice(0, 4)"
+              :key="idx"
+              :src="img"
               mode="aspectFill"
-              @click="previewImages(post.images, idx)"
+              class="content-image"
+              @click.stop="previewImages(post.images, idx)"
             ></image>
+            <view class="more-images" v-if="post.images.length > 4" @click.stop>
+              +{{ post.images.length - 4 }}
+            </view>
+          </view>
+
+          <!-- 话题标签 -->
+          <view class="topic-tag" v-if="post.topicId && getTopicName(post.topicId)">
+            # {{ getTopicName(post.topicId) }}
           </view>
         </view>
-        
+
         <!-- 作品关联 -->
-        <view class="post-product" v-if="post.product" @click="goProduct(post.product.id)">
-          <image class="product-image" :src="post.product.cover" mode="aspectFill"></image>
+        <view class="post-product" v-if="post.artworkId" @click.stop="goProduct(post.artworkId)">
+          <image
+            class="product-image"
+            :src="post.artworkCover || '/static/icons/artwork-default.png'"
+            mode="aspectFill"
+          ></image>
           <view class="product-info">
-            <text class="product-title">{{ post.product.title }}</text>
-            <text class="product-price">¥{{ post.product.price }}</text>
+            <text class="product-title">{{ post.artworkTitle || '关联作品' }}</text>
+            <text class="product-price" v-if="post.artworkPrice">¥{{ formatPrice(post.artworkPrice) }}</text>
           </view>
         </view>
-        
+
         <!-- 互动栏 -->
         <view class="interaction-bar">
-          <view class="interaction-item" @click="toggleLike(post)">
-            <u-icon :name="post.isLiked ? 'thumb-up-fill' : 'thumb-up'" :color="post.isLiked ? '#667eea' : '#999'" size="20"></u-icon>
-            <text>{{ post.likeCount }}</text>
+          <view class="interaction-item" @click.stop="toggleLike(post)">
+            <u-icon
+              :name="post.isLiked ? 'thumb-up-fill' : 'thumb-up'"
+              :color="post.isLiked ? '#e74c3c' : '#999'"
+              size="22"
+            ></u-icon>
+            <text :style="{ color: post.isLiked ? '#e74c3c' : '#999' }">
+              {{ post.likeCount || 0 }}
+            </text>
           </view>
-          <view class="interaction-item" @click="goComment(post.id)">
-            <u-icon name="chat" size="20" color="#999"></u-icon>
-            <text>{{ post.commentCount }}</text>
+          <view class="interaction-item" @click.stop="goDetail(post.id)">
+            <u-icon name="chat" size="22" color="#999"></u-icon>
+            <text>{{ post.commentCount || 0 }}</text>
           </view>
-          <view class="interaction-item" @click="sharePost(post)">
-            <u-icon name="share" size="20" color="#999"></u-icon>
-            <text>分享</text>
+          <view class="interaction-item" @click.stop="sharePost(post)">
+            <u-icon name="share" size="22" color="#999"></u-icon>
+            <text>{{ post.shareCount || 0 }}</text>
           </view>
         </view>
       </view>
-      
+
       <!-- 加载更多 -->
-      <view class="load-more" v-if="hasMore">
+      <view class="load-more" v-if="loading">
         <u-loading mode="circle"></u-loading>
         <text>加载中...</text>
       </view>
+      <view class="no-more" v-else-if="postList.length > 0">
+        <text>— 没有更多了 —</text>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-state" v-if="!loading && postList.length === 0">
+        <image class="empty-icon" src="/static/icons/post-empty.png" mode="aspectFit"></image>
+        <text class="empty-text">暂无动态，快来发布第一条吧</text>
+      </view>
     </scroll-view>
-    
+
     <!-- 发布按钮 -->
     <view class="publish-btn" @click="goPublish">
-      <u-icon name="plus" size="28" color="#fff"></u-icon>
+      <u-icon name="plus" size="32" color="#fff"></u-icon>
     </view>
   </view>
 </template>
 
 <script>
+import { getPosts, getTopics, likePost, unlikePost } from '@/api/community'
+
 export default {
   data() {
     return {
-      currentTab: 'follow',
+      currentTopicId: null,
+      topics: [],
       postList: [],
       page: 1,
       pageSize: 10,
-      hasMore: false
+      loading: false,
+      noMore: false
     }
   },
-  
+
   onLoad() {
+    this.loadTopics()
     this.loadPosts()
   },
-  
+
+  onShow() {
+    // 刷新数据
+  },
+
+  onPullDownRefresh() {
+    this.refresh()
+    setTimeout(() => uni.stopPullDownRefresh(), 500)
+  },
+
   methods: {
-    async loadPosts() {
-      // 模拟数据
-      const mockPosts = [
-        {
-          id: 1,
-          userName: '艺术馆',
-          userAvatar: '/static/avatar/demo.jpg',
-          identityType: 'gallery',
-          isFollowed: false,
-          content: '今日上新一幅张大千先生的山水长卷，欢迎各位艺术爱好者鉴赏。',
-          images: ['/static/product/demo1.jpg', '/static/product/demo2.jpg'],
-          product: {
-            id: 1,
-            title: '山水长卷',
-            cover: '/static/product/demo1.jpg',
-            price: 128000
-          },
-          likeCount: 128,
-          commentCount: 23,
-          isLiked: false,
-          createTime: '2小时前'
-        },
-        {
-          id: 2,
-          userName: '李老师',
-          userAvatar: '/static/avatar/demo.jpg',
-          identityType: 'promoter',
-          isFollowed: true,
-          content: '分享一幅齐白石的虾趣图，栩栩如生，让人叹为观止！',
-          images: ['/static/product/demo2.jpg'],
-          product: null,
-          likeCount: 256,
-          commentCount: 45,
-          isLiked: true,
-          createTime: '5小时前'
+    async loadTopics() {
+      try {
+        const res = await getTopics()
+        if (res.code === 200) {
+          this.topics = res.data || []
         }
-      ]
-      
-      this.postList = mockPosts
-      this.hasMore = false
+      } catch (e) {
+        console.error('加载话题失败', e)
+      }
     },
-    
-    switchTab(tab) {
-      this.currentTab = tab
+
+    async loadPosts() {
+      if (this.loading || this.noMore) return
+
+      this.loading = true
+      try {
+        const res = await getPosts({
+          page: this.page,
+          pageSize: this.pageSize,
+          topicId: this.currentTopicId
+        })
+
+        if (res.code === 200) {
+          const data = res.data
+          if (this.page === 1) {
+            this.postList = data.records || []
+          } else {
+            this.postList = [...this.postList, ...(data.records || [])]
+          }
+          this.noMore = this.postList.length >= (data.total || 0)
+        }
+      } catch (e) {
+        console.error('加载帖子失败', e)
+        uni.showToast({ title: '加载失败', icon: 'none' })
+      } finally {
+        this.loading = false
+      }
+    },
+
+    refresh() {
       this.page = 1
-      this.postList = []
+      this.noMore = false
       this.loadPosts()
     },
-    
+
+    selectTopic(topicId) {
+      if (this.currentTopicId === topicId) return
+      this.currentTopicId = topicId
+      this.refresh()
+    },
+
     loadMore() {
-      if (this.hasMore) {
+      if (!this.noMore) {
         this.page++
         this.loadPosts()
       }
     },
-    
+
+    async toggleLike(post) {
+      try {
+        if (post.isLiked) {
+          await unlikePost(post.id)
+          post.isLiked = false
+          post.likeCount = Math.max(0, (post.likeCount || 0) - 1)
+        } else {
+          await likePost(post.id)
+          post.isLiked = true
+          post.likeCount = (post.likeCount || 0) + 1
+        }
+      } catch (e) {
+        console.error('点赞失败', e)
+      }
+    },
+
     getIdentityLabel(type) {
       const labels = {
         artist: '艺术家',
         gallery: '画廊',
         dealer: '画商',
-        promoter: '艺荐官'
+        promoter: '艺荐官',
+        collector: '收藏家'
       }
       return labels[type] || ''
     },
-    
-    followUser(post) {
-      post.isFollowed = true
-      uni.showToast({ title: '关注成功', icon: 'success' })
+
+    getTopicName(topicId) {
+      const topic = this.topics.find(t => t.id === topicId)
+      return topic ? topic.name : ''
     },
-    
-    toggleLike(post) {
-      post.isLiked = !post.isLiked
-      post.likeCount += post.isLiked ? 1 : -1
+
+    formatTime(timeStr) {
+      if (!timeStr) return ''
+      const date = new Date(timeStr)
+      const now = new Date()
+      const diff = now - date
+
+      if (diff < 60000) return '刚刚'
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+      if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
+
+      return `${date.getMonth() + 1}/${date.getDate()}`
     },
-    
+
+    formatPrice(price) {
+      if (!price) return '0'
+      return Number(price).toLocaleString()
+    },
+
     previewImages(images, index) {
       uni.previewImage({
         current: index,
         urls: images
       })
     },
-    
-    goProduct(id) {
-      uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
+
+    goDetail(postId) {
+      uni.navigateTo({ url: `/pages/artcircle/detail?id=${postId}` })
     },
-    
-    goComment(postId) {
-      uni.navigateTo({ url: `/pages/artcircle/comment?id=${postId}` })
+
+    goProduct(artworkId) {
+      uni.navigateTo({ url: `/pages/gallery/detail?id=${artworkId}` })
     },
-    
+
     sharePost(post) {
       uni.showShareMenu({
         withShareTicket: true
       })
     },
-    
+
+    showMore(post) {
+      uni.showActionSheet({
+        itemList: ['举报', '分享', '取消'],
+        success: (res) => {
+          if (res.tapIndex === 0) {
+            this.reportPost(post)
+          } else if (res.tapIndex === 1) {
+            this.sharePost(post)
+          }
+        }
+      })
+    },
+
+    reportPost(post) {
+      uni.showToast({ title: '举报成功', icon: 'success' })
+    },
+
     goPublish() {
       uni.navigateTo({ url: '/pages/artcircle/publish' })
     }
@@ -211,42 +323,29 @@ export default {
   background: #f5f5f5;
 }
 
-.header-tabs {
-  display: flex;
+.topic-scroll {
+  white-space: nowrap;
   background: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 99;
+  padding: 20rpx 0;
 }
 
-.tab-item {
-  flex: 1;
-  text-align: center;
-  padding: 30rpx 0;
-  font-size: 30rpx;
+.topic-item {
+  display: inline-block;
+  padding: 12rpx 32rpx;
+  margin-left: 20rpx;
+  font-size: 28rpx;
   color: #666;
-  position: relative;
+  background: #f5f5f5;
+  border-radius: 30rpx;
 }
 
-.tab-item.active {
-  color: #333;
-  font-weight: 600;
-}
-
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60rpx;
-  height: 4rpx;
-  background: #333;
-  border-radius: 2rpx;
+.topic-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
 }
 
 .content-list {
-  height: calc(100vh - 100rpx);
+  height: calc(100vh - 120rpx);
   padding: 20rpx;
 }
 
@@ -268,28 +367,32 @@ export default {
   height: 80rpx;
   border-radius: 50%;
   margin-right: 20rpx;
+  background: #f0f0f0;
 }
 
 .user-info {
   flex: 1;
 }
 
-.user-name {
+.user-name-row {
   display: flex;
   align-items: center;
-  font-size: 28rpx;
+  margin-bottom: 6rpx;
+}
+
+.user-name {
+  font-size: 30rpx;
   color: #333;
   font-weight: 500;
-  margin-bottom: 6rpx;
 }
 
 .identity-badge {
   font-size: 18rpx;
   color: #fff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rpx 10rpx;
-  border-radius: 4rpx;
-  margin-left: 10rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  margin-left: 12rpx;
 }
 
 .post-time {
@@ -297,12 +400,11 @@ export default {
   color: #999;
 }
 
-.follow-btn {
-  padding: 10rpx 24rpx;
-  background: #333;
-  color: #fff;
-  border-radius: 30rpx;
-  font-size: 24rpx;
+.more-btn {
+  padding: 10rpx 20rpx;
+  color: #999;
+  font-size: 36rpx;
+  font-weight: bold;
 }
 
 .post-content {
@@ -310,7 +412,7 @@ export default {
 }
 
 .content-text {
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: #333;
   line-height: 1.6;
   margin-bottom: 16rpx;
@@ -319,6 +421,7 @@ export default {
 .content-images {
   display: grid;
   gap: 8rpx;
+  margin-bottom: 16rpx;
 }
 
 .images-1 {
@@ -333,14 +436,40 @@ export default {
   grid-template-columns: repeat(2, 1fr);
 }
 
-.content-images image {
+.content-image {
   width: 100%;
-  height: 300rpx;
+  height: 220rpx;
+  border-radius: 8rpx;
+  background: #f0f0f0;
+}
+
+.images-1 .content-image {
+  height: 400rpx;
+}
+
+.more-images {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 220rpx;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  color: #fff;
   border-radius: 8rpx;
 }
 
-.images-1 image {
-  height: 400rpx;
+.images-4 {
+  position: relative;
+}
+
+.topic-tag {
+  display: inline-block;
+  font-size: 26rpx;
+  color: #667eea;
 }
 
 .post-product {
@@ -357,6 +486,7 @@ export default {
   height: 120rpx;
   border-radius: 8rpx;
   margin-right: 20rpx;
+  background: #f0f0f0;
 }
 
 .product-info {
@@ -391,16 +521,15 @@ export default {
 
 .interaction-item text {
   margin-left: 10rpx;
-  font-size: 24rpx;
-  color: #999;
+  font-size: 26rpx;
 }
 
-.load-more {
+.load-more, .no-more {
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 30rpx 0;
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #999;
 }
 
@@ -408,17 +537,36 @@ export default {
   margin-left: 12rpx;
 }
 
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 200rpx;
+}
+
+.empty-icon {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 30rpx;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
 .publish-btn {
   position: fixed;
-  right: 30rpx;
-  bottom: 60rpx;
-  width: 100rpx;
-  height: 100rpx;
+  right: 40rpx;
+  bottom: 80rpx;
+  width: 110rpx;
+  height: 110rpx;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8rpx 30rpx rgba(102, 126, 234, 0.4);
 }
 </style>
