@@ -149,6 +149,7 @@
 
 <script>
 import { getLotDetail, placeBid, getLotBids } from '@/api/auction'
+import { connectAuction, disconnectAuction, onBid, onNewBid, onAuctionEnd } from '@/utils/websocket.js'
 
 export default {
   data() {
@@ -174,7 +175,7 @@ export default {
       remainSeconds: 0,
       timer: null,
       danmuList: [],
-      wsTask: null
+      wsConnected: false
     }
   },
 
@@ -213,6 +214,7 @@ export default {
       this.loadLotDetail()
       this.loadBids()
       this.startCountdown()
+      this.initWebSocket()
     }
   },
 
@@ -318,22 +320,53 @@ export default {
       }
     },
 
-    // WebSocket 连接（预留）
-    connectWebSocket() {
-      // const wsUrl = `ws://localhost:8080/ws/auction/${this.lotId}`
-      // this.wsTask = uni.connectSocket({
-      //   url: wsUrl,
-      //   success: () => {
-      //     console.log('WebSocket 连接成功')
-      //   }
-      // })
-      // // 处理消息...
+    // 连接 WebSocket
+    initWebSocket() {
+      if (this.lotInfo.status !== 1) return
+      
+      connectAuction(this.lotId)
+        .then(() => {
+          this.wsConnected = true
+          console.log('拍卖 WebSocket 连接成功')
+        })
+        .catch(err => {
+          console.log('拍卖 WebSocket 连接失败，将使用轮询', err)
+        })
+
+      // 监听出价
+      onBid((data) => {
+        if (data.lotId === this.lotId) {
+          this.lotInfo.currentPrice = data.price
+          this.lotInfo.bidCount = data.bidCount
+          this.calculateMinBid()
+          this.addDanmu({ userName: data.userName, price: data.price })
+        }
+      })
+
+      // 监听新出价弹幕
+      onNewBid((data) => {
+        if (data.lotId === this.lotId) {
+          this.addDanmu({ userName: data.userName, price: data.price })
+        }
+      })
+
+      // 监听拍卖结束
+      onAuctionEnd((data) => {
+        if (data.lotId === this.lotId) {
+          this.lotInfo.status = 2
+          uni.showModal({
+            title: '拍卖结束',
+            content: data.winnerId === getApp().globalData.userId ? '恭喜您竞拍成功！' : '很遗憾，您未能竞拍成功',
+            showCancel: false
+          })
+        }
+      })
     },
 
     closeWebSocket() {
-      if (this.wsTask) {
-        this.wsTask.close()
-        this.wsTask = null
+      if (this.wsConnected) {
+        disconnectAuction()
+        this.wsConnected = false
       }
     },
 

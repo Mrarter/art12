@@ -101,3 +101,49 @@ export function getMyBids(page = 1, pageSize = 20) {
     data: { page, pageSize }
   })
 }
+
+/**
+ * 获取竞拍提醒列表
+ */
+export function getAuctionReminders() {
+  return request({
+    url: '/auction/reminders',
+    method: 'GET'
+  })
+}
+
+/**
+ * 设置竞拍提醒
+ * @param {Object} data - 提醒设置
+ */
+export function setReminder(data) {
+  return request({
+    url: '/auction/reminders',
+    method: 'POST',
+    data
+  })
+}
+
+/**
+ * 更新竞拍提醒
+ * @param {number} id - 提醒ID
+ * @param {Object} data - 更新内容
+ */
+export function updateReminder(id, data) {
+  return request({
+    url: `/auction/reminders/${id}`,
+    method: 'PUT',
+    data
+  })
+}
+
+/**
+ * 删除竞拍提醒
+ * @param {number} id - 提醒ID
+ */
+export function deleteReminder(id) {
+  return request({
+    url: `/auction/reminders/${id}`,
+    method: 'DELETE'
+  })
+}

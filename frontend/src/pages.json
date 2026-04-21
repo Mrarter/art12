@@ -132,6 +132,12 @@
           "style": {
             "navigationBarTitleText": "竞拍出价"
           }
+        },
+        {
+          "path": "reminder",
+          "style": {
+            "navigationBarTitleText": "竞拍提醒"
+          }
         }
       ]
     },
