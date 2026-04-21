@@ -42,6 +42,12 @@ const routes = [
             name: 'PromoterList',
             component: () => import('@/views/user/promoter.vue'),
             meta: { title: '艺荐官管理' }
+          },
+          {
+            path: 'user-profile',
+            name: 'UserProfile',
+            component: () => import('@/views/user/user-profile.vue'),
+            meta: { title: '用户画像' }
           }
         ]
       },
@@ -167,6 +173,12 @@ const routes = [
             name: 'Topic',
             component: () => import('@/views/community/topic.vue'),
             meta: { title: '话题管理' }
+          },
+          {
+            path: 'content-review',
+            name: 'ContentReview',
+            component: () => import('@/views/community/content-review.vue'),
+            meta: { title: '内容审核' }
           }
         ]
       },
