@@ -9,7 +9,24 @@
           <text class="user-phone" v-if="userInfo.phone">{{ userInfo.phone }}</text>
         </view>
       </view>
-      <u-icon name="arrow-right" size="18" color="#fff" @click="goLogin"></u-icon>
+      <!-- 身份切换按钮 -->
+      <view class="identity-switcher" v-if="userStore.isAuthenticated" @click="showIdentityPicker">
+        <text class="current-identity">{{ getCurrentIdentityText() }}</text>
+        <u-icon name="arrow-down" size="14" color="#fff"></u-icon>
+      </view>
+    </view>
+
+    <!-- 当前身份提示 -->
+    <view class="identity-banner" v-if="activeIdentity !== 'collector'" :class="'identity-' + activeIdentity">
+      <image class="banner-icon" :src="getIdentityIcon()" mode="aspectFit"></image>
+      <view class="banner-content">
+        <text class="banner-title">{{ getActiveIdentityTitle() }}</text>
+        <text class="banner-desc">{{ getActiveIdentityDesc() }}</text>
+      </view>
+      <view class="banner-action" @click="switchToIdentity('collector')">
+        <text>切换为收藏家</text>
+        <u-icon name="arrow-right" size="12" color="#fff"></u-icon>
+      </view>
     </view>
 
     <!-- 身份入口区 -->
@@ -146,7 +163,8 @@ export default {
         { id: 'about', name: '关于我们', icon: '/static/icons/about.png', path: '/pages/about/index' }
       ],
       showArtistEntry: true,
-      showPromoterEntry: true
+      showPromoterEntry: true,
+      activeIdentity: 'collector' // 当前活跃身份: collector/artist/promoter
     }
   },
   
@@ -245,6 +263,95 @@ export default {
     
     goSettings() {
       uni.navigateTo({ url: '/pages/settings/index' })
+    },
+    
+    // 获取当前身份文本
+    getCurrentIdentityText() {
+      const map = {
+        collector: '收藏家',
+        artist: '艺术家',
+        promoter: '艺荐官'
+      }
+      return map[this.activeIdentity] || '收藏家'
+    },
+    
+    // 获取身份图标
+    getIdentityIcon() {
+      const icons = {
+        artist: '/static/icons/artist.png',
+        promoter: '/static/icons/promoter.png'
+      }
+      return icons[this.activeIdentity] || '/static/icons/collector.png'
+    },
+    
+    // 获取活跃身份标题
+    getActiveIdentityTitle() {
+      const titles = {
+        artist: '我是艺术家',
+        promoter: '我是艺荐官'
+      }
+      return titles[this.activeIdentity] || ''
+    },
+    
+    // 获取活跃身份描述
+    getActiveIdentityDesc() {
+      const descs = {
+        artist: '发布作品，展示艺术才华',
+        promoter: '分享艺术，获得佣金收益'
+      }
+      return descs[this.activeIdentity] || ''
+    },
+    
+    // 显示身份选择器
+    showIdentityPicker() {
+      uni.showActionSheet({
+        itemList: ['收藏家', '艺术家', '艺荐官'],
+        success: (res) => {
+          const identities = ['collector', 'artist', 'promoter']
+          this.switchToIdentity(identities[res.tapIndex])
+        }
+      })
+    },
+    
+    // 切换身份
+    switchToIdentity(identity) {
+      this.activeIdentity = identity
+      // 根据身份跳转不同页面
+      switch (identity) {
+        case 'artist':
+          if (this.userInfo.isArtist) {
+            this.goArtistHome()
+          } else {
+            uni.showModal({
+              title: '成为艺术家',
+              content: '您还未认证艺术家，是否申请成为艺术家？',
+              success: (res) => {
+                if (res.confirm) {
+                  uni.navigateTo({ url: '/pages/artist/apply' })
+                }
+              }
+            })
+          }
+          break
+        case 'promoter':
+          if (this.userInfo.isPromoter) {
+            this.goPromoter()
+          } else {
+            uni.showModal({
+              title: '成为艺荐官',
+              content: '您还未开通艺荐官，是否申请开通？',
+              success: (res) => {
+                if (res.confirm) {
+                  uni.navigateTo({ url: '/pages/promoter/apply' })
+                }
+              }
+            })
+          }
+          break
+        default:
+          // 收藏家身份，留在当前页面
+          uni.showToast({ title: '已切换为收藏家', icon: 'success' })
+      }
     }
   }
 }
@@ -293,6 +400,74 @@ export default {
 .user-phone {
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.8);
+}
+
+.identity-switcher {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 10rpx 20rpx;
+  border-radius: 30rpx;
+}
+
+.current-identity {
+  font-size: 24rpx;
+  color: #fff;
+  margin-right: 8rpx;
+}
+
+.identity-banner {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 30rpx;
+  margin: 20rpx;
+  border-radius: 16rpx;
+}
+
+.identity-banner.identity-artist {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.identity-banner.identity-promoter {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.banner-icon {
+  width: 60rpx;
+  height: 60rpx;
+  margin-right: 20rpx;
+}
+
+.banner-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.banner-title {
+  font-size: 30rpx;
+  color: #fff;
+  font-weight: 600;
+}
+
+.banner-desc {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 4rpx;
+}
+
+.banner-action {
+  display: flex;
+  align-items: center;
+  padding: 10rpx 20rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20rpx;
+}
+
+.banner-action text {
+  font-size: 22rpx;
+  color: #fff;
+  margin-right: 6rpx;
 }
 
 .identity-section {

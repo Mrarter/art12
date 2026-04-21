@@ -164,6 +164,57 @@
           </view>
         </view>
         
+        <!-- 艺术家筛选 -->
+        <view class="filter-content" v-if="filterType === 'more'">
+          <view class="filter-title">艺术家</view>
+          <view class="artist-search">
+            <input class="artist-input" type="text" v-model="artistKeyword" placeholder="搜索艺术家名称" @confirm="searchArtist" />
+            <view class="search-btn" @click="searchArtist">搜索</view>
+          </view>
+          <view class="artist-list" v-if="artistList.length > 0">
+            <view class="filter-title-sub">推荐艺术家</view>
+            <view class="artist-chips">
+              <view 
+                class="artist-chip" 
+                :class="{ active: filterParams.artistId === item.id }"
+                v-for="item in artistList" 
+                :key="item.id"
+                @click="selectArtist(item)"
+              >
+                <image class="artist-avatar" :src="item.avatar" mode="aspectFill"></image>
+                <text class="artist-name">{{ item.name }}</text>
+                <view class="artist-badge" v-if="item.badge">{{ item.badge }}</view>
+              </view>
+            </view>
+          </view>
+          
+          <view class="filter-title-sub" style="margin-top: 30rpx;">持有时长</view>
+          <view class="filter-options">
+            <view 
+              class="filter-option" 
+              :class="{ active: filterParams.holdTime === item.value }"
+              v-for="item in holdTimeOptions" 
+              :key="item.value"
+              @click="selectHoldTime(item)"
+            >
+              {{ item.label }}
+            </view>
+          </view>
+          
+          <view class="filter-title-sub" style="margin-top: 30rpx;">艺术家类型</view>
+          <view class="filter-options">
+            <view 
+              class="filter-option" 
+              :class="{ active: filterParams.artistType === item.value }"
+              v-for="item in artistTypeOptions" 
+              :key="item.value"
+              @click="selectArtistType(item)"
+            >
+              {{ item.label }}
+            </view>
+          </view>
+        </view>
+        
         <view class="filter-actions">
           <view class="btn-reset" @click="resetFilter">重置</view>
           <view class="btn-confirm" @click="confirmFilter">确定</view>
@@ -208,6 +259,19 @@ export default {
         { label: '中尺寸(50-100cm)', value: 'medium' },
         { label: '大尺寸(>100cm)', value: 'large' }
       ],
+      holdTimeOptions: [
+        { label: '不限', value: '' },
+        { label: '3个月内', value: '3m' },
+        { label: '6个月内', value: '6m' },
+        { label: '1年内', value: '1y' },
+        { label: '1年以上', value: '1y+' }
+      ],
+      artistTypeOptions: [
+        { label: '不限', value: '' },
+        { label: '大师级', value: 'master' },
+        { label: '人气艺术家', value: 'popular' },
+        { label: '认证艺术家', value: 'verified' }
+      ],
       currentSort: { label: '综合排序', value: 'default' },
       productList: [],
       page: 1,
@@ -222,8 +286,20 @@ export default {
         year: '',
         size: '',
         holdTime: '',
-        region: ''
-      }
+        region: '',
+        artistId: '',
+        artistName: '',
+        artistType: ''
+      },
+      artistKeyword: '',
+      artistList: [
+        { id: 1, name: '张大千', avatar: '', badge: '大师级' },
+        { id: 2, name: '齐白石', avatar: '', badge: '大师级' },
+        { id: 3, name: '徐悲鸿', avatar: '', badge: '大师级' },
+        { id: 4, name: '潘天寿', avatar: '', badge: '大师级' },
+        { id: 5, name: '李可染', avatar: '', badge: '人气艺术家' },
+        { id: 6, name: '吴冠中', avatar: '', badge: '大师级' }
+      ]
     }
   },
   
@@ -321,6 +397,33 @@ export default {
       this.filterParams.size = item.value
     },
     
+    selectHoldTime(item) {
+      this.filterParams.holdTime = item.value
+    },
+    
+    selectArtistType(item) {
+      this.filterParams.artistType = item.value
+    },
+    
+    searchArtist() {
+      // 搜索艺术家
+      if (this.artistKeyword) {
+        this.artistList = this.artistList.filter(a => 
+          a.name.includes(this.artistKeyword)
+        )
+      }
+    },
+    
+    selectArtist(item) {
+      if (this.filterParams.artistId === item.id) {
+        this.filterParams.artistId = ''
+        this.filterParams.artistName = ''
+      } else {
+        this.filterParams.artistId = item.id
+        this.filterParams.artistName = item.name
+      }
+    },
+    
     setPriceRange(min, max) {
       this.filterParams.minPrice = min || ''
       this.filterParams.maxPrice = max || ''
@@ -334,8 +437,12 @@ export default {
         year: '',
         size: '',
         holdTime: '',
-        region: ''
+        region: '',
+        artistId: '',
+        artistName: '',
+        artistType: ''
       }
+      this.artistKeyword = ''
       this.currentSort = { label: '综合排序', value: 'default' }
     },
     
@@ -608,6 +715,91 @@ export default {
 
 .btn-confirm {
   background: #333;
+  color: #fff;
+}
+
+.artist-search {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.artist-input {
+  flex: 1;
+  height: 80rpx;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+}
+
+.search-btn {
+  width: 120rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  background: #333;
+  color: #fff;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+
+.artist-list {
+  margin-bottom: 20rpx;
+}
+
+.filter-title-sub {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 20rpx;
+}
+
+.artist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.artist-chip {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 20rpx;
+  background: #f5f5f5;
+  border-radius: 30rpx;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.artist-chip.active {
+  background: #333;
+  color: #fff;
+}
+
+.artist-avatar {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+}
+
+.artist-name {
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artist-badge {
+  margin-left: 8rpx;
+  padding: 2rpx 8rpx;
+  background: rgba(230, 162, 60, 0.2);
+  color: #e6a23c;
+  border-radius: 4rpx;
+  font-size: 18rpx;
+}
+
+.artist-chip.active .artist-badge {
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
 }
 </style>
