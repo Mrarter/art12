@@ -272,6 +272,24 @@
       "style": {
         "navigationBarTitleText": "我的优惠券"
       }
+    },
+    {
+      "path": "pages/user/invoice",
+      "style": {
+        "navigationBarTitleText": "申请发票"
+      }
+    },
+    {
+      "path": "pages/user/bankcard",
+      "style": {
+        "navigationBarTitleText": "银行卡管理"
+      }
+    },
+    {
+      "path": "pages/user/points",
+      "style": {
+        "navigationBarTitleText": "我的积分"
+      }
     }
   ],
   "subPackages": [
