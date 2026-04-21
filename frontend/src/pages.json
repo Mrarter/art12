@@ -182,6 +182,18 @@
       "style": {
         "navigationBarTitleText": "个人资料"
       }
+    },
+    {
+      "path": "pages/user/wallet",
+      "style": {
+        "navigationBarTitleText": "我的钱包"
+      }
+    },
+    {
+      "path": "pages/user/coupon",
+      "style": {
+        "navigationBarTitleText": "我的优惠券"
+      }
     }
   ],
   "subPackages": [
