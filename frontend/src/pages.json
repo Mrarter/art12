@@ -98,6 +98,12 @@
       "style": {
         "navigationBarTitleText": "我的关注"
       }
+    },
+    {
+      "path": "pages/user/message",
+      "style": {
+        "navigationBarTitleText": "消息通知"
+      }
     }
   ],
   "subPackages": [
