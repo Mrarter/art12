@@ -32,6 +32,24 @@
       }
     },
     {
+      "path": "pages/help/index",
+      "style": {
+        "navigationBarTitleText": "帮助中心"
+      }
+    },
+    {
+      "path": "pages/help/category",
+      "style": {
+        "navigationBarTitleText": "帮助分类"
+      }
+    },
+    {
+      "path": "pages/setting/message-settings",
+      "style": {
+        "navigationBarTitleText": "消息设置"
+      }
+    },
+    {
       "path": "pages/search/index",
       "style": {
         "navigationBarTitleText": "搜索"
