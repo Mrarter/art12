@@ -159,6 +159,18 @@
       }
     },
     {
+      "path": "pages/about/index",
+      "style": {
+        "navigationBarTitleText": "关于"
+      }
+    },
+    {
+      "path": "pages/setting/index",
+      "style": {
+        "navigationBarTitleText": "设置"
+      }
+    },
+    {
       "path": "pages/user/index",
       "style": {
         "navigationBarTitleText": "我的",
@@ -175,6 +187,12 @@
       "path": "pages/user/addressEdit",
       "style": {
         "navigationBarTitleText": "编辑地址"
+      }
+    },
+    {
+      "path": "pages/user/history",
+      "style": {
+        "navigationBarTitleText": "浏览记录"
       }
     },
     {
@@ -205,6 +223,12 @@
       "path": "pages/user/settings",
       "style": {
         "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/user/feedback",
+      "style": {
+        "navigationBarTitleText": "意见反馈"
       }
     },
     {
