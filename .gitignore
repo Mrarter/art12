@@ -15,7 +15,7 @@ frontend/unpackage/
 node_modules/
 
 # Maven
-backend/target/
+backend/**/target/
 
 # 配置文件（避免提交私有配置）
 project.private.config.json
