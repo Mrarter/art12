@@ -1,262 +1,92 @@
-2026-04-20 00:06:14,852 INFO SPI service [com.alipay.sofa.jraft.JRaftServiceFactory - com.alipay.sofa.jraft.core.DefaultJRaftServiceFactory] loading.
+2026-04-22 00:00:06,874 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:14,873 INFO SPI service [com.alipay.sofa.jraft.rpc.RaftRpcFactory - com.alipay.sofa.jraft.rpc.impl.GrpcRaftRpcFactory] loading.
+2026-04-22 00:21:26,121 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:14,917 INFO SPI service [com.alipay.sofa.jraft.util.JRaftSignalHandler - com.alipay.sofa.jraft.NodeDescribeSignalHandler] loading.
+2026-04-22 00:27:48,329 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:14,917 INFO SPI service [com.alipay.sofa.jraft.util.JRaftSignalHandler - com.alipay.sofa.jraft.NodeMetricsSignalHandler] loading.
+2026-04-22 00:30:06,886 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:14,917 INFO SPI service [com.alipay.sofa.jraft.util.JRaftSignalHandler - com.alipay.sofa.jraft.ThreadPoolMetricsSignalHandler] loading.
+2026-04-22 00:51:26,143 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:14,918 INFO SPI service [com.alipay.sofa.jraft.util.timer.RaftTimerFactory - com.alipay.sofa.jraft.util.timer.DefaultRaftTimerFactory] loading.
+2026-04-22 00:57:48,343 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:14,919 INFO The number of active nodes increment to 1.
+2026-04-22 01:00:06,893 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,093 INFO Starts FSMCaller successfully.
+2026-04-22 01:21:26,092 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,098 WARN No data for snapshot reader /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/snapshot.
+2026-04-22 01:27:48,287 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,101 INFO Node <naming_persistent_service_v2/192.168.1.176:7848> init, term=0, lastLogId=LogId [index=0, term=0], conf=192.168.1.176:7848, oldConf=.
+2026-04-22 01:30:06,839 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,102 INFO Node <naming_persistent_service_v2/192.168.1.176:7848> start vote and grant vote self, term=0.
+2026-04-22 01:51:26,145 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,121 INFO Save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/meta-data, term=1, votedFor=192.168.1.176:7848, cost time=16 ms
+2026-04-22 01:57:48,379 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,121 INFO Node <naming_persistent_service_v2/192.168.1.176:7848> become leader of group, term=1, conf=192.168.1.176:7848, oldConf=.
+2026-04-22 02:00:06,939 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,123 INFO -Djraft.recyclers.maxCapacityPerThread: 4096.
+2026-04-22 02:21:26,203 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,124 WARN RPC server is not started in RaftGroupService.
+2026-04-22 02:27:48,401 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,124 INFO Start the RaftGroupService successfully.
+2026-04-22 02:30:06,969 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,131 INFO The number of active nodes increment to 2.
+2026-04-22 02:51:26,236 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,132 INFO onLeaderStart: term=1.
+2026-04-22 02:57:48,431 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,154 INFO Creating new channel to: 192.168.1.176:7848.
+2026-04-22 03:00:06,993 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,170 INFO The channel 192.168.1.176:7848 is in state: CONNECTING.
+2026-04-22 03:21:26,281 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,193 INFO Starts FSMCaller successfully.
+2026-04-22 03:27:48,481 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,193 WARN No data for snapshot reader /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/snapshot.
+2026-04-22 03:30:07,038 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,194 INFO Node <naming_instance_metadata/192.168.1.176:7848> init, term=0, lastLogId=LogId [index=0, term=0], conf=192.168.1.176:7848, oldConf=.
+2026-04-22 03:51:26,246 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,194 INFO Node <naming_instance_metadata/192.168.1.176:7848> start vote and grant vote self, term=0.
+2026-04-22 03:57:48,470 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,203 INFO Save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/meta-data, term=1, votedFor=192.168.1.176:7848, cost time=8 ms
+2026-04-22 04:00:07,027 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,203 INFO Node <naming_instance_metadata/192.168.1.176:7848> become leader of group, term=1, conf=192.168.1.176:7848, oldConf=.
+2026-04-22 04:21:26,287 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,203 WARN RPC server is not started in RaftGroupService.
+2026-04-22 04:27:48,492 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,203 INFO Start the RaftGroupService successfully.
+2026-04-22 04:30:07,051 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,212 INFO onLeaderStart: term=1.
+2026-04-22 04:51:26,241 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,213 INFO The number of active nodes increment to 3.
+2026-04-22 04:57:48,446 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,228 INFO The channel 192.168.1.176:7848 is in state: READY.
+2026-04-22 05:00:06,996 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,229 INFO The channel 192.168.1.176:7848 has successfully established.
+2026-04-22 05:21:26,240 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,275 INFO Starts FSMCaller successfully.
+2026-04-22 05:27:48,449 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,275 WARN No data for snapshot reader /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/snapshot.
+2026-04-22 05:30:07,003 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,275 INFO Node <naming_service_metadata/192.168.1.176:7848> init, term=0, lastLogId=LogId [index=0, term=0], conf=192.168.1.176:7848, oldConf=.
+2026-04-22 05:51:26,325 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,276 INFO Node <naming_service_metadata/192.168.1.176:7848> start vote and grant vote self, term=0.
+2026-04-22 05:57:48,544 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:06:16,286 INFO Save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/meta-data, term=1, votedFor=192.168.1.176:7848, cost time=10 ms
+2026-04-22 06:00:07,091 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,286 INFO Node <naming_service_metadata/192.168.1.176:7848> become leader of group, term=1, conf=192.168.1.176:7848, oldConf=.
+2026-04-22 06:21:26,361 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,286 WARN RPC server is not started in RaftGroupService.
+2026-04-22 06:27:48,575 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,286 INFO Start the RaftGroupService successfully.
+2026-04-22 06:30:07,131 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:06:16,294 INFO onLeaderStart: term=1.
+2026-04-22 06:51:26,388 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:21:24,408 INFO Deleting snapshot /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/snapshot/snapshot_1.
+2026-04-22 06:57:48,604 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:21:24,409 INFO Renaming /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/snapshot/temp to /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/snapshot/snapshot_1.
+2026-04-22 07:00:07,146 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:27:46,604 INFO Deleting snapshot /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/snapshot/snapshot_1.
+2026-04-22 07:21:26,411 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
 
-2026-04-20 00:27:46,605 INFO Renaming /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/snapshot/temp to /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/snapshot/snapshot_1.
+2026-04-22 07:27:48,620 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
-2026-04-20 00:30:05,146 INFO Deleting snapshot /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/snapshot/snapshot_1.
-
-2026-04-20 00:30:05,147 INFO Renaming /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/snapshot/temp to /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/snapshot/snapshot_1.
-
-2026-04-20 00:51:24,370 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 1 to 2, cost 3 ms.
-
-2026-04-20 00:57:46,567 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 1 to 2, cost 0 ms.
-
-2026-04-20 01:00:05,116 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 1 to 2, cost 0 ms.
-
-2026-04-20 01:21:24,316 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 01:27:46,630 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 01:30:05,168 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 01:51:24,354 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 01:57:46,563 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 02:00:05,116 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 02:21:24,330 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 02:27:46,535 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 02:30:05,095 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 02:51:24,309 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 02:57:46,512 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 03:00:05,079 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 03:21:24,289 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 03:27:46,493 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 03:30:05,063 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 03:51:24,209 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 03:57:46,405 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 04:00:04,975 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 04:21:24,174 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 04:27:46,373 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 04:30:04,943 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 04:51:24,021 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 04:57:46,214 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 05:00:04,783 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 05:21:24,442 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 05:27:46,658 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 05:30:05,234 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 05:51:24,463 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 05:57:46,684 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 06:00:05,254 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 06:21:24,490 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 06:27:46,710 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 06:30:05,279 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 06:51:24,529 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 06:57:46,749 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 07:00:05,319 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 07:21:24,597 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 07:27:46,818 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 07:30:05,378 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 07:51:24,643 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 07:57:46,860 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 08:00:05,432 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 08:21:24,688 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 08:27:46,898 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 08:30:05,461 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 08:51:24,724 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 08:57:46,935 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 09:00:05,504 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 09:21:24,706 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 09:27:46,914 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 09:30:05,486 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 09:51:24,763 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 09:57:46,963 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 10:00:05,531 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 10:21:24,790 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 10:27:47,087 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 10:30:05,654 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 10:51:24,916 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 10:57:47,160 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 11:00:05,722 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 11:21:24,993 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 11:27:47,213 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 11:30:05,778 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 11:51:24,826 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 2 ms.
-
-2026-04-20 11:57:47,040 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 12:00:05,538 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 12:21:24,722 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 12:27:46,934 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 12:30:05,472 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 12:51:24,710 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 12:57:46,911 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 13:00:05,466 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 13:21:24,697 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 13:27:46,900 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 13:30:05,464 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 2 ms.
-
-2026-04-20 13:51:24,691 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 13:57:46,887 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 14:00:05,444 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 14:21:24,675 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log from log index 2 to 2, cost 1 ms.
-
-2026-04-20 14:27:46,880 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
-
-2026-04-20 14:30:05,438 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
+2026-04-22 07:30:07,163 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 0 ms.
 
