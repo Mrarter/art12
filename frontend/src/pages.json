@@ -137,6 +137,12 @@
           "style": {
             "navigationBarTitleText": "发布帖子"
           }
+        },
+        {
+          "path": "topic",
+          "style": {
+            "navigationBarTitleText": "话题广场"
+          }
         }
       ]
     },
