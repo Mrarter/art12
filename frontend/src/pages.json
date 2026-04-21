@@ -57,6 +57,18 @@
       }
     },
     {
+      "path": "pages/order/refund",
+      "style": {
+        "navigationBarTitleText": "申请退款"
+      }
+    },
+    {
+      "path": "pages/order/review",
+      "style": {
+        "navigationBarTitleText": "评价"
+      }
+    },
+    {
       "path": "pages/user/index",
       "style": {
         "navigationBarTitleText": "我的",

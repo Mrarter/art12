@@ -121,3 +121,55 @@ export const deleteAddress = (id) => {
 
 // 导入购物车相关函数
 export { getCartList } from './cart'
+
+/**
+ * 提交退款申请
+ * POST /order/orders/{id}/refund
+ * @param {Object} data
+ * @param {string} data.type - 退款类型: refund-仅退款 return-退货退款
+ * @param {string} data.reason - 退款原因
+ * @param {string} data.images - 凭证图片（逗号分隔）
+ * @param {number} data.amount - 退款金额
+ */
+export const refundApply = (data) => {
+  return request.post(`/order/orders/${data.orderId}/refund`, {
+    type: data.type,
+    reason: data.reason,
+    images: data.images,
+    amount: data.amount
+  })
+}
+
+/**
+ * 获取退款记录
+ * GET /order/orders/{id}/refund
+ */
+export const getRefundRecord = (orderId) => {
+  return request.get(`/order/orders/${orderId}/refund`)
+}
+
+/**
+ * 提交评价
+ * POST /order/orders/{id}/review
+ * @param {Object} data
+ * @param {number} data.rating - 评分 1-5
+ * @param {string} data.content - 评价内容
+ * @param {string} data.images - 评价图片（逗号分隔）
+ * @param {number} data.isAnonymous - 是否匿名 0-否 1-是
+ */
+export const submitReview = (data) => {
+  return request.post(`/order/orders/${data.orderId}/review`, {
+    rating: data.rating,
+    content: data.content,
+    images: data.images,
+    isAnonymous: data.isAnonymous
+  })
+}
+
+/**
+ * 获取评价列表
+ * GET /order/orders/{id}/reviews
+ */
+export const getReviews = (orderId) => {
+  return request.get(`/order/orders/${orderId}/reviews`)
+}
