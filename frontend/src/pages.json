@@ -14,6 +14,12 @@
       }
     },
     {
+      "path": "pages/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索"
+      }
+    },
+    {
       "path": "pages/gallery/detail",
       "style": {
         "navigationBarTitleText": "作品详情",
@@ -103,6 +109,12 @@
       "path": "pages/user/message",
       "style": {
         "navigationBarTitleText": "消息通知"
+      }
+    },
+    {
+      "path": "pages/user/feedback",
+      "style": {
+        "navigationBarTitleText": "意见反馈"
       }
     }
   ],
