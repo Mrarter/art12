@@ -120,6 +120,15 @@ export const getInvitePoster = () => {
 }
 
 /**
+ * 获取邀请二维码
+ * GET /promoter/qrcode
+ * @param {string} inviteCode - 邀请码
+ */
+export const getQrCode = (inviteCode) => {
+  return request.get('/promoter/qrcode', inviteCode)
+}
+
+/**
  * 获取订单关联的佣金记录
  * GET /promoter/order-commission
  * @param {string} orderId - 订单ID

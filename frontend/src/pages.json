@@ -254,6 +254,12 @@
           "style": {
             "navigationBarTitleText": "提现记录"
           }
+        },
+        {
+          "path": "poster",
+          "style": {
+            "navigationBarTitleText": "邀请海报"
+          }
         }
       ]
     },
