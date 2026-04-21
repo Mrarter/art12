@@ -43,7 +43,7 @@ public class ProductService {
         return categoryMapper.selectList(
                 new LambdaQueryWrapper<Category>()
                         .eq(Category::getStatus, 1)
-                        .orderByDesc(Category::getWeight)  // 权重大的排前面
+                        .orderByDesc(Category::getSort)  // 权重大的排前面
         );
     }
 

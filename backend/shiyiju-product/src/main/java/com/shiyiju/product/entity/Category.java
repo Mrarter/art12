@@ -13,8 +13,8 @@ public class Category implements Serializable {
     private Long id;
     private String name;
     private String icon;
-    @TableField("weight")
-    private Integer weight;  // 权重，数值越大排序越靠前
+    @TableField("sort")
+    private Integer sort;  // 权重，数值越大排序越靠前
     @TableField("parent_id")
     private Long parentId;
     private Integer status;
