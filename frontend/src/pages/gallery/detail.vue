@@ -21,16 +21,23 @@
         <view class="share-btn" @click="onShare">
           <text class="iconfont icon-share"></text>
           <text>分享</text>
+          <view class="commission-tag" v-if="commission > 0">
+            赚¥{{ commission }}
+          </view>
         </view>
       </view>
       
       <view class="author-row">
-        <image class="author-avatar" :src="detail.authorAvatar || '/static/images/avatar.png'"></image>
+        <image class="author-avatar" :src="detail.authorAvatar || '/static/images/avatar.png'" @click="goArtistHome"></image>
         <view class="author-info" @click="goArtistHome">
           <text class="author-name">{{ detail.authorName }}</text>
           <view class="identity-tag" :class="'identity-' + detail.authorIdentity">
             {{ getIdentityText(detail.authorIdentity) }}
           </view>
+        </view>
+        <view class="contact-artist" @click="contactArtist">
+          <u-icon name="chat" size="18" color="#667eea"></u-icon>
+          <text>联系</text>
         </view>
         <button class="follow-btn" v-if="!detail.isFollowing" @click="onFollow">关注</button>
         <text class="following-text" v-else>已关注</text>
@@ -44,6 +51,14 @@
             <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
           </view>
         </view>
+      </view>
+      
+      <!-- 分享赚佣金提示 -->
+      <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
+        <u-icon name="star" size="18" color="#ff9800"></u-icon>
+        <text>分享推广可获得佣金 ¥{{ commission }}</text>
+        <text class="tip-more">去分享</text>
+        <u-icon name="arrow-right" size="12" color="#ff9800"></u-icon>
       </view>
     </view>
     
@@ -97,10 +112,66 @@
           <text class="iconfont" :class="detail.isFavorite ? 'icon-star-filled' : 'icon-star'"></text>
           <text>{{ detail.favoriteCount || 0 }}</text>
         </view>
+        <view class="action-item" @click="onShare">
+          <text class="iconfont icon-share"></text>
+          <text>分享</text>
+        </view>
       </view>
       <view class="action-buttons">
         <button class="btn-add-cart" @click="onAddCart">加入购物车</button>
         <button class="btn-buy" @click="onBuy">立即购买</button>
+      </view>
+    </view>
+    
+    <!-- 分享面板 -->
+    <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
+      <view class="share-content" @click.stop>
+        <view class="share-title">分享到</view>
+        <view class="share-icons">
+          <view class="share-icon-item" @click="shareToFriend">
+            <image class="share-icon" src="/static/icons/wechat.png" mode="aspectFit"></image>
+            <text>微信好友</text>
+          </view>
+          <view class="share-icon-item" @click="shareToTimeline">
+            <image class="share-icon" src="/static/icons/moments.png" mode="aspectFit"></image>
+            <text>朋友圈</text>
+          </view>
+          <view class="share-icon-item" @click="copyLink">
+            <image class="share-icon" src="/static/icons/link.png" mode="aspectFit"></image>
+            <text>复制链接</text>
+          </view>
+        </view>
+        <view class="share-close" @click="showSharePanel = false">取消</view>
+      </view>
+    </view>
+    
+    <!-- 联系艺术家弹窗 -->
+    <view class="contact-modal" v-if="showContactModal" @click="showContactModal = false">
+      <view class="contact-content" @click.stop>
+        <view class="contact-header">
+          <text class="contact-title">联系艺术家</text>
+          <view class="contact-close" @click="showContactModal = false">
+            <u-icon name="close" size="20" color="#999"></u-icon>
+          </view>
+        </view>
+        <view class="contact-artist-info">
+          <image class="artist-avatar" :src="detail.authorAvatar || '/static/avatar/default.jpg'"></image>
+          <text class="artist-name">{{ detail.authorName }}</text>
+        </view>
+        <view class="contact-actions">
+          <view class="contact-item" @click="sendMessage">
+            <u-icon name="chat" size="28" color="#667eea"></u-icon>
+            <text>发送消息</text>
+          </view>
+          <view class="contact-item" @click="makePhoneCall">
+            <u-icon name="phone" size="28" color="#50c878"></u-icon>
+            <text>拨打电话</text>
+          </view>
+        </view>
+        <view class="contact-phone" v-if="detail.authorPhone">
+          <text class="phone-label">艺术家电话</text>
+          <text class="phone-value">{{ detail.authorPhone }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -112,6 +183,7 @@ import { getProductDetail, addFavorite, removeFavorite } from '@/api/product'
 import { addToCart } from '@/api/cart'
 import { followArtist, unfollowArtist } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
+import { getProductCommission } from '@/api/promoter'
 
 const userStore = useUserStore()
 
@@ -120,6 +192,9 @@ const detail = ref({})
 const images = ref([])
 const currentImageIndex = ref(0)
 const storyExpanded = ref(false)
+const commission = ref(0)
+const showSharePanel = ref(false)
+const showContactModal = ref(false)
 
 // 是否可展开故事
 const storyCanExpand = computed(() => {
@@ -144,8 +219,21 @@ const fetchDetail = async () => {
     } else if (data.coverImage) {
       images.value = [data.coverImage]
     }
+    
+    // 获取佣金信息
+    loadCommission(id)
   } catch (e) {
     console.error('获取详情失败', e)
+  }
+}
+
+// 获取佣金
+const loadCommission = async (productId) => {
+  try {
+    const res = await getProductCommission(productId)
+    commission.value = res.commission || 0
+  } catch (e) {
+    // 无佣金权限时不显示
   }
 }
 
@@ -189,7 +277,7 @@ const onFavorite = async () => {
       detail.value.favoriteCount = (detail.value.favoriteCount || 0) + 1
     }
   } catch (e) {
-    console.error('收藏失败', e)
+    uni.showToast({ title: '操作失败', icon: 'none' })
   }
 }
 
@@ -209,7 +297,7 @@ const onFollow = async () => {
       detail.value.isFollowing = true
     }
   } catch (e) {
-    console.error('关注失败', e)
+    uni.showToast({ title: '操作失败', icon: 'none' })
   }
 }
 
@@ -242,9 +330,88 @@ const onBuy = () => {
 
 // 分享
 const onShare = () => {
-  uni.showShareMenu({
-    withShareTicket: true
+  showSharePanel.value = true
+}
+
+// 分享给好友
+const shareToFriend = () => {
+  uni.share({
+    provider: 'weixin',
+    scene: 'WXSceneSession',
+    title: detail.value.title,
+    imageUrl: images.value[0],
+    query: `id=${detail.value.id}&from=share`,
+    success: () => {
+      uni.showToast({ title: '分享成功', icon: 'success' })
+      showSharePanel.value = false
+    },
+    fail: () => {
+      uni.showToast({ title: '分享失败', icon: 'none' })
+    }
   })
+}
+
+// 分享到朋友圈
+const shareToTimeline = () => {
+  uni.share({
+    provider: 'weixin',
+    scene: 'WXSenceTimeline',
+    title: detail.value.title,
+    imageUrl: images.value[0],
+    query: `id=${detail.value.id}&from=share`,
+    success: () => {
+      uni.showToast({ title: '分享成功', icon: 'success' })
+      showSharePanel.value = false
+    },
+    fail: () => {
+      uni.showToast({ title: '分享失败', icon: 'none' })
+    }
+  })
+}
+
+// 复制链接
+const copyLink = () => {
+  const link = `${getApp().globalData.domain || ''}/pages/gallery/detail?id=${detail.value.id}&from=share`
+  uni.setClipboardData({
+    data: link,
+    success: () => {
+      uni.showToast({ title: '链接已复制', icon: 'success' })
+      showSharePanel.value = false
+    }
+  })
+}
+
+// 显示分享提示
+const showShareModal = () => {
+  showSharePanel.value = true
+}
+
+// 联系艺术家
+const contactArtist = () => {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login/index' })
+    return
+  }
+  showContactModal.value = true
+}
+
+// 发送消息
+const sendMessage = () => {
+  showContactModal.value = false
+  uni.navigateTo({
+    url: `/pages/chat/index?userId=${detail.value.authorId}`
+  })
+}
+
+// 拨打电话
+const makePhoneCall = () => {
+  if (detail.value.authorPhone) {
+    uni.makePhoneCall({
+      phoneNumber: detail.value.authorPhone
+    })
+  } else {
+    uni.showToast({ title: '暂无电话号码', icon: 'none' })
+  }
 }
 
 // 跳转艺术家主页
@@ -307,7 +474,7 @@ onMounted(() => {
 .image-indicator {
   position: absolute;
   right: 30rpx;
-  bottom: 20rpx;
+  top: 720rpx;
   padding: 8rpx 20rpx;
   background-color: rgba(0, 0, 0, 0.5);
   color: #ffffff;
@@ -354,10 +521,23 @@ onMounted(() => {
       margin-left: 30rpx;
       color: #666666;
       font-size: 22rpx;
+      position: relative;
       
       .iconfont {
         font-size: 40rpx;
         margin-bottom: 4rpx;
+      }
+      
+      .commission-tag {
+        position: absolute;
+        top: -10rpx;
+        right: -10rpx;
+        background: linear-gradient(135deg, #ff9800, #ffb74d);
+        color: #fff;
+        font-size: 18rpx;
+        padding: 4rpx 8rpx;
+        border-radius: 10rpx;
+        white-space: nowrap;
       }
     }
   }
@@ -393,6 +573,22 @@ onMounted(() => {
           background-color: rgba(230, 190, 138, 0.1);
           color: #e6be8a;
         }
+      }
+    }
+    
+    .contact-artist {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8rpx 16rpx;
+      margin-right: 16rpx;
+      background: #f5f5f5;
+      border-radius: 20rpx;
+      
+      text {
+        font-size: 20rpx;
+        color: #667eea;
+        margin-top: 4rpx;
       }
     }
     
@@ -436,6 +632,26 @@ onMounted(() => {
         font-size: 22rpx;
         border-radius: 8rpx;
       }
+    }
+  }
+  
+  .commission-tip {
+    display: flex;
+    align-items: center;
+    margin-top: 20rpx;
+    padding: 16rpx 20rpx;
+    background: linear-gradient(90deg, rgba(255, 152, 0, 0.1), rgba(255, 183, 77, 0.1));
+    border-radius: 12rpx;
+    
+    text {
+      font-size: 24rpx;
+      color: #ff9800;
+      margin-left: 10rpx;
+    }
+    
+    .tip-more {
+      margin-left: auto;
+      font-weight: 600;
     }
   }
 }
@@ -584,6 +800,165 @@ onMounted(() => {
     .btn-buy {
       background-color: #333333;
       color: #ffffff;
+    }
+  }
+}
+
+// 分享面板
+.share-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  
+  .share-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 24rpx 24rpx 0 0;
+    padding: 40rpx 30rpx;
+    padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+    
+    .share-title {
+      text-align: center;
+      font-size: 30rpx;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 40rpx;
+    }
+    
+    .share-icons {
+      display: flex;
+      justify-content: center;
+      gap: 80rpx;
+      margin-bottom: 40rpx;
+      
+      .share-icon-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        
+        .share-icon {
+          width: 100rpx;
+          height: 100rpx;
+          margin-bottom: 16rpx;
+        }
+        
+        text {
+          font-size: 24rpx;
+          color: #666;
+        }
+      }
+    }
+    
+    .share-close {
+      text-align: center;
+      padding: 20rpx;
+      font-size: 28rpx;
+      color: #999;
+      background: #f5f5f5;
+      border-radius: 16rpx;
+    }
+  }
+}
+
+// 联系艺术家弹窗
+.contact-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .contact-content {
+    width: 600rpx;
+    background: #fff;
+    border-radius: 24rpx;
+    padding: 40rpx;
+    
+    .contact-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30rpx;
+      
+      .contact-title {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #333;
+      }
+      
+      .contact-close {
+        padding: 10rpx;
+      }
+    }
+    
+    .contact-artist-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 40rpx;
+      
+      .artist-avatar {
+        width: 100rpx;
+        height: 100rpx;
+        border-radius: 50%;
+        margin-bottom: 16rpx;
+      }
+      
+      .artist-name {
+        font-size: 30rpx;
+        font-weight: 600;
+        color: #333;
+      }
+    }
+    
+    .contact-actions {
+      display: flex;
+      gap: 40rpx;
+      margin-bottom: 30rpx;
+      
+      .contact-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 30rpx;
+        background: #f5f5f5;
+        border-radius: 16rpx;
+        
+        text {
+          font-size: 26rpx;
+          color: #333;
+          margin-top: 12rpx;
+        }
+      }
+    }
+    
+    .contact-phone {
+      text-align: center;
+      
+      .phone-label {
+        display: block;
+        font-size: 22rpx;
+        color: #999;
+        margin-bottom: 8rpx;
+      }
+      
+      .phone-value {
+        font-size: 28rpx;
+        color: #333;
+      }
     }
   }
 }

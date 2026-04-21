@@ -155,13 +155,7 @@
           }
         },
         {
-          "path": "performance",
-          "style": {
-            "navigationBarTitleText": "业绩详情"
-          }
-        },
-        {
-          "path": "commission",
+          "path": "earnings",
           "style": {
             "navigationBarTitleText": "佣金明细"
           }
@@ -173,13 +167,25 @@
           }
         },
         {
+          "path": "team-detail",
+          "style": {
+            "navigationBarTitleText": "成员详情"
+          }
+        },
+        {
+          "path": "performance",
+          "style": {
+            "navigationBarTitleText": "业绩详情"
+          }
+        },
+        {
           "path": "withdraw",
           "style": {
             "navigationBarTitleText": "申请提现"
           }
         },
         {
-          "path": "withdrawLog",
+          "path": "withdraw-list",
           "style": {
             "navigationBarTitleText": "提现记录"
           }

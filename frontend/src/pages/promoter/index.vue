@@ -2,226 +2,298 @@
   <view class="promoter-page">
     <!-- 头部收益信息 -->
     <view class="earnings-header">
-      <view class="earnings-bg">
-        <view class="earnings-summary">
-          <text class="summary-label">累计佣金</text>
-          <text class="summary-value">¥{{ promoterInfo.totalCommission }}</text>
+      <view class="total-earnings">
+        <text class="label">累计佣金 (元)</text>
+        <text class="value">{{ stats.totalCommission || 0 }}</text>
+      </view>
+      <view class="earnings-detail">
+        <view class="detail-item">
+          <text class="item-label">已提现</text>
+          <text class="item-value">{{ stats.withdrawn || 0 }}</text>
         </view>
-        <view class="earnings-stats">
-          <view class="stat-item">
-            <text class="stat-label">可提现</text>
-            <text class="stat-value">¥{{ promoterInfo.withdrawable }}</text>
+        <view class="detail-item">
+          <text class="item-label">可提现</text>
+          <text class="item-value highlight">{{ stats.withdrawable || 0 }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="item-label">预估佣金</text>
+          <text class="item-value">{{ stats.estimateCommission || 0 }}</text>
+        </view>
+      </view>
+      <button class="withdraw-btn" @click="goWithdraw">立即提现</button>
+    </view>
+
+    <!-- 统计卡片 -->
+    <view class="stats-cards">
+      <view class="stat-card" @click="goTeamList">
+        <text class="card-value">{{ stats.teamCount || 0 }}</text>
+        <text class="card-label">团队成员</text>
+      </view>
+      <view class="stat-card" @click="goEarningsList">
+        <text class="card-value">{{ stats.orderCount || 0 }}</text>
+        <text class="card-label">推广订单</text>
+      </view>
+      <view class="stat-card" @click="goEarningsList('invite')">
+        <text class="card-value">{{ stats.inviteCount || 0 }}</text>
+        <text class="card-label">邀请好友</text>
+      </view>
+    </view>
+
+    <!-- 收益趋势图 -->
+    <view class="earnings-chart card">
+      <view class="card-header">
+        <text class="card-title">收益趋势</text>
+        <view class="period-tabs">
+          <text 
+            v-for="item in periodOptions" 
+            :key="item.value"
+            :class="['period-tab', { active: selectedPeriod === item.value }]"
+            @click="changePeriod(item.value)"
+          >{{ item.label }}</text>
+        </view>
+      </view>
+      <view class="chart-container">
+        <!-- 简单柱状图展示 -->
+        <view class="simple-chart" v-if="trendData.length > 0">
+          <view class="chart-bars">
+            <view 
+              v-for="(item, index) in trendData" 
+              :key="index"
+              class="bar-item"
+            >
+              <view 
+                class="bar" 
+                :style="{ height: (item.amount / maxTrendValue * 120) + 'rpx' }"
+              ></view>
+              <text class="bar-label">{{ item.label }}</text>
+            </view>
           </view>
-          <view class="stat-item">
-            <text class="stat-label">已提现</text>
-            <text class="stat-value">¥{{ promoterInfo.withdrawn }}</text>
+        </view>
+        <view class="chart-empty" v-else>
+          <text>暂无数据</text>
+        </view>
+      </view>
+      <view class="chart-legend">
+        <view class="legend-item">
+          <view class="legend-color" style="background: #667eea;"></view>
+          <text>订单佣金</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 团队管理 -->
+    <view class="team-section card">
+      <view class="card-header">
+        <text class="card-title">团队管理</text>
+        <view class="more-link" @click="goTeamList">
+          <text>查看全部</text>
+          <u-icon name="arrow-right" size="12" color="#999"></u-icon>
+        </view>
+      </view>
+      <view class="team-list">
+        <view class="team-item" v-for="item in teamList" :key="item.userId" @click="goTeamDetail(item.userId)">
+          <image class="team-avatar" :src="item.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+          <view class="team-info">
+            <text class="team-name">{{ item.nickname }}</text>
+            <text class="team-level">{{ item.level === 1 ? '一级成员' : '二级成员' }}</text>
           </view>
-          <view class="stat-item">
-            <text class="stat-label">团队订单</text>
-            <text class="stat-value">{{ promoterInfo.teamOrders }}</text>
+          <view class="team-earnings">
+            <text class="earnings-text">贡献佣金</text>
+            <text class="earnings-value">¥{{ item.commission || 0 }}</text>
           </view>
         </view>
-      </view>
-      <view class="withdraw-btn" @click="goWithdraw">立即提现</view>
-    </view>
-
-    <!-- 快捷入口 -->
-    <view class="quick-entry">
-      <view class="entry-item" v-for="item in entryList" :key="item.id" @click="goEntry(item)">
-        <image class="entry-icon" :src="item.icon" mode="aspectFit"></image>
-        <text class="entry-text">{{ item.name }}</text>
-      </view>
-    </view>
-
-    <!-- 数据统计 -->
-    <view class="stats-section">
-      <view class="section-title">本月数据</view>
-      <view class="stats-grid">
-        <view class="stat-card">
-          <text class="stat-value">{{ monthStats.orders }}</text>
-          <text class="stat-label">订单数</text>
-        </view>
-        <view class="stat-card">
-          <text class="stat-value">{{ monthStats.sales }}</text>
-          <text class="stat-label">销售额</text>
-        </view>
-        <view class="stat-card">
-          <text class="stat-value">¥{{ monthStats.commission }}</text>
-          <text class="stat-label">佣金收益</text>
-        </view>
-        <view class="stat-card">
-          <text class="stat-value">{{ monthStats.newFans }}</text>
-          <text class="stat-label">新增粉丝</text>
+        <view class="team-empty" v-if="teamList.length === 0">
+          <text>暂无比员</text>
         </view>
       </view>
     </view>
 
-    <!-- 团队列表 -->
-    <view class="team-section">
-      <view class="section-header">
-        <text class="section-title">我的团队</text>
-        <view class="team-count">{{ teamList.length }}人</view>
+    <!-- 邀请入口 -->
+    <view class="invite-section card">
+      <view class="card-header">
+        <text class="card-title">邀请注册</text>
       </view>
-      <scroll-view class="team-list" scroll-x>
-        <view class="team-member" v-for="member in teamList" :key="member.id" @click="goMemberHome(member.id)">
-          <image class="member-avatar" :src="member.avatar" mode="aspectFill"></image>
-          <text class="member-name">{{ member.name }}</text>
-          <text class="member-orders">{{ member.orders }}单</text>
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- 佣金明细 -->
-    <view class="commission-section">
-      <view class="section-header">
-        <text class="section-title">佣金明细</text>
-        <view class="more-btn" @click="goCommissionList">查看更多</view>
-      </view>
-      <view class="commission-list">
-        <view class="commission-item" v-for="item in commissionList" :key="item.id">
-          <view class="commission-info">
-            <text class="commission-product">{{ item.productName }}</text>
-            <text class="commission-time">{{ item.createTime }}</text>
-          </view>
-          <view class="commission-amount">+¥{{ item.amount }}</view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 推广海报 -->
-    <view class="poster-section">
-      <view class="poster-card" @click="goPoster">
-        <image class="poster-icon" src="/static/icons/poster.png" mode="aspectFit"></image>
-        <view class="poster-info">
-          <text class="poster-title">推广海报</text>
-          <text class="poster-desc">生成专属推广海报，分享好友</text>
-        </view>
-        <u-icon name="arrow-right" size="18" color="#999"></u-icon>
-      </view>
-    </view>
-
-    <!-- 邀请码 -->
-    <view class="invite-section">
-      <view class="invite-card">
-        <text class="invite-title">我的邀请码</text>
+      <view class="invite-content">
         <view class="invite-code">
-          <text class="code">{{ promoterInfo.inviteCode }}</text>
-          <view class="copy-btn" @click="copyCode">复制</view>
+          <text class="code-label">我的推荐码</text>
+          <view class="code-box">
+            <text class="code-value">{{ myCode || '暂无' }}</text>
+            <view class="copy-btn" @click="copyCode">
+              <text>复制</text>
+            </view>
+          </view>
         </view>
+        <button class="invite-btn" @click="showShareModal">邀请好友</button>
+      </view>
+    </view>
+
+    <!-- 功能菜单 -->
+    <view class="menu-section card">
+      <view class="menu-item" @click="goEarningsList('order')">
+        <u-icon name="order" size="22" color="#667eea"></u-icon>
+        <text>订单佣金明细</text>
+        <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+      </view>
+      <view class="menu-item" @click="goWithdrawList">
+        <u-icon name="red-packet" size="22" color="#ff6b6b"></u-icon>
+        <text>提现记录</text>
+        <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+      </view>
+      <view class="menu-item" @click="showInviteGuide">
+        <u-icon name="question-circle" size="22" color="#50c878"></u-icon>
+        <text>如何成为艺荐官</text>
+        <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
       </view>
     </view>
   </view>
 </template>
 
 <script>
-import { getPromoterHome, getCommissionList, getTeamList } from '@/api/promoter.js'
+import { getPromoterCenter, getPromoterStats, getEarningsTrend, getTeamList, getMyCode } from '@/api/promoter.js'
+import { useUserStore } from '@/store/modules/user.js'
 
 export default {
   data() {
     return {
-      promoterInfo: {
+      stats: {
         totalCommission: 0,
-        withdrawable: 0,
         withdrawn: 0,
-        teamOrders: 0,
-        inviteCode: ''
+        withdrawable: 0,
+        estimateCommission: 0,
+        teamCount: 0,
+        orderCount: 0,
+        inviteCount: 0
       },
-      monthStats: {
-        orders: 0,
-        sales: 0,
-        commission: 0,
-        newFans: 0
-      },
-      entryList: [
-        { id: 'commission', name: '佣金明细', icon: '/static/icons/commission.png', path: '/pages/promoter/commission' },
-        { id: 'team', name: '团队管理', icon: '/static/icons/team.png', path: '/pages/promoter/team' },
-        { id: 'withdraw', name: '提现记录', icon: '/static/icons/withdraw.png', path: '/pages/promoter/withdraw' },
-        { id: 'rank', name: '排行榜', icon: '/static/icons/rank.png', path: '/pages/promoter/rank' }
-      ],
+      trendData: [],
+      maxTrendValue: 0,
       teamList: [],
-      commissionList: []
+      myCode: '',
+      selectedPeriod: 'month',
+      periodOptions: [
+        { label: '周', value: 'week' },
+        { label: '月', value: 'month' },
+        { label: '季', value: 'quarter' },
+        { label: '年', value: 'year' }
+      ]
     }
   },
-  
+
+  computed: {
+    userStore() {
+      return useUserStore()
+    }
+  },
+
   onLoad() {
-    this.loadPromoterInfo()
+    this.loadData()
   },
-  
+
   onShow() {
-    this.loadPromoterInfo()
+    this.loadData()
   },
-  
+
   methods: {
-    async loadPromoterInfo() {
+    async loadData() {
+      if (!this.userStore.isAuthenticated) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      
+      await Promise.all([
+        this.loadStats(),
+        this.loadTrendData(),
+        this.loadTeamList(),
+        this.loadMyCode()
+      ])
+    },
+
+    async loadStats() {
       try {
-        uni.showLoading({ title: '加载中...' })
-        const res = await getPromoterHome()
-        this.promoterInfo = res
-        this.monthStats = res.monthStats || {}
-        this.teamList = res.teamList || []
-        this.commissionList = res.commissionList || []
-        uni.hideLoading()
+        const res = await getPromoterStats()
+        this.stats = res
       } catch (e) {
-        uni.hideLoading()
-        this.loadMockData()
+        console.error('加载统计数据失败', e)
       }
     },
-    
-    loadMockData() {
-      this.promoterInfo = {
-        totalCommission: 12880,
-        withdrawable: 5680,
-        withdrawn: 7200,
-        teamOrders: 156,
-        inviteCode: 'SYJ2024001'
-      }
-      
-      this.monthStats = {
-        orders: 23,
-        sales: '¥128,000',
-        commission: 6400,
-        newFans: 56
-      }
-      
-      this.teamList = [
-        { id: 1, name: '张三', avatar: '/static/avatar/demo.jpg', orders: 12 },
-        { id: 2, name: '李四', avatar: '/static/avatar/demo.jpg', orders: 8 },
-        { id: 3, name: '王五', avatar: '/static/avatar/demo.jpg', orders: 5 }
-      ]
-      
-      this.commissionList = [
-        { id: 1, productName: '山水长卷', amount: 640, createTime: '2024-01-19' },
-        { id: 2, productName: '虾趣图', amount: 440, createTime: '2024-01-18' },
-        { id: 3, productName: '奔马图', amount: 1280, createTime: '2024-01-17' }
-      ]
-    },
-    
-    goWithdraw() {
-      uni.navigateTo({ url: `/pages/promoter/withdraw?amount=${this.promoterInfo.withdrawable}` })
-    },
-    
-    goEntry(item) {
-      uni.navigateTo({ url: item.path })
-    },
-    
-    goCommissionList() {
-      uni.navigateTo({ url: '/pages/promoter/commission' })
-    },
-    
-    goMemberHome(id) {
-      uni.navigateTo({ url: `/pages/artist/home?id=${id}` })
-    },
-    
-    goPoster() {
-      uni.navigateTo({ url: '/pages/promoter/poster' })
-    },
-    
-    copyCode() {
-      uni.setClipboardData({
-        data: this.promoterInfo.inviteCode,
-        success: () => {
-          uni.showToast({ title: '复制成功', icon: 'success' })
+
+    async loadTrendData() {
+      try {
+        const res = await getEarningsTrend(this.selectedPeriod)
+        if (res && res.length > 0) {
+          this.trendData = res
+          this.maxTrendValue = Math.max(...res.map(item => item.amount))
         }
+      } catch (e) {
+        console.error('加载收益趋势失败', e)
+      }
+    },
+
+    async loadTeamList() {
+      try {
+        const res = await getTeamList({ page: 1, pageSize: 5 })
+        this.teamList = res.list || []
+      } catch (e) {
+        console.error('加载团队列表失败', e)
+      }
+    },
+
+    async loadMyCode() {
+      try {
+        const res = await getMyCode()
+        this.myCode = res.code || ''
+      } catch (e) {
+        console.error('获取推荐码失败', e)
+      }
+    },
+
+    changePeriod(period) {
+      this.selectedPeriod = period
+      this.loadTrendData()
+    },
+
+    goWithdraw() {
+      uni.navigateTo({ url: '/pages/promoter/withdraw' })
+    },
+
+    goEarningsList(type) {
+      uni.navigateTo({ url: `/pages/promoter/earnings?type=${type || 'order'}` })
+    },
+
+    goTeamList() {
+      uni.navigateTo({ url: '/pages/promoter/team' })
+    },
+
+    goTeamDetail(userId) {
+      uni.navigateTo({ url: `/pages/promoter/team-detail?userId=${userId}` })
+    },
+
+    goWithdrawList() {
+      uni.navigateTo({ url: '/pages/promoter/withdraw-list' })
+    },
+
+    copyCode() {
+      if (!this.myCode) return
+      uni.setClipboardData({
+        data: this.myCode,
+        success: () => {
+          uni.showToast({ title: '已复制推荐码', icon: 'success' })
+        }
+      })
+    },
+
+    showShareModal() {
+      uni.showModal({
+        title: '邀请好友',
+        content: `我的推荐码：${this.myCode || '暂无'}\n\n将此推荐码分享给好友，好友注册时填写即可成为您的下线成员。`,
+        showCancel: false
+      })
+    },
+
+    showInviteGuide() {
+      uni.showModal({
+        title: '如何成为艺荐官',
+        content: '1. 累计推广订单满10单\n2. 或累计佣金满1000元\n满足任一条件即可申请成为艺荐官，享受更多佣金福利！',
+        showCancel: false
       })
     }
   }
@@ -237,304 +309,334 @@ export default {
 
 .earnings-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40rpx 30rpx;
-  position: relative;
-}
-
-.earnings-bg {
-  padding-bottom: 60rpx;
-}
-
-.earnings-summary {
-  text-align: center;
-  margin-bottom: 40rpx;
-}
-
-.summary-label {
-  display: block;
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 16rpx;
-}
-
-.summary-value {
-  font-size: 56rpx;
+  padding: 40rpx 30rpx 60rpx;
   color: #fff;
-  font-weight: 600;
 }
 
-.earnings-stats {
+.total-earnings {
+  text-align: center;
+  margin-bottom: 30rpx;
+  
+  .label {
+    display: block;
+    font-size: 26rpx;
+    opacity: 0.8;
+    margin-bottom: 10rpx;
+  }
+  
+  .value {
+    font-size: 60rpx;
+    font-weight: 600;
+  }
+}
+
+.earnings-detail {
   display: flex;
-}
-
-.stat-item {
-  flex: 1;
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 8rpx;
-}
-
-.stat-value {
-  font-size: 32rpx;
-  color: #fff;
-  font-weight: 600;
+  justify-content: center;
+  gap: 60rpx;
+  margin-bottom: 30rpx;
+  
+  .detail-item {
+    text-align: center;
+    
+    .item-label {
+      display: block;
+      font-size: 22rpx;
+      opacity: 0.7;
+      margin-bottom: 6rpx;
+    }
+    
+    .item-value {
+      font-size: 32rpx;
+      font-weight: 500;
+    }
+    
+    .item-value.highlight {
+      color: #ffd700;
+    }
+  }
 }
 
 .withdraw-btn {
-  position: absolute;
-  right: 30rpx;
-  bottom: -30rpx;
-  width: 160rpx;
+  display: block;
+  width: 200rpx;
   height: 70rpx;
   line-height: 70rpx;
+  margin: 0 auto;
   background: #fff;
   color: #667eea;
-  border-radius: 35rpx;
   font-size: 28rpx;
-  font-weight: 500;
-  text-align: center;
-  box-shadow: 0 4rpx 20rpx rgba(102, 126, 234, 0.3);
-}
-
-.quick-entry {
-  display: flex;
-  background: #fff;
-  margin: 50rpx 20rpx 20rpx;
-  border-radius: 16rpx;
-  padding: 30rpx 0;
-}
-
-.entry-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.entry-icon {
-  width: 56rpx;
-  height: 56rpx;
-  margin-bottom: 12rpx;
-}
-
-.entry-text {
-  font-size: 24rpx;
-  color: #666;
-}
-
-.stats-section {
-  background: #fff;
-  margin: 0 20rpx 20rpx;
-  border-radius: 16rpx;
-  padding: 30rpx;
-}
-
-.section-title {
-  font-size: 30rpx;
-  color: #333;
   font-weight: 600;
-  margin-bottom: 30rpx;
+  border-radius: 35rpx;
+  text-align: center;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.stats-cards {
+  display: flex;
+  padding: 0 20rpx;
+  margin-top: -40rpx;
   gap: 20rpx;
 }
 
 .stat-card {
-  text-align: center;
-  padding: 20rpx 0;
-  background: #f9f9f9;
-  border-radius: 12rpx;
-}
-
-.stat-card .stat-value {
-  display: block;
-  font-size: 30rpx;
-  color: #333;
-  font-weight: 600;
-  margin-bottom: 8rpx;
-}
-
-.stat-card .stat-label {
-  font-size: 22rpx;
-  color: #999;
-}
-
-.team-section {
+  flex: 1;
   background: #fff;
-  margin: 0 20rpx 20rpx;
   border-radius: 16rpx;
-  padding: 30rpx;
+  padding: 30rpx 20rpx;
+  text-align: center;
+  
+  .card-value {
+    display: block;
+    font-size: 36rpx;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10rpx;
+  }
+  
+  .card-label {
+    font-size: 22rpx;
+    color: #999;
+  }
 }
 
-.section-header {
+.card {
+  margin: 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 
-.team-count {
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.more-link {
+  display: flex;
+  align-items: center;
   font-size: 24rpx;
   color: #999;
+  
+  text {
+    margin-right: 6rpx;
+  }
 }
 
-.team-list {
+.period-tabs {
   display: flex;
-  white-space: nowrap;
+  gap: 20rpx;
 }
 
-.team-member {
-  display: inline-flex;
+.period-tab {
+  font-size: 24rpx;
+  color: #999;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  
+  &.active {
+    background: #667eea;
+    color: #fff;
+  }
+}
+
+.chart-container {
+  height: 200rpx;
+}
+
+.chart-empty {
+  height: 200rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ccc;
+}
+
+.simple-chart {
+  height: 100%;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 160rpx;
+  padding-top: 40rpx;
+}
+
+.bar-item {
+  display: flex;
   flex-direction: column;
   align-items: center;
-  margin-right: 40rpx;
+  
+  .bar {
+    width: 40rpx;
+    background: linear-gradient(180deg, #667eea 0%, #a78bfa 100%);
+    border-radius: 8rpx 8rpx 0 0;
+    margin-bottom: 10rpx;
+  }
+  
+  .bar-label {
+    font-size: 20rpx;
+    color: #999;
+  }
 }
 
-.member-avatar {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
-  margin-bottom: 12rpx;
-}
-
-.member-name {
-  font-size: 24rpx;
-  color: #333;
-  margin-bottom: 4rpx;
-}
-
-.member-orders {
-  font-size: 20rpx;
-  color: #999;
-}
-
-.commission-section {
-  background: #fff;
-  margin: 0 20rpx 20rpx;
-  border-radius: 16rpx;
-  padding: 30rpx;
-}
-
-.more-btn {
-  font-size: 24rpx;
-  color: #999;
-}
-
-.commission-list {
+.chart-legend {
+  display: flex;
+  justify-content: center;
   margin-top: 20rpx;
 }
 
-.commission-item {
+.legend-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.commission-item:last-child {
-  border-bottom: none;
-}
-
-.commission-product {
-  display: block;
-  font-size: 28rpx;
-  color: #333;
-  margin-bottom: 6rpx;
-}
-
-.commission-time {
   font-size: 22rpx;
-  color: #999;
-}
-
-.commission-amount {
-  font-size: 30rpx;
-  color: #e74c3c;
-  font-weight: 600;
-}
-
-.poster-section {
-  margin: 0 20rpx 20rpx;
-}
-
-.poster-card {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 30rpx;
-}
-
-.poster-icon {
-  width: 80rpx;
-  height: 80rpx;
-  margin-right: 20rpx;
-}
-
-.poster-info {
-  flex: 1;
-}
-
-.poster-title {
-  display: block;
-  font-size: 30rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 8rpx;
-}
-
-.poster-desc {
-  font-size: 24rpx;
-  color: #999;
-}
-
-.invite-section {
-  margin: 0 20rpx;
-}
-
-.invite-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 30rpx;
-}
-
-.invite-title {
-  display: block;
-  font-size: 28rpx;
   color: #666;
-  margin-bottom: 16rpx;
+  
+  .legend-color {
+    width: 20rpx;
+    height: 20rpx;
+    border-radius: 4rpx;
+    margin-right: 8rpx;
+  }
 }
 
-.invite-code {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f9f9f9;
-  padding: 24rpx 30rpx;
-  border-radius: 12rpx;
+.team-list {
+  .team-item {
+    display: flex;
+    align-items: center;
+    padding: 20rpx 0;
+    border-bottom: 1rpx solid #f5f5f5;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+  
+  .team-avatar {
+    width: 60rpx;
+    height: 60rpx;
+    border-radius: 50%;
+    margin-right: 16rpx;
+  }
+  
+  .team-info {
+    flex: 1;
+    
+    .team-name {
+      display: block;
+      font-size: 28rpx;
+      color: #333;
+      margin-bottom: 4rpx;
+    }
+    
+    .team-level {
+      font-size: 22rpx;
+      color: #999;
+    }
+  }
+  
+  .team-earnings {
+    text-align: right;
+    
+    .earnings-text {
+      display: block;
+      font-size: 20rpx;
+      color: #999;
+      margin-bottom: 4rpx;
+    }
+    
+    .earnings-value {
+      font-size: 26rpx;
+      color: #e74c3c;
+      font-weight: 600;
+    }
+  }
+  
+  .team-empty {
+    text-align: center;
+    padding: 40rpx;
+    color: #ccc;
+    font-size: 26rpx;
+  }
 }
 
-.code {
-  font-size: 36rpx;
-  color: #333;
-  font-weight: 600;
-  letter-spacing: 4rpx;
+.invite-content {
+  .invite-code {
+    margin-bottom: 24rpx;
+    
+    .code-label {
+      font-size: 24rpx;
+      color: #999;
+      margin-bottom: 12rpx;
+    }
+    
+    .code-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f5f5f5;
+      padding: 20rpx 24rpx;
+      border-radius: 12rpx;
+      
+      .code-value {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #667eea;
+        letter-spacing: 4rpx;
+      }
+      
+      .copy-btn {
+        padding: 10rpx 24rpx;
+        background: #667eea;
+        color: #fff;
+        font-size: 24rpx;
+        border-radius: 20rpx;
+      }
+    }
+  }
+  
+  .invite-btn {
+    width: 100%;
+    height: 80rpx;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-size: 30rpx;
+    font-weight: 600;
+    border-radius: 40rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
-.copy-btn {
-  padding: 12rpx 30rpx;
-  background: #667eea;
-  color: #fff;
-  border-radius: 30rpx;
-  font-size: 24rpx;
+.menu-section {
+  padding: 0;
+  
+  .menu-item {
+    display: flex;
+    align-items: center;
+    padding: 30rpx 24rpx;
+    border-bottom: 1rpx solid #f5f5f5;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    text {
+      flex: 1;
+      font-size: 28rpx;
+      color: #333;
+      margin-left: 20rpx;
+    }
+  }
 }
 </style>

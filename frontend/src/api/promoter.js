@@ -1,115 +1,138 @@
 /**
- * 艺荐官 API
- * 接口: 5.11节 艺荐官模块
- * 注意: 网关路由 /api/promotion/** -> shiyiju-promotion (路径: /promotion/**)
+ * 艺荐官/推广员相关 API
  */
 import request from './request'
 
 /**
- * 获取推广中心数据
- * GET /promotion/center
+ * 获取艺荐官中心首页数据
+ * GET /promoter/center
  */
 export const getPromoterCenter = () => {
-  return request.get('/promotion/center')
+  return request.get('/promoter/center')
 }
 
 /**
- * 获取业绩详情
- * GET /promotion/performance
- * @param {Object} params
- * @param {string} params.period - 时间周期: today/week/month
+ * 获取艺荐官统计数据
+ * GET /promoter/stats
  */
-export const getPromoterPerformance = (params) => {
-  return request.get('/promotion/performance', params)
+export const getPromoterStats = () => {
+  return request.get('/promoter/stats')
 }
 
 /**
- * 获取佣金明细
- * GET /promotion/commission-log
- * @param {Object} params
- * @param {number} params.page - 页码
- * @param {number} params.pageSize - 每页数量
+ * 获取收益趋势
+ * GET /promoter/earnings/trend
+ * @param {string} period - 时间周期: week/month/quarter/year
  */
-export const getCommissionLog = (params) => {
-  return request.get('/promotion/commission-log', params)
+export const getEarningsTrend = (period = 'month') => {
+  return request.get('/promoter/earnings/trend', { period })
+}
+
+/**
+ * 获取收益明细列表
+ * GET /promoter/earnings
+ * @param {Object} params
+ * @param {string} params.type - 收益类型: order/invite/team
+ * @param {number} params.page
+ * @param {number} params.pageSize
+ */
+export const getEarningsList = (params) => {
+  return request.get('/promoter/earnings', params)
 }
 
 /**
  * 获取团队列表
- * GET /promotion/team
- * @param {Object} params
- * @param {number} params.level - 团队层级: 1-一级, 2-二级
- * @param {number} params.page - 页码
- * @param {number} params.pageSize - 每页数量
+ * GET /promoter/team
+ * @param {number} params.page
+ * @param {number} params.pageSize
  */
-export const getPromoterTeam = (params) => {
-  return request.get('/promotion/team', params)
+export const getTeamList = (params) => {
+  return request.get('/promoter/team', params)
 }
 
 /**
- * 获取提现账户信息
- * GET /promotion/withdraw-account
+ * 获取团队成员详情
+ * GET /promoter/team/{userId}
  */
-export const getWithdrawAccount = () => {
-  return request.get('/promotion/withdraw-account')
+export const getTeamMemberDetail = (userId) => {
+  return request.get(`/promoter/team/${userId}`)
 }
 
 /**
- * 申请提现
- * POST /promotion/withdraw
- * @param {Object} data
- * @param {number} data.amount - 提现金额
- * @param {number} data.type - 提现方式: 1-微信, 2-支付宝, 3-银行卡
- * @param {string} data.account - 收款账户
- * @param {string} data.realName - 真实姓名
+ * 获取下级艺荐官列表
+ * GET /promoter/team/subordinate
+ * @param {number} params.level - 级别: 1/2
  */
-export const applyWithdraw = (data) => {
-  return request.post('/promotion/withdraw', data)
+export const getSubordinateList = (params) => {
+  return request.get('/promoter/team/subordinate', params)
+}
+
+/**
+ * 提现申请
+ * POST /promoter/withdraw
+ * @param {number} amount - 提现金额
+ * @param {string} accountType - 账户类型: alipay/bank/wechat
+ * @param {string} accountInfo - 账户信息
+ */
+export const withdrawApply = (data) => {
+  return request.post('/promoter/withdraw', data)
 }
 
 /**
  * 获取提现记录
- * GET /promotion/withdraw-log
- * @param {Object} params
- * @param {number} params.page - 页码
- * @param {number} params.pageSize - 每页数量
+ * GET /promoter/withdraw/list
  */
-export const getWithdrawLog = (params) => {
-  return request.get('/promotion/withdraw-log', params)
+export const getWithdrawList = (params) => {
+  return request.get('/promoter/withdraw/list', params)
 }
 
 /**
- * 获取推广素材
- * GET /promotion/materials
+ * 绑定艺荐官关系
+ * POST /promoter/bind
+ * @param {string} code - 推荐码
  */
-export const getPromoterMaterials = () => {
-  return request.get('/promotion/materials')
+export const bindPromoter = (code) => {
+  return request.post('/promoter/bind', { code })
 }
 
 /**
- * 签署分销协议
- * POST /promotion/sign-agreement
+ * 获取我的推荐码
+ * GET /promoter/code
  */
-export const signAgreement = () => {
-  return request.post('/promotion/sign-agreement')
+export const getMyCode = () => {
+  return request.get('/promoter/code')
 }
 
-// 获取艺荐官统计数据
-export const getPromoterStats = () => {
-  return getPromoterCenter()
+/**
+ * 获取佣金配置
+ * GET /promoter/config
+ */
+export const getCommissionConfig = () => {
+  return request.get('/promoter/config')
 }
 
-// 获取推广首页数据
-export const getPromoterHome = () => {
-  return getPromoterCenter()
+/**
+ * 获取邀请海报
+ * GET /promoter/poster
+ */
+export const getInvitePoster = () => {
+  return request.get('/promoter/poster')
 }
 
-// 获取佣金列表
-export const getCommissionList = (params) => {
-  return getCommissionLog(params)
+/**
+ * 获取订单关联的佣金记录
+ * GET /promoter/order-commission
+ * @param {string} orderId - 订单ID
+ */
+export const getOrderCommission = (orderId) => {
+  return request.get('/promoter/order-commission', { orderId })
 }
 
-// 获取团队列表
-export const getTeamList = (params) => {
-  return getPromoterTeam(params)
+/**
+ * 获取商品佣金信息
+ * GET /promoter/product-commission
+ * @param {number} productId - 商品ID
+ */
+export const getProductCommission = (productId) => {
+  return request.get('/promoter/product-commission', { productId })
 }
