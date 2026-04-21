@@ -63,6 +63,18 @@
       }
     },
     {
+      "path": "pages/order/track",
+      "style": {
+        "navigationBarTitleText": "物流追踪"
+      }
+    },
+    {
+      "path": "pages/order/settle",
+      "style": {
+        "navigationBarTitleText": "确认订单"
+      }
+    },
+    {
       "path": "pages/order/refund",
       "style": {
         "navigationBarTitleText": "申请退款"
