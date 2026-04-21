@@ -146,6 +146,23 @@
       ]
     },
     {
+      "root": "pages/message",
+      "pages": [
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "消息中心"
+          }
+        },
+        {
+          "path": "chat",
+          "style": {
+            "navigationBarTitleText": "聊天"
+          }
+        }
+      ]
+    },
+    {
       "root": "pages/promoter",
       "pages": [
         {
