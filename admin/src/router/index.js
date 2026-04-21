@@ -182,6 +182,12 @@ const routes = [
             meta: { title: 'Banner管理' }
           },
           {
+            path: 'message',
+            name: 'Message',
+            component: () => import('@/views/message/index.vue'),
+            meta: { title: '消息通知' }
+          },
+          {
             path: 'config',
             name: 'Config',
             component: () => import('@/views/system/config.vue'),
