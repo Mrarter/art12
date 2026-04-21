@@ -14,6 +14,24 @@
       }
     },
     {
+      "path": "pages/category/index",
+      "style": {
+        "navigationBarTitleText": "分类"
+      }
+    },
+    {
+      "path": "pages/notice/index",
+      "style": {
+        "navigationBarTitleText": "公告"
+      }
+    },
+    {
+      "path": "pages/notice/detail",
+      "style": {
+        "navigationBarTitleText": "公告详情"
+      }
+    },
+    {
       "path": "pages/search/index",
       "style": {
         "navigationBarTitleText": "搜索"
