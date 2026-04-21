@@ -138,6 +138,13 @@
           "style": {
             "navigationBarTitleText": "竞拍提醒"
           }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "拍品详情",
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
