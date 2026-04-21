@@ -158,6 +158,12 @@
       "style": {
         "navigationBarTitleText": "已购作品"
       }
+    },
+    {
+      "path": "pages/user/profile",
+      "style": {
+        "navigationBarTitleText": "个人资料"
+      }
     }
   ],
   "subPackages": [
