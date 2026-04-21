@@ -134,6 +134,18 @@
       "style": {
         "navigationBarTitleText": "设置"
       }
+    },
+    {
+      "path": "pages/user/addressEdit",
+      "style": {
+        "navigationBarTitleText": "编辑地址"
+      }
+    },
+    {
+      "path": "pages/user/agreement",
+      "style": {
+        "navigationBarTitleText": "协议"
+      }
     }
   ],
   "subPackages": [
