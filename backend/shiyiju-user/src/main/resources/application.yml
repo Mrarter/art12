@@ -7,8 +7,8 @@ spring:
   cloud:
     nacos:
       discovery:
+        enabled: false
         server-addr: 127.0.0.1:8848
-        enabled: true
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root

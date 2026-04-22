@@ -6,16 +6,20 @@ spring:
   cloud:
     nacos:
       discovery:
+        enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://127.0.0.1:3306/shiyiju_community?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
     password: root123456
   data:
     redis:
-    host: 127.0.0.1
-    port: 6379
+      host: 127.0.0.1
+      port: 6379
+      database: 0
 mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.shiyiju.community.entity
   configuration:
     map-underscore-to-camel-case: true
 logging:
