@@ -53,4 +53,9 @@ button::after {
 image {
   display: block;
 }
+
+/* 全局隐藏 icon-filter 伪元素文字 */
+.icon-filter::before {
+  content: '' !important;
+}
 </style>

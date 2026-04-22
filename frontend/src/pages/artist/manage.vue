@@ -137,7 +137,8 @@ export default {
       try {
         uni.showLoading({ title: '加载中...' })
         const res = await getMyWorks()
-        this.works = res.list || res || []
+        // 处理 PageResult 格式：{ records: [], total: xxx }
+        this.works = res?.records || res?.list || res || []
         this.calculateStats()
         uni.hideLoading()
       } catch (e) {

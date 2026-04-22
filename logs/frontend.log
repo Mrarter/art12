@@ -1,0 +1,962 @@
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "auto-install-peers". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> shiyiju-uniapp@1.0.0 dev:h5
+> uni
+
+请注意运行模式下，因日志输出、sourcemap 以及未压缩源码等原因，性能和包体积，均不及发行模式。
+vite是按需编译，运行时点击某个未编译页面会先编译后加载，导致显示较慢，发行后无此问题。
+编译器版本：5.07（vue3）
+正在编译中...
+
+  vite v5.2.8 dev server running at:
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+
+  ready in 798ms.
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/App.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+4 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/App.vue 4:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+5 │ @import '@/styles/iconfont.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/App.vue 5:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/index/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/auction/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/cart/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/user/index.vue 2:9  root stylesheet
+
+6:02:43 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:03:51 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:05:11 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:12:45 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:13:01 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:13:10 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:14:46 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:14:51 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:14:57 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:15:05 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:15:19 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:15:26 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:15:32 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:15:38 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:15:55 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:16:04 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:16:11 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:05 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:13 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:19 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:24 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:30 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:45 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:51 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:18:56 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:19:07 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:19:30 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:21:59 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:22:09 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:22:23 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:23:36 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/detail.vue 2:9  root stylesheet
+
+6:24:48 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:25:07 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:25:12 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:29:07 PM [vite] hmr update /src/pages/gallery/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:31:22 PM [vite] hmr update /src/pages/gallery/index.vue?vue&type=style&index=0&scoped=5a43f0bf&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+6:31:53 PM [vite] hmr update /src/App.vue?vue&type=style&index=0&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/App.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+4 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/App.vue 4:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+5 │ @import '@/styles/iconfont.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/App.vue 5:9  root stylesheet
+
+6:34:33 PM [vite] hmr update /src/pages/gallery/detail.vue, /src/pages/gallery/detail.vue?vue&type=style&index=0&scoped=e475c92b&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/detail.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/detail.vue 2:9  root stylesheet
+
+6:36:02 PM [vite] hmr update /src/pages/cart/index.vue, /src/pages/cart/index.vue?vue&type=style&index=0&scoped=3277fd7b&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/cart/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/cart/index.vue 2:9  root stylesheet
+
+6:37:57 PM [vite] hmr update /src/pages/user/index.vue, /src/pages/user/index.vue?vue&type=style&index=0&scoped=642c545b&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/user/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/user/index.vue 2:9  root stylesheet
+
+6:42:07 PM [vite] hmr update /src/pages/user/index.vue, /src/pages/user/index.vue?vue&type=style&index=0&scoped=642c545b&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/user/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/user/index.vue 2:9  root stylesheet
+
+8:35:38 PM [vite] hmr update /src/pages/index/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/index/index.vue 2:9  root stylesheet
+
+8:35:49 PM [vite] hmr update /src/pages/index/index.vue?vue&type=style&index=0&scoped=83a5a03c&lang.scss
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/index/index.vue 2:9  root stylesheet
+
+8:40:39 PM [vite] hmr update /src/pages/index/index.vue, /src/pages/gallery/index.vue, /src/pages/gallery/detail.vue, /src/pages/user/index.vue, /src/pages/login/index.vue, /src/pages/auction/index.vue, /src/pages/cart/index.vue
+8:45:19 PM [vite] hmr update /src/pages/index/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/index/index.vue 2:9  root stylesheet
+
+8:46:06 PM [vite] hmr update /src/pages/gallery/index.vue
+8:55:18 PM [vite] hmr update /src/pages/index/index.vue, /src/pages/gallery/index.vue, /src/pages/gallery/detail.vue, /src/pages/user/index.vue, /src/pages/login/index.vue, /src/pages/auction/index.vue, /src/pages/cart/index.vue
+8:55:28 PM [vite] hmr update /src/pages/index/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/index/index.vue 2:9  root stylesheet
+
+8:56:04 PM [vite] hmr update /src/pages/index/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/index/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/gallery/index.vue 2:9  root stylesheet
+

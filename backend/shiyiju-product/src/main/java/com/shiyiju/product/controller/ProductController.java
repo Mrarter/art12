@@ -8,7 +8,6 @@ import com.shiyiju.product.dto.BatchStatusDTO;
 import com.shiyiju.product.entity.Banner;
 import com.shiyiju.product.entity.Category;
 import com.shiyiju.product.service.ProductService;
-import com.shiyiju.product.service.QiniuUploadService;
 import com.shiyiju.common.vo.ArtworkVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +19,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -28,9 +28,11 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
-    private final QiniuUploadService qiniuUploadService;
 
-    @Value("${upload.cdn-url:https://cdn.shiyiju.com}")
+    @Value("${upload.local.path:/tmp/shiyiju-uploads}")
+    private String localPath;
+
+    @Value("${upload.cdn-url:http://localhost:8087}")
     private String cdnUrl;
 
     /** 上传作品图片 (POST /product/upload) */
@@ -49,15 +51,37 @@ public class ProductController {
         }
 
         try {
-            String fileUrl = qiniuUploadService.upload(file, "images");
+            // 本地存储方式
+            String datePath = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+            String extension = getExtension(file.getOriginalFilename());
+            String fileName = UUID.randomUUID().toString().replace("-", "") + "." + extension;
+            String relativePath = "images/" + datePath + "/" + fileName;
+            
+            // 确保目录存在
+            java.nio.file.Path dirPath = java.nio.file.Paths.get(localPath, "images", datePath);
+            java.nio.file.Files.createDirectories(dirPath);
+            
+            // 保存文件
+            java.nio.file.Path filePath = java.nio.file.Paths.get(localPath, relativePath);
+            file.transferTo(filePath.toFile());
+            
+            String fileUrl = cdnUrl + "/upload/" + relativePath;
             Map<String, String> result = new HashMap<>();
             result.put("url", fileUrl);
             result.put("filename", file.getOriginalFilename());
+            log.info("文件已上传: {}", fileUrl);
             return Result.success(result);
         } catch (IOException e) {
             log.error("文件上传失败", e);
             return Result.fail(500, "文件上传失败: " + e.getMessage());
         }
+    }
+    
+    private String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) {
+            return "jpg";
+        }
+        return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
     }
 
     /**

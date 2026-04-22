@@ -17,7 +17,15 @@
               fit="cover" 
               :preview-src-list="[getFullImageUrl(row.imageUrl)]"
               preview-teleported
-            />
+              @error="row._imgError = true"
+            >
+              <template #error>
+                <div class="no-image" style="width: 150px; height: 75px">
+                  <el-icon><Picture /></el-icon>
+                  <span>无图片</span>
+                </div>
+              </template>
+            </el-image>
             <div v-else class="no-image" @click="handleImageClick(row)">
               <el-icon><Plus /></el-icon>
               <span>点击上传</span>
@@ -140,7 +148,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit } from '@element-plus/icons-vue'
+import { Plus, Edit, Picture } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { uploadFile, getFullImageUrl as getUrl } from '@/api/request'
 
@@ -178,16 +186,19 @@ const loadData = async () => {
   loading.value = true
   try {
     const data = await request.get('/system/banner/list')
-    tableData.value = data || []
+    // 转换后端数据格式到前端
+    tableData.value = (data || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      imageUrl: item.imageUrl,
+      linkType: item.type === 'BANNER' ? 'home' : item.type === 'ARTIST' ? 'gallery' : item.type === 'AUCTION' ? 'auction' : 'other',
+      linkValue: item.target || '',
+      sort: item.sortNo || 0,
+      status: item.status === 'ENABLED' ? 1 : 0
+    }))
   } catch (e) {
-    // 使用本地模拟数据
-    if (!tableData.value.length) {
-      tableData.value = [
-        { id: 1, title: '春季艺术品拍卖会', imageUrl: '', linkType: 'home', linkValue: '/pages/auction/index', sort: 1, status: 1 },
-        { id: 2, title: '新用户专享', imageUrl: '', linkType: 'home', linkValue: '/pages/promoter/index', sort: 2, status: 1 },
-        { id: 3, title: '艺术家招募', imageUrl: '', linkType: 'gallery', linkValue: '/pages/artist/apply', sort: 3, status: 1 }
-      ]
-    }
+    console.error('加载Banner列表失败:', e)
+    tableData.value = []
   } finally {
     loading.value = false
   }
@@ -227,7 +238,8 @@ const handleFileChange = async (e) => {
     const result = await uploadFile(file, (percent) => {
       uploadProgress.value = percent
     })
-    form.imageUrl = result.url
+    // result 可能是 {url: 'xxx'} 或直接是 'xxx'
+    form.imageUrl = result?.url || result || ''
     ElMessage.success('图片上传成功')
   } catch (e) {
     ElMessage.error(e.message || '图片上传失败')
@@ -249,12 +261,35 @@ const saveTitle = async (row) => {
     row.title = row.title?.trim() || ''
     return
   }
-  // 本地保存（实际项目中应调用 API）
+  try {
+    await request.put(`/system/banner/${row.id}`, {
+      title: row.title,
+      imageUrl: row.imageUrl,
+      type: row.linkType === 'home' ? 'BANNER' : row.linkType === 'gallery' ? 'ARTIST' : row.linkType === 'auction' ? 'AUCTION' : 'OTHER',
+      target: row.linkValue,
+      sortNo: row.sort,
+      status: row.status === 1 ? 'ENABLED' : 'DISABLED'
+    })
+    ElMessage.success('标题更新成功')
+  } catch (e) {
+    if (e.message !== 'backend_offline') {
+      ElMessage.error('标题更新失败')
+    }
+  }
 }
 
 // 修改状态
 const handleStatusChange = async (row) => {
-  // 本地保存（实际项目中应调用 API）
+  try {
+    await request.put(`/system/banner/${row.id}/status`, {
+      status: row.status === 1 ? 'ENABLED' : 'DISABLED'
+    })
+    ElMessage.success('状态更新成功')
+  } catch (e) {
+    if (e.message !== 'backend_offline') {
+      ElMessage.error('状态更新失败')
+    }
+  }
 }
 
 const showDialog = (type, row = null) => {
@@ -280,35 +315,44 @@ const handleSubmit = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
   
+  // 转换前端格式到后端格式
+  const params = {
+    title: form.title,
+    imageUrl: form.imageUrl,
+    type: form.linkType === 'home' ? 'BANNER' : form.linkType === 'gallery' ? 'ARTIST' : form.linkType === 'auction' ? 'AUCTION' : 'OTHER',
+    target: form.linkValue,
+    sortNo: form.sort,
+    status: form.status === 1 ? 'ENABLED' : 'DISABLED'
+  }
+  
   try {
     if (isEdit.value) {
-      // 找到并更新数据
-      const index = tableData.value.findIndex(item => item.id === form.id)
-      if (index > -1) {
-        tableData.value[index] = { ...tableData.value[index], ...form }
-        ElMessage.success('更新成功')
-      }
+      await request.put(`/system/banner/${form.id}`, params)
+      ElMessage.success('更新成功')
     } else {
-      // 添加新数据
-      const newId = Math.max(...tableData.value.map(item => item.id), 0) + 1
-      tableData.value.unshift({ id: newId, ...form })
+      await request.post('/system/banner', params)
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    loadData()  // 刷新列表
   } catch (e) {
-    ElMessage.error('操作失败')
+    if (e.message !== 'backend_offline') {
+      ElMessage.error('操作失败: ' + (e.message || ''))
+    }
   }
 }
 
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该Banner吗？', '提示', { type: 'warning' })
-    const index = tableData.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      ElMessage.success('删除成功')
+    await request.delete(`/system/banner/${row.id}`)
+    ElMessage.success('删除成功')
+    loadData()  // 刷新列表
+  } catch (e) {
+    if (e.message !== 'backend_offline') {
+      ElMessage.error('删除失败')
     }
-  } catch (e) {}
+  }
 }
 
 onMounted(() => {

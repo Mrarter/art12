@@ -37,6 +37,10 @@ public class OrderItem implements Serializable {
     @TableField("item_title")
     private String title;
     
+    /** 艺术家名称 (非数据库字段) */
+    @TableField(exist = false)
+    private String authorName;
+    
     /** 封面图 */
     private String coverImage;
     

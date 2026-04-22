@@ -24,6 +24,12 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      // 系统管理接口 -> admin服务(8090) (处理 /api/admin/system/xxx -> /admin/banner/xxx)
+      '/api/admin/system': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/admin\/system/, '/admin')
+      },
       // 管理员接口 -> admin服务(8090)
       '/api/admin': {
         target: 'http://localhost:8090',
@@ -66,11 +72,15 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/promotion/, '/promoter')
       },
-      // 文件服务 -> 8082
+      // 文件上传接口 -> 8087
       '/api/file': {
-        target: 'http://localhost:8082',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/file/, '/upload')
+        target: 'http://localhost:8087',
+        changeOrigin: true
+      },
+      // 静态文件代理 -> 8087 (用于 /uploads/xxx 图片访问)
+      '/uploads': {
+        target: 'http://localhost:8087',
+        changeOrigin: true
       }
     }
   }

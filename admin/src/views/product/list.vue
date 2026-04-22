@@ -282,8 +282,8 @@
         </el-form-item>
         <el-form-item label="作品类型" prop="ownershipType">
           <el-radio-group v-model="editForm.ownershipType">
-            <el-radio :label="1">原创</el-radio>
-            <el-radio :label="2">收藏</el-radio>
+            <el-radio :value="1">原创</el-radio>
+            <el-radio :value="2">收藏</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="作品描述" prop="description">
@@ -291,8 +291,8 @@
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="editForm.status">
-            <el-radio :label="1">上架</el-radio>
-            <el-radio :label="0">下架</el-radio>
+            <el-radio :value="1">上架</el-radio>
+            <el-radio :value="0">下架</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -385,13 +385,13 @@ const loadData = async () => {
     tableData.value = (data.records || data.list || []).map(item => ({
       artworkId: item.id,
       title: item.title,
-      artistName: item.authorName,
-      cover: item.coverImage,
+      artistName: item.artistName,  // 后端返回 artistName
+      cover: item.cover,             // 后端返回 cover
       categoryId: item.categoryId,
-      categoryName: item.categoryName,
-      artType: item.artType,  // 画种
-      size: item.size,        // 尺寸
-      year: item.year,       // 创作年份
+      categoryName: item.category,  // 后端返回 category
+      artType: item.artType,        // 画种
+      size: item.size,               // 尺寸
+      year: item.year,              // 创作年份
       price: item.price ? item.price / 100 : 0,  // 分转元
       originalPrice: item.originalPrice ? item.originalPrice / 100 : 0,
       ownershipType: item.ownershipType || 1,

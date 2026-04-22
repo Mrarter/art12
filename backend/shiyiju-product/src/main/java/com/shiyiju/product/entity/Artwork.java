@@ -17,6 +17,8 @@ public class Artwork implements Serializable {
     private String authorName;
     private String authorBadge;
     private String authorAvatar;
+    private String authorBio;    // 艺术家简介
+    private String authorPhone;   // 艺术家电话
     private Long categoryId;
     private String artType;
     private String medium;

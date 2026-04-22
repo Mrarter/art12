@@ -65,6 +65,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/product/delete",
             "/product/audit/list",
             "/product/upload",
+            "/product/",  // 匹配 /product/{id} 详情接口
             "/order/list",
             "/order/aftersale/list",
             "/user/artist/list",

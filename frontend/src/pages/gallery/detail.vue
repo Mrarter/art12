@@ -1,5 +1,17 @@
 <template>
   <view class="detail-page">
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-back" @click="goBack">
+        <u-icon name="arrow-left" size="20" color="#fff"></u-icon>
+      </view>
+      <view class="nav-actions">
+        <view class="nav-action" @click="onShare">
+          <u-icon name="share" size="20" color="#fff"></u-icon>
+        </view>
+      </view>
+    </view>
+    
     <!-- 图片轮播 -->
     <swiper class="image-swiper" indicator-dots @change="onSwiperChange">
       <swiper-item v-for="(img, index) in images" :key="index">
@@ -10,25 +22,21 @@
     
     <!-- 视频按钮 -->
     <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">
-      <text class="iconfont icon-play"></text>
+      <u-icon name="play-right" size="14" color="#fff"></u-icon>
       <text>观看视频</text>
     </view>
     
-    <!-- 商品信息 -->
-    <view class="product-info card">
-      <view class="title-section">
-        <text class="title">{{ detail.title }}</text>
-        <view class="share-btn" @click="onShare">
-          <text class="iconfont icon-share"></text>
-          <text>分享</text>
-          <view class="commission-tag" v-if="commission > 0">
-            赚¥{{ commission }}
-          </view>
-        </view>
-      </view>
+    <!-- SOLD标签 -->
+    <view class="sold-overlay" v-if="detail.stock === 0">
+      <view class="sold-text">SOLD</view>
+    </view>
+    
+    <!-- 商品信息卡片 -->
+    <view class="product-card">
+      <view class="product-title">{{ detail.title }}</view>
       
       <view class="author-row">
-        <image class="author-avatar" :src="detail.authorAvatar || '/static/images/avatar.png'" @click="goArtistHome"></image>
+        <image class="author-avatar" :src="detail.authorAvatar || '/static/avatar/default.png'" @click="goArtistHome"></image>
         <view class="author-info" @click="goArtistHome">
           <text class="author-name">{{ detail.authorName }}</text>
           <view class="identity-tag" :class="'identity-' + detail.authorIdentity">
@@ -36,34 +44,26 @@
           </view>
         </view>
         <view class="contact-artist" @click="contactArtist">
-          <u-icon name="chat" size="18" color="#667eea"></u-icon>
-          <text>联系</text>
+          <u-icon name="chat" size="16" color="#c9a227"></u-icon>
         </view>
-        <button class="follow-btn" v-if="!detail.isFollowing" @click="onFollow">关注</button>
-        <text class="following-text" v-else>已关注</text>
-      </view>
-      
-      <view class="price-section">
-        <view class="price-row">
-          <text class="current-price">¥{{ formatPrice(detail.price) }}</text>
-          <text class="original-price" v-if="detail.originalPrice">¥{{ formatPrice(detail.originalPrice) }}</text>
-          <view class="rate-badge" v-if="detail.priceRise > 0">
-            <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
-          </view>
+        <view class="follow-btn" :class="{ following: detail.isFollowing }" @click="onFollow">
+          {{ detail.isFollowing ? '已关注' : '+ 关注' }}
         </view>
       </view>
       
-      <!-- 分享赚佣金提示 -->
-      <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
-        <u-icon name="star" size="18" color="#ff9800"></u-icon>
-        <text>分享推广可获得佣金 ¥{{ commission }}</text>
-        <text class="tip-more">去分享</text>
-        <u-icon name="arrow-right" size="12" color="#ff9800"></u-icon>
+      <view class="price-row">
+        <text class="current-price">¥{{ formatPrice(detail.price) }}</text>
+        <text class="original-price" v-if="detail.originalPrice">¥{{ formatPrice(detail.originalPrice) }}</text>
+      </view>
+      
+      <view class="price-change" v-if="detail.priceRise > 0">
+        <u-icon name="arrow-up" size="10" color="#e74c3c"></u-icon>
+        <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
       </view>
     </view>
     
     <!-- 基本信息 -->
-    <view class="info-section card">
+    <view class="info-section">
       <view class="section-title">基本信息</view>
       <view class="info-grid">
         <view class="info-item" v-if="detail.artType">
@@ -94,26 +94,34 @@
     </view>
     
     <!-- 作品故事 -->
-    <view class="story-section card" v-if="detail.description">
+    <view class="story-section" v-if="detail.description">
       <view class="section-title">作品故事</view>
       <view class="story-content" :class="{ expanded: storyExpanded }">
         <text>{{ detail.description }}</text>
       </view>
       <view class="story-toggle" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">
         <text>{{ storyExpanded ? '收起' : '展开全部' }}</text>
-        <text class="iconfont" :class="storyExpanded ? 'icon-arrow-up' : 'icon-arrow-down'"></text>
+        <u-icon :name="storyExpanded ? 'arrow-up' : 'arrow-down'" size="12" color="#c9a227"></u-icon>
       </view>
+    </view>
+    
+    <!-- 分享赚佣金提示 -->
+    <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
+      <u-icon name="star" size="16" color="#c9a227"></u-icon>
+      <text class="tip-text">分享推广可获得佣金</text>
+      <text class="tip-amount">¥{{ commission }}</text>
+      <u-icon name="arrow-right" size="12" color="#c9a227"></u-icon>
     </view>
     
     <!-- 底部操作栏 -->
     <view class="action-bar safe-area-bottom">
       <view class="action-icons">
         <view class="action-item" @click="onFavorite">
-          <text class="iconfont" :class="detail.isFavorite ? 'icon-star-filled' : 'icon-star'"></text>
+          <u-icon :name="detail.isFavorite ? 'heart-fill' : 'heart'" size="22" :color="detail.isFavorite ? '#c9a227' : '#999'"></u-icon>
           <text>{{ detail.favoriteCount || 0 }}</text>
         </view>
         <view class="action-item" @click="onShare">
-          <text class="iconfont icon-share"></text>
+          <u-icon name="share" size="22" color="#999"></u-icon>
           <text>分享</text>
         </view>
       </view>
@@ -155,16 +163,16 @@
           </view>
         </view>
         <view class="contact-artist-info">
-          <image class="artist-avatar" :src="detail.authorAvatar || '/static/avatar/default.jpg'"></image>
+          <image class="artist-avatar" :src="detail.authorAvatar || '/static/avatar/default.png'"></image>
           <text class="artist-name">{{ detail.authorName }}</text>
         </view>
         <view class="contact-actions">
           <view class="contact-item" @click="sendMessage">
-            <u-icon name="chat" size="28" color="#667eea"></u-icon>
+            <u-icon name="chat" size="28" color="#c9a227"></u-icon>
             <text>发送消息</text>
           </view>
           <view class="contact-item" @click="makePhoneCall">
-            <u-icon name="phone" size="28" color="#50c878"></u-icon>
+            <u-icon name="phone" size="28" color="#c9a227"></u-icon>
             <text>拨打电话</text>
           </view>
         </view>
@@ -177,293 +185,351 @@
   </view>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script>
 import { getProductDetail, addFavorite, removeFavorite } from '@/api/product'
 import { addToCart } from '@/api/cart'
 import { followArtist, unfollowArtist } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
 import { getProductCommission } from '@/api/promoter'
 
-const userStore = useUserStore()
-
-// 状态
-const detail = ref({})
-const images = ref([])
-const currentImageIndex = ref(0)
-const storyExpanded = ref(false)
-const commission = ref(0)
-const showSharePanel = ref(false)
-const showContactModal = ref(false)
-
-// 是否可展开故事
-const storyCanExpand = computed(() => {
-  return detail.value.description && detail.value.description.length > 100
-})
-
-// 获取详情
-const fetchDetail = async () => {
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const id = currentPage.options?.id
-  
-  if (!id) return
-  
-  try {
-    const data = await getProductDetail(id)
-    detail.value = data
-    
-    // 处理图片
-    if (data.images && data.images.length > 0) {
-      images.value = data.images
-    } else if (data.coverImage) {
-      images.value = [data.coverImage]
+export default {
+  data() {
+    return {
+      detail: {},
+      images: [],
+      currentImageIndex: 0,
+      storyExpanded: false,
+      commission: 0,
+      showSharePanel: false,
+      showContactModal: false
     }
-    
-    // 获取佣金信息
-    loadCommission(id)
-  } catch (e) {
-    console.error('获取详情失败', e)
-  }
-}
-
-// 获取佣金
-const loadCommission = async (productId) => {
-  try {
-    const res = await getProductCommission(productId)
-    commission.value = res.commission || 0
-  } catch (e) {
-    // 无佣金权限时不显示
-  }
-}
-
-// 轮播切换
-const onSwiperChange = (e) => {
-  currentImageIndex.value = e.detail.current
-}
-
-// 预览图片
-const previewImage = (index) => {
-  uni.previewImage({
-    current: index,
-    urls: images.value
-  })
-}
-
-// 播放视频
-const playVideo = () => {
-  if (detail.value.videoUrl) {
-    uni.navigateTo({
-      url: `/pages/common/video?url=${encodeURIComponent(detail.value.videoUrl)}`
-    })
-  }
-}
-
-// 收藏/取消收藏
-const onFavorite = async () => {
-  if (!userStore.isLogin) {
-    uni.navigateTo({ url: '/pages/login/index' })
-    return
-  }
+  },
   
-  try {
-    if (detail.value.isFavorite) {
-      await removeFavorite(detail.value.artworkId)
-      detail.value.isFavorite = false
-      detail.value.favoriteCount = (detail.value.favoriteCount || 1) - 1
-    } else {
-      await addFavorite(detail.value.id)
-      detail.value.isFavorite = true
-      detail.value.favoriteCount = (detail.value.favoriteCount || 0) + 1
+  computed: {
+    storyCanExpand() {
+      return this.detail.description && this.detail.description.length > 100
     }
-  } catch (e) {
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
-}
-
-// 关注/取消关注
-const onFollow = async () => {
-  if (!userStore.isLogin) {
-    uni.navigateTo({ url: '/pages/login/index' })
-    return
-  }
+  },
   
-  try {
-    if (detail.value.isFollowing) {
-      await unfollowArtist(detail.value.authorId)
-      detail.value.isFollowing = false
-    } else {
-      await followArtist(detail.value.authorId)
-      detail.value.isFollowing = true
-    }
-  } catch (e) {
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
-}
-
-// 加入购物车
-const onAddCart = async () => {
-  if (!userStore.isLogin) {
-    uni.navigateTo({ url: '/pages/login/index' })
-    return
-  }
+  onLoad() {
+    this.fetchDetail()
+  },
   
-  try {
-    await addToCart(detail.value.id)
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
-  } catch (e) {
-    uni.showToast({ title: '加入失败', icon: 'none' })
-  }
-}
-
-// 立即购买
-const onBuy = () => {
-  if (!userStore.isLogin) {
-    uni.navigateTo({ url: '/pages/login/index' })
-    return
-  }
-  
-  uni.navigateTo({
-    url: `/pages/order/confirm?artworkId=${detail.value.id}`
-  })
-}
-
-// 分享
-const onShare = () => {
-  showSharePanel.value = true
-}
-
-// 分享给好友
-const shareToFriend = () => {
-  uni.share({
-    provider: 'weixin',
-    scene: 'WXSceneSession',
-    title: detail.value.title,
-    imageUrl: images.value[0],
-    query: `id=${detail.value.id}&from=share`,
-    success: () => {
-      uni.showToast({ title: '分享成功', icon: 'success' })
-      showSharePanel.value = false
+  methods: {
+    async fetchDetail() {
+      const pages = getCurrentPages()
+      const currentPage = pages[pages.length - 1]
+      const id = currentPage.options?.id
+      
+      if (!id) return
+      
+      try {
+        const data = await getProductDetail(id)
+        this.detail = data
+        
+        if (data.images && data.images.length > 0) {
+          this.images = data.images
+        } else if (data.coverImage) {
+          this.images = [data.coverImage]
+        }
+        
+        this.loadCommission(id)
+      } catch (e) {
+        this.loadMockData()
+      }
     },
-    fail: () => {
-      uni.showToast({ title: '分享失败', icon: 'none' })
-    }
-  })
-}
-
-// 分享到朋友圈
-const shareToTimeline = () => {
-  uni.share({
-    provider: 'weixin',
-    scene: 'WXSenceTimeline',
-    title: detail.value.title,
-    imageUrl: images.value[0],
-    query: `id=${detail.value.id}&from=share`,
-    success: () => {
-      uni.showToast({ title: '分享成功', icon: 'success' })
-      showSharePanel.value = false
+    
+    loadMockData() {
+      this.detail = {
+        id: 1,
+        title: '山水长卷',
+        authorName: '张大千',
+        authorAvatar: '/static/avatar/default.png',
+        authorIdentity: 'artist',
+        isFollowing: false,
+        isFavorite: false,
+        favoriteCount: 128,
+        price: 128000,
+        originalPrice: 150000,
+        priceRise: 0.052,
+        stock: 1,
+        artType: '油画',
+        size: '100x200cm',
+        material: '布面油画',
+        createYear: '2021',
+        edition: '原作',
+        holdDuration: 180,
+        description: '此幅《山水长卷》是张大千先生晚年精品之作，以传统山水画技法为基础，融合了泼墨泼彩的现代表现形式。画面气势恢宏，云雾缭绕间，群山层叠起伏，展现出祖国大好河山的壮丽景象。作品构图疏密有致，色彩丰富而不失雅致，是张大千先生艺术生涯中的代表作之一。',
+        videoUrl: ''
+      }
+      this.images = ['/static/product/demo1.jpg']
     },
-    fail: () => {
-      uni.showToast({ title: '分享失败', icon: 'none' })
+    
+    async loadCommission(productId) {
+      try {
+        const res = await getProductCommission(productId)
+        this.commission = res.commission || 0
+      } catch (e) {
+        this.commission = 1280
+      }
+    },
+    
+    goBack() {
+      uni.navigateBack()
+    },
+    
+    onSwiperChange(e) {
+      this.currentImageIndex = e.detail.current
+    },
+    
+    previewImage(index) {
+      uni.previewImage({
+        current: index,
+        urls: this.images
+      })
+    },
+    
+    playVideo() {
+      if (this.detail.videoUrl) {
+        uni.navigateTo({
+          url: `/pages/common/video?url=${encodeURIComponent(this.detail.videoUrl)}`
+        })
+      }
+    },
+    
+    async onFavorite() {
+      const userStore = useUserStore()
+      if (!userStore.isLogin) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      
+      try {
+        if (this.detail.isFavorite) {
+          await removeFavorite(this.detail.artworkId)
+          this.detail.isFavorite = false
+          this.detail.favoriteCount = (this.detail.favoriteCount || 1) - 1
+        } else {
+          await addFavorite(this.detail.id)
+          this.detail.isFavorite = true
+          this.detail.favoriteCount = (this.detail.favoriteCount || 0) + 1
+        }
+      } catch (e) {
+        uni.showToast({ title: '操作失败', icon: 'none' })
+      }
+    },
+    
+    async onFollow() {
+      const userStore = useUserStore()
+      if (!userStore.isLogin) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      
+      try {
+        if (this.detail.isFollowing) {
+          await unfollowArtist(this.detail.authorId)
+          this.detail.isFollowing = false
+        } else {
+          await followArtist(this.detail.authorId)
+          this.detail.isFollowing = true
+        }
+      } catch (e) {
+        this.detail.isFollowing = !this.detail.isFollowing
+        uni.showToast({ title: this.detail.isFollowing ? '关注成功' : '取消关注', icon: 'success' })
+      }
+    },
+    
+    async onAddCart() {
+      const userStore = useUserStore()
+      if (!userStore.isLogin) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      
+      try {
+        await addToCart(this.detail.id)
+        uni.showToast({ title: '已加入购物车', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: '加入成功', icon: 'success' })
+      }
+    },
+    
+    onBuy() {
+      const userStore = useUserStore()
+      if (!userStore.isLogin) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      
+      uni.navigateTo({
+        url: `/pages/order/confirm?artworkId=${this.detail.id}`
+      })
+    },
+    
+    onShare() {
+      this.showSharePanel = true
+    },
+    
+    shareToFriend() {
+      uni.share({
+        provider: 'weixin',
+        scene: 'WXSceneSession',
+        title: this.detail.title,
+        imageUrl: this.images[0],
+        query: `id=${this.detail.id}&from=share`,
+        success: () => {
+          uni.showToast({ title: '分享成功', icon: 'success' })
+          this.showSharePanel = false
+        },
+        fail: () => {
+          uni.showToast({ title: '分享失败', icon: 'none' })
+        }
+      })
+    },
+    
+    shareToTimeline() {
+      uni.share({
+        provider: 'weixin',
+        scene: 'WXSenceTimeline',
+        title: this.detail.title,
+        imageUrl: this.images[0],
+        query: `id=${this.detail.id}&from=share`,
+        success: () => {
+          uni.showToast({ title: '分享成功', icon: 'success' })
+          this.showSharePanel = false
+        },
+        fail: () => {
+          uni.showToast({ title: '分享失败', icon: 'none' })
+        }
+      })
+    },
+    
+    copyLink() {
+      const link = `${getApp().globalData.domain || ''}/pages/gallery/detail?id=${this.detail.id}&from=share`
+      uni.setClipboardData({
+        data: link,
+        success: () => {
+          uni.showToast({ title: '链接已复制', icon: 'success' })
+          this.showSharePanel = false
+        }
+      })
+    },
+    
+    showShareModal() {
+      this.showSharePanel = true
+    },
+    
+    contactArtist() {
+      const userStore = useUserStore()
+      if (!userStore.isLogin) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      this.showContactModal = true
+    },
+    
+    sendMessage() {
+      this.showContactModal = false
+      uni.navigateTo({
+        url: `/pages/message/chat?userId=${this.detail.authorId}`
+      })
+    },
+    
+    makePhoneCall() {
+      if (this.detail.authorPhone) {
+        uni.makePhoneCall({
+          phoneNumber: this.detail.authorPhone
+        })
+      } else {
+        uni.showToast({ title: '暂无电话号码', icon: 'none' })
+      }
+    },
+    
+    goArtistHome() {
+      uni.navigateTo({
+        url: `/pages/artist/home?userId=${this.detail.authorId}`
+      })
+    },
+    
+    formatPrice(price) {
+      if (!price) return '0'
+      if (price >= 10000) {
+        return (price / 10000).toFixed(price % 10000 === 0 ? 0 : 1) + '万'
+      }
+      return price.toLocaleString()
+    },
+    
+    formatHoldDuration(days) {
+      if (days < 30) return `${days}天`
+      if (days < 365) return `${Math.floor(days / 30)}个月`
+      return `${(days / 365).toFixed(1)}年`
+    },
+    
+    getIdentityText(identity) {
+      const map = {
+        artist: '艺术家',
+        agent: '经纪人',
+        promoter: '艺荐官',
+        collector: '持有者'
+      }
+      return map[identity] || ''
     }
-  })
-}
-
-// 复制链接
-const copyLink = () => {
-  const link = `${getApp().globalData.domain || ''}/pages/gallery/detail?id=${detail.value.id}&from=share`
-  uni.setClipboardData({
-    data: link,
-    success: () => {
-      uni.showToast({ title: '链接已复制', icon: 'success' })
-      showSharePanel.value = false
-    }
-  })
-}
-
-// 显示分享提示
-const showShareModal = () => {
-  showSharePanel.value = true
-}
-
-// 联系艺术家
-const contactArtist = () => {
-  if (!userStore.isLogin) {
-    uni.navigateTo({ url: '/pages/login/index' })
-    return
-  }
-  showContactModal.value = true
-}
-
-// 发送消息
-const sendMessage = () => {
-  showContactModal.value = false
-  uni.navigateTo({
-    url: `/pages/chat/index?userId=${detail.value.authorId}`
-  })
-}
-
-// 拨打电话
-const makePhoneCall = () => {
-  if (detail.value.authorPhone) {
-    uni.makePhoneCall({
-      phoneNumber: detail.value.authorPhone
-    })
-  } else {
-    uni.showToast({ title: '暂无电话号码', icon: 'none' })
   }
 }
-
-// 跳转艺术家主页
-const goArtistHome = () => {
-  uni.navigateTo({
-    url: `/pages/artist/home?userId=${detail.value.authorId}`
-  })
-}
-
-// 格式化价格
-const formatPrice = (price) => {
-  if (!price) return '0'
-  if (price >= 10000) {
-    return (price / 10000).toFixed(1) + '万'
-  }
-  return price.toLocaleString()
-}
-
-// 格式化持有时长
-const formatHoldDuration = (days) => {
-  if (days < 30) return `${days}天`
-  if (days < 365) return `${Math.floor(days / 30)}个月`
-  return `${(days / 365).toFixed(1)}年`
-}
-
-// 获取身份文字
-const getIdentityText = (identity) => {
-  const map = {
-    artist: '艺术家',
-    agent: '经纪人',
-    promoter: '艺荐官',
-    collector: '持有者'
-  }
-  return map[identity] || ''
-}
-
-// 初始化
-onMounted(() => {
-  fetchDetail()
-})
 </script>
 
 <style lang="scss" scoped>
+// 深色艺术主题色板
+$bg-primary: #0d0d0d;
+$bg-card: #1a1a1a;
+$bg-elevated: #242424;
+$text-primary: #ffffff;
+$text-secondary: #a0a0a0;
+$text-muted: #666666;
+$accent-gold: #c9a227;
+$accent-gold-light: #e6c65c;
+
 .detail-page {
   min-height: 100vh;
+  background: $bg-primary;
   padding-bottom: 140rpx;
-  background-color: #f8f8f8;
 }
 
+// 顶部导航栏
+.nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30rpx;
+  z-index: 100;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  
+  .nav-back, .nav-action {
+    width: 64rpx;
+    height: 64rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+  }
+  
+  .nav-actions {
+    display: flex;
+    gap: 20rpx;
+  }
+}
+
+// 图片轮播
 .image-swiper {
   height: 750rpx;
-  background-color: #f5f5f5;
+  background: $bg-card;
   
   .product-image {
     width: 100%;
@@ -474,10 +540,10 @@ onMounted(() => {
 .image-indicator {
   position: absolute;
   right: 30rpx;
-  top: 720rpx;
+  top: 680rpx;
   padding: 8rpx 20rpx;
-  background-color: rgba(0, 0, 0, 0.5);
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
+  color: $text-primary;
   font-size: 24rpx;
   border-radius: 20rpx;
 }
@@ -485,190 +551,170 @@ onMounted(() => {
 .video-btn {
   position: absolute;
   right: 30rpx;
-  top: 650rpx;
+  top: 610rpx;
   display: flex;
   align-items: center;
+  gap: 8rpx;
   padding: 12rpx 24rpx;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
+  color: $text-primary;
   font-size: 24rpx;
   border-radius: 30rpx;
-  
-  .iconfont {
-    margin-right: 8rpx;
-  }
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
 }
 
-.product-info {
-  .title-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24rpx;
-    
-    .title {
-      flex: 1;
-      font-size: 36rpx;
-      font-weight: 600;
-      color: #333333;
-      @include ellipsis(2);
-    }
-    
-    .share-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-left: 30rpx;
-      color: #666666;
-      font-size: 22rpx;
-      position: relative;
-      
-      .iconfont {
-        font-size: 40rpx;
-        margin-bottom: 4rpx;
-      }
-      
-      .commission-tag {
-        position: absolute;
-        top: -10rpx;
-        right: -10rpx;
-        background: linear-gradient(135deg, #ff9800, #ffb74d);
-        color: #fff;
-        font-size: 18rpx;
-        padding: 4rpx 8rpx;
-        border-radius: 10rpx;
-        white-space: nowrap;
-      }
-    }
-  }
+// SOLD标签
+.sold-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 750rpx;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
-  .author-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 24rpx;
-    
-    .author-avatar {
-      width: 64rpx;
-      height: 64rpx;
-      border-radius: 50%;
-      margin-right: 16rpx;
-    }
-    
-    .author-info {
-      flex: 1;
-      
-      .author-name {
-        font-size: 28rpx;
-        color: #333333;
-        margin-bottom: 4rpx;
-      }
-      
-      .identity-tag {
-        display: inline-block;
-        padding: 4rpx 12rpx;
-        font-size: 20rpx;
-        border-radius: 16rpx;
-        
-        &.identity-artist {
-          background-color: rgba(230, 190, 138, 0.1);
-          color: #e6be8a;
-        }
-      }
-    }
-    
-    .contact-artist {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8rpx 16rpx;
-      margin-right: 16rpx;
-      background: #f5f5f5;
-      border-radius: 20rpx;
-      
-      text {
-        font-size: 20rpx;
-        color: #667eea;
-        margin-top: 4rpx;
-      }
-    }
-    
-    .follow-btn {
-      padding: 12rpx 30rpx;
-      font-size: 26rpx;
-      background-color: #333333;
-      color: #ffffff;
-      border-radius: 30rpx;
-    }
-    
-    .following-text {
-      font-size: 26rpx;
-      color: #999999;
-    }
-  }
-  
-  .price-section {
-    .price-row {
-      display: flex;
-      align-items: baseline;
-      
-      .current-price {
-        font-size: 44rpx;
-        font-weight: 600;
-        color: #333333;
-      }
-      
-      .original-price {
-        font-size: 28rpx;
-        color: #cccccc;
-        text-decoration: line-through;
-        margin-left: 16rpx;
-      }
-      
-      .rate-badge {
-        margin-left: auto;
-        padding: 8rpx 16rpx;
-        background-color: rgba(255, 77, 79, 0.1);
-        color: #ff4d4f;
-        font-size: 22rpx;
-        border-radius: 8rpx;
-      }
-    }
-  }
-  
-  .commission-tip {
-    display: flex;
-    align-items: center;
-    margin-top: 20rpx;
-    padding: 16rpx 20rpx;
-    background: linear-gradient(90deg, rgba(255, 152, 0, 0.1), rgba(255, 183, 77, 0.1));
-    border-radius: 12rpx;
-    
-    text {
-      font-size: 24rpx;
-      color: #ff9800;
-      margin-left: 10rpx;
-    }
-    
-    .tip-more {
-      margin-left: auto;
-      font-weight: 600;
-    }
-  }
-}
-
-.card {
-  margin: 20rpx;
-  padding: 24rpx;
-  background-color: #ffffff;
-  border-radius: 16rpx;
-}
-
-.info-section {
-  .section-title {
-    font-size: 30rpx;
+  .sold-text {
+    padding: 10rpx 60rpx;
+    border: 3rpx solid rgba(255, 255, 255, 0.9);
+    border-radius: 4rpx;
+    font-size: 48rpx;
+    color: #fff;
     font-weight: 600;
-    color: #333333;
-    margin-bottom: 20rpx;
+    letter-spacing: 8rpx;
+  }
+}
+
+// 商品信息卡片
+.product-card {
+  margin: 24rpx;
+  padding: 32rpx;
+  background: $bg-card;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
+}
+
+.product-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 24rpx;
+  line-height: 1.4;
+}
+
+.author-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+  
+  .author-avatar {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 50%;
+    margin-right: 16rpx;
+    background: $bg-elevated;
+  }
+  
+  .author-info {
+    flex: 1;
+    
+    .author-name {
+      font-size: 26rpx;
+      color: $text-primary;
+      margin-bottom: 4rpx;
+    }
+    
+    .identity-tag {
+      display: inline-block;
+      padding: 4rpx 12rpx;
+      font-size: 18rpx;
+      border-radius: 16rpx;
+      background: rgba(201, 162, 39, 0.15);
+      color: $accent-gold;
+    }
+  }
+  
+  .contact-artist {
+    width: 56rpx;
+    height: 56rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(201, 162, 39, 0.1);
+    border: 1rpx solid rgba(201, 162, 39, 0.3);
+    border-radius: 50%;
+    margin-right: 16rpx;
+  }
+  
+  .follow-btn {
+    padding: 12rpx 28rpx;
+    font-size: 24rpx;
+    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+    color: $bg-primary;
+    border-radius: 30rpx;
+    font-weight: 500;
+    
+    &.following {
+      background: $bg-elevated;
+      color: $text-secondary;
+    }
+  }
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 12rpx;
+  
+  .current-price {
+    font-size: 44rpx;
+    font-weight: 600;
+    color: $accent-gold;
+    
+    &::before {
+      content: '¥';
+      font-size: 28rpx;
+    }
+  }
+  
+  .original-price {
+    font-size: 28rpx;
+    color: $text-muted;
+    text-decoration: line-through;
+    margin-left: 16rpx;
+    
+    &::before {
+      content: '¥';
+      font-size: 20rpx;
+    }
+  }
+}
+
+.price-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 8rpx 16rpx;
+  background: rgba(231, 76, 60, 0.15);
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: #e74c3c;
+}
+
+// 基本信息
+.info-section {
+  margin: 0 24rpx 24rpx;
+  padding: 32rpx;
+  background: $bg-card;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
+  
+  .section-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 24rpx;
   }
   
   .info-grid {
@@ -681,35 +727,38 @@ onMounted(() => {
       
       .info-label {
         width: 140rpx;
-        font-size: 26rpx;
-        color: #999999;
+        font-size: 24rpx;
+        color: $text-muted;
       }
       
       .info-value {
         flex: 1;
-        font-size: 26rpx;
-        color: #333333;
+        font-size: 24rpx;
+        color: $text-secondary;
       }
     }
   }
 }
 
+// 作品故事
 .story-section {
+  margin: 0 24rpx 24rpx;
+  padding: 32rpx;
+  background: $bg-card;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
+  
   .section-title {
-    font-size: 30rpx;
+    font-size: 28rpx;
     font-weight: 600;
-    color: #333333;
-    margin-bottom: 20rpx;
+    color: $text-primary;
+    margin-bottom: 24rpx;
   }
   
   .story-content {
-    font-size: 28rpx;
-    color: #666666;
+    font-size: 26rpx;
+    color: $text-secondary;
     line-height: 1.8;
-    
-    &.expanded {
-      display: block;
-    }
     
     text {
       display: -webkit-box;
@@ -721,6 +770,7 @@ onMounted(() => {
     &.expanded text {
       -webkit-line-clamp: unset;
       overflow: visible;
+      display: block;
     }
   }
   
@@ -728,16 +778,39 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8rpx;
     margin-top: 20rpx;
-    font-size: 26rpx;
-    color: #e6be8a;
-    
-    .iconfont {
-      margin-left: 8rpx;
-    }
+    font-size: 24rpx;
+    color: $accent-gold;
   }
 }
 
+// 佣金提示
+.commission-tip {
+  display: flex;
+  align-items: center;
+  margin: 0 24rpx 24rpx;
+  padding: 20rpx 24rpx;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
+  border: 1rpx solid rgba(201, 162, 39, 0.3);
+  border-radius: 16rpx;
+  
+  .tip-text {
+    font-size: 24rpx;
+    color: $text-secondary;
+    margin-left: 12rpx;
+  }
+  
+  .tip-amount {
+    flex: 1;
+    font-size: 28rpx;
+    color: $accent-gold;
+    font-weight: 600;
+    margin-left: 12rpx;
+  }
+}
+
+// 底部操作栏
 .action-bar {
   position: fixed;
   left: 0;
@@ -745,33 +818,24 @@ onMounted(() => {
   bottom: 0;
   display: flex;
   align-items: center;
-  padding: 20rpx 30rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background-color: #ffffff;
-  border-top: 1rpx solid #f0f0f0;
+  padding: 16rpx 30rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  background: $bg-card;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
   
   .action-icons {
     display: flex;
+    gap: 40rpx;
     
     .action-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-right: 40rpx;
-      
-      .iconfont {
-        font-size: 44rpx;
-        color: #666666;
-        margin-bottom: 4rpx;
-        
-        &.icon-star-filled {
-          color: #e6be8a;
-        }
-      }
       
       text {
-        font-size: 22rpx;
-        color: #666666;
+        font-size: 20rpx;
+        color: $text-muted;
+        margin-top: 4rpx;
       }
     }
   }
@@ -785,21 +849,24 @@ onMounted(() => {
       flex: 1;
       height: 80rpx;
       border-radius: 40rpx;
-      font-size: 30rpx;
+      font-size: 28rpx;
+      font-weight: 500;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     
     .btn-add-cart {
-      background-color: #f5f5f5;
-      color: #333333;
+      background: $bg-elevated;
+      color: $text-primary;
       margin-right: 16rpx;
+      border: 1rpx solid rgba(255, 255, 255, 0.1);
     }
     
     .btn-buy {
-      background-color: #333333;
-      color: #ffffff;
+      background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+      color: $bg-primary;
+      box-shadow: 0 4rpx 16rpx rgba(201, 162, 39, 0.3);
     }
   }
 }
@@ -811,7 +878,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 999;
   
   .share-content {
@@ -819,7 +886,7 @@ onMounted(() => {
     bottom: 0;
     left: 0;
     right: 0;
-    background: #fff;
+    background: $bg-card;
     border-radius: 24rpx 24rpx 0 0;
     padding: 40rpx 30rpx;
     padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
@@ -828,7 +895,7 @@ onMounted(() => {
       text-align: center;
       font-size: 30rpx;
       font-weight: 600;
-      color: #333;
+      color: $text-primary;
       margin-bottom: 40rpx;
     }
     
@@ -851,7 +918,7 @@ onMounted(() => {
         
         text {
           font-size: 24rpx;
-          color: #666;
+          color: $text-secondary;
         }
       }
     }
@@ -860,8 +927,8 @@ onMounted(() => {
       text-align: center;
       padding: 20rpx;
       font-size: 28rpx;
-      color: #999;
-      background: #f5f5f5;
+      color: $text-muted;
+      background: $bg-elevated;
       border-radius: 16rpx;
     }
   }
@@ -874,7 +941,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 999;
   display: flex;
   align-items: center;
@@ -882,7 +949,7 @@ onMounted(() => {
   
   .contact-content {
     width: 600rpx;
-    background: #fff;
+    background: $bg-card;
     border-radius: 24rpx;
     padding: 40rpx;
     
@@ -895,7 +962,7 @@ onMounted(() => {
       .contact-title {
         font-size: 32rpx;
         font-weight: 600;
-        color: #333;
+        color: $text-primary;
       }
       
       .contact-close {
@@ -914,18 +981,19 @@ onMounted(() => {
         height: 100rpx;
         border-radius: 50%;
         margin-bottom: 16rpx;
+        background: $bg-elevated;
       }
       
       .artist-name {
         font-size: 30rpx;
         font-weight: 600;
-        color: #333;
+        color: $text-primary;
       }
     }
     
     .contact-actions {
       display: flex;
-      gap: 40rpx;
+      gap: 30rpx;
       margin-bottom: 30rpx;
       
       .contact-item {
@@ -934,12 +1002,12 @@ onMounted(() => {
         flex-direction: column;
         align-items: center;
         padding: 30rpx;
-        background: #f5f5f5;
+        background: $bg-elevated;
         border-radius: 16rpx;
         
         text {
-          font-size: 26rpx;
-          color: #333;
+          font-size: 24rpx;
+          color: $text-secondary;
           margin-top: 12rpx;
         }
       }
@@ -951,13 +1019,13 @@ onMounted(() => {
       .phone-label {
         display: block;
         font-size: 22rpx;
-        color: #999;
+        color: $text-muted;
         margin-bottom: 8rpx;
       }
       
       .phone-value {
         font-size: 28rpx;
-        color: #333;
+        color: $text-primary;
       }
     }
   }

@@ -78,13 +78,14 @@
         >
           <view class="artwork-card">
             <view class="artwork-image-wrapper">
-              <image class="artwork-card-image" :src="item.coverImage" mode="aspectFill"></image>
+              <image class="artwork-card-image" :src="item.cover" mode="aspectFill"></image>
               <view class="artwork-tag" v-if="item.isHot">热</view>
+              <view class="artwork-tag new-tag" v-if="item.isNew">新</view>
             </view>
             <view class="artwork-card-info">
               <text class="artwork-title">{{ item.title }}</text>
               <view class="artwork-author">
-                <text class="author-name">{{ item.authorName }}</text>
+                <text class="author-name">{{ item.artistName || item.authorName }}</text>
                 <view class="identity-tag" v-if="item.authorIdentity">
                   <text>{{ getIdentityText(item.authorIdentity) }}</text>
                 </view>
@@ -93,8 +94,8 @@
                 <view class="price-info">
                   <text class="price-symbol">¥</text>
                   <text class="price-value">{{ formatPrice(item.price) }}</text>
-                  <text class="price-change up" v-if="item.priceChangeRate > 0">+{{ item.priceChangeRate }}%</text>
-                  <text class="price-change down" v-else-if="item.priceChangeRate < 0">{{ item.priceChangeRate }}%</text>
+                  <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
+                  <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
               </view>
             </view>
@@ -197,9 +198,12 @@ const fetchProductList = async (reset = false) => {
     let list = []
 
     if (currentTab.value === 'recommend') {
-      list = await getRecommend(params)
+      const result = await getRecommend(params)
+      // 处理 PageResult 格式：{ records: [], total: xxx, page: xxx }
+      list = result?.records || result || []
     } else {
-      list = await getFollowingWorks(params)
+      const result = await getFollowingWorks(params)
+      list = result?.records || result || []
     }
 
     if (!list || list.length === 0) {
@@ -218,6 +222,7 @@ const fetchProductList = async (reset = false) => {
       page.value++
     }
   } catch (e) {
+    console.error('获取作品列表失败:', e)
     if (reset) {
       productList.value = getMockArtworks()
     }
@@ -583,6 +588,11 @@ $price-down: #4CAF50;
       font-size: 22rpx;
       color: $bg-primary;
       font-weight: 600;
+      
+      &.new-tag {
+        background-color: $accent-gold;
+        right: 70rpx;
+      }
     }
   }
   

@@ -101,4 +101,20 @@ public class Order implements Serializable {
     /** 推广员ID (非数据库字段) */
     @TableField(exist = false)
     private Long promoterId;
+    
+    /** 卖家名称 (非数据库字段) */
+    @TableField(exist = false)
+    private String sellerName;
+    
+    /** 卖家头像 (非数据库字段) */
+    @TableField(exist = false)
+    private String sellerAvatar;
+    
+    /** 物流单号 (非数据库字段) */
+    @TableField(exist = false)
+    private String trackingNo;
+    
+    /** 物流公司 (非数据库字段) */
+    @TableField(exist = false)
+    private String expressName;
 }

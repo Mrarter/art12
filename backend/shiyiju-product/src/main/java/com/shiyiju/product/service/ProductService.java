@@ -231,13 +231,16 @@ public class ProductService {
 
     /** 获取首页Banner */
     public List<Banner> getBanners() {
-        return bannerMapper.selectList(
-                new LambdaQueryWrapper<Banner>()
-                        .eq(Banner::getStatus, 1)
-                        .le(Banner::getStartTime, LocalDateTime.now())
-                        .ge(Banner::getEndTime, LocalDateTime.now())
-                        .orderByAsc(Banner::getSort)
+        LambdaQueryWrapper<Banner> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Banner::getStatus, 1);
+        // 处理时间条件：(start_time IS NULL OR start_time <= now) AND (end_time IS NULL OR end_time >= now)
+        LocalDateTime now = LocalDateTime.now();
+        wrapper.and(w -> w
+            .and(n -> n.isNull(Banner::getStartTime).or().le(Banner::getStartTime, now))
+            .and(n -> n.isNull(Banner::getEndTime).or().ge(Banner::getEndTime, now))
         );
+        wrapper.orderByAsc(Banner::getSort);
+        return bannerMapper.selectList(wrapper);
     }
 
     /** 创建作品 */
@@ -410,6 +413,19 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         vo.setSaleCount(artwork.getSaleCount() != null ? artwork.getSaleCount() : 0);
         vo.setCreateTime(artwork.getCreateTime() != null ? artwork.getCreateTime().toString() : null);
 
+        // 是否新品（创建时间在30天内）
+        boolean isNew = false;
+        if (artwork.getCreateTime() != null) {
+            LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+            isNew = artwork.getCreateTime().isAfter(thirtyDaysAgo);
+        }
+        vo.setIsNew(isNew);
+        
+        // 是否热门（销量>0或收藏数>5）
+        boolean isHot = (artwork.getSaleCount() != null && artwork.getSaleCount() > 0)
+                || (artwork.getFavoriteCount() != null && artwork.getFavoriteCount() > 5);
+        vo.setIsHot(isHot);
+
         // 来源文本
         vo.setSourceText(switch (artwork.getSource()) {
             case 1 -> "艺术家发布";
@@ -443,6 +459,22 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         vo.setAuthorName(artwork.getAuthorName());
         vo.setAuthorBadge(artwork.getAuthorBadge());
         vo.setAuthorAvatar(artwork.getAuthorAvatar());
+        // 作者身份（从authorBadge推断）
+        vo.setAuthorIdentity(getAuthorIdentity(artwork.getAuthorBadge()));
+        // 作者简介（可扩展）
+        vo.setAuthorBio(artwork.getAuthorBio());
+        // 作者电话（可扩展）
+        vo.setAuthorPhone(artwork.getAuthorPhone());
+
+        // 检查是否已关注艺术家（需要关注表，这里简化处理）
+        vo.setIsFollowing(false);
+
+        // 计算持有时长（天）- 从创建时间或首次购买时间计算
+        if (artwork.getCreateTime() != null) {
+            long daysSinceCreation = java.time.Duration.between(
+                    artwork.getCreateTime(), LocalDateTime.now()).toDays();
+            vo.setHoldDuration((int) daysSinceCreation);
+        }
 
         // 分销相关
         vo.setDistributionEnabled(artwork.getDistributionEnabled());
@@ -453,5 +485,19 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         vo.setStatus(artwork.getStatus());
 
         return vo;
+    }
+
+    /** 根据徽章推断艺术家身份 */
+    private String getAuthorIdentity(String badge) {
+        if (badge == null) return "artist";
+        String lowerBadge = badge.toLowerCase();
+        if (lowerBadge.contains("大师") || lowerBadge.contains("master")) {
+            return "master";
+        } else if (lowerBadge.contains("藏家") || lowerBadge.contains("collector")) {
+            return "collector";
+        } else if (lowerBadge.contains("机构") || lowerBadge.contains("gallery")) {
+            return "gallery";
+        }
+        return "artist";
     }
 }

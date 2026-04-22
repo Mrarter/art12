@@ -1,17 +1,34 @@
 <template>
   <view class="cart-page">
+    <!-- 顶部导航 -->
+    <view class="nav-bar">
+      <view class="nav-title">购物车</view>
+      <view class="nav-edit" @click="toggleEditMode">
+        <text>{{ isEditMode ? '完成' : '编辑' }}</text>
+      </view>
+    </view>
+
     <!-- 购物车列表 -->
     <view class="cart-list" v-if="cartList.length > 0">
       <!-- 按发布者分组 -->
       <view class="cart-group" v-for="group in groupedCartList" :key="group.publisherId">
+        <!-- 发布者头部 -->
         <view class="group-header">
-          <view class="group-publisher" @click="goPublisherHome(group.publisherId)">
-            <image class="publisher-avatar" :src="group.publisherAvatar" mode="aspectFill"></image>
-            <text class="publisher-name">{{ group.publisherName }}</text>
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+          <view class="header-left">
+            <checkbox 
+              :checked="isGroupSelected(group)" 
+              @click="toggleGroupSelect(group)"
+              color="#c9a227"
+            ></checkbox>
+            <view class="publisher-info" @click="goPublisherHome(group.publisherId)">
+              <image class="publisher-avatar" :src="group.publisherAvatar" mode="aspectFill"></image>
+              <text class="publisher-name">{{ group.publisherName }}</text>
+              <u-icon name="arrow-right" size="12" color="#666"></u-icon>
+            </view>
           </view>
         </view>
         
+        <!-- 商品列表 -->
         <view class="group-items">
           <view class="cart-item" v-for="item in group.items" :key="item.id">
             <view class="item-checkbox">
@@ -19,58 +36,82 @@
                 :checked="isSelected(item.id)" 
                 @click="toggleSelect(item.id)"
                 :disabled="item.locked"
+                color="#c9a227"
               ></checkbox>
             </view>
             <image class="item-image" :src="item.cover" mode="aspectFill" @click="goDetail(item.productId)"></image>
             <view class="item-info">
-              <view class="item-title" @click="goDetail(item.productId)">{{ item.title }}</view>
-              <view class="item-meta">{{ item.artistName }}</view>
-              <view class="item-bottom">
-                <text class="item-price">¥{{ item.price }}</text>
-                <view class="item-num" v-if="!item.locked">
-                  <view class="num-btn" @click="decreaseNum(item)">-</view>
-                  <text class="num-value">{{ item.num }}</text>
-                  <view class="num-btn" @click="increaseNum(item)">+</view>
-                </view>
-                <view class="locked-tag" v-else>
-                  <u-icon name="lock" size="12" color="#999"></u-icon>
-                  <text>锁定中</text>
+              <view class="item-header">
+                <view class="item-title" @click="goDetail(item.productId)">{{ item.title }}</view>
+                <view class="item-delete" @click="deleteItem(item.id)" v-if="!item.locked && isEditMode">
+                  <u-icon name="close" size="14" color="#666"></u-icon>
                 </view>
               </view>
-            </view>
-            <view class="item-delete" @click="deleteItem(item.id)" v-if="!item.locked">
-              <u-icon name="close" size="16" color="#999"></u-icon>
+              <view class="item-artist">{{ item.artistName }}</view>
+              <view class="item-footer">
+                <view class="item-price-wrap">
+                  <text class="item-price">¥{{ formatPrice(item.price) }}</text>
+                  <text class="item-original" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
+                </view>
+                <view class="item-num" v-if="!item.locked">
+                  <view class="num-btn minus" @click="decreaseNum(item)">
+                    <u-icon name="minus" size="10" color="#999"></u-icon>
+                  </view>
+                  <text class="num-value">{{ item.num }}</text>
+                  <view class="num-btn plus" @click="increaseNum(item)">
+                    <u-icon name="plus" size="10" color="#999"></u-icon>
+                  </view>
+                </view>
+                <view class="locked-tag" v-else>
+                  <u-icon name="lock" size="12" color="#666"></u-icon>
+                </view>
+              </view>
             </view>
           </view>
         </view>
         
         <!-- 艺荐官信息 -->
         <view class="promoter-info" v-if="group.promoterId">
-          <u-icon name="account" size="14" color="#999"></u-icon>
-          <text>艺荐官: {{ group.promoterName }}</text>
+          <view class="promoter-badge">
+            <u-icon name="star" size="12" color="#c9a227"></u-icon>
+            <text>艺荐官</text>
+          </view>
+          <text class="promoter-name">{{ group.promoterName }}</text>
         </view>
       </view>
     </view>
     
     <!-- 空购物车 -->
     <view class="empty-cart" v-else>
-      <image class="empty-icon" src="/static/icons/cart-empty.png" mode="aspectFit"></image>
-      <text class="empty-text">购物车空空如也</text>
-      <view class="empty-btn" @click="goGallery">去逛逛</view>
+      <view class="empty-icon-wrap">
+        <u-icon name="shopping-cart" size="120" color="#333"></u-icon>
+      </view>
+      <text class="empty-title">购物车空空如也</text>
+      <text class="empty-subtitle">快去发现心仪的艺术品吧</text>
+      <view class="empty-btn" @click="goGallery">
+        <text>去逛逛</text>
+      </view>
     </view>
     
     <!-- 底部结算栏 -->
     <view class="settlement-bar" v-if="cartList.length > 0">
-      <view class="select-all">
-        <checkbox :checked="isAllSelected" @click="toggleSelectAll"></checkbox>
-        <text>全选</text>
+      <view class="bar-left">
+        <checkbox 
+          :checked="isAllSelected" 
+          @click="toggleSelectAll"
+          color="#c9a227"
+        ></checkbox>
+        <text class="select-text">全选</text>
+        <view class="total-wrap">
+          <text class="total-label">合计</text>
+          <text class="total-price">¥{{ formatPrice(totalPrice) }}</text>
+        </view>
       </view>
-      <view class="total-info">
-        <text class="total-label">合计:</text>
-        <text class="total-price">¥{{ totalPrice }}</text>
-      </view>
-      <view class="settle-btn" :class="{ disabled: selectedCount === 0 }" @click="goSettle">
-        结算{{ selectedCount > 0 ? `(${selectedCount})` : '' }}
+      <view class="bar-right">
+        <view class="settle-btn" :class="{ disabled: selectedCount === 0 }" @click="handleSettle">
+          <text v-if="isEditMode">删除{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</text>
+          <text v-else>结算{{ selectedCount > 0 ? `(${selectedCount})` : '' }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -83,7 +124,8 @@ import { removeFromCart, updateCartNum, lockCartItems } from '@/api/cart.js'
 export default {
   data() {
     return {
-      groupedCartList: []
+      groupedCartList: [],
+      isEditMode: false
     }
   },
   
@@ -107,7 +149,7 @@ export default {
       return this.cartStore.totalPrice
     }
   },
-  
+
   onShow() {
     this.initCart()
   },
@@ -119,7 +161,6 @@ export default {
     },
     
     groupCartList() {
-      // 按发布者分组
       const groups = {}
       this.cartList.forEach(item => {
         const publisherId = item.publisherId || 'default'
@@ -142,8 +183,31 @@ export default {
       return this.selectedList.includes(id)
     },
     
+    isGroupSelected(group) {
+      const allIds = group.items.map(item => item.id)
+      return allIds.length > 0 && allIds.every(id => this.selectedList.includes(id))
+    },
+    
     toggleSelect(id) {
       this.cartStore.toggleSelect(id)
+    },
+    
+    toggleGroupSelect(group) {
+      const allIds = group.items.map(item => item.id)
+      const allSelected = allIds.every(id => this.selectedList.includes(id))
+      if (allSelected) {
+        allIds.forEach(id => {
+          if (this.selectedList.includes(id)) {
+            this.cartStore.toggleSelect(id)
+          }
+        })
+      } else {
+        allIds.forEach(id => {
+          if (!this.selectedList.includes(id)) {
+            this.cartStore.toggleSelect(id)
+          }
+        })
+      }
     },
     
     toggleSelectAll() {
@@ -152,6 +216,10 @@ export default {
       } else {
         this.cartStore.selectAll()
       }
+    },
+    
+    toggleEditMode() {
+      this.isEditMode = !this.isEditMode
     },
     
     async decreaseNum(item) {
@@ -174,8 +242,9 @@ export default {
     
     async deleteItem(id) {
       uni.showModal({
-        title: '提示',
+        title: '',
         content: '确定要删除该商品吗？',
+        confirmColor: '#c9a227',
         success: async (res) => {
           if (res.confirm) {
             this.cartStore.removeFromCart(id)
@@ -188,13 +257,43 @@ export default {
       })
     },
     
-    async goSettle() {
-      if (this.selectedCount === 0) return
+    async handleSettle() {
+      if (this.selectedCount === 0) {
+        uni.showToast({ title: '请选择商品', icon: 'none' })
+        return
+      }
       
+      if (this.isEditMode) {
+        // 编辑模式：批量删除
+        uni.showModal({
+          title: '',
+          content: `确定要删除选中的 ${this.selectedCount} 件商品吗？`,
+          confirmColor: '#c9a227',
+          success: async (res) => {
+            if (res.confirm) {
+              const idsToDelete = [...this.selectedList]
+              idsToDelete.forEach(id => {
+                this.cartStore.removeFromCart(id)
+              })
+              this.groupCartList()
+              this.isEditMode = false
+              try {
+                await removeFromCart(idsToDelete)
+              } catch (e) {}
+              uni.showToast({ title: '删除成功', icon: 'success' })
+            }
+          }
+        })
+      } else {
+        // 结算模式
+        this.goSettle()
+      }
+    },
+    
+    async goSettle() {
       const selectedIds = this.selectedList
       const selectedItems = this.cartStore.selectedItems
       
-      // 检查是否有锁定商品
       const hasLocked = selectedItems.some(item => item.locked)
       if (hasLocked) {
         uni.showToast({ title: '部分商品已被锁定', icon: 'none' })
@@ -202,19 +301,13 @@ export default {
       }
       
       try {
-        // 锁定购物车商品
         await lockCartItems(selectedIds)
-        
-        // 更新本地锁定状态
         selectedIds.forEach(id => {
           const item = this.cartList.find(i => i.id === id)
           if (item) item.locked = true
         })
-        
-        // 跳转到确认订单页
         uni.navigateTo({ url: '/pages/order/confirm' })
       } catch (e) {
-        // 即使锁定失败也跳转
         uni.navigateTo({ url: '/pages/order/confirm' })
       }
     },
@@ -229,153 +322,262 @@ export default {
     
     goPublisherHome(id) {
       uni.navigateTo({ url: `/pages/artist/home?id=${id}` })
+    },
+    
+    formatPrice(price) {
+      if (!price) return '0'
+      return Number(price).toLocaleString('zh-CN')
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+/* 变量定义 */
+$bg-primary: #0d0d0d;
+$bg-card: #1a1a1a;
+$bg-elevated: #242424;
+$text-primary: #ffffff;
+$text-secondary: #999999;
+$text-muted: #666666;
+$accent-gold: #c9a227;
+$accent-gold-light: #e5c76b;
+$border-color: rgba(255, 255, 255, 0.08);
+$danger-color: #e74c3c;
+
 .cart-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 120rpx;
+  background: $bg-primary;
+  padding-bottom: 140rpx;
 }
 
+/* 导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 32rpx;
+  padding-top: calc(var(--status-bar-height) + 20rpx);
+  background: $bg-card;
+  border-bottom: 1rpx solid $border-color;
+}
+
+.nav-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.nav-edit {
+  font-size: 28rpx;
+  color: $accent-gold;
+}
+
+/* 购物车列表 */
 .cart-list {
-  padding: 20rpx;
+  padding: 20rpx 24rpx;
 }
 
 .cart-group {
-  background: #fff;
-  border-radius: 16rpx;
-  margin-bottom: 20rpx;
+  background: $bg-card;
+  border-radius: 20rpx;
+  margin-bottom: 24rpx;
   overflow: hidden;
 }
 
+/* 分组头部 */
 .group-header {
-  padding: 24rpx 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.group-publisher {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 24rpx;
+  border-bottom: 1rpx solid $border-color;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.publisher-info {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .publisher-avatar {
-  width: 40rpx;
-  height: 40rpx;
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
-  margin-right: 12rpx;
+  border: 1rpx solid $border-color;
 }
 
 .publisher-name {
-  font-size: 28rpx;
-  color: #333;
+  font-size: 26rpx;
+  color: $text-primary;
   font-weight: 500;
+}
+
+/* 商品项 */
+.group-items {
+  padding: 0 24rpx;
 }
 
 .cart-item {
   display: flex;
-  align-items: center;
-  padding: 24rpx 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  align-items: flex-start;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid $border-color;
+  
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .item-checkbox {
   margin-right: 20rpx;
+  padding-top: 40rpx;
 }
 
 .item-image {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 8rpx;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 12rpx;
+  background: $bg-elevated;
   margin-right: 20rpx;
+  flex-shrink: 0;
 }
 
 .item-info {
   flex: 1;
+  min-width: 0;
+}
+
+.item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
 }
 
 .item-title {
   font-size: 28rpx;
-  color: #333;
-  margin-bottom: 10rpx;
+  color: $text-primary;
+  font-weight: 500;
+  line-height: 1.4;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.item-meta {
-  font-size: 24rpx;
-  color: #999;
+.item-delete {
+  padding: 8rpx;
+  margin: -8rpx;
+  margin-left: 16rpx;
+}
+
+.item-artist {
+  font-size: 22rpx;
+  color: $text-secondary;
   margin-bottom: 16rpx;
 }
 
-.item-bottom {
+.item-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
+.item-price-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
 .item-price {
-  font-size: 30rpx;
-  color: #e74c3c;
+  font-size: 32rpx;
+  color: $text-primary;
   font-weight: 600;
+}
+
+.item-original {
+  font-size: 22rpx;
+  color: $text-muted;
+  text-decoration: line-through;
 }
 
 .item-num {
   display: flex;
   align-items: center;
+  background: $bg-elevated;
+  border-radius: 8rpx;
+  overflow: hidden;
 }
 
 .num-btn {
-  width: 48rpx;
-  height: 48rpx;
-  line-height: 48rpx;
-  text-align: center;
-  background: #f5f5f5;
-  border-radius: 8rpx;
-  font-size: 28rpx;
-  color: #333;
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &.minus {
+    border-right: 1rpx solid $border-color;
+  }
+  
+  &.plus {
+    border-left: 1rpx solid $border-color;
+  }
 }
 
 .num-value {
   min-width: 60rpx;
   text-align: center;
-  font-size: 28rpx;
-  color: #333;
+  font-size: 26rpx;
+  color: $text-primary;
 }
 
 .locked-tag {
   display: flex;
   align-items: center;
-  font-size: 22rpx;
-  color: #999;
+  justify-content: center;
+  width: 52rpx;
+  height: 52rpx;
+  background: $bg-elevated;
+  border-radius: 8rpx;
 }
 
-.locked-tag text {
-  margin-left: 6rpx;
-}
-
-.item-delete {
-  padding: 10rpx;
-  margin-left: 10rpx;
-}
-
+/* 艺荐官信息 */
 .promoter-info {
   display: flex;
   align-items: center;
-  padding: 20rpx 30rpx;
-  font-size: 22rpx;
-  color: #999;
-  background: #fafafa;
+  gap: 12rpx;
+  padding: 20rpx 24rpx;
+  background: rgba($accent-gold, 0.05);
+  border-top: 1rpx solid $border-color;
 }
 
-.promoter-info text {
-  margin-left: 8rpx;
+.promoter-badge {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 4rpx 12rpx;
+  background: rgba($accent-gold, 0.15);
+  border-radius: 16rpx;
+  font-size: 20rpx;
+  color: $accent-gold;
 }
 
+.promoter-name {
+  font-size: 24rpx;
+  color: $text-secondary;
+}
+
+/* 空购物车 */
 .empty-cart {
   display: flex;
   flex-direction: column;
@@ -384,26 +586,43 @@ export default {
   padding-top: 200rpx;
 }
 
-.empty-icon {
+.empty-icon-wrap {
   width: 200rpx;
   height: 200rpx;
-  margin-bottom: 30rpx;
-}
-
-.empty-text {
-  font-size: 28rpx;
-  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-card;
+  border-radius: 50%;
   margin-bottom: 40rpx;
 }
 
-.empty-btn {
-  padding: 20rpx 60rpx;
-  background: #333;
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 28rpx;
+.empty-title {
+  font-size: 32rpx;
+  color: $text-primary;
+  font-weight: 500;
+  margin-bottom: 16rpx;
 }
 
+.empty-subtitle {
+  font-size: 26rpx;
+  color: $text-secondary;
+  margin-bottom: 60rpx;
+}
+
+.empty-btn {
+  padding: 24rpx 80rpx;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+  border-radius: 44rpx;
+  
+  text {
+    font-size: 30rpx;
+    color: $bg-primary;
+    font-weight: 500;
+  }
+}
+
+/* 底部结算栏 */
 .settlement-bar {
   position: fixed;
   bottom: 0;
@@ -411,55 +630,86 @@ export default {
   right: 0;
   display: flex;
   align-items: center;
-  height: 100rpx;
-  padding: 0 30rpx;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: #fff;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+  justify-content: space-between;
+  padding: 20rpx 32rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: $bg-card;
+  border-top: 1rpx solid $border-color;
 }
 
-.select-all {
+.bar-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.select-text {
+  font-size: 28rpx;
+  color: $text-primary;
+}
+
+.total-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+  margin-left: 20rpx;
+}
+
+.total-label {
+  font-size: 24rpx;
+  color: $text-secondary;
+}
+
+.total-price {
+  font-size: 40rpx;
+  color: $text-primary;
+  font-weight: 700;
+}
+
+.bar-right {
   display: flex;
   align-items: center;
 }
 
-.select-all text {
-  margin-left: 12rpx;
-  font-size: 28rpx;
-  color: #333;
-}
-
-.total-info {
-  flex: 1;
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  margin-right: 30rpx;
-}
-
-.total-label {
-  font-size: 26rpx;
-  color: #666;
-}
-
-.total-price {
-  font-size: 36rpx;
-  color: #e74c3c;
-  font-weight: 600;
-}
-
 .settle-btn {
-  padding: 0 50rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  background: #333;
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 28rpx;
+  padding: 0 48rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+  border-radius: 44rpx;
+  box-shadow: 0 4rpx 20rpx rgba($accent-gold, 0.3);
+  
+  text {
+    font-size: 30rpx;
+    color: $bg-primary;
+    font-weight: 600;
+  }
+  
+  &.disabled {
+    background: $bg-elevated;
+    box-shadow: none;
+    
+    text {
+      color: $text-muted;
+    }
+  }
 }
 
-.settle-btn.disabled {
-  background: #ccc;
-  color: #fff;
+/* checkbox 样式覆盖 */
+::v-deep {
+  .uni-checkbox-wrapper {
+    .uni-checkbox-input {
+      width: 40rpx;
+      height: 40rpx;
+      border-radius: 50%;
+      border: 2rpx solid $text-muted;
+      background: transparent;
+      
+      &.uni-checkbox-input-checked {
+        background: $accent-gold;
+        border-color: $accent-gold;
+      }
+    }
+  }
 }
 </style>

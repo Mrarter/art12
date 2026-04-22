@@ -3,13 +3,17 @@ server:
 spring:
   application:
     name: shiyiju-product
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
   cloud:
     nacos:
       discovery:
         enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/shiyiju_product?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
     password: root123456
   data:
@@ -26,9 +30,15 @@ logging:
   level:
     com.shiyiju: DEBUG
 
-# 七牛云配置
+# 本地文件存储配置（替代七牛云）
+upload:
+  local:
+    path: /tmp/shiyiju-uploads
+  cdn-url: http://localhost:8087
+
+# 七牛云配置（已弃用，保留占位符避免编译错误）
 qiniu:
-  access-key: your_access_key
-  secret-key: your_secret_key
-  bucket: shiyiju
-  cdn: http://your-cdn-domain.com
+  access-key: placeholder
+  secret-key: placeholder
+  bucket: placeholder
+  cdn: http://placeholder.com

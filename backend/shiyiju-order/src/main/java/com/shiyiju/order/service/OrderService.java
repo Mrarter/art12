@@ -13,6 +13,7 @@ import com.shiyiju.common.service.WxPayService;
 import com.shiyiju.order.dto.CreateOrderDTO;
 import com.shiyiju.order.entity.*;
 import com.shiyiju.order.mapper.*;
+import com.shiyiju.order.vo.AddressVO;
 import com.shiyiju.order.vo.CartVO;
 import com.shiyiju.order.vo.OrderItemVO;
 import com.shiyiju.order.vo.OrderVO;
@@ -740,9 +741,34 @@ public class OrderService {
         vo.setTotalAmount(order.getTotalAmount() != null ? order.getTotalAmount().longValue() : 0L);
         vo.setDiscountAmount(order.getDiscountAmount() != null ? order.getDiscountAmount().longValue() : 0L);
         vo.setPayAmount(order.getPayAmount() != null ? order.getPayAmount().longValue() : 0L);
-        vo.setReceiverName(order.getReceiverName());
-        vo.setReceiverPhone(order.getReceiverPhone());
-        vo.setReceiverAddress(order.getReceiverAddress());
+        
+        // 构建地址VO
+        AddressVO addressVO = new AddressVO();
+        addressVO.setReceiverName(order.getReceiverName());
+        addressVO.setReceiverPhone(order.getReceiverPhone());
+        addressVO.setFullAddress(order.getReceiverAddress());
+        // 尝试解析地址（格式：省-市-区-详情）
+        if (order.getReceiverAddress() != null) {
+            String[] parts = order.getReceiverAddress().split("-");
+            if (parts.length >= 4) {
+                addressVO.setProvince(parts[0]);
+                addressVO.setCity(parts[1]);
+                addressVO.setDistrict(parts[2]);
+                addressVO.setDetail(parts[3]);
+            } else if (parts.length == 3) {
+                addressVO.setProvince(parts[0]);
+                addressVO.setCity(parts[1]);
+                addressVO.setDistrict(parts[2]);
+                addressVO.setDetail("");
+            } else {
+                addressVO.setProvince("");
+                addressVO.setCity("");
+                addressVO.setDistrict("");
+                addressVO.setDetail(order.getReceiverAddress());
+            }
+        }
+        vo.setAddress(addressVO);
+        
         vo.setRemark(order.getRemark());
         vo.setSource(order.getSource());
         vo.setStatus(order.getStatus());
@@ -750,11 +776,17 @@ public class OrderService {
         vo.setShipTime(order.getShipTime() != null ? order.getShipTime().toString() : null);
         vo.setReceiveTime(order.getReceiveTime() != null ? order.getReceiveTime().toString() : null);
         vo.setCreateTime(order.getCreateTime() != null ? order.getCreateTime().toString() : null);
+        
+        // 运费
+        vo.setFreight(order.getFreightAmount() != null ? order.getFreightAmount().longValue() : 0L);
+        // 物流信息
+        vo.setTrackingNo(order.getTrackingNo());
+        vo.setExpressName(order.getExpressName());
 
         vo.setSourceText(getSourceText(order.getSource()));
         vo.setStatusText(getStatusText(order.getStatus()));
 
-        // 加载订单项
+        // 卖家信息（从第一个订单项获取）
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId())
         );
@@ -764,10 +796,16 @@ public class OrderService {
             itemVO.setArtworkId(item.getArtworkId());
             itemVO.setTitle(item.getTitle());
             itemVO.setCoverImage(item.getCoverImage());
-            itemVO.setAuthorName("");
+            itemVO.setAuthorName(item.getAuthorName());
+            itemVO.setArtistName(item.getAuthorName());
             itemVO.setPrice(item.getPrice());
             itemVO.setQuantity(item.getQuantity());
             itemVO.setSubtotal(item.getSubtotal());
+            // 从订单获取卖家信息设置到第一个商品
+            if (vo.getSellerName() == null && order.getSellerName() != null) {
+                vo.setSellerName(order.getSellerName());
+                vo.setSellerAvatar(order.getSellerAvatar());
+            }
             return itemVO;
         }).collect(Collectors.toList()));
 

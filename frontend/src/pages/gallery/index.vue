@@ -10,53 +10,43 @@
           :key="item.id"
           @click="selectCategory(item.id)"
         >
-          {{ item.name }}
+          <text class="category-name">{{ item.name }}</text>
+          <view class="category-indicator" v-if="currentCategory === item.id"></view>
         </view>
       </scroll-view>
     </view>
 
-    <!-- 筛选栏 -->
-    <view class="filter-bar">
-      <view class="filter-item" @click="showFilter('sort')">
-        <text>{{ currentSort.label }}</text>
-        <u-icon name="arrow-down" size="14" color="#666"></u-icon>
-      </view>
-      <view class="filter-item" @click="showFilter('price')">
-        <text>价格</text>
-        <u-icon name="arrow-down" size="14" color="#666"></u-icon>
-      </view>
-      <view class="filter-item" @click="showFilter('year')">
-        <text>年代</text>
-        <u-icon name="arrow-down" size="14" color="#666"></u-icon>
-      </view>
-      <view class="filter-item" @click="showFilter('size')">
-        <text>尺寸</text>
-        <u-icon name="arrow-down" size="14" color="#666"></u-icon>
-      </view>
-      <view class="filter-item" @click="showFilter('more')">
-        <text>更多</text>
-        <u-icon name="arrow-down" size="14" color="#666"></u-icon>
-      </view>
-    </view>
-
     <!-- 商品列表 -->
-    <scroll-view class="product-list" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="product-list" scroll-y @scrolltolower="loadMore" refresher-enabled @refresherrefresh="onRefresh">
       <view class="waterfall-container">
         <view class="waterfall-column">
           <view class="product-card" v-for="item in leftList" :key="item.id" @click="goDetail(item.id)">
-            <image class="product-image" :src="item.cover" mode="widthFix"></image>
+            <view class="image-wrapper">
+              <image class="product-image" :src="item.cover" mode="widthFix" :lazy-load="true"></image>
+              <!-- SOLD标签 -->
+              <view class="sold-badge" v-if="item.stock === 0">
+                <view class="sold-text">SOLD</view>
+              </view>
+              <!-- 新作发布标签 -->
+              <view class="stock-badge" v-if="item.isNew">
+                <text>新作发布</text>
+              </view>
+            </view>
             <view class="product-info">
               <view class="product-title">{{ item.title }}</view>
               <view class="product-meta">
-                <text>{{ item.artistName }}</text>
+                <text class="artist-name">{{ item.artistName }}</text>
                 <text class="meta-sep">|</text>
-                <text>{{ item.category }}</text>
+                <text class="category-name">{{ item.category }}</text>
               </view>
-              <view class="product-size">{{ item.size }}</view>
+              <view class="product-size">
+                <u-icon name="photo" size="12" color="#999"></u-icon>
+                <text>{{ item.size }}</text>
+              </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">¥{{ item.price }}</text>
-                  <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
+                  <text class="current-price">¥{{ formatPrice(item.price) }}</text>
+                  <text class="original-price" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   <u-icon name="arrow-up" size="10" color="#e74c3c"></u-icon>
@@ -68,19 +58,32 @@
         </view>
         <view class="waterfall-column">
           <view class="product-card" v-for="item in rightList" :key="item.id" @click="goDetail(item.id)">
-            <image class="product-image" :src="item.cover" mode="widthFix"></image>
+            <view class="image-wrapper">
+              <image class="product-image" :src="item.cover" mode="widthFix" :lazy-load="true"></image>
+              <!-- SOLD标签 -->
+              <view class="sold-badge" v-if="item.stock === 0">
+                <view class="sold-text">SOLD</view>
+              </view>
+              <!-- 新作发布标签 -->
+              <view class="stock-badge" v-if="item.isNew">
+                <text>新作发布</text>
+              </view>
+            </view>
             <view class="product-info">
               <view class="product-title">{{ item.title }}</view>
               <view class="product-meta">
-                <text>{{ item.artistName }}</text>
+                <text class="artist-name">{{ item.artistName }}</text>
                 <text class="meta-sep">|</text>
-                <text>{{ item.category }}</text>
+                <text class="category-name">{{ item.category }}</text>
               </view>
-              <view class="product-size">{{ item.size }}</view>
+              <view class="product-size">
+                <u-icon name="photo" size="12" color="#999"></u-icon>
+                <text>{{ item.size }}</text>
+              </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">¥{{ item.price }}</text>
-                  <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
+                  <text class="current-price">¥{{ formatPrice(item.price) }}</text>
+                  <text class="original-price" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   <u-icon name="arrow-up" size="10" color="#e74c3c"></u-icon>
@@ -92,51 +95,47 @@
         </view>
       </view>
       
-      <view class="load-more" v-if="hasMore">
+      <view class="load-more" v-if="hasMore && loading">
         <u-loading mode="circle"></u-loading>
         <text>加载中...</text>
       </view>
-      <view class="no-more" v-else-if="productList.length > 0">
-        <text>没有更多了</text>
+      <view class="no-more" v-else-if="!hasMore && productList.length > 0">
+        <view class="divider-line"></view>
+        <text>— 没有更多了 —</text>
+        <view class="divider-line"></view>
+      </view>
+      <view class="empty-state" v-else-if="productList.length === 0 && !loading">
+        <image class="empty-image" src="/static/empty/product.png" mode="aspectFit"></image>
+        <text class="empty-text">暂无相关作品</text>
+        <view class="empty-btn" @click="loadRandomProducts">换一批</view>
       </view>
     </scroll-view>
 
     <!-- 筛选弹出层 -->
-    <u-popup v-model:show="showFilterPopup" mode="top" :round="20">
+    <u-popup v-model:show="showFilterPopup" mode="top" :round="24">
       <view class="filter-popup">
-        <view class="filter-content" v-if="filterType === 'sort'">
-          <view class="filter-title">排序方式</view>
-          <view class="filter-options">
-            <view 
-              class="filter-option" 
-              :class="{ active: filterParams.sort === item.value }"
-              v-for="item in sortOptions" 
-              :key="item.value"
-              @click="selectSort(item)"
-            >
-              {{ item.label }}
-            </view>
-          </view>
+        <view class="popup-header">
+          <text class="popup-title">{{ getFilterTitle }}</text>
         </view>
         
         <view class="filter-content" v-if="filterType === 'price'">
           <view class="filter-title">价格区间</view>
           <view class="price-range">
-            <input class="price-input" type="number" v-model="filterParams.minPrice" placeholder="最低价" />
+            <input class="price-input" type="number" v-model="tempMinPrice" placeholder="最低价" @blur="applyPriceFilter" />
             <text class="range-sep">-</text>
-            <input class="price-input" type="number" v-model="filterParams.maxPrice" placeholder="最高价" />
+            <input class="price-input" type="number" v-model="tempMaxPrice" placeholder="最高价" @blur="applyPriceFilter" />
           </view>
           <view class="quick-price">
-            <view class="quick-item" @click="setPriceRange(0, 10000)">1万以下</view>
-            <view class="quick-item" @click="setPriceRange(10000, 50000)">1-5万</view>
-            <view class="quick-item" @click="setPriceRange(50000, 100000)">5-10万</view>
-            <view class="quick-item" @click="setPriceRange(100000, 0)">10万以上</view>
+            <view class="quick-item" :class="{ active: tempMinPrice === '' && tempMaxPrice === '10000' }" @click="setPriceRange('', '10000')">1万以下</view>
+            <view class="quick-item" :class="{ active: tempMinPrice === '10000' && tempMaxPrice === '50000' }" @click="setPriceRange('10000', '50000')">1-5万</view>
+            <view class="quick-item" :class="{ active: tempMinPrice === '50000' && tempMaxPrice === '100000' }" @click="setPriceRange('50000', '100000')">5-10万</view>
+            <view class="quick-item" :class="{ active: tempMinPrice === '100000' && tempMaxPrice === '' }" @click="setPriceRange('100000', '')">10万以上</view>
           </view>
         </view>
         
         <view class="filter-content" v-if="filterType === 'year'">
           <view class="filter-title">创作年代</view>
-          <view class="filter-options">
+          <view class="filter-options-grid">
             <view 
               class="filter-option" 
               :class="{ active: filterParams.year === item.value }"
@@ -144,14 +143,15 @@
               :key="item.value"
               @click="selectYear(item)"
             >
-              {{ item.label }}
+              <text>{{ item.label }}</text>
+              <u-icon v-if="filterParams.year === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
             </view>
           </view>
         </view>
         
         <view class="filter-content" v-if="filterType === 'size'">
           <view class="filter-title">尺寸</view>
-          <view class="filter-options">
+          <view class="filter-options-grid">
             <view 
               class="filter-option" 
               :class="{ active: filterParams.size === item.value }"
@@ -159,65 +159,71 @@
               :key="item.value"
               @click="selectSize(item)"
             >
-              {{ item.label }}
+              <text>{{ item.label }}</text>
+              <u-icon v-if="filterParams.size === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
             </view>
           </view>
         </view>
         
-        <!-- 艺术家筛选 -->
+        <!-- 更多筛选 -->
         <view class="filter-content" v-if="filterType === 'more'">
-          <view class="filter-title">艺术家</view>
-          <view class="artist-search">
-            <input class="artist-input" type="text" v-model="artistKeyword" placeholder="搜索艺术家名称" @confirm="searchArtist" />
-            <view class="search-btn" @click="searchArtist">搜索</view>
-          </view>
-          <view class="artist-list" v-if="artistList.length > 0">
-            <view class="filter-title-sub">推荐艺术家</view>
-            <view class="artist-chips">
-              <view 
-                class="artist-chip" 
-                :class="{ active: filterParams.artistId === item.id }"
-                v-for="item in artistList" 
-                :key="item.id"
-                @click="selectArtist(item)"
-              >
-                <image class="artist-avatar" :src="item.avatar" mode="aspectFill"></image>
-                <text class="artist-name">{{ item.name }}</text>
-                <view class="artist-badge" v-if="item.badge">{{ item.badge }}</view>
+          <view class="filter-section">
+            <view class="filter-title">艺术家</view>
+            <view class="artist-search">
+              <input class="artist-input" type="text" v-model="artistKeyword" placeholder="搜索艺术家名称" @confirm="searchArtist" />
+              <view class="search-btn" @click="searchArtist">
+                <u-icon name="search" size="16" color="#fff"></u-icon>
+              </view>
+            </view>
+            <view class="artist-list" v-if="artistList.length > 0">
+              <view class="artist-chips">
+                <view 
+                  class="artist-chip" 
+                  :class="{ active: filterParams.artistId === item.id }"
+                  v-for="item in artistList" 
+                  :key="item.id"
+                  @click="selectArtist(item)"
+                >
+                  <image class="artist-avatar" :src="item.avatar || '/static/avatar/default.png'" mode="aspectFill"></image>
+                  <text class="artist-name">{{ item.name }}</text>
+                  <view class="artist-badge" v-if="item.badge">{{ item.badge }}</view>
+                  <u-icon v-if="filterParams.artistId === item.id" name="checkmark" size="14" color="#c9a227"></u-icon>
+                </view>
               </view>
             </view>
           </view>
           
-          <view class="filter-title-sub" style="margin-top: 30rpx;">持有时长</view>
-          <view class="filter-options">
-            <view 
-              class="filter-option" 
-              :class="{ active: filterParams.holdTime === item.value }"
-              v-for="item in holdTimeOptions" 
-              :key="item.value"
-              @click="selectHoldTime(item)"
-            >
-              {{ item.label }}
+          <view class="filter-section">
+            <view class="filter-title">持有时长</view>
+            <view class="filter-options-grid">
+              <view 
+                class="filter-option" 
+                :class="{ active: filterParams.holdTime === item.value }"
+                v-for="item in holdTimeOptions" 
+                :key="item.value"
+                @click="selectHoldTime(item)"
+              >
+                <text>{{ item.label }}</text>
+                <u-icon v-if="filterParams.holdTime === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
+              </view>
             </view>
           </view>
           
-          <view class="filter-title-sub" style="margin-top: 30rpx;">艺术家类型</view>
-          <view class="filter-options">
-            <view 
-              class="filter-option" 
-              :class="{ active: filterParams.artistType === item.value }"
-              v-for="item in artistTypeOptions" 
-              :key="item.value"
-              @click="selectArtistType(item)"
-            >
-              {{ item.label }}
+          <view class="filter-section">
+            <view class="filter-title">艺术家类型</view>
+            <view class="filter-options-grid">
+              <view 
+                class="filter-option" 
+                :class="{ active: filterParams.artistType === item.value }"
+                v-for="item in artistTypeOptions" 
+                :key="item.value"
+                @click="selectArtistType(item)"
+              >
+                <text>{{ item.label }}</text>
+                <u-icon v-if="filterParams.artistType === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
+              </view>
             </view>
           </view>
-        </view>
-        
-        <view class="filter-actions">
-          <view class="btn-reset" @click="resetFilter">重置</view>
-          <view class="btn-confirm" @click="confirmFilter">确定</view>
         </view>
       </view>
     </u-popup>
@@ -230,6 +236,7 @@ import { getGalleryList, getCategories } from '@/api/product.js'
 export default {
   data() {
     return {
+      loading: false,
       categoryList: [
         { id: '', name: '全部' },
         { id: 'oil', name: '油画' },
@@ -240,12 +247,7 @@ export default {
         { id: 'photo', name: '摄影' }
       ],
       currentCategory: '',
-      sortOptions: [
-        { label: '综合排序', value: 'default' },
-        { label: '最新上架', value: 'time_desc' },
-        { label: '价格从低到高', value: 'price_asc' },
-        { label: '价格从高到低', value: 'price_desc' }
-      ],
+
       yearOptions: [
         { label: '不限', value: '' },
         { label: '2020年后', value: '2020+' },
@@ -272,15 +274,15 @@ export default {
         { label: '人气艺术家', value: 'popular' },
         { label: '认证艺术家', value: 'verified' }
       ],
-      currentSort: { label: '综合排序', value: 'default' },
       productList: [],
       page: 1,
       pageSize: 10,
       hasMore: true,
       showFilterPopup: false,
       filterType: 'sort',
+      tempMinPrice: '',
+      tempMaxPrice: '',
       filterParams: {
-        sort: 'default',
         minPrice: '',
         maxPrice: '',
         year: '',
@@ -309,12 +311,49 @@ export default {
     },
     rightList() {
       return this.productList.filter((item, index) => index % 2 === 1)
+    },
+    hasActiveFilters() {
+      return this.filterParams.minPrice || 
+             this.filterParams.maxPrice || 
+             this.filterParams.year || 
+             this.filterParams.size || 
+             this.filterParams.artistId ||
+             this.filterParams.artistType
+    },
+    formatPriceFilter() {
+      const min = this.filterParams.minPrice
+      const max = this.filterParams.maxPrice
+      if (min && max) return `${this.formatPrice(min)}-${this.formatPrice(max)}`
+      if (min) return `${this.formatPrice(min)}以上`
+      if (max) return `${this.formatPrice(max)}以下`
+      return ''
+    },
+    getYearLabel() {
+      const item = this.yearOptions.find(o => o.value === this.filterParams.year)
+      return item ? item.label : ''
+    },
+    getSizeLabel() {
+      const item = this.sizeOptions.find(o => o.value === this.filterParams.size)
+      return item ? item.label : ''
+    },
+    getFilterTitle() {
+      const titles = {
+        price: '价格区间',
+        year: '创作年代',
+        size: '尺寸',
+        more: '更多筛选'
+      }
+      return titles[this.filterType] || '筛选'
     }
   },
   
   onLoad() {
     this.loadCategories()
     this.loadProducts()
+  },
+  
+  onShow() {
+    // 每次显示时刷新数据
   },
   
   methods: {
@@ -334,7 +373,7 @@ export default {
     
     async loadProducts() {
       try {
-        uni.showLoading({ title: '加载中...' })
+        this.loading = true
         const res = await getGalleryList({
           category: this.currentCategory,
           page: this.page,
@@ -342,26 +381,31 @@ export default {
           ...this.filterParams
         })
         
+        // 处理 PageResult 格式：{ records: [], total: xxx }
+        const list = res?.records || res?.list || res || []
+        
         if (this.page === 1) {
-          this.productList = res.list || []
+          this.productList = list
         } else {
-          this.productList = [...this.productList, ...(res.list || [])]
+          this.productList = [...this.productList, ...list]
         }
         
-        this.hasMore = res.list?.length >= this.pageSize
-        uni.hideLoading()
+        this.hasMore = list.length >= this.pageSize
       } catch (e) {
-        uni.hideLoading()
         this.loadMockData()
+      } finally {
+        this.loading = false
       }
     },
     
     loadMockData() {
       const mockData = [
-        { id: 1, cover: '/static/product/demo1.jpg', title: '山水长卷', artistName: '张大千', category: '油画', size: '100x200cm', price: 128000, originalPrice: 150000, priceChange: 5.2 },
-        { id: 2, cover: '/static/product/demo2.jpg', title: '虾趣图', artistName: '齐白石', category: '水墨', size: '50x80cm', price: 88000, originalPrice: 100000, priceChange: 3.8 },
-        { id: 3, cover: '/static/product/demo3.jpg', title: '奔马图', artistName: '徐悲鸿', category: '油画', size: '120x80cm', price: 256000, priceChange: 8.5 },
-        { id: 4, cover: '/static/product/demo4.jpg', title: '松鹰图', artistName: '潘天寿', category: '水墨', size: '80x150cm', price: 158000, originalPrice: 180000, priceChange: 2.1 }
+        { id: 1, cover: '/static/product/demo1.jpg', title: '山水长卷', artistName: '张大千', category: '油画', size: '100x200cm', price: 128000, originalPrice: 150000, priceChange: 5.2, stock: 0, isNew: true },
+        { id: 2, cover: '/static/product/demo2.jpg', title: '虾趣图', artistName: '齐白石', category: '水墨', size: '50x80cm', price: 88000, originalPrice: 100000, priceChange: 3.8, stock: 3, isNew: false },
+        { id: 3, cover: '/static/product/demo3.jpg', title: '奔马图', artistName: '徐悲鸿', category: '油画', size: '120x80cm', price: 256000, priceChange: 8.5, stock: 1, isNew: true },
+        { id: 4, cover: '/static/product/demo4.jpg', title: '松鹰图', artistName: '潘天寿', category: '水墨', size: '80x150cm', price: 158000, originalPrice: 180000, priceChange: 2.1, stock: 5, isNew: false },
+        { id: 5, cover: '/static/product/demo5.jpg', title: '春山云起', artistName: '李可染', category: '油画', size: '60x90cm', price: 98000, priceChange: 0, stock: 0, isNew: true },
+        { id: 6, cover: '/static/product/demo6.jpg', title: '江南水乡', artistName: '吴冠中', category: '水墨', size: '45x70cm', price: 156000, priceChange: 4.2, stock: 2, isNew: false }
       ]
       
       if (this.page === 1) {
@@ -370,6 +414,21 @@ export default {
         this.productList = [...this.productList, ...mockData]
       }
       this.hasMore = false
+    },
+    
+    loadRandomProducts() {
+      this.resetFilter()
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
+    },
+    
+    formatPrice(price) {
+      if (!price) return '0'
+      if (price >= 10000) {
+        return (price / 10000).toFixed(price % 10000 === 0 ? 0 : 1) + '万'
+      }
+      return price.toLocaleString()
     },
     
     selectCategory(id) {
@@ -381,36 +440,47 @@ export default {
     
     showFilter(type) {
       this.filterType = type
+      this.tempMinPrice = this.filterParams.minPrice
+      this.tempMaxPrice = this.filterParams.maxPrice
       this.showFilterPopup = true
-    },
-    
-    selectSort(item) {
-      this.currentSort = item
-      this.filterParams.sort = item.value
     },
     
     selectYear(item) {
       this.filterParams.year = item.value
+      this.showFilterPopup = false
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
     },
     
     selectSize(item) {
       this.filterParams.size = item.value
+      this.showFilterPopup = false
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
     },
     
     selectHoldTime(item) {
       this.filterParams.holdTime = item.value
+      this.showFilterPopup = false
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
     },
     
     selectArtistType(item) {
       this.filterParams.artistType = item.value
+      this.showFilterPopup = false
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
     },
     
     searchArtist() {
-      // 搜索艺术家
       if (this.artistKeyword) {
-        this.artistList = this.artistList.filter(a => 
-          a.name.includes(this.artistKeyword)
-        )
+        // 模拟搜索
+        uni.showToast({ title: '搜索中...', icon: 'loading' })
       }
     },
     
@@ -422,16 +492,74 @@ export default {
         this.filterParams.artistId = item.id
         this.filterParams.artistName = item.name
       }
+      this.showFilterPopup = false
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
     },
     
     setPriceRange(min, max) {
-      this.filterParams.minPrice = min || ''
-      this.filterParams.maxPrice = max || ''
+      this.tempMinPrice = min
+      this.tempMaxPrice = max
+      this.filterParams.minPrice = min
+      this.filterParams.maxPrice = max
+      this.showFilterPopup = false
+      this.page = 1
+      this.productList = []
+      this.loadProducts()
+    },
+    
+    applyPriceFilter() {
+      if (this.tempMinPrice || this.tempMaxPrice) {
+        this.filterParams.minPrice = this.tempMinPrice
+        this.filterParams.maxPrice = this.tempMaxPrice
+        this.showFilterPopup = false
+        this.page = 1
+        this.productList = []
+        this.loadProducts()
+      }
+    },
+    
+    clearPrice() {
+      this.filterParams.minPrice = ''
+      this.filterParams.maxPrice = ''
+      this.page = 1
+      this.loadProducts()
+    },
+    
+    clearYear() {
+      this.filterParams.year = ''
+      this.page = 1
+      this.loadProducts()
+    },
+    
+    clearSize() {
+      this.filterParams.size = ''
+      this.page = 1
+      this.loadProducts()
+    },
+    
+    clearArtist() {
+      this.filterParams.artistId = ''
+      this.filterParams.artistName = ''
+      this.page = 1
+      this.loadProducts()
+    },
+    
+    clearArtistType() {
+      this.filterParams.artistType = ''
+      this.page = 1
+      this.loadProducts()
+    },
+    
+    clearAllFilters() {
+      this.resetFilter()
+      this.page = 1
+      this.loadProducts()
     },
     
     resetFilter() {
       this.filterParams = {
-        sort: 'default',
         minPrice: '',
         maxPrice: '',
         year: '',
@@ -442,22 +570,23 @@ export default {
         artistName: '',
         artistType: ''
       }
+      this.tempMinPrice = ''
+      this.tempMaxPrice = ''
       this.artistKeyword = ''
-      this.currentSort = { label: '综合排序', value: 'default' }
-    },
-    
-    confirmFilter() {
-      this.showFilterPopup = false
-      this.page = 1
-      this.productList = []
-      this.loadProducts()
     },
     
     loadMore() {
-      if (this.hasMore) {
+      if (this.hasMore && !this.loading) {
         this.page++
         this.loadProducts()
       }
+    },
+    
+    onRefresh() {
+      this.page = 1
+      this.loadProducts().then(() => {
+        uni.showToast({ title: '刷新成功', icon: 'success' })
+      })
     },
     
     goDetail(id) {
@@ -468,16 +597,31 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+// 深色艺术主题色板
+$bg-primary: #0d0d0d;
+$bg-card: #1a1a1a;
+$bg-elevated: #242424;
+$text-primary: #ffffff;
+$text-secondary: #a0a0a0;
+$text-muted: #666666;
+$accent-gold: #c9a227;
+$accent-gold-light: #e6c65c;
+
 .gallery-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $bg-primary;
+  display: flex;
+  flex-direction: column;
 }
 
+// 分类标签 - 紧凑胶囊式
 .category-tabs {
-  background: #fff;
+  background: $bg-primary;
   position: sticky;
   top: 0;
   z-index: 99;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .category-scroll {
@@ -486,49 +630,54 @@ export default {
 }
 
 .category-item {
-  display: inline-block;
-  padding: 24rpx 30rpx;
-  font-size: 28rpx;
-  color: #666;
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14rpx 28rpx;
+  margin: 0 8rpx;
+  border-radius: 30rpx;
+  background: $bg-card;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s;
+  
+  .category-name {
+    font-size: 26rpx;
+    color: $text-secondary;
+    transition: all 0.3s;
+  }
+  
+  .category-indicator {
+    display: none;
+  }
 }
 
 .category-item.active {
-  color: #333;
-  font-weight: 600;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+  border-color: transparent;
+  box-shadow: 0 4rpx 16rpx rgba(201, 162, 39, 0.3);
+  
+  .category-name {
+    font-size: 26rpx;
+    font-weight: 600;
+    color: $bg-primary;
+  }
 }
 
-.category-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40rpx;
-  height: 4rpx;
-  background: #333;
-  border-radius: 2rpx;
-}
-
-.filter-bar {
-  display: flex;
-  background: #fff;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #eee;
-}
-
-.filter-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26rpx;
-  color: #666;
-}
-
+// 商品列表
 .product-list {
-  height: calc(100vh - 200rpx);
-  padding: 20rpx;
+  flex: 1;
+  height: calc(100vh - 100rpx);
+  padding: 16rpx;
+  background: $bg-primary;
+}
+
+// 下拉刷新样式
+:deep(.uni-scroll-view-refresher) {
+  background: $bg-primary !important;
+}
+
+:deep(.uni-red-dot) {
+  background: $accent-gold !important;
 }
 
 .waterfall-container {
@@ -541,24 +690,73 @@ export default {
 }
 
 .product-card {
-  background: #fff;
+  background: $bg-card;
   border-radius: 12rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
   overflow: hidden;
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
+  transition: all 0.3s;
+  
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+.image-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .product-image {
   width: 100%;
   display: block;
+  background: $bg-elevated;
+}
+
+// SOLD标签 - 设计图风格
+.sold-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .sold-text {
+    padding: 10rpx 36rpx;
+    border: 2rpx solid rgba(255, 255, 255, 0.9);
+    border-radius: 4rpx;
+    font-size: 26rpx;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 6rpx;
+  }
+}
+
+// 库存告急标签
+.stock-badge {
+  position: absolute;
+  bottom: 16rpx;
+  left: 16rpx;
+  padding: 6rpx 14rpx;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 4rpx;
+  font-size: 20rpx;
+  color: #fff;
 }
 
 .product-info {
-  padding: 20rpx;
+  padding: 18rpx;
 }
 
 .product-title {
-  font-size: 28rpx;
-  color: #333;
+  font-size: 26rpx;
+  color: $text-primary;
   font-weight: 500;
   margin-bottom: 10rpx;
   overflow: hidden;
@@ -567,18 +765,39 @@ export default {
 }
 
 .product-meta {
-  font-size: 24rpx;
-  color: #999;
+  display: flex;
+  align-items: center;
+  font-size: 22rpx;
+  color: $text-muted;
   margin-bottom: 8rpx;
+  
+  .artist-name {
+    color: $text-secondary;
+    max-width: 100rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .category-name {
+    max-width: 70rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .meta-sep {
   margin: 0 10rpx;
+  color: rgba(255, 255, 255, 0.15);
 }
 
 .product-size {
-  font-size: 22rpx;
-  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  font-size: 20rpx;
+  color: $text-muted;
   margin-bottom: 12rpx;
 }
 
@@ -591,215 +810,293 @@ export default {
 .price-info {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
 }
 
 .current-price {
-  font-size: 30rpx;
-  color: #e74c3c;
+  font-size: 28rpx;
+  color: $accent-gold;
   font-weight: 600;
+  
+  &::before {
+    content: '¥';
+    font-size: 20rpx;
+    font-weight: 500;
+  }
 }
 
 .original-price {
-  font-size: 22rpx;
-  color: #999;
+  font-size: 20rpx;
+  color: $text-muted;
   text-decoration: line-through;
-  margin-left: 10rpx;
+  margin-left: 8rpx;
+  
+  &::before {
+    content: '¥';
+    font-size: 16rpx;
+  }
 }
 
 .price-change {
   display: flex;
   align-items: center;
-  background: rgba(231, 76, 60, 0.1);
+  gap: 4rpx;
+  background: rgba(231, 76, 60, 0.15);
   padding: 4rpx 10rpx;
   border-radius: 4rpx;
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #e74c3c;
 }
 
+// 加载状态
 .load-more, .no-more {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 30rpx 0;
+  padding: 40rpx 0;
   font-size: 24rpx;
-  color: #999;
+  color: $text-muted;
 }
 
 .load-more text {
   margin-left: 12rpx;
 }
 
+.no-more {
+  flex-direction: column;
+  gap: 16rpx;
+  
+  .divider-line {
+    width: 100rpx;
+    height: 1rpx;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// 空状态
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0;
+  
+  .empty-image {
+    width: 240rpx;
+    height: 240rpx;
+    margin-bottom: 32rpx;
+    opacity: 0.5;
+  }
+  
+  .empty-text {
+    font-size: 28rpx;
+    color: $text-muted;
+    margin-bottom: 32rpx;
+  }
+  
+  .empty-btn {
+    padding: 14rpx 44rpx;
+    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+    border-radius: 36rpx;
+    font-size: 28rpx;
+    color: $bg-primary;
+    font-weight: 500;
+  }
+}
+
+// 筛选弹窗 - 深色主题
 .filter-popup {
-  padding: 30rpx;
+  padding: 32rpx;
+  background: $bg-card;
+}
+
+.popup-header {
+  margin-bottom: 32rpx;
+  
+  .popup-title {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.filter-content {
+  margin-bottom: 32rpx;
+}
+
+.filter-section {
+  margin-bottom: 40rpx;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .filter-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 30rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: $text-secondary;
+  margin-bottom: 20rpx;
 }
 
-.filter-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
+.filter-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
 }
 
 .filter-option {
-  padding: 16rpx 30rpx;
-  background: #f5f5f5;
-  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22rpx 24rpx;
+  background: $bg-elevated;
+  border-radius: 10rpx;
   font-size: 26rpx;
-  color: #666;
-}
-
-.filter-option.active {
-  background: #333;
-  color: #fff;
+  color: $text-secondary;
+  border: 1rpx solid transparent;
+  transition: all 0.3s;
+  
+  &.active {
+    background: rgba(201, 162, 39, 0.12);
+    border-color: rgba(201, 162, 39, 0.4);
+    color: $accent-gold;
+    font-weight: 500;
+  }
 }
 
 .price-range {
   display: flex;
   align-items: center;
-  margin-bottom: 30rpx;
+  margin-bottom: 24rpx;
 }
 
 .price-input {
   flex: 1;
-  height: 80rpx;
-  background: #f5f5f5;
-  border-radius: 8rpx;
+  height: 84rpx;
+  background: $bg-elevated;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 10rpx;
   padding: 0 20rpx;
-  font-size: 28rpx;
+  font-size: 26rpx;
+  text-align: center;
+  color: $text-primary;
 }
 
 .range-sep {
-  margin: 0 20rpx;
-  color: #999;
+  margin: 0 16rpx;
+  color: $text-muted;
+  font-size: 26rpx;
 }
 
 .quick-price {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
 }
 
 .quick-item {
-  padding: 16rpx 30rpx;
-  background: #f5f5f5;
-  border-radius: 8rpx;
+  padding: 18rpx;
+  background: $bg-elevated;
+  border-radius: 10rpx;
   font-size: 24rpx;
-  color: #666;
-}
-
-.filter-actions {
-  display: flex;
-  gap: 20rpx;
-  margin-top: 40rpx;
-}
-
-.btn-reset, .btn-confirm {
-  flex: 1;
-  height: 88rpx;
-  line-height: 88rpx;
+  color: $text-secondary;
   text-align: center;
-  border-radius: 44rpx;
-  font-size: 30rpx;
+  border: 1rpx solid transparent;
+  transition: all 0.3s;
+  
+  &.active {
+    background: rgba(201, 162, 39, 0.12);
+    border-color: rgba(201, 162, 39, 0.4);
+    color: $accent-gold;
+  }
 }
 
-.btn-reset {
-  background: #f5f5f5;
-  color: #666;
-}
-
-.btn-confirm {
-  background: #333;
-  color: #fff;
-}
-
+// 艺术家搜索
 .artist-search {
   display: flex;
-  gap: 20rpx;
-  margin-bottom: 30rpx;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
 }
 
 .artist-input {
   flex: 1;
   height: 80rpx;
-  background: #f5f5f5;
-  border-radius: 8rpx;
+  background: $bg-elevated;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 10rpx;
   padding: 0 20rpx;
-  font-size: 28rpx;
+  font-size: 26rpx;
+  color: $text-primary;
 }
 
 .search-btn {
-  width: 120rpx;
+  width: 100rpx;
   height: 80rpx;
-  line-height: 80rpx;
-  text-align: center;
-  background: #333;
-  color: #fff;
-  border-radius: 8rpx;
-  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+  border-radius: 10rpx;
 }
 
 .artist-list {
-  margin-bottom: 20rpx;
-}
-
-.filter-title-sub {
-  font-size: 26rpx;
-  color: #999;
-  margin-bottom: 20rpx;
+  margin-top: 20rpx;
 }
 
 .artist-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 
 .artist-chip {
   display: flex;
   align-items: center;
-  padding: 12rpx 20rpx;
-  background: #f5f5f5;
-  border-radius: 30rpx;
+  gap: 10rpx;
+  padding: 14rpx 20rpx;
+  background: $bg-elevated;
+  border-radius: 32rpx;
   font-size: 24rpx;
-  color: #666;
+  color: $text-secondary;
+  border: 1rpx solid transparent;
+  transition: all 0.3s;
+  
+  &.active {
+    background: rgba(201, 162, 39, 0.12);
+    border-color: rgba(201, 162, 39, 0.4);
+    color: $accent-gold;
+  }
+  
+  .artist-avatar {
+    width: 40rpx;
+    height: 40rpx;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .artist-name {
+    max-width: 100rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .artist-badge {
+    padding: 3rpx 10rpx;
+    background: rgba(201, 162, 39, 0.15);
+    color: $accent-gold;
+    border-radius: 4rpx;
+    font-size: 18rpx;
+  }
 }
 
-.artist-chip.active {
-  background: #333;
-  color: #fff;
+// 隐藏页面底部意外出现的筛选文字
+.gallery-page::after {
+  content: none !important;
 }
 
-.artist-avatar {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 50%;
-  margin-right: 10rpx;
-}
-
-.artist-name {
-  max-width: 120rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.artist-badge {
-  margin-left: 8rpx;
-  padding: 2rpx 8rpx;
-  background: rgba(230, 162, 60, 0.2);
-  color: #e6a23c;
-  border-radius: 4rpx;
-  font-size: 18rpx;
-}
-
-.artist-chip.active .artist-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+// 隐藏任何 icon-filter 伪元素
+.icon-filter::before {
+  content: '' !important;
 }
 </style>

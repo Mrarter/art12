@@ -1,20 +1,31 @@
 <template>
   <view class="performance-page">
-    <!-- 头部数据 -->
+    <!-- 顶部装饰 -->
+    <view class="page-decoration">
+      <view class="deco-circle deco-circle-1"></view>
+      <view class="deco-circle deco-circle-2"></view>
+    </view>
+
+    <!-- 头部数据卡片 -->
     <view class="header-card">
       <view class="total-section">
         <text class="total-label">累计业绩</text>
-        <text class="total-value">¥{{ formatMoney(totalAmount) }}</text>
+        <view class="total-value-wrap">
+          <text class="total-symbol">¥</text>
+          <text class="total-value">{{ formatMoney(totalAmount) }}</text>
+        </view>
       </view>
       <view class="stats-row">
         <view class="stat-item">
           <text class="stat-value">{{ orderCount }}</text>
           <text class="stat-label">成交订单</text>
         </view>
+        <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-value">{{ customerCount }}</text>
           <text class="stat-label">成交客户</text>
         </view>
+        <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-value">¥{{ formatMoney(avgAmount) }}</text>
           <text class="stat-label">平均单价</text>
@@ -60,7 +71,7 @@
         <text class="card-title">分销达人榜</text>
         <view class="more-link" @click="viewAllRanking">
           <text>查看全部</text>
-          <u-icon name="arrow-right" size="12" color="#999"></u-icon>
+          <u-icon name="arrow-right" size="12" color="#666"></u-icon>
         </view>
       </view>
       <view class="ranking-list">
@@ -91,21 +102,21 @@
       <view class="card-header">
         <text class="card-title">业绩明细</text>
         <view class="filter-btn" @click="showFilter = true">
-          <u-icon name="filter" size="14" color="#666"></u-icon>
+          <u-icon name="filter" size="14" color="#c9a227"></u-icon>
           <text>筛选</text>
         </view>
       </view>
       <view class="detail-list">
         <view class="detail-item" v-for="item in detailList" :key="item.id">
-          <view class="detail-info">
+          <view class="detail-left">
             <text class="detail-title">{{ item.title }}</text>
             <text class="detail-time">{{ item.createTime }}</text>
           </view>
           <view class="detail-right">
             <text class="detail-amount">+¥{{ formatMoney(item.amount) }}</text>
-            <text class="detail-status" :class="'status-' + item.status">
+            <view :class="['detail-status', 'status-' + item.status]">
               {{ getStatusText(item.status) }}
-            </text>
+            </view>
           </view>
         </view>
         <view class="load-more" v-if="hasMore" @click="loadMore">
@@ -118,13 +129,10 @@
     </view>
 
     <!-- 筛选弹窗 -->
-    <u-popup v-model="showFilter" mode="bottom" border-radius="16">
+    <u-popup v-model="showFilter" mode="bottom" border-radius="24" :closeable="true">
       <view class="filter-popup">
         <view class="popup-header">
           <text class="popup-title">筛选条件</text>
-          <view class="close-btn" @click="showFilter = false">
-            <u-icon name="close" size="20" color="#999"></u-icon>
-          </view>
         </view>
         <view class="filter-content">
           <view class="filter-section">
@@ -218,7 +226,6 @@ export default {
 
   methods: {
     async loadOverview() {
-      // 模拟数据
       this.totalAmount = 128500
       this.orderCount = 156
       this.customerCount = 89
@@ -226,7 +233,6 @@ export default {
     },
 
     async loadTrend() {
-      // 模拟趋势数据
       const weekData = [
         { label: '周一', value: 12500 },
         { label: '周二', value: 15800 },
@@ -254,7 +260,6 @@ export default {
     },
 
     async loadRanking() {
-      // 模拟排行榜
       this.rankingList = [
         { id: 1, nickname: '艺术达人小王', avatar: '/static/avatar/demo1.jpg', orderCount: 289, amount: 358000 },
         { id: 2, nickname: '收藏家老李', avatar: '/static/avatar/demo2.jpg', orderCount: 245, amount: 298000 },
@@ -265,7 +270,6 @@ export default {
     },
 
     async loadDetail() {
-      // 模拟明细
       this.detailList = [
         { id: 1, title: '山水长卷·云岭晴岚', amount: 3840, status: 'settled', createTime: '2024-04-21 14:30' },
         { id: 2, title: '荷花图·清韵', amount: 2640, status: 'settled', createTime: '2024-04-21 10:15' },
@@ -324,144 +328,231 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* 变量定义 */
+$bg-primary: #0d0d0d;
+$bg-card: #1a1a1a;
+$bg-elevated: #242424;
+$text-primary: #ffffff;
+$text-secondary: #999999;
+$text-muted: #666666;
+$accent-gold: #c9a227;
+$accent-gold-light: #e5c76b;
+$border-color: rgba(255, 255, 255, 0.08);
+
 .performance-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 20rpx;
-  padding-bottom: 40rpx;
+  background: $bg-primary;
+  padding: 0 24rpx 40rpx;
+  position: relative;
 }
 
+/* 顶部装饰 */
+.page-decoration {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 400rpx;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba($accent-gold, 0.15) 0%, transparent 70%);
+}
+
+.deco-circle-1 {
+  width: 600rpx;
+  height: 600rpx;
+  top: -200rpx;
+  right: -100rpx;
+}
+
+.deco-circle-2 {
+  width: 400rpx;
+  height: 400rpx;
+  top: -100rpx;
+  left: -100rpx;
+  background: radial-gradient(circle, rgba($accent-gold, 0.08) 0%, transparent 70%);
+}
+
+/* 头部数据卡片 */
 .header-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  background: linear-gradient(135deg, rgba($accent-gold, 0.2) 0%, rgba($accent-gold, 0.05) 100%);
+  border: 1rpx solid rgba($accent-gold, 0.2);
   border-radius: 24rpx;
   padding: 40rpx 30rpx;
-  margin-bottom: 20rpx;
-  color: #fff;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.header-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200rpx;
+  height: 200rpx;
+  background: radial-gradient(circle, rgba($accent-gold, 0.2) 0%, transparent 70%);
+  border-radius: 50%;
 }
 
 .total-section {
   text-align: center;
   margin-bottom: 40rpx;
+  position: relative;
+  z-index: 1;
 }
 
 .total-label {
   font-size: 28rpx;
-  opacity: 0.8;
+  color: rgba($text-primary, 0.7);
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.total-value-wrap {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.total-symbol {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: $accent-gold;
+  margin-right: 4rpx;
 }
 
 .total-value {
-  display: block;
-  font-size: 56rpx;
+  font-size: 64rpx;
   font-weight: 700;
-  margin-top: 12rpx;
+  color: $text-primary;
+  letter-spacing: -2rpx;
 }
 
 .stats-row {
   display: flex;
+  align-items: center;
   justify-content: space-around;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-item {
   text-align: center;
+  flex: 1;
 }
 
 .stat-value {
   display: block;
-  font-size: 36rpx;
-  font-weight: 600;
+  font-size: 40rpx;
+  font-weight: 700;
+  color: $text-primary;
   margin-bottom: 8rpx;
 }
 
 .stat-label {
-  font-size: 22rpx;
-  opacity: 0.8;
+  font-size: 24rpx;
+  color: $text-secondary;
 }
 
-.card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
+.stat-divider {
+  width: 1rpx;
+  height: 48rpx;
+  background: $border-color;
+}
+
+/* 通用卡片样式 */
+.trend-card,
+.ranking-card,
+.detail-card {
+  background: $bg-card;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30rpx;
+  margin-bottom: 28rpx;
 }
 
 .card-title {
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
-  color: #333;
+  color: $text-primary;
 }
 
+/* 周期选择器 */
 .period-selector {
   display: flex;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 
 .period-btn {
-  font-size: 22rpx;
-  color: #999;
-  padding: 8rpx 20rpx;
+  font-size: 24rpx;
+  color: $text-muted;
+  padding: 10rpx 20rpx;
   border-radius: 20rpx;
-  background: #f5f5f5;
+  background: $bg-elevated;
+  transition: all 0.3s;
 
   &.active {
-    background: #667eea;
-    color: #fff;
+    background: $accent-gold;
+    color: $bg-primary;
+    font-weight: 500;
   }
 }
 
-.trend-card {
-  @extend .card;
-}
-
+/* 趋势图 */
 .trend-chart {
-  height: 200rpx;
+  height: 220rpx;
 }
 
 .simple-chart {
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
-  height: 200rpx;
-  padding-top: 40rpx;
+  height: 180rpx;
+  padding-top: 20rpx;
 }
 
 .chart-bar-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 1;
 }
 
 .chart-bar {
-  width: 48rpx;
-  background: linear-gradient(180deg, #667eea 0%, #a78bfa 100%);
+  width: 40rpx;
+  background: linear-gradient(180deg, $accent-gold 0%, rgba($accent-gold, 0.3) 100%);
   border-radius: 8rpx 8rpx 0 0;
   margin-bottom: 12rpx;
   min-height: 20rpx;
+  transition: height 0.3s;
 }
 
 .chart-label {
-  font-size: 20rpx;
-  color: #999;
+  font-size: 22rpx;
+  color: $text-secondary;
 }
 
-.ranking-card {
-  @extend .card;
-}
-
+/* 排行榜 */
 .more-link {
   display: flex;
   align-items: center;
-  font-size: 24rpx;
-  color: #999;
-
+  gap: 6rpx;
+  
   text {
-    margin-right: 6rpx;
+    font-size: 26rpx;
+    color: $text-secondary;
   }
 }
 
@@ -470,7 +561,7 @@ export default {
     display: flex;
     align-items: center;
     padding: 20rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    border-bottom: 1rpx solid $border-color;
 
     &:last-child {
       border-bottom: none;
@@ -478,57 +569,63 @@ export default {
 
     &.top-three {
       .rank-badge {
-        background: linear-gradient(135deg, #f5a623, #f8b500);
-        color: #fff;
-        font-size: 24rpx;
-        font-weight: 600;
+        background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+        color: $bg-primary;
+        font-weight: 700;
       }
     }
   }
 }
 
 .rank-badge {
-  width: 40rpx;
-  height: 40rpx;
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
-  background: #f0f0f0;
+  background: $bg-elevated;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
-  color: #666;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: $text-muted;
   margin-right: 16rpx;
 }
 
 .rank-number {
-  width: 40rpx;
+  width: 44rpx;
   text-align: center;
   font-size: 26rpx;
-  color: #999;
+  color: $text-muted;
   margin-right: 16rpx;
 }
 
 .rank-avatar {
-  width: 64rpx;
-  height: 64rpx;
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 50%;
   margin-right: 16rpx;
+  background: $bg-elevated;
 }
 
 .rank-info {
   flex: 1;
+  min-width: 0;
 }
 
 .rank-name {
   display: block;
   font-size: 28rpx;
-  color: #333;
+  color: $text-primary;
+  font-weight: 500;
   margin-bottom: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rank-count {
   font-size: 22rpx;
-  color: #999;
+  color: $text-secondary;
 }
 
 .rank-amount {
@@ -537,33 +634,27 @@ export default {
 
 .rank-amount .amount {
   display: block;
-  font-size: 28rpx;
-  color: #e74c3c;
+  font-size: 30rpx;
+  color: $accent-gold;
   font-weight: 600;
   margin-bottom: 4rpx;
 }
 
 .rank-amount .label {
   font-size: 20rpx;
-  color: #999;
+  color: $text-secondary;
 }
 
-.detail-card {
-  @extend .card;
-}
-
+/* 业绩明细 */
 .filter-btn {
   display: flex;
   align-items: center;
-  font-size: 24rpx;
-  color: #666;
-  padding: 8rpx 16rpx;
-  background: #f5f5f5;
+  gap: 6rpx;
+  font-size: 26rpx;
+  color: $accent-gold;
+  padding: 10rpx 20rpx;
+  background: rgba($accent-gold, 0.1);
   border-radius: 20rpx;
-
-  text {
-    margin-left: 6rpx;
-  }
 }
 
 .detail-list {
@@ -572,7 +663,7 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 24rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    border-bottom: 1rpx solid $border-color;
 
     &:last-child {
       border-bottom: none;
@@ -580,52 +671,59 @@ export default {
   }
 }
 
-.detail-info {
+.detail-left {
   flex: 1;
+  min-width: 0;
 }
 
 .detail-title {
   display: block;
   font-size: 28rpx;
-  color: #333;
+  color: $text-primary;
   margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-time {
   font-size: 22rpx;
-  color: #999;
+  color: $text-secondary;
 }
 
 .detail-right {
   text-align: right;
+  flex-shrink: 0;
+  margin-left: 20rpx;
 }
 
 .detail-amount {
   display: block;
-  font-size: 30rpx;
-  color: #e74c3c;
+  font-size: 32rpx;
+  color: $accent-gold;
   font-weight: 600;
   margin-bottom: 8rpx;
 }
 
 .detail-status {
+  display: inline-block;
   font-size: 22rpx;
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
 
   &.status-settled {
-    background: rgba(80, 200, 120, 0.1);
-    color: #50c878;
+    background: rgba(46, 204, 113, 0.15);
+    color: #2ecc71;
   }
 
   &.status-pending {
-    background: rgba(255, 152, 0, 0.1);
-    color: #ff9800;
+    background: rgba($accent-gold, 0.15);
+    color: $accent-gold;
   }
 
   &.status-cancelled {
-    background: rgba(153, 153, 153, 0.1);
-    color: #999;
+    background: rgba($text-muted, 0.15);
+    color: $text-muted;
   }
 }
 
@@ -633,50 +731,48 @@ export default {
   text-align: center;
   padding: 30rpx;
   font-size: 26rpx;
-  color: #999;
+  color: $text-secondary;
 }
 
 .empty-state {
   text-align: center;
   padding: 60rpx;
-  color: #ccc;
+  color: $text-muted;
   font-size: 28rpx;
 }
 
+/* 筛选弹窗 */
 .filter-popup {
-  padding: 30rpx;
+  padding: 32rpx;
 }
 
 .popup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30rpx;
+  margin-bottom: 32rpx;
 }
 
 .popup-title {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 600;
-  color: #333;
-}
-
-.close-btn {
-  padding: 10rpx;
+  color: $text-primary;
 }
 
 .filter-content {
-  padding-bottom: 30rpx;
+  padding-bottom: 32rpx;
 }
 
 .filter-section {
-  margin-bottom: 30rpx;
+  margin-bottom: 32rpx;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .filter-label {
   display: block;
-  font-size: 26rpx;
-  color: #666;
-  margin-bottom: 16rpx;
+  font-size: 28rpx;
+  color: $text-secondary;
+  margin-bottom: 20rpx;
 }
 
 .filter-options {
@@ -686,41 +782,46 @@ export default {
 }
 
 .filter-option {
-  padding: 12rpx 28rpx;
-  border-radius: 30rpx;
-  font-size: 26rpx;
-  background: #f5f5f5;
-  color: #666;
+  padding: 14rpx 32rpx;
+  border-radius: 32rpx;
+  font-size: 28rpx;
+  background: $bg-elevated;
+  color: $text-secondary;
+  border: 1rpx solid $border-color;
+  transition: all 0.3s;
 
   &.active {
-    background: #667eea;
-    color: #fff;
+    background: rgba($accent-gold, 0.15);
+    border-color: $accent-gold;
+    color: $accent-gold;
   }
 }
 
 .popup-footer {
   display: flex;
-  gap: 20rpx;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #f5f5f5;
+  gap: 24rpx;
+  padding-top: 32rpx;
+  border-top: 1rpx solid $border-color;
 }
 
 .btn-reset, .btn-confirm {
   flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
+  height: 88rpx;
+  line-height: 88rpx;
   text-align: center;
-  border-radius: 40rpx;
+  border-radius: 44rpx;
   font-size: 30rpx;
+  font-weight: 500;
 }
 
 .btn-reset {
-  background: #f5f5f5;
-  color: #666;
+  background: $bg-elevated;
+  color: $text-secondary;
 }
 
 .btn-confirm {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+  color: $bg-primary;
+  box-shadow: 0 4rpx 20rpx rgba($accent-gold, 0.3);
 }
 </style>

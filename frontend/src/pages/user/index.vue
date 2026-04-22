@@ -1,135 +1,109 @@
 <template>
   <view class="user-page">
-    <!-- 用户信息头部 -->
+    <!-- 顶部用户信息区 -->
     <view class="user-header">
-      <view class="user-info" @click="goLogin">
-        <image class="user-avatar" :src="userInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+      <!-- 头部操作按钮 -->
+      <view class="header-actions">
+        <view class="action-btn" @click="goSettings">
+          <u-icon name="setting" size="22" color="#fff"></u-icon>
+        </view>
+        <view class="action-btn" @click="goMessage">
+          <u-icon name="chat" size="22" color="#fff"></u-icon>
+          <view class="badge" v-if="unreadCount > 0">{{ unreadCount }}</view>
+        </view>
+      </view>
+      
+      <!-- 用户信息 -->
+      <view class="user-info" @click="handleUserClick">
+        <view class="avatar-wrap">
+          <image class="user-avatar" :src="userInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+          <view class="avatar-badge" v-if="userInfo.isArtist">
+            <u-icon name="star" size="12" color="#c9a227"></u-icon>
+          </view>
+        </view>
         <view class="user-detail">
-          <text class="user-name">{{ userInfo.nickname || '点击登录' }}</text>
-          <text class="user-phone" v-if="userInfo.phone">{{ userInfo.phone }}</text>
-        </view>
-      </view>
-      <!-- 身份切换按钮 -->
-      <view class="identity-switcher" v-if="userStore.isAuthenticated" @click="showIdentityPicker">
-        <text class="current-identity">{{ getCurrentIdentityText() }}</text>
-        <u-icon name="arrow-down" size="14" color="#fff"></u-icon>
-      </view>
-    </view>
-
-    <!-- 当前身份提示 -->
-    <view class="identity-banner" v-if="activeIdentity !== 'collector'" :class="'identity-' + activeIdentity">
-      <image class="banner-icon" :src="getIdentityIcon()" mode="aspectFit"></image>
-      <view class="banner-content">
-        <text class="banner-title">{{ getActiveIdentityTitle() }}</text>
-        <text class="banner-desc">{{ getActiveIdentityDesc() }}</text>
-      </view>
-      <view class="banner-action" @click="switchToIdentity('collector')">
-        <text>切换为收藏家</text>
-        <u-icon name="arrow-right" size="12" color="#fff"></u-icon>
-      </view>
-    </view>
-
-    <!-- 身份入口区 -->
-    <view class="identity-section">
-      <!-- 艺术家入口 -->
-      <view class="identity-card artist-card" v-if="userInfo.isArtist || showArtistEntry" @click="goArtistHome">
-        <view class="identity-header">
-          <image class="identity-icon" src="/static/icons/artist.png" mode="aspectFit"></image>
-          <text class="identity-title">艺术家</text>
-        </view>
-        <view class="identity-stats">
-          <view class="stat-item">
-            <text class="stat-value">{{ artistStats.worksCount }}</text>
-            <text class="stat-label">作品</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-value">{{ artistStats.fansCount }}</text>
-            <text class="stat-label">粉丝</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-value">{{ artistStats.salesCount }}</text>
-            <text class="stat-label">销量</text>
-          </view>
-        </view>
-        <view class="identity-action">进入艺术家中心</view>
-      </view>
-      
-      <!-- 收藏家入口 -->
-      <view class="identity-card collector-card" @click="goCollect">
-        <view class="identity-header">
-          <image class="identity-icon" src="/static/icons/collector.png" mode="aspectFit"></image>
-          <text class="identity-title">收藏家</text>
-        </view>
-        <view class="identity-menu">
-          <view class="menu-item" @click.stop="goFavorites">
-            <u-icon name="heart" size="22" color="#667eea"></u-icon>
-            <text>我的收藏</text>
-          </view>
-          <view class="menu-item" @click.stop="goPurchased">
-            <u-icon name="shopping-bag" size="22" color="#667eea"></u-icon>
-            <text>已购作品</text>
+          <text class="user-name">{{ userInfo.nickname || '登录/注册' }}</text>
+          <text class="user-id" v-if="userInfo.id">ID: {{ userInfo.id }}</text>
+          <view class="user-tags" v-if="userInfo.isArtist || userInfo.isPromoter">
+            <text class="user-tag artist" v-if="userInfo.isArtist">艺术家</text>
+            <text class="user-tag promoter" v-if="userInfo.isPromoter">艺荐官</text>
+            <text class="user-tag collector" v-else>收藏家</text>
           </view>
         </view>
       </view>
       
-      <!-- 艺荐官入口 -->
-      <view class="identity-card promoter-card" v-if="userInfo.isPromoter || showPromoterEntry" @click="goPromoter">
-        <view class="identity-header">
-          <image class="identity-icon" src="/static/icons/promoter.png" mode="aspectFit"></image>
-          <text class="identity-title">艺荐官</text>
+      <!-- 用户数据统计 -->
+      <view class="user-stats">
+        <view class="stat-item" @click="goArtistWorks" v-if="userInfo.isArtist">
+          <text class="stat-value">{{ artistStats.worksCount }}</text>
+          <text class="stat-label">发布作品</text>
         </view>
-        <view class="promoter-earnings">
-          <view class="earnings-item">
-            <text class="earnings-label">累计佣金</text>
-            <text class="earnings-value">¥{{ promoterStats.totalCommission }}</text>
-          </view>
-          <view class="earnings-item">
-            <text class="earnings-label">可提现</text>
-            <text class="earnings-value highlight">¥{{ promoterStats.withdrawable }}</text>
-          </view>
+        <view class="stat-item" @click="goFollowing" v-else>
+          <text class="stat-value">{{ userStats.following }}</text>
+          <text class="stat-label">关注</text>
         </view>
-        <view class="identity-action">进入艺荐中心</view>
-      </view>
-    </view>
-
-    <!-- 订单入口 -->
-    <view class="order-section">
-      <view class="section-header">
-        <text class="section-title">我的订单</text>
-        <view class="section-more" @click="goOrderList('')">
-          <text>全部订单</text>
-          <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+        <view class="stat-divider"></view>
+        <view class="stat-item" @click="goFollowing">
+          <text class="stat-value">{{ formatNumber(artistStats.fansCount || userStats.followers) }}</text>
+          <text class="stat-label">粉丝关注</text>
         </view>
-      </view>
-      <view class="order-tabs">
-        <view class="order-tab" v-for="item in orderTabs" :key="item.status" @click="goOrderList(item.status)">
-          <image class="tab-icon" :src="item.icon" mode="aspectFit"></image>
-          <text class="tab-text">{{ item.label }}</text>
-          <view class="tab-badge" v-if="item.count > 0">{{ item.count > 99 ? '99+' : item.count }}</view>
+        <view class="stat-divider"></view>
+        <view class="stat-item" @click="goFavorites">
+          <text class="stat-value">{{ userStats.favorites }}</text>
+          <text class="stat-label">收藏佳作</text>
         </view>
       </view>
     </view>
 
-    <!-- 功能列表 -->
+    <!-- 身份中心入口 -->
+    <view class="identity-section" v-if="userStore.isAuthenticated">
+      <!-- 艺术家中心入口 -->
+      <view class="identity-card" v-if="userInfo.isArtist" @click="goArtistHome">
+        <view class="card-left">
+          <view class="card-icon artist-icon">
+            <u-icon name="star-fill" size="24" color="#c9a227"></u-icon>
+          </view>
+          <view class="card-info">
+            <text class="card-title">艺术家中心</text>
+            <text class="card-subtitle">管理您的艺术作品</text>
+          </view>
+        </view>
+        <view class="card-arrow">
+          <u-icon name="arrow-right" size="16" color="#666"></u-icon>
+        </view>
+      </view>
+      
+      <!-- 艺荐官中心入口 -->
+      <view class="identity-card" v-if="userInfo.isPromoter" @click="goPromoter">
+        <view class="card-left">
+          <view class="card-icon promoter-icon">
+            <u-icon name="diamond-fill" size="24" color="#c9a227"></u-icon>
+          </view>
+          <view class="card-info">
+            <text class="card-title">艺荐官中心</text>
+            <text class="card-subtitle">本月预估佣金: ¥{{ formatMoney(promoterStats.monthlyCommission) }}</text>
+          </view>
+        </view>
+        <view class="card-arrow">
+          <u-icon name="arrow-right" size="16" color="#666"></u-icon>
+        </view>
+      </view>
+    </view>
+
+    <!-- 功能网格 -->
     <view class="function-section">
-      <view class="function-list">
-        <view class="function-item" v-for="item in functionList" :key="item.id" @click="goFunction(item)">
-          <view class="function-left">
-            <image class="function-icon" :src="item.icon" mode="aspectFit"></image>
-            <text class="function-name">{{ item.name }}</text>
+      <view class="function-grid">
+        <view class="grid-item" v-for="item in functionList" :key="item.id" @click="goFunction(item)">
+          <view class="grid-icon" :style="{ background: item.bgColor }">
+            <u-icon :name="item.icon" size="32" :color="item.iconColor"></u-icon>
           </view>
-          <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+          <text class="grid-name">{{ item.name }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 设置入口 -->
-    <view class="settings-entry">
-      <view class="settings-btn" @click="goSettings">
-        <u-icon name="setting" size="20" color="#666"></u-icon>
-        <text>设置</text>
-      </view>
-    </view>
+    <!-- 底部占位 -->
+    <view class="page-footer"></view>
   </view>
 </template>
 
@@ -140,31 +114,25 @@ import { getPromoterStats } from '@/api/promoter.js'
 export default {
   data() {
     return {
+      unreadCount: 0,
+      userStats: {
+        favorites: 48,
+        following: 12,
+        followers: 1200
+      },
       artistStats: {
-        worksCount: 0,
-        fansCount: 0,
-        salesCount: 0
+        worksCount: 12,
+        fansCount: 1200
       },
       promoterStats: {
-        totalCommission: 0,
-        withdrawable: 0
+        monthlyCommission: 12850
       },
-      orderTabs: [
-        { label: '待付款', status: 'pending_payment', icon: '/static/icons/order-pay.png', count: 0 },
-        { label: '待发货', status: 'pending_ship', icon: '/static/icons/order-ship.png', count: 0 },
-        { label: '待收货', status: 'shipped', icon: '/static/icons/order-receive.png', count: 0 },
-        { label: '已完成', status: 'completed', icon: '/static/icons/order-complete.png', count: 0 }
-      ],
       functionList: [
-        { id: 'address', name: '收货地址', icon: '/static/icons/address.png', path: '/pages/address/list' },
-        { id: 'coupon', name: '优惠券', icon: '/static/icons/coupon.png', path: '/pages/coupon/list' },
-        { id: 'history', name: '浏览历史', icon: '/static/icons/history.png', path: '/pages/history/index' },
-        { id: 'help', name: '帮助中心', icon: '/static/icons/help.png', path: '/pages/help/index' },
-        { id: 'about', name: '关于我们', icon: '/static/icons/about.png', path: '/pages/about/index' }
-      ],
-      showArtistEntry: true,
-      showPromoterEntry: true,
-      activeIdentity: 'collector' // 当前活跃身份: collector/artist/promoter
+        { id: 'works', name: '作品管理', icon: 'photo', path: '/pages/artist/manage', bgColor: 'rgba(201,162,39,0.15)', iconColor: '#c9a227' },
+        { id: 'orders', name: '订单中心', icon: 'order', path: '/pages/order/list', bgColor: 'rgba(52,152,219,0.15)', iconColor: '#3498db' },
+        { id: 'wallet', name: '钱包余额', icon: 'wallet', path: '/pages/user/wallet', bgColor: 'rgba(46,204,113,0.15)', iconColor: '#2ecc71' },
+        { id: 'cert', name: '资质认证', icon: 'shield', path: '/pages/artist/cert', bgColor: 'rgba(155,89,182,0.15)', iconColor: '#9b59b6' }
+      ]
     }
   },
   
@@ -176,7 +144,7 @@ export default {
       return this.userStore.userInfo || {}
     }
   },
-  
+
   onShow() {
     this.initUserInfo()
   },
@@ -186,55 +154,47 @@ export default {
       this.userStore.initUserInfo()
       
       if (this.userStore.isAuthenticated) {
-        this.loadOrderCounts()
-        this.loadArtistStats()
         this.loadPromoterStats()
       }
-    },
-    
-    async loadOrderCounts() {
-      // 加载各状态订单数量
-      // 简化处理，实际应该调用接口
-    },
-    
-    async loadArtistStats() {
-      // 加载艺术家统计数据
     },
     
     async loadPromoterStats() {
       try {
         const res = await getPromoterStats()
-        this.promoterStats = res
+        this.promoterStats = { ...this.promoterStats, ...res }
       } catch (e) {}
     },
     
-    goLogin() {
+    handleUserClick() {
       if (!this.userStore.isAuthenticated) {
         uni.navigateTo({ url: '/pages/login/index' })
+      } else {
+        uni.navigateTo({ url: '/pages/user/profile' })
       }
     },
     
+    goSettings() {
+      uni.navigateTo({ url: '/pages/user/settings' })
+    },
+    
+    goMessage() {
+      uni.navigateTo({ url: '/pages/user/message' })
+    },
+    
     goArtistHome() {
-      if (this.userStore.isAuthenticated) {
+      if (this.userStore.isAuthenticated && this.userInfo.isArtist) {
         uni.navigateTo({ url: `/pages/artist/home?id=${this.userInfo.id}` })
       } else {
         uni.navigateTo({ url: '/pages/login/index' })
       }
     },
     
-    goCollect() {
-      if (!this.userStore.isAuthenticated) {
+    goArtistWorks() {
+      if (this.userStore.isAuthenticated && this.userInfo.isArtist) {
+        uni.navigateTo({ url: '/pages/artist/manage' })
+      } else {
         uni.navigateTo({ url: '/pages/login/index' })
-        return
       }
-    },
-    
-    goFavorites() {
-      uni.navigateTo({ url: '/pages/user/favorites' })
-    },
-    
-    goPurchased() {
-      uni.navigateTo({ url: '/pages/user/purchased' })
     },
     
     goPromoter() {
@@ -245,457 +205,309 @@ export default {
       uni.navigateTo({ url: '/pages/promoter/index' })
     },
     
-    goOrderList(status) {
+    goFavorites() {
       if (!this.userStore.isAuthenticated) {
         uni.navigateTo({ url: '/pages/login/index' })
         return
       }
-      uni.navigateTo({ url: `/pages/order/list?status=${status}` })
+      uni.navigateTo({ url: '/pages/user/favorites' })
+    },
+    
+    goFollowing() {
+      if (!this.userStore.isAuthenticated) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      uni.navigateTo({ url: '/pages/user/following' })
     },
     
     goFunction(item) {
-      if (!this.userStore.isAuthenticated && ['address', 'coupon', 'history'].includes(item.id)) {
+      if (!this.userStore.isAuthenticated) {
         uni.navigateTo({ url: '/pages/login/index' })
         return
       }
       uni.navigateTo({ url: item.path })
     },
     
-    goSettings() {
-      uni.navigateTo({ url: '/pages/settings/index' })
-    },
-    
-    // 获取当前身份文本
-    getCurrentIdentityText() {
-      const map = {
-        collector: '收藏家',
-        artist: '艺术家',
-        promoter: '艺荐官'
+    formatNumber(num) {
+      if (!num) return '0'
+      if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'k'
       }
-      return map[this.activeIdentity] || '收藏家'
+      return num.toString()
     },
     
-    // 获取身份图标
-    getIdentityIcon() {
-      const icons = {
-        artist: '/static/icons/artist.png',
-        promoter: '/static/icons/promoter.png'
-      }
-      return icons[this.activeIdentity] || '/static/icons/collector.png'
-    },
-    
-    // 获取活跃身份标题
-    getActiveIdentityTitle() {
-      const titles = {
-        artist: '我是艺术家',
-        promoter: '我是艺荐官'
-      }
-      return titles[this.activeIdentity] || ''
-    },
-    
-    // 获取活跃身份描述
-    getActiveIdentityDesc() {
-      const descs = {
-        artist: '发布作品，展示艺术才华',
-        promoter: '分享艺术，获得佣金收益'
-      }
-      return descs[this.activeIdentity] || ''
-    },
-    
-    // 显示身份选择器
-    showIdentityPicker() {
-      uni.showActionSheet({
-        itemList: ['收藏家', '艺术家', '艺荐官'],
-        success: (res) => {
-          const identities = ['collector', 'artist', 'promoter']
-          this.switchToIdentity(identities[res.tapIndex])
-        }
-      })
-    },
-    
-    // 切换身份
-    switchToIdentity(identity) {
-      this.activeIdentity = identity
-      // 根据身份跳转不同页面
-      switch (identity) {
-        case 'artist':
-          if (this.userInfo.isArtist) {
-            this.goArtistHome()
-          } else {
-            uni.showModal({
-              title: '成为艺术家',
-              content: '您还未认证艺术家，是否申请成为艺术家？',
-              success: (res) => {
-                if (res.confirm) {
-                  uni.navigateTo({ url: '/pages/artist/apply' })
-                }
-              }
-            })
-          }
-          break
-        case 'promoter':
-          if (this.userInfo.isPromoter) {
-            this.goPromoter()
-          } else {
-            uni.showModal({
-              title: '成为艺荐官',
-              content: '您还未开通艺荐官，是否申请开通？',
-              success: (res) => {
-                if (res.confirm) {
-                  uni.navigateTo({ url: '/pages/promoter/apply' })
-                }
-              }
-            })
-          }
-          break
-        default:
-          // 收藏家身份，留在当前页面
-          uni.showToast({ title: '已切换为收藏家', icon: 'success' })
-      }
+    formatMoney(amount) {
+      if (!amount) return '0.00'
+      return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+/* 变量定义 */
+$bg-primary: #0d0d0d;
+$bg-card: #1a1a1a;
+$bg-elevated: #242424;
+$text-primary: #ffffff;
+$text-secondary: #999999;
+$text-muted: #666666;
+$accent-gold: #c9a227;
+$accent-gold-light: #e5c76b;
+$border-color: rgba(255, 255, 255, 0.08);
+
 .user-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 40rpx;
+  background: $bg-primary;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* 顶部用户信息区 */
 .user-header {
+  padding: calc(var(--status-bar-height) + 20rpx) 32rpx 40rpx;
+  background: $bg-primary;
+}
+
+/* 头部操作按钮 */
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+}
+
+.action-btn {
+  position: relative;
+  width: 64rpx;
+  height: 64rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 60rpx 30rpx 40rpx;
+  justify-content: center;
 }
 
+.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 28rpx;
+  height: 28rpx;
+  line-height: 28rpx;
+  text-align: center;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 18rpx;
+  border-radius: 14rpx;
+  padding: 0 6rpx;
+}
+
+/* 用户信息 */
 .user-info {
   display: flex;
   align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.avatar-wrap {
+  position: relative;
+  margin-right: 24rpx;
 }
 
 .user-avatar {
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
-  border: 4rpx solid rgba(255, 255, 255, 0.3);
-  margin-right: 24rpx;
+  border: 4rpx solid rgba($accent-gold, 0.3);
+  background: $bg-elevated;
 }
 
-.user-detail {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-size: 36rpx;
-  color: #fff;
-  font-weight: 600;
-  margin-bottom: 10rpx;
-}
-
-.user-phone {
-  font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.identity-switcher {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 10rpx 20rpx;
-  border-radius: 30rpx;
-}
-
-.current-identity {
-  font-size: 24rpx;
-  color: #fff;
-  margin-right: 8rpx;
-}
-
-.identity-banner {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 30rpx;
-  margin: 20rpx;
-  border-radius: 16rpx;
-}
-
-.identity-banner.identity-artist {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.identity-banner.identity-promoter {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-}
-
-.banner-icon {
-  width: 60rpx;
-  height: 60rpx;
-  margin-right: 20rpx;
-}
-
-.banner-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.banner-title {
-  font-size: 30rpx;
-  color: #fff;
-  font-weight: 600;
-}
-
-.banner-desc {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.9);
-  margin-top: 4rpx;
-}
-
-.banner-action {
-  display: flex;
-  align-items: center;
-  padding: 10rpx 20rpx;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 20rpx;
-}
-
-.banner-action text {
-  font-size: 22rpx;
-  color: #fff;
-  margin-right: 6rpx;
-}
-
-.identity-section {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 20rpx;
-  gap: 20rpx;
-  margin-top: -30rpx;
-}
-
-.identity-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  flex: 1;
-  min-width: 300rpx;
-}
-
-.identity-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20rpx;
-}
-
-.identity-icon {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 12rpx;
-}
-
-.identity-title {
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 600;
-}
-
-.identity-stats {
-  display: flex;
-  margin-bottom: 16rpx;
-}
-
-.stat-item {
-  flex: 1;
-  text-align: center;
-}
-
-.stat-value {
-  display: block;
-  font-size: 32rpx;
-  color: #333;
-  font-weight: 600;
-}
-
-.stat-label {
-  font-size: 22rpx;
-  color: #999;
-}
-
-.identity-action {
-  font-size: 24rpx;
-  color: #667eea;
-}
-
-.identity-menu {
-  display: flex;
-}
-
-.menu-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10rpx 0;
-}
-
-.menu-item text {
-  font-size: 24rpx;
-  color: #666;
-  margin-top: 8rpx;
-}
-
-.promoter-earnings {
-  display: flex;
-  margin-bottom: 16rpx;
-}
-
-.earnings-item {
-  flex: 1;
-}
-
-.earnings-label {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-  margin-bottom: 6rpx;
-}
-
-.earnings-value {
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 600;
-}
-
-.earnings-value.highlight {
-  color: #e74c3c;
-}
-
-.order-section {
-  background: #fff;
-  margin: 20rpx;
-  border-radius: 16rpx;
-  padding: 24rpx;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24rpx;
-}
-
-.section-title {
-  font-size: 30rpx;
-  color: #333;
-  font-weight: 600;
-}
-
-.section-more {
-  display: flex;
-  align-items: center;
-  font-size: 26rpx;
-  color: #999;
-}
-
-.section-more text {
-  margin-right: 6rpx;
-}
-
-.order-tabs {
-  display: flex;
-}
-
-.order-tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-.tab-icon {
-  width: 50rpx;
-  height: 50rpx;
-  margin-bottom: 10rpx;
-}
-
-.tab-text {
-  font-size: 24rpx;
-  color: #666;
-}
-
-.tab-badge {
+.avatar-badge {
   position: absolute;
-  top: -6rpx;
-  right: 20rpx;
-  background: #e74c3c;
-  color: #fff;
-  font-size: 18rpx;
-  padding: 2rpx 8rpx;
-  border-radius: 20rpx;
-  min-width: 32rpx;
-  text-align: center;
-}
-
-.function-section {
-  margin: 20rpx;
-}
-
-.function-list {
-  background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
-}
-
-.function-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 30rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.function-item:last-child {
-  border-bottom: none;
-}
-
-.function-left {
-  display: flex;
-  align-items: center;
-}
-
-.function-icon {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 20rpx;
-}
-
-.function-name {
-  font-size: 28rpx;
-  color: #333;
-}
-
-.settings-entry {
-  margin: 20rpx;
-}
-
-.settings-btn {
+  bottom: 0;
+  right: 0;
+  width: 36rpx;
+  height: 36rpx;
+  background: $accent-gold;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 30rpx;
+  border: 2rpx solid $bg-primary;
 }
 
-.settings-btn text {
+.user-detail {
+  flex: 1;
+}
+
+.user-name {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 8rpx;
+}
+
+.user-id {
+  display: block;
+  font-size: 24rpx;
+  color: $text-secondary;
+  margin-bottom: 12rpx;
+}
+
+.user-tags {
+  display: flex;
+  gap: 12rpx;
+}
+
+.user-tag {
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.user-tag.artist {
+  background: rgba($accent-gold, 0.2);
+  color: $accent-gold;
+}
+
+.user-tag.promoter {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+}
+
+.user-tag.collector {
+  background: $bg-elevated;
+  color: $text-secondary;
+}
+
+/* 用户数据统计 */
+.user-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 20rpx;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: $text-primary;
+  margin-bottom: 8rpx;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: $text-secondary;
+}
+
+.stat-divider {
+  width: 1rpx;
+  height: 48rpx;
+  background: $border-color;
+}
+
+/* 身份中心入口 */
+.identity-section {
+  padding: 0 32rpx;
+  margin-top: 32rpx;
+}
+
+.identity-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: $bg-card;
+  border: 1rpx solid rgba($accent-gold, 0.3);
+  border-radius: 20rpx;
+  padding: 28rpx 24rpx;
+}
+
+.card-left {
+  display: flex;
+  align-items: center;
+}
+
+.card-icon {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  margin-right: 20rpx;
+  background: rgba($accent-gold, 0.15);
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 8rpx;
+}
+
+.card-subtitle {
+  font-size: 24rpx;
+  color: $text-secondary;
+}
+
+.card-arrow {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 功能网格 */
+.function-section {
+  padding: 32rpx;
+}
+
+.function-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24rpx;
+}
+
+.grid-item {
+  background: $bg-card;
+  border-radius: 20rpx;
+  padding: 32rpx 28rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.grid-icon {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+}
+
+.grid-name {
   font-size: 28rpx;
-  color: #666;
-  margin-left: 12rpx;
+  color: $text-primary;
+  font-weight: 500;
+}
+
+/* 底部占位 */
+.page-footer {
+  height: 40rpx;
 }
 </style>

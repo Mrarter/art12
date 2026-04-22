@@ -156,15 +156,18 @@ const fetchOrderList = async (reset = false) => {
     
     const result = await getOrderList(params)
     
+    // 处理 PageResult 格式：{ records: [], total: xxx }
+    const list = result?.records || result?.list || result || []
+    
     if (reset) {
-      orderList.value = result.list || []
+      orderList.value = list
     } else {
-      orderList.value = [...orderList.value, ...(result.list || [])]
+      orderList.value = [...orderList.value, ...list]
     }
     
-    pendingPayCount.value = result.pendingPayCount || 0
+    pendingPayCount.value = result?.pendingPayCount || 0
     
-    if (result.list && result.list.length < pageSize) {
+    if (list.length < pageSize) {
       noMore.value = true
     } else {
       page.value++
