@@ -25,3 +25,10 @@ mybatis-plus:
 logging:
   level:
     com.shiyiju: DEBUG
+
+# 七牛云配置
+qiniu:
+  access-key: your_access_key
+  secret-key: your_secret_key
+  bucket: shiyiju
+  cdn: http://your-cdn-domain.com
