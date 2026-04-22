@@ -1,0 +1,6 @@
+# 本地开发配置 - 禁用Nacos
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false

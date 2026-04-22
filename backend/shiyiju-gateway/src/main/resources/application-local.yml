@@ -1,0 +1,79 @@
+# 本地开发配置 - 不需要Nacos
+server:
+  port: 8080
+
+spring:
+  application:
+    name: shiyiju-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        # 用户服务
+        - id: shiyiju-user
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+        # 商品服务
+        - id: shiyiju-product
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/product/**
+          filters:
+            - StripPrefix=1
+        # 订单服务
+        - id: shiyiju-order
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+        # 拍卖服务
+        - id: shiyiju-auction
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/auction/**
+          filters:
+            - StripPrefix=1
+        # 分销服务
+        - id: shiyiju-promotion
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/promotion/**
+          filters:
+            - StripPrefix=1
+        # 社区服务
+        - id: shiyiju-community
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/community/**
+          filters:
+            - StripPrefix=1
+        # 消息服务
+        - id: shiyiju-message
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/message/**
+          filters:
+            - StripPrefix=1
+        # 文件服务
+        - id: shiyiju-file
+          uri: http://localhost:8088
+          predicates:
+            - Path=/api/file/**
+          filters:
+            - StripPrefix=1
+
+# 禁用Nacos
+spring.cloud.nacos.discovery.enabled: false
+spring.cloud.nacos.config.enabled: false
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.shiyiju: DEBUG
