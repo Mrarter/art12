@@ -173,3 +173,45 @@ export const submitReview = (data) => {
 export const getReviews = (orderId) => {
   return request.get(`/order/orders/${orderId}/reviews`)
 }
+
+/**
+ * ========== 物流相关 API ==========
+ */
+
+/**
+ * 获取订单物流信息
+ * GET /order/logistics/{orderId}
+ */
+export const getOrderLogistics = (orderId) => {
+  return request.get(`/order/logistics/${orderId}`)
+}
+
+/**
+ * 根据运单号查询物流
+ * GET /order/logistics/track/{trackingNo}
+ */
+export const getLogisticsByTrackingNo = (trackingNo) => {
+  return request.get(`/order/logistics/track/${trackingNo}`)
+}
+
+/**
+ * 获取物流公司列表
+ * GET /order/logistics/companies
+ */
+export const getLogisticsCompanies = () => {
+  return request.get('/order/logistics/companies')
+}
+
+/**
+ * 商家发货
+ * POST /order/logistics/ship
+ * @param {Object} data
+ * @param {number} data.orderId - 订单ID
+ * @param {string} data.companyCode - 物流公司编码
+ * @param {string} data.companyName - 物流公司名称
+ * @param {string} data.trackingNo - 运单号
+ * @param {string} data.remark - 备注
+ */
+export const shipOrder = (data) => {
+  return request.post('/order/logistics/ship', data)
+}
