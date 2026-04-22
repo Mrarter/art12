@@ -3,7 +3,6 @@ package com.shiyiju.product.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shiyiju.common.exception.BusinessException;
-import com.shiyiju.common.mapper.UserMapper;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.ResultCode;
 import com.shiyiju.product.dto.ReviewCreateDTO;
@@ -22,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -35,7 +35,7 @@ public class ReviewService {
     private final ReviewMapper reviewMapper;
     private final ReviewReplyMapper reviewReplyMapper;
     private final ArtworkMapper artworkMapper;
-    private final UserMapper userMapper;
+    // 注意：UserMapper 在 shiyiju-user 模块中，如需获取用户信息请通过Feign调用
 
     /**
      * 创建评价

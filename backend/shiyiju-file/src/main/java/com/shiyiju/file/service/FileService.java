@@ -117,7 +117,7 @@ public class FileService {
 
         } catch (IOException e) {
             log.error("文件上传失败", e);
-            throw new BusinessException(ResultCode.SYSTEM_ERROR, "文件上传失败: " + e.getMessage());
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "文件上传失败: " + e.getMessage());
         }
     }
 
