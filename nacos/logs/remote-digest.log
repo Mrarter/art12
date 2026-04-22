@@ -86,3 +86,39 @@ java.lang.IllegalStateException: call already closed
 
 2026-04-22 12:44:23,233 INFO Connection transportReady,connectionId = 1776833063233_127.0.0.1_62441 
 
+2026-04-22 14:04:01,849 INFO Connection transportTerminated,connectionId = 1776832894252_127.0.0.1_61511 
+
+2026-04-22 14:04:01,853 INFO Connection transportTerminated,connectionId = 1776643956203_127.0.0.1_62702 
+
+2026-04-22 14:04:01,850 INFO Connection transportTerminated,connectionId = 1776650544998_127.0.0.1_52400 
+
+2026-04-22 14:04:01,849 INFO Connection transportTerminated,connectionId = 1776817986993_127.0.0.1_57440 
+
+2026-04-22 14:04:01,857 INFO Connection transportTerminated,connectionId = 1776777127357_127.0.0.1_57142 
+
+2026-04-22 14:04:01,851 INFO Connection transportTerminated,connectionId = 1776833063233_127.0.0.1_62441 
+
+2026-04-22 14:04:01,871 INFO [1776832894252_127.0.0.1_61511]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,875 INFO [1776833063233_127.0.0.1_62441]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,920 INFO [1776777127357_127.0.0.1_57142]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,921 INFO [1776817986993_127.0.0.1_57440]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,922 INFO [1776650544998_127.0.0.1_52400]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,923 INFO [1776643956203_127.0.0.1_62702]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,948 INFO Connection transportTerminated,connectionId = 1776645747011_127.0.0.1_57748 
+
+2026-04-22 14:04:01,948 INFO Connection transportTerminated,connectionId = 1776644004715_127.0.0.1_63031 
+
+2026-04-22 14:04:01,949 INFO [1776645747011_127.0.0.1_57748]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,950 INFO [1776644004715_127.0.0.1_63031]client disconnected,clear config listen context
+
+2026-04-22 14:04:01,951 INFO Connection transportTerminated,connectionId = 1776817560097_127.0.0.1_55107 
+
+2026-04-22 14:04:01,951 INFO [1776817560097_127.0.0.1_55107]client disconnected,clear config listen context
+

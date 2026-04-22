@@ -56,3 +56,37 @@
 
 2026-04-22 12:44:23,375 INFO Client change for service Service{namespace='public', group='DEFAULT_GROUP', name='shiyiju-gateway', ephemeral=true, revision=14}, 1776833063233_127.0.0.1_62441
 
+2026-04-22 14:04:01,623 WARN [NamingServerHttpClientManager] Start destroying HTTP-Client
+
+2026-04-22 14:04:01,749 WARN [NamingServerHttpClientManager] Destruction of the end
+
+2026-04-22 14:04:01,868 INFO Client connection 1776832894252_127.0.0.1_61511 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,875 INFO Client connection 1776833063233_127.0.0.1_62441 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,920 INFO Client connection 1776777127357_127.0.0.1_57142 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,921 INFO Client connection 1776817986993_127.0.0.1_57440 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,922 INFO Client connection 1776650544998_127.0.0.1_52400 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,923 INFO Client connection 1776643956203_127.0.0.1_62702 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,949 INFO Client connection 1776645747011_127.0.0.1_57748 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,950 INFO Client connection 1776644004715_127.0.0.1_63031 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:01,951 INFO Client connection 1776817560097_127.0.0.1_55107 disconnect, remove instances and subscribers
+
+2026-04-22 14:04:02,335 ERROR [HEALTH-CHECK-V2] error while processing NIO task
+
+java.lang.InterruptedException: null
+	at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1686)
+	at java.base/java.util.concurrent.LinkedBlockingQueue.poll(LinkedBlockingQueue.java:460)
+	at com.alibaba.nacos.naming.healthcheck.v2.processor.TcpHealthCheckProcessor.processTask(TcpHealthCheckProcessor.java:122)
+	at com.alibaba.nacos.naming.healthcheck.v2.processor.TcpHealthCheckProcessor.run(TcpHealthCheckProcessor.java:139)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)

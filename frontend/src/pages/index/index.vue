@@ -1,13 +1,13 @@
 <template>
   <view class="index-page">
     <!-- 自定义导航栏 -->
-    <view class="nav-bar">
+    <view class="nav-bar" :style="{ paddingTop: safeAreaTop + 'px', height: (safeAreaTop + 88) + 'rpx' }">
       <view class="search-box" @click="goSearch">
-        <view class="search-icon">🔍</view>
+        <image class="search-icon-img" src="/static/icons/search.png" mode="aspectFit"></image>
         <text class="placeholder">搜索作品/艺术家</text>
       </view>
       <view class="message-icon" @click="goMessage">
-        <text class="icon">🔔</text>
+        <image class="message-icon-img" src="/static/icons/notice.png" mode="aspectFit"></image>
         <view class="badge-dot" v-if="hasMessage"></view>
       </view>
     </view>
@@ -15,6 +15,7 @@
     <!-- 内容区域 -->
     <scroll-view 
       class="content" 
+      :style="{ paddingTop: (safeAreaTop * 2 + 88) + 'rpx' }"
       scroll-y 
       refresher-enabled
       :refresher-triggered="refreshing"
@@ -41,7 +42,7 @@
       <view class="nav-grid">
         <view class="nav-item" v-for="item in navItems" :key="item.id" @click="goNav(item)">
           <view class="nav-icon-wrapper">
-            <text class="nav-icon">{{ item.icon }}</text>
+            <image class="nav-icon-img" :src="item.icon" mode="aspectFit"></image>
           </view>
           <text class="nav-text">{{ item.text }}</text>
         </view>
@@ -127,6 +128,21 @@ import { useUserStore } from '@/store/modules/user'
 
 const userStore = useUserStore()
 
+// 安全区域高度
+const safeAreaTop = ref(0)
+const navBarHeight = ref(88) // 默认导航栏高度
+
+// 获取状态栏高度
+const getSystemInfo = () => {
+  try {
+    const systemInfo = uni.getSystemInfoSync()
+    safeAreaTop.value = systemInfo.statusBarHeight || 0
+    console.log('状态栏高度:', safeAreaTop.value)
+  } catch (e) {
+    console.error('获取系统信息失败', e)
+  }
+}
+
 // 状态
 const refreshing = ref(false)
 const loading = ref(false)
@@ -140,10 +156,10 @@ const pageSize = 10
 
 // 金刚区配置 - 深色主题
 const navItems = [
-  { id: 1, text: '画廊', icon: '🖼️', path: '/pages/gallery/index' },
-  { id: 2, text: '艺术家', icon: '👥', path: '/pages/artist/list' },
-  { id: 3, text: '购物车', icon: '🛒', path: '/pages/cart/index' },
-  { id: 4, text: '鉴赏', icon: '✨', path: '/pages/appreciate/index' }
+  { id: 1, text: '画廊', icon: '/static/icons/gallery.png', path: '/pages/gallery/index' },
+  { id: 2, text: '艺术家', icon: '/static/icons/artist.png', path: '/pages/artist/home' },
+  { id: 3, text: '购物车', icon: '/static/icons/cart-circle.png', path: '/pages/cart/index' },
+  { id: 4, text: '鉴赏', icon: '/static/icons/appreciate.png', path: '/pages/appreciate/index' }
 ]
 
 // 获取Banner
@@ -310,6 +326,7 @@ const getIdentityText = (identity) => {
 
 // 初始化
 onMounted(() => {
+  getSystemInfo()
   fetchBanners()
   fetchProductList(true)
 })
@@ -342,7 +359,6 @@ $price-down: #4CAF50;
   display: flex;
   align-items: center;
   padding: 16rpx 30rpx;
-  padding-top: calc(16rpx + env(safe-area-inset-top));
   background-color: $bg-primary;
 
   .search-box {
@@ -355,8 +371,9 @@ $price-down: #4CAF50;
     border-radius: 36rpx;
     border: 1rpx solid rgba(255, 255, 255, 0.1);
     
-    .search-icon {
-      font-size: 28rpx;
+    .search-icon-img {
+      width: 36rpx;
+      height: 36rpx;
       margin-right: 12rpx;
       opacity: 0.6;
     }
@@ -376,8 +393,9 @@ $price-down: #4CAF50;
     justify-content: center;
     margin-left: 20rpx;
     
-    .icon {
-      font-size: 40rpx;
+    .message-icon-img {
+      width: 44rpx;
+      height: 44rpx;
     }
     
     .badge-dot {
@@ -476,8 +494,9 @@ $price-down: #4CAF50;
       border: 1rpx solid rgba(255, 255, 255, 0.05);
     }
     
-    .nav-icon {
-      font-size: 48rpx;
+    .nav-icon-img {
+      width: 56rpx;
+      height: 56rpx;
     }
     
     .nav-text {
@@ -520,7 +539,9 @@ $price-down: #4CAF50;
 .waterfall {
   display: flex;
   flex-wrap: wrap;
+  width: 100%;
   padding: 0 20rpx;
+  box-sizing: border-box;
   
   .waterfall-item {
     width: calc(50% - 10rpx);

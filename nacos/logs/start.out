@@ -37,3 +37,17 @@
 
 2026-04-20 00:06:32,916 INFO Completed initialization in 3 ms
 
+2026-04-22 14:04:01,622 WARN [WatchFileCenter] start close
+
+2026-04-22 14:04:01,630 WARN [ThreadPoolManager] Start destroying ThreadPool
+
+2026-04-22 14:04:01,641 WARN [WatchFileCenter] start to shutdown this watcher which is watch : /Users/master/CodeBuddy/art12/nacos/conf
+
+2026-04-22 14:04:01,648 WARN [NotifyCenter] Start destroying Publisher
+
+2026-04-22 14:04:01,652 WARN [NotifyCenter] Destruction of the end
+
+2026-04-22 14:04:01,679 WARN [WatchFileCenter] already closed
+
+2026-04-22 14:04:02,797 WARN [ThreadPoolManager] Destruction of the end
+

@@ -281,194 +281,157 @@
         "navigationBarTitleText": "拍卖大厅",
         "navigationBarBackgroundColor": "#0D0D0D"
       }
-    }
-  ],
-  "subPackages": [
-    {
-      "root": "pages/login",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "登录"
-          }
-        }
-      ]
     },
     {
-      "root": "pages/auction",
-      "pages": [
-        {
-          "path": "session",
-          "style": {
-            "navigationBarTitleText": "专场详情"
-          }
-        },
-        {
-          "path": "bidding",
-          "style": {
-            "navigationBarTitleText": "竞拍出价"
-          }
-        },
-        {
-          "path": "reminder",
-          "style": {
-            "navigationBarTitleText": "竞拍提醒"
-          }
-        },
-        {
-          "path": "detail",
-          "style": {
-            "navigationBarTitleText": "拍品详情",
-            "navigationStyle": "custom"
-          }
-        }
-      ]
+      "path": "pages/auction/session",
+      "style": {
+        "navigationBarTitleText": "专场详情"
+      }
     },
     {
-      "root": "pages/artcircle",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "艺术圈"
-          }
-        },
-        {
-          "path": "detail",
-          "style": {
-            "navigationBarTitleText": "帖子详情"
-          }
-        },
-        {
-          "path": "publish",
-          "style": {
-            "navigationBarTitleText": "发布帖子"
-          }
-        },
-        {
-          "path": "topic",
-          "style": {
-            "navigationBarTitleText": "话题广场"
-          }
-        }
-      ]
+      "path": "pages/auction/bidding",
+      "style": {
+        "navigationBarTitleText": "竞拍出价"
+      }
     },
     {
-      "root": "pages/artist",
-      "pages": [
-        {
-          "path": "home",
-          "style": {
-            "navigationBarTitleText": "艺术家主页"
-          }
-        },
-        {
-          "path": "cert",
-          "style": {
-            "navigationBarTitleText": "艺术家认证"
-          }
-        },
-        {
-          "path": "manage",
-          "style": {
-            "navigationBarTitleText": "作品管理"
-          }
-        },
-        {
-          "path": "publish",
-          "style": {
-            "navigationBarTitleText": "发布作品"
-          }
-        },
-        {
-          "path": "apply",
-          "style": {
-            "navigationBarTitleText": "艺术家入驻申请"
-          }
-        }
-      ]
+      "path": "pages/auction/reminder",
+      "style": {
+        "navigationBarTitleText": "竞拍提醒"
+      }
     },
     {
-      "root": "pages/message",
-      "pages": [
-        {
-          "path": "list",
-          "style": {
-            "navigationBarTitleText": "消息中心"
-          }
-        },
-        {
-          "path": "chat",
-          "style": {
-            "navigationBarTitleText": "聊天"
-          }
-        }
-      ]
+      "path": "pages/auction/detail",
+      "style": {
+        "navigationBarTitleText": "拍品详情",
+        "navigationStyle": "custom"
+      }
     },
     {
-      "root": "pages/promoter",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "推广中心"
-          }
-        },
-        {
-          "path": "earnings",
-          "style": {
-            "navigationBarTitleText": "佣金明细"
-          }
-        },
-        {
-          "path": "team",
-          "style": {
-            "navigationBarTitleText": "我的团队"
-          }
-        },
-        {
-          "path": "team-detail",
-          "style": {
-            "navigationBarTitleText": "成员详情"
-          }
-        },
-        {
-          "path": "performance",
-          "style": {
-            "navigationBarTitleText": "业绩详情"
-          }
-        },
-        {
-          "path": "withdraw",
-          "style": {
-            "navigationBarTitleText": "申请提现"
-          }
-        },
-        {
-          "path": "withdrawLog",
-          "style": {
-            "navigationBarTitleText": "提现记录"
-          }
-        },
-        {
-          "path": "poster",
-          "style": {
-            "navigationBarTitleText": "邀请海报"
-          }
-        }
-      ]
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
     },
     {
-      "root": "pages/setting",
-      "pages": [
-        {
-          "path": "notification",
-          "style": {
-            "navigationBarTitleText": "通知设置"
-          }
-        }
-      ]
+      "path": "pages/artcircle/index",
+      "style": {
+        "navigationBarTitleText": "艺术圈"
+      }
+    },
+    {
+      "path": "pages/artcircle/detail",
+      "style": {
+        "navigationBarTitleText": "帖子详情"
+      }
+    },
+    {
+      "path": "pages/artcircle/publish",
+      "style": {
+        "navigationBarTitleText": "发布帖子"
+      }
+    },
+    {
+      "path": "pages/artcircle/topic",
+      "style": {
+        "navigationBarTitleText": "话题广场"
+      }
+    },
+    {
+      "path": "pages/artist/home",
+      "style": {
+        "navigationBarTitleText": "艺术家主页"
+      }
+    },
+    {
+      "path": "pages/artist/cert",
+      "style": {
+        "navigationBarTitleText": "艺术家认证"
+      }
+    },
+    {
+      "path": "pages/artist/manage",
+      "style": {
+        "navigationBarTitleText": "作品管理"
+      }
+    },
+    {
+      "path": "pages/artist/publish",
+      "style": {
+        "navigationBarTitleText": "发布作品"
+      }
+    },
+    {
+      "path": "pages/artist/apply",
+      "style": {
+        "navigationBarTitleText": "艺术家入驻申请"
+      }
+    },
+    {
+      "path": "pages/message/list",
+      "style": {
+        "navigationBarTitleText": "消息中心"
+      }
+    },
+    {
+      "path": "pages/message/chat",
+      "style": {
+        "navigationBarTitleText": "聊天"
+      }
+    },
+    {
+      "path": "pages/promoter/index",
+      "style": {
+        "navigationBarTitleText": "推广中心"
+      }
+    },
+    {
+      "path": "pages/promoter/earnings",
+      "style": {
+        "navigationBarTitleText": "佣金明细"
+      }
+    },
+    {
+      "path": "pages/promoter/team",
+      "style": {
+        "navigationBarTitleText": "我的团队"
+      }
+    },
+    {
+      "path": "pages/promoter/team-detail",
+      "style": {
+        "navigationBarTitleText": "成员详情"
+      }
+    },
+    {
+      "path": "pages/promoter/performance",
+      "style": {
+        "navigationBarTitleText": "业绩详情"
+      }
+    },
+    {
+      "path": "pages/promoter/withdraw",
+      "style": {
+        "navigationBarTitleText": "申请提现"
+      }
+    },
+    {
+      "path": "pages/promoter/withdrawLog",
+      "style": {
+        "navigationBarTitleText": "提现记录"
+      }
+    },
+    {
+      "path": "pages/promoter/poster",
+      "style": {
+        "navigationBarTitleText": "邀请海报"
+      }
+    },
+    {
+      "path": "pages/setting/notification",
+      "style": {
+        "navigationBarTitleText": "通知设置"
+      }
     }
   ],
   "globalStyle": {

@@ -166,3 +166,392 @@
 
 2026-04-22 13:57:48,715 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log from log index 2 to 2, cost 0 ms.
 
+2026-04-22 14:00:07,235 INFO Truncated prefix logs in data path: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log from log index 2 to 2, cost 1 ms.
+
+2026-04-22 14:04:02,388 INFO Node <naming_service_metadata/192.168.1.176:7848> shutdown, currTerm=1 state=STATE_LEADER.
+
+2026-04-22 14:04:02,392 INFO Fail to find the next candidate.
+
+2026-04-22 14:04:02,393 INFO onLeaderStop: status=Status[ESHUTDOWN<1007>: Raft node is going to quit.].
+
+2026-04-22 14:04:02,398 ERROR Fail to save raft meta
+
+java.io.FileNotFoundException: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/meta-data/raft_meta.tmp (No such file or directory)
+	at java.base/java.io.FileOutputStream.open0(Native Method)
+	at java.base/java.io.FileOutputStream.open(FileOutputStream.java:293)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:235)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:184)
+	at com.alipay.sofa.jraft.storage.io.ProtoBufFile.save(ProtoBufFile.java:103)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:118)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,399 WARN Node <naming_service_metadata/192.168.1.176:7848> got error: {}.
+
+com.alipay.sofa.jraft.error.RaftException: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/meta-data
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.reportIOError(LocalRaftMetaStorage.java:138)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:125)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,402 ERROR Encountered an error=Status[EIO<1014>: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/meta-data] on StateMachine com.alibaba.nacos.core.distributed.raft.NacosStateMachine, it's highly recommended to implement this method as raft stops working since some error occurs, you should figure out the cause and repair or remove this node.
+
+com.alipay.sofa.jraft.error.RaftException: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/meta-data
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.reportIOError(LocalRaftMetaStorage.java:138)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:125)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,403 INFO Save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/meta-data, term=1, votedFor=192.168.1.176:7848, cost time=5 ms
+
+2026-04-22 14:04:02,403 INFO Shutting down FSMCaller...
+
+2026-04-22 14:04:02,404 INFO onShutdown.
+
+2026-04-22 14:04:02,404 INFO ThreadPool is terminated: JRaft-RPC-Processor, com.alipay.sofa.jraft.util.MetricThreadPoolExecutor@17822b00[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0].
+
+2026-04-22 14:04:02,405 INFO ThreadPool is terminated: JRaft-Node-ScheduleThreadPool, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@3b0162c5[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0].
+
+2026-04-22 14:04:02,405 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=5000, name='JRaft-ElectionTimer-<naming_service_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,405 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=5000, name='JRaft-VoteTimer-<naming_service_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,405 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=2500, name='JRaft-StepDownTimer-<naming_service_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,405 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=1800000, name='JRaft-SnapshotTimer-<naming_service_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,406 INFO Node <naming_service_metadata/192.168.1.176:7848> shutdown, currTerm=1 state=STATE_SHUTTING.
+
+2026-04-22 14:04:02,406 INFO Stop the RaftGroupService successfully.
+
+2026-04-22 14:04:02,406 INFO Node <naming_instance_metadata/192.168.1.176:7848> shutdown, currTerm=1 state=STATE_LEADER.
+
+2026-04-22 14:04:02,406 INFO Fail to find the next candidate.
+
+2026-04-22 14:04:02,406 INFO The number of active nodes decrement to 2.
+
+2026-04-22 14:04:02,407 INFO onLeaderStop: status=Status[ESHUTDOWN<1007>: Raft node is going to quit.].
+
+2026-04-22 14:04:02,407 ERROR Fail to save raft meta
+
+java.io.FileNotFoundException: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/meta-data/raft_meta.tmp (No such file or directory)
+	at java.base/java.io.FileOutputStream.open0(Native Method)
+	at java.base/java.io.FileOutputStream.open(FileOutputStream.java:293)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:235)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:184)
+	at com.alipay.sofa.jraft.storage.io.ProtoBufFile.save(ProtoBufFile.java:103)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:118)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,408 WARN Node <naming_instance_metadata/192.168.1.176:7848> got error: {}.
+
+com.alipay.sofa.jraft.error.RaftException: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/meta-data
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.reportIOError(LocalRaftMetaStorage.java:138)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:125)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,408 ERROR Encountered an error=Status[EIO<1014>: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/meta-data] on StateMachine com.alibaba.nacos.core.distributed.raft.NacosStateMachine, it's highly recommended to implement this method as raft stops working since some error occurs, you should figure out the cause and repair or remove this node.
+
+com.alipay.sofa.jraft.error.RaftException: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/meta-data
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.reportIOError(LocalRaftMetaStorage.java:138)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:125)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,410 INFO Save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/meta-data, term=1, votedFor=192.168.1.176:7848, cost time=1 ms
+
+2026-04-22 14:04:02,410 INFO Shutting down FSMCaller...
+
+2026-04-22 14:04:02,410 INFO onShutdown.
+
+2026-04-22 14:04:02,410 INFO ThreadPool is terminated: JRaft-RPC-Processor, com.alipay.sofa.jraft.util.MetricThreadPoolExecutor@536be918[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0].
+
+2026-04-22 14:04:02,410 INFO ThreadPool is terminated: JRaft-Node-ScheduleThreadPool, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@63ccaefa[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0].
+
+2026-04-22 14:04:02,410 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=5000, name='JRaft-ElectionTimer-<naming_instance_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,410 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=5000, name='JRaft-VoteTimer-<naming_instance_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,410 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=2500, name='JRaft-StepDownTimer-<naming_instance_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,410 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=1800000, name='JRaft-SnapshotTimer-<naming_instance_metadata/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,410 INFO Node <naming_instance_metadata/192.168.1.176:7848> shutdown, currTerm=1 state=STATE_SHUTTING.
+
+2026-04-22 14:04:02,411 INFO The number of active nodes decrement to 1.
+
+2026-04-22 14:04:02,411 INFO Stop the RaftGroupService successfully.
+
+2026-04-22 14:04:02,411 INFO Node <naming_persistent_service_v2/192.168.1.176:7848> shutdown, currTerm=1 state=STATE_LEADER.
+
+2026-04-22 14:04:02,413 INFO Fail to find the next candidate.
+
+2026-04-22 14:04:02,413 INFO onLeaderStop: status=Status[ESHUTDOWN<1007>: Raft node is going to quit.].
+
+2026-04-22 14:04:02,414 ERROR Fail to save raft meta
+
+java.io.FileNotFoundException: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/meta-data/raft_meta.tmp (No such file or directory)
+	at java.base/java.io.FileOutputStream.open0(Native Method)
+	at java.base/java.io.FileOutputStream.open(FileOutputStream.java:293)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:235)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:184)
+	at com.alipay.sofa.jraft.storage.io.ProtoBufFile.save(ProtoBufFile.java:103)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:118)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,414 WARN Node <naming_persistent_service_v2/192.168.1.176:7848> got error: {}.
+
+com.alipay.sofa.jraft.error.RaftException: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/meta-data
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.reportIOError(LocalRaftMetaStorage.java:138)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:125)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,415 ERROR Encountered an error=Status[EIO<1014>: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/meta-data] on StateMachine com.alibaba.nacos.core.distributed.raft.NacosStateMachine, it's highly recommended to implement this method as raft stops working since some error occurs, you should figure out the cause and repair or remove this node.
+
+com.alipay.sofa.jraft.error.RaftException: Fail to save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/meta-data
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.reportIOError(LocalRaftMetaStorage.java:138)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.save(LocalRaftMetaStorage.java:125)
+	at com.alipay.sofa.jraft.storage.impl.LocalRaftMetaStorage.shutdown(LocalRaftMetaStorage.java:147)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2791)
+	at com.alipay.sofa.jraft.core.NodeImpl.shutdown(NodeImpl.java:2467)
+	at com.alibaba.nacos.core.distributed.raft.JRaftServer.shutdown(JRaftServer.java:384)
+	at com.alibaba.nacos.core.distributed.raft.JRaftProtocol.shutdown(JRaftProtocol.java:204)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.invokeCustomDestroyMethod(DisposableBeanAdapter.java:319)
+	at org.springframework.beans.factory.support.DisposableBeanAdapter.destroy(DisposableBeanAdapter.java:253)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroyBean(DefaultSingletonBeanRegistry.java:587)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingleton(DefaultSingletonBeanRegistry.java:559)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingleton(DefaultListableBeanFactory.java:1163)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.destroySingletons(DefaultSingletonBeanRegistry.java:520)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.destroySingletons(DefaultListableBeanFactory.java:1156)
+	at org.springframework.context.support.AbstractApplicationContext.destroyBeans(AbstractApplicationContext.java:1106)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1075)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:172)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1021)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-22 14:04:02,416 INFO Save raft meta, path=/Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/meta-data, term=1, votedFor=192.168.1.176:7848, cost time=1 ms
+
+2026-04-22 14:04:02,416 INFO Shutting down FSMCaller...
+
+2026-04-22 14:04:02,416 INFO onShutdown.
+
+2026-04-22 14:04:02,417 INFO ThreadPool is terminated: JRaft-RPC-Processor, com.alipay.sofa.jraft.util.MetricThreadPoolExecutor@209a2f6[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0].
+
+2026-04-22 14:04:02,417 INFO ThreadPool is terminated: JRaft-Node-ScheduleThreadPool, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@ea6a886[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0].
+
+2026-04-22 14:04:02,417 INFO The number of active nodes decrement to 0.
+
+2026-04-22 14:04:02,420 INFO ThreadPool is terminated: JRaft-Global-ElectionTimer, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@7ec8f08a[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 3].
+
+2026-04-22 14:04:02,421 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=5000, name='JRaft-ElectionTimer-<naming_persistent_service_v2/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,423 INFO ThreadPool is terminated: JRaft-Global-VoteTimer, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@7e271e08[Shutting down, pool size = 3, active threads = 0, queued tasks = 0, completed tasks = 3].
+
+2026-04-22 14:04:02,423 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=5000, name='JRaft-VoteTimer-<naming_persistent_service_v2/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,427 INFO ThreadPool is terminated: JRaft-Global-StepDownTimer, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@34501f10[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 267048].
+
+2026-04-22 14:04:02,428 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=2500, name='JRaft-StepDownTimer-<naming_persistent_service_v2/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,436 INFO ThreadPool is terminated: JRaft-Global-SnapshotTimer, com.alipay.sofa.jraft.util.MetricScheduledThreadPoolExecutor@5a17f56f[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 372].
+
+2026-04-22 14:04:02,439 INFO Destroy timer: RepeatedTimer{timeout=null, stopped=true, running=false, destroyed=true, invoking=false, timeoutMs=1800000, name='JRaft-SnapshotTimer-<naming_persistent_service_v2/192.168.1.176:7848>'}.
+
+2026-04-22 14:04:02,439 INFO Node <naming_persistent_service_v2/192.168.1.176:7848> shutdown, currTerm=1 state=STATE_SHUTTING.
+
+2026-04-22 14:04:02,439 INFO Stop the RaftGroupService successfully.
+
+2026-04-22 14:04:02,439 INFO Shutdown managed channel: 192.168.1.176:7848, ManagedChannelOrphanWrapper{delegate=ManagedChannelImpl{logId=10, target=192.168.1.176:7848}}.
+
+2026-04-22 14:04:02,444 INFO DB destroyed, the db path is: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_service_metadata/log.
+
+2026-04-22 14:04:02,444 INFO DB destroyed, the db path is: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_instance_metadata/log.
+
+2026-04-22 14:04:02,446 INFO The channel 192.168.1.176:7848 is in state: SHUTDOWN.
+
+2026-04-22 14:04:02,446 WARN This channel 192.168.1.176:7848 has started shutting down. Any new RPCs should fail immediately.
+
+2026-04-22 14:04:02,453 INFO DB destroyed, the db path is: /Users/master/CodeBuddy/art12/nacos/data/protocol/raft/naming_persistent_service_v2/log.
+
+2026-04-22 14:04:02,456 INFO Connection disconnected: /192.168.1.176:59435
+
+2026-04-22 14:04:02,470 INFO ThreadPool is terminated: JRaft-RPC-Processor, com.alipay.sofa.jraft.util.MetricThreadPoolExecutor@122f1744[Shutting down, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 173432].
+

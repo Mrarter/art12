@@ -40,6 +40,9 @@ public class Artwork implements Serializable {
     private Integer viewCount;
     private Integer favoriteCount;
     private Integer saleCount;
+    // 评价相关
+    private Integer rating; // 平均评分（1-5星）
+    private Integer reviewCount; // 评价数量
     // 分销相关
     private Boolean distributionEnabled;
     private Integer commissionRate;
