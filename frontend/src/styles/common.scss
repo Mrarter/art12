@@ -1,14 +1,20 @@
-/* 全局公共样式 */
+/* 全局公共样式 - 深色主题 */
 
 /* 颜色变量 */
-$primary-color: #333333;
-$accent-color: #667eea;
-$price-color: #e74c3c;
-$text-color: #333333;
+$primary-color: #D4AF37;
+$accent-color: #E8A838;
+$price-color: #FF6B6B;
+$price-up: #FF6B6B;
+$price-down: #4CAF50;
+$text-color: #FFFFFF;
+$text-secondary: #B3B3B3;
 $text-light: #666666;
 $text-placeholder: #999999;
-$bg-color: #f5f5f5;
-$border-color: #eeeeee;
+$bg-primary: #0D0D0D;
+$bg-secondary: #1A1A1A;
+$bg-card: #242424;
+$bg-hover: #333333;
+$border-color: rgba(255, 255, 255, 0.1);
 
 /* 文字省略 */
 @mixin ellipsis($lines: 1) {
@@ -44,24 +50,26 @@ $border-color: #eeeeee;
   clear: both;
 }
 
-/* 卡片样式 */
+/* 卡片样式 - 深色主题 */
 .card {
-  background: #ffffff;
+  background: $bg-card;
   border-radius: 16rpx;
   padding: 24rpx;
+  border: 1rpx solid $border-color;
 }
 
 /* 按钮样式 */
 .btn-primary {
   background: $primary-color;
-  color: #ffffff;
+  color: #0D0D0D;
   border-radius: 44rpx;
 }
 
 .btn-default {
-  background: #f5f5f5;
+  background: $bg-secondary;
   color: $text-color;
   border-radius: 44rpx;
+  border: 1rpx solid $border-color;
 }
 
 /* Flex工具类 */
@@ -89,5 +97,19 @@ $border-color: #eeeeee;
 /* 页面容器 */
 .page-container {
   min-height: 100vh;
-  background: $bg-color;
+  background: $bg-primary;
+}
+
+/* 深色主题通用样式 */
+.dark-card {
+  background: $bg-card;
+  border-radius: 16rpx;
+  border: 1rpx solid $border-color;
+}
+
+.dark-input {
+  background: $bg-secondary;
+  border: 1rpx solid $border-color;
+  color: $text-color;
+  border-radius: 12rpx;
 }

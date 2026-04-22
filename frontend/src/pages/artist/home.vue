@@ -12,7 +12,7 @@
               <view class="identity-tag" :class="'tag-' + artistInfo.identityType">
                 {{ getIdentityLabel(artistInfo.identityType) }}
               </view>
-              <view class="cert-status" v-if="artistInfo.certStatus === 'certified'" class="certified">
+              <view class="cert-status certified" v-if="artistInfo.certStatus === 'certified'">
                 <u-icon name="checkmark-circle-fill" size="14" color="#50c878"></u-icon>
                 已认证
               </view>

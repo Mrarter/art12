@@ -147,14 +147,6 @@ export const getProductCommission = (productId) => {
 }
 
 /**
- * 获取佣金配置
- * GET /promoter/commission/config
- */
-export const getCommissionConfig = () => {
-  return request.get('/promoter/commission/config')
-}
-
-/**
  * 获取佣金明细列表
  * GET /promoter/commission/list
  * @param {Object} params
@@ -164,4 +156,28 @@ export const getCommissionConfig = () => {
  */
 export const getCommissionList = (params) => {
   return request.get('/promoter/commission/list', params)
+}
+
+/**
+ * 获取排行榜列表
+ * GET /promoter/ranking
+ * @param {string} period - 时间段：day/week/month/all
+ * @param {number} limit - 返回数量
+ */
+export const getRankingList = (period = 'week', limit = 10) => {
+  return request.get('/promoter/ranking', { period, limit })
+}
+
+/**
+ * 获取业绩明细
+ * GET /promoter/earnings/detail
+ * @param {Object} params
+ * @param {number} params.page - 页码
+ * @param {number} params.pageSize - 每页数量
+ * @param {string} params.startDate - 开始日期
+ * @param {string} params.endDate - 结束日期
+ * @param {string} params.type - 类型：order/order_commission/team_reward
+ */
+export const getEarningsDetail = (params) => {
+  return request.get('/promoter/earnings/detail', params)
 }

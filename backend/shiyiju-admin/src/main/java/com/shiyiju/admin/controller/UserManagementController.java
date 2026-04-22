@@ -1,5 +1,6 @@
 package com.shiyiju.admin.controller;
 
+import com.shiyiju.common.constant.UserConstant;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
 import org.slf4j.Logger;
@@ -19,6 +20,50 @@ public class UserManagementController {
 
     private static final Logger log = LoggerFactory.getLogger(UserManagementController.class);
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    
+    // 模拟用户数据存储（实际应该连接数据库）
+    private static final List<Map<String, Object>> mockUsers = new ArrayList<>();
+    private static long nextUserId = 10000;
+    
+    static {
+        // 初始化默认用户（每个身份5个）
+        initTestUsers();
+    }
+    
+    /**
+     * 初始化测试用户
+     */
+    private static void initTestUsers() {
+        String[][] identities = {
+            {"artist", "经纪人"},
+            {"agent", "艺术家"},
+            {"collector", "收藏家"},
+            {"promoter", "艺荐官"},
+            {"artist,agent", "艺术家+经纪人"},
+        };
+        
+        for (int i = 0; i < identities.length; i++) {
+            for (int j = 1; j <= 5; j++) {
+                Map<String, Object> user = new HashMap<>();
+                long userId = 10000 + i * 5 + j;
+                user.put("userId", userId);
+                user.put("nickname", identities[i][1] + j);
+                user.put("phone", "138" + String.format("%08d", 1000 + i * 5 + j));
+                user.put("avatar", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + userId);
+                user.put("identities", identities[i][0]);
+                user.put("isArtist", identities[i][0].contains("artist"));
+                user.put("isAgent", identities[i][0].contains("agent"));
+                user.put("isCollector", identities[i][0].contains("collector"));
+                user.put("isPromoter", identities[i][0].contains("promoter"));
+                user.put("balance", 10000 + i * 1000 + j * 100);
+                user.put("orderCount", 5 + j);
+                user.put("createTime", LocalDateTime.now().minusDays(30 - i * 5 - j).format(FORMATTER));
+                user.put("status", 1);
+                mockUsers.add(user);
+            }
+        }
+        nextUserId = 10025;
+    }
 
     /**
      * 用户列表
@@ -26,30 +71,139 @@ public class UserManagementController {
     @GetMapping("/list")
     public Result<PageResult<Map<String, Object>>> getUserList(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String identity,
+            @RequestParam(required = false) String keyword) {
         
-        List<Map<String, Object>> list = new ArrayList<>();
-        for (int i = 1; i <= 3; i++) {
-            Map<String, Object> user = new HashMap<>();
-            user.put("userId", "1000" + i);
-            user.put("nickname", "用户" + i);
-            user.put("phone", "13800138" + String.format("%03d", i));
-            user.put("avatar", "");
-            user.put("isArtist", i % 2 == 0);
-            user.put("isPromoter", i % 3 == 0);
-            user.put("balance", 1000 * i);
-            user.put("orderCount", 5 * i);
-            user.put("createTime", "2024-01-" + String.format("%02d", 15 + i) + " 10:30:00");
-            user.put("status", 1);
-            list.add(user);
+        List<Map<String, Object>> filtered = new ArrayList<>(mockUsers);
+        
+        // 按身份筛选
+        if (identity != null && !identity.isEmpty() && !"all".equals(identity)) {
+            final String filterIdentity = identity;
+            filtered.removeIf(u -> !u.get("identities").toString().contains(filterIdentity));
         }
         
+        // 按关键词搜索
+        if (keyword != null && !keyword.isEmpty()) {
+            String lowerKeyword = keyword.toLowerCase();
+            filtered.removeIf(u -> 
+                !u.get("nickname").toString().toLowerCase().contains(lowerKeyword) &&
+                !u.get("phone").toString().contains(keyword)
+            );
+        }
+        
+        // 分页
+        int total = filtered.size();
+        int fromIndex = (page - 1) * size;
+        int toIndex = Math.min(fromIndex + size, total);
+        List<Map<String, Object>> pageList = fromIndex < total ? filtered.subList(fromIndex, toIndex) : new ArrayList<>();
+        
         PageResult<Map<String, Object>> result = new PageResult<>();
-        result.setRecords(list);
-        result.setTotal(3L);
+        result.setRecords(pageList);
+        result.setTotal((long) total);
         result.setPage(page);
         result.setPageSize(size);
         return Result.success(result);
+    }
+    
+    /**
+     * 创建用户
+     */
+    @PostMapping("/create")
+    public Result<Map<String, Object>> createUser(@RequestBody Map<String, Object> params) {
+        String nickname = (String) params.get("nickname");
+        String phone = (String) params.get("phone");
+        String identity = params.containsKey("identity") ? (String) params.get("identity") : "collector";
+        
+        Map<String, Object> user = new HashMap<>();
+        long userId = nextUserId++;
+        user.put("userId", userId);
+        user.put("nickname", nickname);
+        user.put("phone", phone);
+        user.put("avatar", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + userId);
+        user.put("identities", identity);
+        user.put("isArtist", identity.contains("artist"));
+        user.put("isAgent", identity.contains("agent"));
+        user.put("isCollector", identity.contains("collector"));
+        user.put("isPromoter", identity.contains("promoter"));
+        user.put("balance", 0L);
+        user.put("orderCount", 0);
+        user.put("createTime", LocalDateTime.now().format(FORMATTER));
+        user.put("status", 1);
+        
+        mockUsers.add(user);
+        log.info("创建用户: userId={}, nickname={}, identity={}", userId, nickname, identity);
+        
+        return Result.success(user);
+    }
+    
+    /**
+     * 批量创建用户（按身份）
+     */
+    @PostMapping("/batch-create")
+    public Result<Map<String, Object>> batchCreateUsers(@RequestBody Map<String, Object> params) {
+        String identity = (String) params.get("identity");
+        int count = params.containsKey("count") ? ((Number) params.get("count")).intValue() : 5;
+        
+        String[][] identityConfig = {
+            {"artist", "艺术家"},
+            {"agent", "经纪人"},
+            {"collector", "收藏家"},
+            {"promoter", "艺荐官"},
+        };
+        
+        String identityValue = identity;
+        String identityName = identity;
+        for (String[] config : identityConfig) {
+            if (config[0].equals(identity)) {
+                identityValue = config[0];
+                identityName = config[1];
+                break;
+            }
+        }
+        
+        List<Map<String, Object>> createdUsers = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Map<String, Object> user = new HashMap<>();
+            long userId = nextUserId++;
+            user.put("userId", userId);
+            user.put("nickname", identityName + System.currentTimeMillis() % 10000 + "_" + i);
+            user.put("phone", "138" + String.format("%08d", 20000 + nextUserId));
+            user.put("avatar", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + userId);
+            user.put("identities", identityValue);
+            user.put("isArtist", identityValue.contains("artist"));
+            user.put("isAgent", identityValue.contains("agent"));
+            user.put("isCollector", identityValue.contains("collector"));
+            user.put("isPromoter", identityValue.contains("promoter"));
+            user.put("balance", 0L);
+            user.put("orderCount", 0);
+            user.put("createTime", LocalDateTime.now().format(FORMATTER));
+            user.put("status", 1);
+            mockUsers.add(user);
+            createdUsers.add(user);
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("count", count);
+        result.put("identity", identityValue);
+        result.put("users", createdUsers);
+        log.info("批量创建用户: identity={}, count={}", identity, count);
+        
+        return Result.success(result);
+    }
+    
+    /**
+     * 获取用户身份统计
+     */
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getUserStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", mockUsers.size());
+        stats.put("artistCount", mockUsers.stream().filter(u -> u.get("identities").toString().contains("artist")).count());
+        stats.put("agentCount", mockUsers.stream().filter(u -> u.get("identities").toString().contains("agent")).count());
+        stats.put("collectorCount", mockUsers.stream().filter(u -> u.get("identities").toString().contains("collector")).count());
+        stats.put("promoterCount", mockUsers.stream().filter(u -> u.get("identities").toString().contains("promoter")).count());
+        return Result.success(stats);
     }
 
     /**
@@ -238,11 +392,57 @@ public class UserManagementController {
     }
 
     /**
+     * 获取用户详情
+     */
+    @GetMapping("/{userId}")
+    public Result<Map<String, Object>> getUserDetail(@PathVariable Long userId) {
+        for (Map<String, Object> user : mockUsers) {
+            if (user.get("userId").equals(userId)) {
+                return Result.success(user);
+            }
+        }
+        return Result.fail(404, "用户不存在");
+    }
+    
+    /**
+     * 更新用户身份
+     */
+    @PostMapping("/{userId}/identity")
+    public Result<Void> updateUserIdentity(
+            @PathVariable Long userId,
+            @RequestBody Map<String, Object> params) {
+        String identity = (String) params.get("identity");
+        
+        for (Map<String, Object> user : mockUsers) {
+            if (user.get("userId").equals(userId)) {
+                user.put("identities", identity);
+                user.put("isArtist", identity.contains("artist"));
+                user.put("isAgent", identity.contains("agent"));
+                user.put("isCollector", identity.contains("collector"));
+                user.put("isPromoter", identity.contains("promoter"));
+                log.info("更新用户身份: userId={}, identity={}", userId, identity);
+                return Result.success();
+            }
+        }
+        return Result.fail(404, "用户不存在");
+    }
+    
+    /**
      * 更新用户状态
      */
     @PostMapping("/updateStatus")
     public Result<Void> updateStatus(@RequestBody Map<String, Object> params) {
-        return Result.success();
+        Long userId = params.containsKey("userId") ? ((Number) params.get("userId")).longValue() : null;
+        Integer status = (Integer) params.get("status");
+        
+        for (Map<String, Object> user : mockUsers) {
+            if (user.get("userId").equals(userId)) {
+                user.put("status", status);
+                log.info("更新用户状态: userId={}, status={}", userId, status);
+                return Result.success();
+            }
+        }
+        return Result.fail(404, "用户不存在");
     }
 
     /**
@@ -250,7 +450,14 @@ public class UserManagementController {
      */
     @PostMapping("/delete")
     public Result<Void> deleteUser(@RequestBody Map<String, Object> params) {
-        return Result.success();
+        Long userId = params.containsKey("userId") ? ((Number) params.get("userId")).longValue() : null;
+        
+        boolean removed = mockUsers.removeIf(u -> u.get("userId").equals(userId));
+        if (removed) {
+            log.info("删除用户: userId={}", userId);
+            return Result.success();
+        }
+        return Result.fail(404, "用户不存在");
     }
 
     // ==================== 艺荐官管理接口 ====================

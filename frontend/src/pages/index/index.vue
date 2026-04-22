@@ -3,9 +3,11 @@
     <!-- 自定义导航栏 -->
     <view class="nav-bar">
       <view class="search-box" @click="goSearch">
+        <view class="search-icon">🔍</view>
         <text class="placeholder">搜索作品/艺术家</text>
       </view>
       <view class="message-icon" @click="goMessage">
+        <text class="icon">🔔</text>
         <view class="badge-dot" v-if="hasMessage"></view>
       </view>
     </view>
@@ -19,40 +21,53 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="loadMore"
     >
-      <!-- Banner轮播 -->
-      <swiper class="banner-swiper" indicator-dots autoplay circular>
-        <swiper-item v-for="(banner, index) in banners" :key="index">
-          <image class="banner-image" :src="banner.imageUrl" mode="aspectFill" @click="onBannerClick(banner)"></image>
-        </swiper-item>
-      </swiper>
+      <!-- Banner轮播 - 深色主题 -->
+      <view class="banner-section">
+        <swiper class="banner-swiper" indicator-dots autoplay circular indicator-active-color="#D4AF37">
+          <swiper-item v-for="(banner, index) in banners" :key="index">
+            <view class="banner-item" @click="onBannerClick(banner)">
+              <image class="banner-image" :src="banner.imageUrl" mode="aspectFill"></image>
+              <view class="banner-overlay"></view>
+              <view class="banner-content">
+                <text class="banner-tag">{{ banner.tag || '艺术展' }}</text>
+                <text class="banner-title">{{ banner.title }}</text>
+              </view>
+            </view>
+          </swiper-item>
+        </swiper>
+      </view>
       
-      <!-- 金刚区 -->
+      <!-- 金刚区 - 深色主题 -->
       <view class="nav-grid">
         <view class="nav-item" v-for="item in navItems" :key="item.id" @click="goNav(item)">
-          <image class="nav-icon" :src="item.icon" mode="aspectFit"></image>
+          <view class="nav-icon-wrapper">
+            <text class="nav-icon">{{ item.icon }}</text>
+          </view>
           <text class="nav-text">{{ item.text }}</text>
         </view>
       </view>
       
-      <!-- Tab切换 -->
+      <!-- Tab切换 - 深色主题 -->
       <view class="content-tabs">
         <view 
           class="tab-item" 
           :class="{ active: currentTab === 'recommend' }"
           @click="switchTab('recommend')"
         >
-          推荐
+          <text>推荐</text>
+          <view class="tab-line" v-if="currentTab === 'recommend'"></view>
         </view>
         <view 
           class="tab-item"
           :class="{ active: currentTab === 'following' }"
           @click="switchTab('following')"
         >
-          关注
+          <text>关注</text>
+          <view class="tab-line" v-if="currentTab === 'following'"></view>
         </view>
       </view>
       
-      <!-- 作品瀑布流 -->
+      <!-- 作品瀑布流 - 深色主题 -->
       <view class="waterfall">
         <view 
           class="waterfall-item" 
@@ -61,27 +76,24 @@
           @click="goDetail(item)"
         >
           <view class="artwork-card">
-            <image class="artwork-card-image" :src="item.coverImage" mode="aspectFill"></image>
+            <view class="artwork-image-wrapper">
+              <image class="artwork-card-image" :src="item.coverImage" mode="aspectFill"></image>
+              <view class="artwork-tag" v-if="item.isHot">热</view>
+            </view>
             <view class="artwork-card-info">
-              <view class="artwork-info-row">
-                <text class="artwork-title">{{ item.authorName }} · {{ item.title }}</text>
-              </view>
-              <view class="artwork-meta">
-                <text>{{ item.artType }}</text>
-                <text v-if="item.size">{{ item.size }}</text>
-                <text v-if="item.createYear">{{ item.createYear }}年</text>
+              <text class="artwork-title">{{ item.title }}</text>
+              <view class="artwork-author">
+                <text class="author-name">{{ item.authorName }}</text>
+                <view class="identity-tag" v-if="item.authorIdentity">
+                  <text>{{ getIdentityText(item.authorIdentity) }}</text>
+                </view>
               </view>
               <view class="artwork-footer">
-                <view class="author-info" @click.stop="goArtistHome(item.authorId)">
-                  <image class="author-avatar" :src="item.authorAvatar || '/static/images/avatar.png'"></image>
-                  <text class="author-name">{{ item.authorName }}</text>
-                  <view class="identity-tag" :class="'identity-' + item.authorIdentity">
-                    {{ getIdentityText(item.authorIdentity) }}
-                  </view>
-                </view>
                 <view class="price-info">
-                  <text class="price">¥{{ formatPrice(item.price) }}</text>
-                  <text class="price-tag" v-if="item.priceChangeRate > 0">+{{ item.priceChangeRate }}%</text>
+                  <text class="price-symbol">¥</text>
+                  <text class="price-value">{{ formatPrice(item.price) }}</text>
+                  <text class="price-change up" v-if="item.priceChangeRate > 0">+{{ item.priceChangeRate }}%</text>
+                  <text class="price-change down" v-else-if="item.priceChangeRate < 0">{{ item.priceChangeRate }}%</text>
                 </view>
               </view>
             </view>
@@ -98,9 +110,12 @@
       
       <!-- 空状态 -->
       <view class="empty-state" v-if="!loading && productList.length === 0">
-        <image class="empty-image" src="/static/images/empty.png" mode="aspectFit"></image>
+        <text class="empty-icon">🎨</text>
         <text class="empty-text">暂无作品</text>
       </view>
+      
+      <!-- 底部安全区 -->
+      <view class="safe-area-bottom"></view>
     </scroll-view>
   </view>
 </template>
@@ -123,12 +138,12 @@ const hasMessage = ref(false)
 const page = ref(1)
 const pageSize = 10
 
-// 金刚区配置
+// 金刚区配置 - 深色主题
 const navItems = [
-  { id: 1, text: '画廊', icon: '/static/icons/gallery.png', path: '/pages/gallery/index' },
-  { id: 2, text: '拍卖', icon: '/static/icons/auction.png', path: '/pages/auction/index' },
-  { id: 3, text: '鉴赏', icon: '/static/icons/appreciate.png', path: '/pages/artcircle/index' },
-  { id: 4, text: '艺术圈', icon: '/static/icons/circle.png', path: '/pages/artcircle/index' }
+  { id: 1, text: '画廊', icon: '🖼️', path: '/pages/gallery/index' },
+  { id: 2, text: '艺术家', icon: '👥', path: '/pages/artist/list' },
+  { id: 3, text: '购物车', icon: '🛒', path: '/pages/cart/index' },
+  { id: 4, text: '鉴赏', icon: '✨', path: '/pages/appreciate/index' }
 ]
 
 // 获取Banner
@@ -136,20 +151,18 @@ const fetchBanners = async () => {
   try {
     const list = await getBanners()
     banners.value = list || []
-    // 如果没有数据，使用 mock 数据
     if (banners.value.length === 0) {
       banners.value = [
-        { id: 1, imageUrl: 'https://picsum.photos/750/320?random=1', linkType: 'gallery', linkValue: '1', title: '首页Banner 1' },
-        { id: 2, imageUrl: 'https://picsum.photos/750/320?random=2', linkType: 'gallery', linkValue: '2', title: '首页Banner 2' },
-        { id: 3, imageUrl: 'https://picsum.photos/750/320?random=3', linkType: 'gallery', linkValue: '3', title: '首页Banner 3' }
+        { id: 1, imageUrl: 'https://picsum.photos/750/400?random=10', title: '致敬经典：当代写实油画展', tag: '艺术展' },
+        { id: 2, imageUrl: 'https://picsum.photos/750/400?random=11', title: '当代艺术名家联展', tag: '展览' },
+        { id: 3, imageUrl: 'https://picsum.photos/750/400?random=12', title: '青年艺术家扶持计划', tag: '活动' }
       ]
     }
   } catch (e) {
-    // 请求失败时使用 mock 数据
     banners.value = [
-      { id: 1, imageUrl: 'https://picsum.photos/750/320?random=1', linkType: 'gallery', linkValue: '1', title: '首页Banner 1' },
-      { id: 2, imageUrl: 'https://picsum.photos/750/320?random=2', linkType: 'gallery', linkValue: '2', title: '首页Banner 2' },
-      { id: 3, imageUrl: 'https://picsum.photos/750/320?random=3', linkType: 'gallery', linkValue: '3', title: '首页Banner 3' }
+      { id: 1, imageUrl: 'https://picsum.photos/750/400?random=10', title: '致敬经典：当代写实油画展', tag: '艺术展' },
+      { id: 2, imageUrl: 'https://picsum.photos/750/400?random=11', title: '当代艺术名家联展', tag: '展览' },
+      { id: 3, imageUrl: 'https://picsum.photos/750/400?random=12', title: '青年艺术家扶持计划', tag: '活动' }
     ]
   }
 }
@@ -173,7 +186,6 @@ const fetchProductList = async (reset = false) => {
       list = await getFollowingWorks(params)
     }
 
-    // 如果没有数据，使用 mock 数据
     if (!list || list.length === 0) {
       list = getMockArtworks()
     }
@@ -190,7 +202,6 @@ const fetchProductList = async (reset = false) => {
       page.value++
     }
   } catch (e) {
-    // 请求失败时使用 mock 数据
     if (reset) {
       productList.value = getMockArtworks()
     }
@@ -199,15 +210,15 @@ const fetchProductList = async (reset = false) => {
   }
 }
 
-// Mock 数据
+// Mock 数据 - 深色主题
 const getMockArtworks = () => {
   return [
-    { id: 1, title: '山水意境', authorName: '张大千', authorId: 1, authorAvatar: 'https://picsum.photos/100/100?random=10', coverImage: 'https://picsum.photos/400/500?random=1', artType: '国画', size: '68x68cm', createYear: 2023, price: 128000, priceChangeRate: 5.2, authorIdentity: 'artist' },
-    { id: 2, title: '晨曦', authorName: '李娜', authorId: 2, authorAvatar: 'https://picsum.photos/100/100?random=11', coverImage: 'https://picsum.photos/400/400?random=2', artType: '油画', size: '80x100cm', createYear: 2024, price: 88000, priceChangeRate: 3.8, authorIdentity: 'artist' },
-    { id: 3, title: '书法对联', authorName: '王羲之', authorId: 3, authorAvatar: 'https://picsum.photos/100/100?random=12', coverImage: 'https://picsum.photos/400/600?random=3', artType: '书法', size: '138x35cmx2', createYear: 2023, price: 58000, priceChangeRate: 2.1, authorIdentity: 'master' },
-    { id: 4, title: '静物写生', authorName: '莫奈', authorId: 4, authorAvatar: 'https://picsum.photos/100/100?random=13', coverImage: 'https://picsum.photos/400/500?random=4', artType: '油画', size: '65x81cm', createYear: 2022, price: 256000, priceChangeRate: 8.5, authorIdentity: 'artist' },
-    { id: 5, title: '抽象系列', authorName: '赵无极', authorId: 5, authorAvatar: 'https://picsum.photos/100/100?random=14', coverImage: 'https://picsum.photos/400/400?random=5', artType: '油画', size: '97x130cm', createYear: 2024, price: 520000, priceChangeRate: 12.3, authorIdentity: 'artist' },
-    { id: 6, title: '青花瓷韵', authorName: '景德镇', authorId: 6, authorAvatar: 'https://picsum.photos/100/100?random=15', coverImage: 'https://picsum.photos/400/500?random=6', artType: '瓷板画', size: '直径50cm', createYear: 2023, price: 36000, priceChangeRate: 1.5, authorIdentity: '' }
+    { id: 1, title: '父亲', authorName: '罗中立', authorId: 1, authorAvatar: 'https://picsum.photos/100/100?random=10', coverImage: 'https://picsum.photos/400/500?random=1', artType: '油画', size: '218x150cm', createYear: 2023, price: 128000, priceChangeRate: 5.2, authorIdentity: 'artist', isHot: true },
+    { id: 2, title: '流动的光影', authorName: '当代艺术家', authorId: 2, authorAvatar: 'https://picsum.photos/100/100?random=11', coverImage: 'https://picsum.photos/400/400?random=2', artType: '油画', size: '80x100cm', createYear: 2024, price: 12500, priceChangeRate: 3.8, authorIdentity: 'artist', isHot: false },
+    { id: 3, title: '静物写生', authorName: '莫奈', authorId: 3, authorAvatar: 'https://picsum.photos/100/100?random=12', coverImage: 'https://picsum.photos/400/600?random=3', artType: '油画', size: '65x81cm', createYear: 2022, price: 256000, priceChangeRate: 8.5, authorIdentity: 'master', isHot: true },
+    { id: 4, title: '山水意境', authorName: '张大千', authorId: 4, authorAvatar: 'https://picsum.photos/100/100?random=13', coverImage: 'https://picsum.photos/400/500?random=4', artType: '国画', size: '97x180cm', createYear: 2024, price: 520000, priceChangeRate: 12.3, authorIdentity: 'artist', isHot: false },
+    { id: 5, title: '晨曦', authorName: '李娜', authorId: 5, authorAvatar: 'https://picsum.photos/100/100?random=14', coverImage: 'https://picsum.photos/400/400?random=5', artType: '油画', size: '80x100cm', createYear: 2024, price: 88000, priceChangeRate: 3.8, authorIdentity: 'artist', isHot: false },
+    { id: 6, title: '抽象系列', authorName: '赵无极', authorId: 6, authorAvatar: 'https://picsum.photos/100/100?random=15', coverImage: 'https://picsum.photos/400/500?random=6', artType: '油画', size: '97x130cm', createYear: 2024, price: 520000, priceChangeRate: -2.1, authorIdentity: 'artist', isHot: true }
   ]
 }
 
@@ -243,7 +254,11 @@ const goMessage = () => {
 
 // 金刚区导航
 const goNav = (item) => {
-  uni.switchTab({ url: item.path })
+  if (item.path.startsWith('/pages/')) {
+    uni.switchTab({ url: item.path })
+  } else {
+    uni.navigateTo({ url: item.path })
+  }
 }
 
 // Banner点击
@@ -287,7 +302,8 @@ const getIdentityText = (identity) => {
     artist: '艺术家',
     agent: '经纪人',
     promoter: '艺荐官',
-    collector: '持有者'
+    collector: '持有者',
+    master: '大师'
   }
   return map[identity] || ''
 }
@@ -300,9 +316,21 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+/* 深色主题色 */
+$bg-primary: #0D0D0D;
+$bg-secondary: #1A1A1A;
+$bg-card: #242424;
+$text-primary: #FFFFFF;
+$text-secondary: #B3B3B3;
+$text-muted: #666666;
+$accent-gold: #D4AF37;
+$accent-orange: #E8A838;
+$price-up: #FF6B6B;
+$price-down: #4CAF50;
+
 .index-page {
   min-height: 100vh;
-  background-color: #f8f8f8;
+  background-color: $bg-primary;
 }
 
 .nav-bar {
@@ -313,71 +341,114 @@ onMounted(() => {
   z-index: 999;
   display: flex;
   align-items: center;
-  padding: 20rpx 30rpx;
-  padding-top: calc(20rpx + env(safe-area-inset-top));
-  background-color: #ffffff;
-  
+  padding: 16rpx 30rpx;
+  padding-top: calc(16rpx + env(safe-area-inset-top));
+  background-color: $bg-primary;
+
   .search-box {
     flex: 1;
     display: flex;
     align-items: center;
-    height: 64rpx;
+    height: 72rpx;
     padding: 0 24rpx;
-    background-color: #f5f5f5;
-    border-radius: 32rpx;
+    background-color: $bg-secondary;
+    border-radius: 36rpx;
+    border: 1rpx solid rgba(255, 255, 255, 0.1);
     
-    .iconfont {
+    .search-icon {
       font-size: 28rpx;
-      color: #999999;
       margin-right: 12rpx;
+      opacity: 0.6;
     }
     
     .placeholder {
       font-size: 26rpx;
-      color: #999999;
+      color: $text-muted;
     }
   }
   
   .message-icon {
     position: relative;
-    width: 64rpx;
-    height: 64rpx;
+    width: 72rpx;
+    height: 72rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-left: 20rpx;
     
-    .iconfont {
+    .icon {
       font-size: 40rpx;
-      color: #333333;
     }
     
     .badge-dot {
       position: absolute;
-      top: 8rpx;
-      right: 8rpx;
+      top: 12rpx;
+      right: 12rpx;
       width: 16rpx;
       height: 16rpx;
-      background-color: #ff4d4f;
+      background-color: $accent-gold;
       border-radius: 50%;
     }
   }
 }
 
 .content {
-  padding-top: 100rpx;
-  height: calc(100vh - 100rpx);
+  padding-top: 120rpx;
+  height: calc(100vh - 120rpx);
+}
+
+.banner-section {
+  padding: 0 30rpx;
+  margin-bottom: 30rpx;
 }
 
 .banner-swiper {
   height: 320rpx;
-  margin: 20rpx;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   overflow: hidden;
   
-  .banner-image {
+  .banner-item {
+    position: relative;
     width: 100%;
     height: 100%;
+    
+    .banner-image {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .banner-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+    }
+    
+    .banner-content {
+      position: absolute;
+      bottom: 30rpx;
+      left: 30rpx;
+      right: 30rpx;
+      
+      .banner-tag {
+        display: inline-block;
+        font-size: 22rpx;
+        color: $bg-primary;
+        background-color: $accent-gold;
+        padding: 6rpx 16rpx;
+        border-radius: 6rpx;
+        margin-bottom: 12rpx;
+      }
+      
+      .banner-title {
+        display: block;
+        font-size: 32rpx;
+        color: $text-primary;
+        font-weight: 600;
+      }
+    }
   }
 }
 
@@ -386,22 +457,32 @@ onMounted(() => {
   grid-template-columns: repeat(4, 1fr);
   gap: 20rpx;
   padding: 0 30rpx;
-  margin-bottom: 30rpx;
+  margin-bottom: 40rpx;
   
   .nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     
-    .nav-icon {
-      width: 80rpx;
-      height: 80rpx;
+    .nav-icon-wrapper {
+      width: 100rpx;
+      height: 100rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: $bg-secondary;
+      border-radius: 24rpx;
       margin-bottom: 12rpx;
+      border: 1rpx solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .nav-icon {
+      font-size: 48rpx;
     }
     
     .nav-text {
       font-size: 24rpx;
-      color: #333333;
+      color: $text-secondary;
     }
   }
 }
@@ -409,18 +490,29 @@ onMounted(() => {
 .content-tabs {
   display: flex;
   padding: 0 30rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 30rpx;
   
   .tab-item {
+    position: relative;
     font-size: 32rpx;
-    color: #999999;
+    color: $text-muted;
     padding-bottom: 8rpx;
-    margin-right: 40rpx;
+    margin-right: 50rpx;
     
     &.active {
-      color: #333333;
+      color: $text-primary;
       font-weight: 600;
-      border-bottom: 4rpx solid #333333;
+    }
+    
+    .tab-line {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40rpx;
+      height: 4rpx;
+      background-color: $accent-gold;
+      border-radius: 2rpx;
     }
   }
 }
@@ -441,39 +533,73 @@ onMounted(() => {
 }
 
 .artwork-card {
-  background-color: #ffffff;
-  border-radius: 12rpx;
+  background-color: $bg-card;
+  border-radius: 16rpx;
   overflow: hidden;
+  border: 1rpx solid rgba(255, 255, 255, 0.05);
   
-  .artwork-card-image {
+  .artwork-image-wrapper {
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
-    background-color: #f5f5f5;
+    
+    .artwork-card-image {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .artwork-tag {
+      position: absolute;
+      top: 16rpx;
+      right: 16rpx;
+      width: 44rpx;
+      height: 44rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: $accent-orange;
+      border-radius: 8rpx;
+      font-size: 22rpx;
+      color: $bg-primary;
+      font-weight: 600;
+    }
   }
   
   .artwork-card-info {
-    padding: 16rpx;
-  }
-  
-  .artwork-info-row {
-    margin-bottom: 8rpx;
+    padding: 20rpx;
   }
   
   .artwork-title {
-    font-size: 26rpx;
-    color: #333333;
-    @include ellipsis(1);
+    display: block;
+    font-size: 28rpx;
+    color: $text-primary;
+    font-weight: 500;
+    margin-bottom: 12rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
-  .artwork-meta {
+  .artwork-author {
     display: flex;
-    font-size: 22rpx;
-    color: #999999;
-    margin-bottom: 12rpx;
+    align-items: center;
+    margin-bottom: 16rpx;
     
-    text:not(:last-child)::after {
-      content: '/';
-      margin: 0 6rpx;
+    .author-name {
+      font-size: 24rpx;
+      color: $text-secondary;
+    }
+    
+    .identity-tag {
+      margin-left: 12rpx;
+      padding: 4rpx 10rpx;
+      background-color: rgba($accent-gold, 0.15);
+      border-radius: 6rpx;
+      
+      text {
+        font-size: 18rpx;
+        color: $accent-gold;
+      }
     }
   }
   
@@ -483,51 +609,33 @@ onMounted(() => {
     justify-content: space-between;
   }
   
-  .author-info {
-    display: flex;
-    align-items: center;
-    
-    .author-avatar {
-      width: 36rpx;
-      height: 36rpx;
-      border-radius: 50%;
-      margin-right: 8rpx;
-    }
-    
-    .author-name {
-      font-size: 22rpx;
-      color: #666666;
-      max-width: 80rpx;
-      @include ellipsis(1);
-    }
-    
-    .identity-tag {
-      font-size: 18rpx;
-      padding: 2rpx 8rpx;
-      border-radius: 10rpx;
-      margin-left: 6rpx;
-      
-      &.identity-artist {
-        background-color: rgba(230, 190, 138, 0.1);
-        color: #e6be8a;
-      }
-    }
-  }
-  
   .price-info {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     
-    .price {
-      font-size: 28rpx;
-      color: #333333;
+    .price-symbol {
+      font-size: 24rpx;
+      color: $accent-gold;
+      margin-right: 4rpx;
+    }
+    
+    .price-value {
+      font-size: 32rpx;
+      color: $accent-gold;
       font-weight: 600;
     }
     
-    .price-tag {
-      font-size: 20rpx;
-      color: #ff4d4f;
-      margin-left: 8rpx;
+    .price-change {
+      font-size: 22rpx;
+      margin-left: 10rpx;
+      
+      &.up {
+        color: $price-up;
+      }
+      
+      &.down {
+        color: $price-down;
+      }
     }
   }
 }
@@ -536,24 +644,28 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100rpx 0;
+  padding: 120rpx 0;
   
-  .empty-image {
-    width: 240rpx;
-    height: 240rpx;
+  .empty-icon {
+    font-size: 120rpx;
     margin-bottom: 30rpx;
+    opacity: 0.5;
   }
   
   .empty-text {
     font-size: 28rpx;
-    color: #999999;
+    color: $text-muted;
   }
 }
 
 .load-more {
   text-align: center;
-  padding: 30rpx 0;
+  padding: 40rpx 0;
   font-size: 24rpx;
-  color: #999999;
+  color: $text-muted;
+}
+
+.safe-area-bottom {
+  height: env(safe-area-inset-bottom);
 }
 </style>

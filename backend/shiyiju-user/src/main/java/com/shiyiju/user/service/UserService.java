@@ -24,6 +24,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -186,13 +187,12 @@ public class UserService {
         PromoterRecord record = new PromoterRecord();
         record.setUserId(userId);
         record.setLevel(1);
-        record.setAgreementStatus(1);
-        record.setAgreementTime(LocalDateTime.now());
+        record.setStatus(1);
+        record.setSignTime(LocalDateTime.now());
         record.setInviteCode(inviteCode);
-        record.setTotalCommission(0L);
-        record.setWithdrawableCommission(0L);
-        record.setWithdrawnCommission(0L);
-        record.setSubordinateCount(0);
+        record.setTotalSales(BigDecimal.ZERO);
+        record.setTotalOrders(0);
+        record.setTeamSize(0);
         promoterRecordMapper.insert(record);
 
         // 更新用户身份
@@ -207,7 +207,7 @@ public class UserService {
         PromoterRecord record = promoterRecordMapper.selectOne(
                 new LambdaQueryWrapper<PromoterRecord>()
                         .eq(PromoterRecord::getUserId, userId)
-                        .eq(PromoterRecord::getAgreementStatus, 1)
+                        .eq(PromoterRecord::getStatus, 1)
         );
         if (record == null) {
             throw new BusinessException(ResultCode.PROMOTER_NOT_OPENED);
@@ -222,7 +222,7 @@ public class UserService {
         PromoterRecord inviterRecord = promoterRecordMapper.selectOne(
                 new LambdaQueryWrapper<PromoterRecord>()
                         .eq(PromoterRecord::getInviteCode, inviteCode)
-                        .eq(PromoterRecord::getAgreementStatus, 1)
+                        .eq(PromoterRecord::getStatus, 1)
         );
 
         if (inviterRecord != null) {
@@ -232,12 +232,12 @@ public class UserService {
                             .eq(PromoterRecord::getUserId, userId)
             );
             if (userRecord != null) {
-                userRecord.setInviterId(inviterRecord.getUserId());
+                userRecord.setParentId(inviterRecord.getUserId());
                 promoterRecordMapper.updateById(userRecord);
             }
 
-            // 增加邀请人下级人数
-            inviterRecord.setSubordinateCount(inviterRecord.getSubordinateCount() + 1);
+            // 增加邀请人团队人数
+            inviterRecord.setTeamSize(inviterRecord.getTeamSize() + 1);
             promoterRecordMapper.updateById(inviterRecord);
         }
     }

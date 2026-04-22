@@ -22,10 +22,11 @@ export default {
 @import '@/styles/common.scss';
 @import '@/styles/iconfont.scss';
 
-/* 全局样式 */
+/* 全局样式 - 深色主题 */
 page {
-  background: #f5f5f5;
+  background: #0D0D0D;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: #FFFFFF;
 }
 
 /* 重置样式 */

@@ -349,4 +349,8 @@ export default {
     border-radius: 44rpx;
 
     &.disabled {
-      background: #ccc
+      background: #ccc;
+    }
+  }
+}
+</style>

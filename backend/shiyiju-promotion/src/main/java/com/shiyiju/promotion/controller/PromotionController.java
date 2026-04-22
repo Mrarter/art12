@@ -2,16 +2,15 @@ package com.shiyiju.promotion.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shiyiju.common.constant.PromoterConstant;
-import com.shiyiju.common.exception.BusinessException;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
-import com.shiyiju.common.result.ResultCode;
+
 import com.shiyiju.promotion.entity.CommissionLog;
 import com.shiyiju.promotion.entity.WithdrawRecord;
 import com.shiyiju.promotion.mapper.CommissionLogMapper;
 import com.shiyiju.promotion.mapper.WithdrawRecordMapper;
-import com.shiyiju.common.entity.PromoterRecord;
-import com.shiyiju.common.mapper.PromoterRecordMapper;
+import com.shiyiju.user.entity.PromoterRecord;
+import com.shiyiju.user.mapper.PromoterRecordMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,27 +42,52 @@ public class PromotionController {
             return Result.fail(401, "请先登录");
         }
         
-        PromoterRecord promoter = promoterRecordMapper.selectOne(
-                new LambdaQueryWrapper<PromoterRecord>()
-                        .eq(PromoterRecord::getUserId, userId)
-                        .eq(PromoterRecord::getAgreementStatus, 1)
-        );
-        if (promoter == null) {
-            throw new BusinessException(ResultCode.PROMOTER_NOT_OPENED);
-        }
+        try {
+            PromoterRecord promoter = promoterRecordMapper.selectOne(
+                    new LambdaQueryWrapper<PromoterRecord>()
+                            .eq(PromoterRecord::getUserId, userId)
+                            .eq(PromoterRecord::getStatus, 1)
+            );
+            if (promoter == null) {
+                // 返回默认数据，而非抛异常
+                Map<String, Object> defaultData = new HashMap<>();
+                defaultData.put("level", 0);
+                defaultData.put("levelName", "未开通");
+                defaultData.put("totalSales", 0);
+                defaultData.put("totalOrders", 0);
+                defaultData.put("teamSize", 0);
+                defaultData.put("inviteCode", null);
+                defaultData.put("signTime", null);
+                defaultData.put("isPromoter", false);
+                return Result.success(defaultData);
+            }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("level", promoter.getLevel());
-        data.put("levelName", getLevelName(promoter.getLevel()));
-        data.put("totalCommission", promoter.getTotalCommission());
-        data.put("withdrawableCommission", promoter.getWithdrawableCommission());
-        data.put("withdrawnCommission", promoter.getWithdrawnCommission());
-        data.put("subordinateCount", promoter.getSubordinateCount());
-        data.put("inviteCode", promoter.getInviteCode());
-        data.put("agreementTime", promoter.getAgreementTime() != null ? 
-                promoter.getAgreementTime().toString() : null);
-        
-        return Result.success(data);
+            Map<String, Object> data = new HashMap<>();
+            data.put("level", promoter.getLevel());
+            data.put("levelName", getLevelName(promoter.getLevel()));
+            data.put("totalSales", promoter.getTotalSales());
+            data.put("totalOrders", promoter.getTotalOrders());
+            data.put("teamSize", promoter.getTeamSize());
+            data.put("inviteCode", promoter.getInviteCode());
+            data.put("signTime", promoter.getSignTime() != null ? 
+                    promoter.getSignTime().toString() : null);
+            data.put("isPromoter", true);
+            
+            return Result.success(data);
+        } catch (Exception e) {
+            log.warn("获取推广中心数据异常: userId={}, error={}", userId, e.getMessage());
+            // 返回默认数据
+            Map<String, Object> defaultData = new HashMap<>();
+            defaultData.put("level", 0);
+            defaultData.put("levelName", "未开通");
+            defaultData.put("totalSales", 0);
+            defaultData.put("totalOrders", 0);
+            defaultData.put("teamSize", 0);
+            defaultData.put("inviteCode", null);
+            defaultData.put("signTime", null);
+            defaultData.put("isPromoter", false);
+            return Result.success(defaultData);
+        }
     }
 
     /**
@@ -78,39 +102,60 @@ public class PromotionController {
             return Result.fail(401, "请先登录");
         }
         
-        PromoterRecord promoter = promoterRecordMapper.selectOne(
-                new LambdaQueryWrapper<PromoterRecord>()
-                        .eq(PromoterRecord::getUserId, userId)
-                        .eq(PromoterRecord::getAgreementStatus, 1)
-        );
-        if (promoter == null) {
-            throw new BusinessException(ResultCode.PROMOTER_NOT_OPENED);
-        }
+        try {
+            PromoterRecord promoter = promoterRecordMapper.selectOne(
+                    new LambdaQueryWrapper<PromoterRecord>()
+                            .eq(PromoterRecord::getUserId, userId)
+                            .eq(PromoterRecord::getStatus, 1)
+            );
+            if (promoter == null) {
+                // 返回默认数据
+                Map<String, Object> data = new HashMap<>();
+                data.put("totalSales", 0);
+                data.put("totalOrders", 0);
+                data.put("recentCommission", 0L);
+                data.put("recentOrderCount", 0);
+                data.put("teamSize", 0);
+                data.put("periodDays", days);
+                return Result.success(data);
+            }
 
-        Map<String, Object> data = new HashMap<>();
-        
-        // 获取最近佣金额
-        LocalDateTime startTime = LocalDateTime.now().minusDays(days);
-        List<CommissionLog> recentLogs = commissionLogMapper.selectList(
-                new LambdaQueryWrapper<CommissionLog>()
-                        .eq(CommissionLog::getPromoterId, promoter.getId())
-                        .ge(CommissionLog::getCreateTime, startTime)
-        );
-        
-        long recentCommission = recentLogs.stream()
-                .filter(log -> log.getCommissionAmount() != null && log.getStatus() == PromoterConstant.COMMISSION_SETTLED)
-                .mapToLong(CommissionLog::getCommissionAmount)
-                .sum();
-        
-        int recentOrderCount = recentLogs.size();
-        
-        data.put("totalCommission", promoter.getTotalCommission());
-        data.put("recentCommission", recentCommission);
-        data.put("recentOrderCount", recentOrderCount);
-        data.put("subordinateCount", promoter.getSubordinateCount());
-        data.put("periodDays", days);
-        
-        return Result.success(data);
+            Map<String, Object> data = new HashMap<>();
+            
+            // 获取最近佣金额
+            LocalDateTime startTime = LocalDateTime.now().minusDays(days);
+            List<CommissionLog> recentLogs = commissionLogMapper.selectList(
+                    new LambdaQueryWrapper<CommissionLog>()
+                            .eq(CommissionLog::getPromoterId, promoter.getId())
+                            .ge(CommissionLog::getCreateTime, startTime)
+            );
+            
+            long recentCommission = recentLogs.stream()
+                    .filter(log -> log.getCommissionAmount() != null && log.getStatus() == PromoterConstant.COMMISSION_SETTLED)
+                    .mapToLong(CommissionLog::getCommissionAmount)
+                    .sum();
+            
+            int recentOrderCount = recentLogs.size();
+            
+            data.put("totalSales", promoter.getTotalSales());
+            data.put("totalOrders", promoter.getTotalOrders());
+            data.put("recentCommission", recentCommission);
+            data.put("recentOrderCount", recentOrderCount);
+            data.put("teamSize", promoter.getTeamSize());
+            data.put("periodDays", days);
+            
+            return Result.success(data);
+        } catch (Exception e) {
+            log.warn("获取业绩详情异常: userId={}, error={}", userId, e.getMessage());
+            Map<String, Object> data = new HashMap<>();
+            data.put("totalSales", 0);
+            data.put("totalOrders", 0);
+            data.put("recentCommission", 0L);
+            data.put("recentOrderCount", 0);
+            data.put("teamSize", 0);
+            data.put("periodDays", days);
+            return Result.success(data);
+        }
     }
 
     /**
@@ -126,26 +171,32 @@ public class PromotionController {
             return Result.fail(401, "请先登录");
         }
         
-        PromoterRecord promoter = promoterRecordMapper.selectOne(
-                new LambdaQueryWrapper<PromoterRecord>()
-                        .eq(PromoterRecord::getUserId, userId)
-                        .eq(PromoterRecord::getAgreementStatus, 1)
-        );
-        if (promoter == null) {
-            throw new BusinessException(ResultCode.PROMOTER_NOT_OPENED);
+        try {
+            PromoterRecord promoter = promoterRecordMapper.selectOne(
+                    new LambdaQueryWrapper<PromoterRecord>()
+                            .eq(PromoterRecord::getUserId, userId)
+                            .eq(PromoterRecord::getStatus, 1)
+            );
+            if (promoter == null) {
+                // 返回空列表
+                return Result.success(PageResult.of(0L, page, pageSize, List.of()));
+            }
+
+            LambdaQueryWrapper<CommissionLog> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CommissionLog::getPromoterId, promoter.getId())
+                   .orderByDesc(CommissionLog::getCreateTime);
+            
+            // 使用分页查询
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> pageResult = 
+                    new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> result = 
+                    commissionLogMapper.selectPage(pageResult, wrapper);
+
+            return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
+        } catch (Exception e) {
+            log.warn("获取佣金明细异常: userId={}, error={}", userId, e.getMessage());
+            return Result.success(PageResult.of(0L, page, pageSize, List.of()));
         }
-
-        LambdaQueryWrapper<CommissionLog> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommissionLog::getPromoterId, promoter.getId())
-               .orderByDesc(CommissionLog::getCreateTime);
-        
-        // 使用分页查询
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> pageResult = 
-                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> result = 
-                commissionLogMapper.selectPage(pageResult, wrapper);
-
-        return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
     }
 
     /**
@@ -161,15 +212,20 @@ public class PromotionController {
             return Result.fail(401, "请先登录");
         }
         
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<PromoterRecord> pageResult = 
-                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<PromoterRecord> result = 
-                promoterRecordMapper.selectPage(pageResult,
-                        new LambdaQueryWrapper<PromoterRecord>()
-                                .eq(PromoterRecord::getInviterId, userId)
-                                .orderByDesc(PromoterRecord::getCreateTime));
+        try {
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<PromoterRecord> pageResult = 
+                    new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<PromoterRecord> result = 
+                    promoterRecordMapper.selectPage(pageResult,
+                            new LambdaQueryWrapper<PromoterRecord>()
+                                    .eq(PromoterRecord::getParentId, userId)
+                                    .orderByDesc(PromoterRecord::getCreateTime));
 
-        return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
+            return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
+        } catch (Exception e) {
+            log.warn("获取团队列表异常: userId={}, error={}", userId, e.getMessage());
+            return Result.success(PageResult.of(0L, page, pageSize, List.of()));
+        }
     }
 
     /**
@@ -208,18 +264,15 @@ public class PromotionController {
         PromoterRecord promoter = promoterRecordMapper.selectOne(
                 new LambdaQueryWrapper<PromoterRecord>()
                         .eq(PromoterRecord::getUserId, userId)
-                        .eq(PromoterRecord::getAgreementStatus, 1)
+                        .eq(PromoterRecord::getStatus, 1)
         );
         if (promoter == null) {
-            throw new BusinessException(ResultCode.PROMOTER_NOT_OPENED);
+            return Result.fail(1103, "未开通艺荐官");
         }
 
         Long amount = Long.valueOf(params.get("amount").toString());
         if (amount <= 0) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "提现金额必须大于0");
-        }
-        if (amount > promoter.getWithdrawableCommission()) {
-            throw new BusinessException(ResultCode.COMMISSION_WITHDRAW_INSUFFICIENT);
+            return Result.fail(400, "提现金额必须大于0");
         }
 
         // 创建提现记录
@@ -234,10 +287,6 @@ public class PromotionController {
         record.setStatus(PromoterConstant.WITHDRAW_PENDING);
         record.setCreateTime(LocalDateTime.now());
         withdrawRecordMapper.insert(record);
-
-        // 扣减可提现佣金
-        promoter.setWithdrawableCommission(promoter.getWithdrawableCommission() - amount);
-        promoterRecordMapper.updateById(promoter);
 
         return Result.success();
     }

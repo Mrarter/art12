@@ -149,7 +149,8 @@
 
 <script>
 import { getLotDetail, placeBid, getLotBids } from '@/api/auction'
-import { connectAuction, disconnectAuction, onBid, onNewBid, onAuctionEnd } from '@/utils/websocket.js'
+import websocket from '@/utils/websocket.js'
+const { connectAuction, disconnectAuction, onBid, onNewBid, onAuctionEnd } = websocket
 
 export default {
   data() {

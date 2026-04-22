@@ -4,7 +4,8 @@
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "拾艺局",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0D0D0D"
       }
     },
     {
@@ -59,7 +60,7 @@
       "path": "pages/gallery/detail",
       "style": {
         "navigationBarTitleText": "作品详情",
-        "navigationBarBackgroundColor": "#ffffff"
+        "navigationBarBackgroundColor": "#0D0D0D"
       }
     },
     {
@@ -174,7 +175,8 @@
       "path": "pages/user/index",
       "style": {
         "navigationBarTitleText": "我的",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0D0D0D"
       }
     },
     {
@@ -272,6 +274,13 @@
       "style": {
         "navigationBarTitleText": "我的积分"
       }
+    },
+    {
+      "path": "pages/auction/index",
+      "style": {
+        "navigationBarTitleText": "拍卖大厅",
+        "navigationBarBackgroundColor": "#0D0D0D"
+      }
     }
   ],
   "subPackages": [
@@ -289,12 +298,6 @@
     {
       "root": "pages/auction",
       "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "拍卖大厅"
-          }
-        },
         {
           "path": "session",
           "style": {
@@ -443,7 +446,7 @@
           }
         },
         {
-          "path": "withdraw-list",
+          "path": "withdrawLog",
           "style": {
             "navigationBarTitleText": "提现记录"
           }
@@ -452,18 +455,6 @@
           "path": "poster",
           "style": {
             "navigationBarTitleText": "邀请海报"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/search",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "搜索",
-            "navigationStyle": "custom"
           }
         }
       ]
@@ -481,15 +472,15 @@
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "white",
     "navigationBarTitleText": "拾艺局",
-    "navigationBarBackgroundColor": "#FFFFFF",
-    "backgroundColor": "#F8F8F8"
+    "navigationBarBackgroundColor": "#0D0D0D",
+    "backgroundColor": "#0D0D0D"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#333333",
-    "backgroundColor": "#ffffff",
+    "color": "#666666",
+    "selectedColor": "#D4AF37",
+    "backgroundColor": "#1A1A1A",
     "borderStyle": "black",
     "list": [
       {

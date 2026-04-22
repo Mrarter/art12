@@ -4,13 +4,14 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 艺荐官开通记录表
+ * 艺荐官记录表
  */
 @Data
-@TableName("promoter_records")
+@TableName("promoter_record")
 public class PromoterRecord implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -22,32 +23,29 @@ public class PromoterRecord implements Serializable {
     /** 用户ID */
     private Long userId;
 
-    /** 邀请人ID */
-    private Long inviterId;
-
     /** 邀请码 */
     private String inviteCode;
 
-    /** 艺荐官等级：1-普通，2-高级，3-资深 */
+    /** 上级艺荐官ID */
+    private Long parentId;
+
+    /** 等级: 1-普通, 2-白银, 3-黄金, 4-钻石 */
     private Integer level;
 
-    /** 协议签署状态：0-未签署，1-已签署 */
-    private Integer agreementStatus;
+    /** 团队人数 */
+    private Integer teamSize;
 
-    /** 协议签署时间 */
-    private LocalDateTime agreementTime;
+    /** 累计订单数 */
+    private Integer totalOrders;
 
-    /** 累计佣金 */
-    private Long totalCommission;
+    /** 累计销售额 */
+    private BigDecimal totalSales;
 
-    /** 可提现佣金 */
-    private Long withdrawableCommission;
+    /** 状态: 0-禁用, 1-正常 */
+    private Integer status;
 
-    /** 已提现佣金 */
-    private Long withdrawnCommission;
-
-    /** 下级人数 */
-    private Integer subordinateCount;
+    /** 签约时间 */
+    private LocalDateTime signTime;
 
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)

@@ -1,7 +1,7 @@
 /**
  * 拍卖模块 API
  */
-import { request } from './request'
+import request from './request'
 
 /**
  * 获取拍卖专场列表

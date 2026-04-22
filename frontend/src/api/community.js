@@ -1,7 +1,7 @@
 /**
  * 社区模块 API（艺术圈）
  */
-import { request } from './request'
+import request from './request'
 
 /**
  * 获取帖子列表

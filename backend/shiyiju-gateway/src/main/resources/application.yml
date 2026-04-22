@@ -41,7 +41,7 @@ spring:
             - StripPrefix=1
         # 分销服务
         - id: shiyiju-promotion
-          uri: http://localhost:8082
+          uri: http://localhost:8085
           predicates:
             - Path=/api/promotion/**
           filters:

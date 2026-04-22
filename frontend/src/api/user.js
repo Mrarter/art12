@@ -139,3 +139,21 @@ export const getFollowingList = (params) => {
     data: params
   })
 }
+
+// 手机号登录
+export const phoneLogin = (data) => {
+  return request({
+    url: '/user/phone-login',
+    method: 'POST',
+    data
+  })
+}
+
+// 发送短信验证码
+export const sendSmsCode = (phone) => {
+  return request({
+    url: '/user/sms-code',
+    method: 'POST',
+    data: { phone }
+  })
+}

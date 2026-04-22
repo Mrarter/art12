@@ -118,7 +118,7 @@
 </template>
 
 <script>
-import { getOrderDetail, cancelOrder, confirmReceive, copyOrderNo } from '@/api/order.js'
+import { getOrderDetail, cancelOrder, confirmReceive } from '@/api/order.js'
 
 export default {
   data() {

@@ -416,7 +416,7 @@ export default {
 }
 
 .trend-card {
-  .card();
+  @extend .card;
 }
 
 .trend-chart {
@@ -451,7 +451,7 @@ export default {
 }
 
 .ranking-card {
-  .card();
+  @extend .card;
 }
 
 .more-link {
@@ -549,7 +549,7 @@ export default {
 }
 
 .detail-card {
-  .card();
+  @extend .card;
 }
 
 .filter-btn {
