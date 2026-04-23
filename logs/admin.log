@@ -18,3 +18,15 @@ More info: https://sass-lang.com/d/legacy-js-api
 
 (node:68095) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
+3:31:59 PM [vite] vite.config.js changed, restarting server...
+3:31:59 PM [vite] server restarted.
+3:35:14 PM [vite] page reload dist/index.html
+3:37:09 PM [vite] page reload dist/index.html
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+

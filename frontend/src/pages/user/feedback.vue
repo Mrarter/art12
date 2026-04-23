@@ -217,7 +217,7 @@ const goFaq = () => {
 
 // FAQ详情
 const goFaqDetail = (faq) => {
-  uni.navigateTo({ url: `/pages/help/detail?id=${faq.id}` })
+  uni.navigateTo({ url: `/pages/common/coming-soon?title=${encodeURIComponent(faq.title || 'FAQ详情')}&desc=常见问题详情页正在整理中，可先查看帮助中心列表。` })
 }
 
 // 查看消息

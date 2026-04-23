@@ -286,7 +286,7 @@ export default {
     },
 
     viewAllRanking() {
-      uni.navigateTo({ url: '/pages/promoter/ranking' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=排行榜&desc=排行榜详情页正在开发中，当前页已展示核心排行摘要。' })
     },
 
     loadMore() {

@@ -307,18 +307,18 @@ export default {
 
     goPage(page) {
       if (page === 'followers') {
-        uni.navigateTo({ url: '/pages/user/followers' })
+        uni.navigateTo({ url: '/pages/common/coming-soon?title=我的粉丝&desc=粉丝列表页正在开发中，后续会补齐用户关系数据。' })
       } else if (page === 'following') {
         uni.navigateTo({ url: '/pages/user/following' })
       } else if (page === 'likes') {
-        uni.navigateTo({ url: '/pages/user/likes' })
+        uni.navigateTo({ url: '/pages/common/coming-soon?title=获赞记录&desc=获赞记录页正在开发中，后续会补齐互动统计。' })
       } else {
         uni.navigateTo({ url: page })
       }
     },
 
     goEditProfile() {
-      uni.navigateTo({ url: '/pages/user/editProfile' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=编辑资料&desc=独立编辑资料页正在开发中，当前页面已支持部分字段修改。' })
     },
 
     getGenderText(gender) {
@@ -365,7 +365,7 @@ export default {
     },
 
     showPrivacy() {
-      uni.navigateTo({ url: '/pages/user/privacy' })
+      uni.navigateTo({ url: '/pages/user/agreement?type=privacy' })
     }
   }
 }

@@ -66,7 +66,7 @@ export default {
   },
   methods: {
     goToAbout() {
-      uni.navigateTo({ url: '/pages/about/detail?type=intro' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=关于拾艺局&desc=详细介绍页还在整理中，当前版本先保留入口与基础信息。' })
     },
     checkUpdate() {
       uni.showToast({ title: '已是最新版本', icon: 'success' })
@@ -78,7 +78,7 @@ export default {
       uni.navigateTo({ url: '/pages/user/agreement?type=terms' })
     },
     goToLicenses() {
-      uni.navigateTo({ url: '/pages/about/licenses' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=开源许可&desc=许可清单页还在整理中，后续会补齐第三方依赖说明。' })
     }
   }
 }

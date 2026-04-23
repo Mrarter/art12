@@ -178,4 +178,25 @@ public class UserController {
     public Result<Map<String, Object>> getArtistHomepage(@PathVariable Long artistId) {
         return Result.success(userService.getArtistHomepage(artistId));
     }
+
+    /**
+     * 搜索艺术家 (GET /user/artist/search)
+     * 根据艺术家名称模糊搜索已认证的艺术家
+     */
+    @GetMapping("/artist/search")
+    public Result<java.util.List<java.util.Map<String, Object>>> searchArtists(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return Result.success(userService.searchArtists(keyword, limit));
+    }
+
+    /**
+     * 根据名称查找或创建艺术家 (GET /user/artist/find-or-create)
+     * 如果艺术家存在则返回，不存在则创建未审核状态的艺术家
+     */
+    @GetMapping("/artist/find-or-create")
+    public Result<java.util.Map<String, Object>> findOrCreateArtist(@RequestParam String name) {
+        return Result.success(userService.findOrCreateArtist(name));
+    }
 }

@@ -157,3 +157,19 @@ export const sendSmsCode = (phone) => {
     data: { phone }
   })
 }
+
+// 搜索艺术家
+export const searchArtists = (keyword, limit = 10) => {
+  return request({
+    url: '/user/artist/search',
+    data: { keyword, limit }
+  })
+}
+
+// 查找或创建艺术家
+export const findOrCreateArtist = (name) => {
+  return request({
+    url: '/user/artist/find-or-create',
+    data: { name }
+  })
+}

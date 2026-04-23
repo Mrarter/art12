@@ -16,19 +16,19 @@
     <view class="section card">
       <view class="section-title">账号安全</view>
       <view class="menu-list">
-        <view class="menu-item" @click="goPage('/pages/user/bindPhone')">
+        <view class="menu-item" @click="goPage('/pages/common/coming-soon?title=绑定手机号&desc=手机号绑定页正在开发中，后续会补充验证码和换绑流程。')">
           
           <text class="menu-text">手机号绑定</text>
           <view class="menu-value" v-if="userInfo.phone">{{ formatPhone(userInfo.phone) }}</view>
           
         </view>
-        <view class="menu-item" @click="goPage('/pages/user/password')">
+        <view class="menu-item" @click="goPage('/pages/common/coming-soon?title=密码管理&desc=密码设置页正在开发中，后续会补充修改与找回能力。')">
           <text>🔒</text>
           <text class="menu-text">登录密码</text>
           <view class="menu-value">修改</view>
           
         </view>
-        <view class="menu-item" @click="goPage('/pages/user/realname')">
+        <view class="menu-item" @click="goPage('/pages/common/coming-soon?title=实名认证&desc=实名认证页正在开发中，后续会补充实名校验流程。')">
           
           <text class="menu-text">实名认证</text>
           <view class="menu-value" :class="{ 'status-certified': userInfo.realNameStatus === 1 }">
@@ -214,7 +214,7 @@ export default {
     },
 
     goPage(url) {
-      if (!this.isLoggedIn && url.includes('bindPhone')) {
+      if (!this.isLoggedIn && url.includes('coming-soon')) {
         this.goLogin()
         return
       }

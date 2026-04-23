@@ -541,4 +541,99 @@ public class UserService {
     public void deleteAddress(Long addressId, Long userId) {
         // TODO: 调用订单服务删除收货地址
     }
+
+    /**
+     * 搜索艺术家
+     * 根据名称模糊搜索已认证的艺术家
+     */
+    public List<Map<String, Object>> searchArtists(String keyword, int limit) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(User::getNickname, keyword.trim())
+               .eq(User::getDeleted, 0)
+               .orderByDesc(User::getCreateTime)
+               .last("LIMIT " + limit);
+
+        List<User> users = userMapper.selectList(wrapper);
+
+        return users.stream().map(user -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", user.getId());
+            map.put("name", user.getNickname());
+            map.put("avatar", user.getAvatar());
+            map.put("bio", user.getBio());
+            // 检查认证状态
+            LambdaQueryWrapper<ArtistCertification> certWrapper = new LambdaQueryWrapper<>();
+            certWrapper.eq(ArtistCertification::getUserId, user.getId())
+                       .eq(ArtistCertification::getStatus, 1); // 已认证
+            ArtistCertification cert = artistCertMapper.selectOne(certWrapper);
+            map.put("certified", cert != null);
+            map.put("badge", cert != null ? cert.getRealName() : null); // 使用真实姓名作为徽章
+            return map;
+        }).toList();
+    }
+
+    /**
+     * 查找或创建艺术家
+     * 如果艺术家存在则返回，不存在则创建未审核状态的艺术家
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> findOrCreateArtist(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "艺术家名称不能为空");
+        }
+
+        // 先搜索是否已存在
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getNickname, name.trim())
+               .eq(User::getDeleted, 0);
+        User existingUser = userMapper.selectOne(wrapper);
+
+        if (existingUser != null) {
+            // 已存在
+            Map<String, Object> result = new HashMap<>();
+            result.put("id", existingUser.getId());
+            result.put("name", existingUser.getNickname());
+            result.put("avatar", existingUser.getAvatar());
+            result.put("exists", true);
+            result.put("certified", false); // 需检查认证状态
+            return result;
+        }
+
+        // 不存在，创建新用户作为艺术家（未认证状态）
+        User newUser = new User();
+        newUser.setNickname(name.trim());
+        newUser.setCreateTime(LocalDateTime.now());
+        newUser.setUpdateTime(LocalDateTime.now());
+        newUser.setStatus(1);
+        newUser.setDeleted(0);
+
+        // 生成随机头像
+        newUser.setAvatar("https://picsum.photos/200/200?random=" + System.currentTimeMillis());
+
+        userMapper.insert(newUser);
+
+        // 创建认证记录（待审核状态）
+        ArtistCertification cert = new ArtistCertification();
+        cert.setUserId(newUser.getId());
+        cert.setRealName(name.trim());
+        cert.setStatus(0); // 待审核
+        cert.setCreateTime(LocalDateTime.now());
+        cert.setUpdateTime(LocalDateTime.now());
+        artistCertMapper.insert(cert);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", newUser.getId());
+        result.put("name", newUser.getNickname());
+        result.put("avatar", newUser.getAvatar());
+        result.put("exists", false);
+        result.put("certified", false);
+        result.put("pending", true); // 标记为待审核状态
+        result.put("message", "艺术家不存在，已创建待审核艺术家");
+
+        return result;
+    }
 }

@@ -45,6 +45,12 @@
       }
     },
     {
+      "path": "pages/common/coming-soon",
+      "style": {
+        "navigationBarTitleText": "功能建设中"
+      }
+    },
+    {
       "path": "pages/setting/message-settings",
       "style": {
         "navigationBarTitleText": "消息设置"
@@ -449,32 +455,32 @@
       {
         "pagePath": "pages/index/index",
         "text": "首页",
-        "iconPath": "static/tabbar/home.png",
-        "selectedIconPath": "static/tabbar/home-active.png"
+        "iconPath": "static/tabbar/home-luxury.svg",
+        "selectedIconPath": "static/tabbar/home-luxury-active.svg"
       },
       {
         "pagePath": "pages/gallery/index",
         "text": "画廊",
-        "iconPath": "static/tabbar/gallery.png",
-        "selectedIconPath": "static/tabbar/gallery-active.png"
+        "iconPath": "static/tabbar/gallery-luxury.svg",
+        "selectedIconPath": "static/tabbar/gallery-luxury-active.svg"
       },
       {
         "pagePath": "pages/auction/index",
         "text": "拍卖",
-        "iconPath": "static/tabbar/auction.png",
-        "selectedIconPath": "static/tabbar/auction-active.png"
+        "iconPath": "static/tabbar/auction-luxury.svg",
+        "selectedIconPath": "static/tabbar/auction-luxury-active.svg"
       },
       {
         "pagePath": "pages/cart/index",
         "text": "购物车",
-        "iconPath": "static/tabbar/cart.png",
-        "selectedIconPath": "static/tabbar/cart-active.png"
+        "iconPath": "static/tabbar/cart-luxury.svg",
+        "selectedIconPath": "static/tabbar/cart-luxury-active.svg"
       },
       {
         "pagePath": "pages/user/index",
         "text": "我的",
-        "iconPath": "static/tabbar/user.png",
-        "selectedIconPath": "static/tabbar/user-active.png"
+        "iconPath": "static/tabbar/user-luxury.svg",
+        "selectedIconPath": "static/tabbar/user-luxury-active.svg"
       }
     ]
   },

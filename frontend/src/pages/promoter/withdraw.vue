@@ -294,7 +294,7 @@ const onAgreeChange = (e) => {
 }
 
 const showWithdrawAgreement = () => {
-  uni.navigateTo({ url: '/pages/promoter/withdraw-agreement' })
+  uni.navigateTo({ url: '/pages/user/agreement?type=withdraw' })
 }
 
 const submitWithdraw = () => {

@@ -336,8 +336,8 @@ export default {
     // 查看协议
     viewAgreement(type) {
       const urls = {
-        user: '/pages/webview/index?url=https://shiyiju.com/agreement/user',
-        privacy: '/pages/webview/index?url=https://shiyiju.com/agreement/privacy'
+        user: '/pages/user/agreement?type=terms',
+        privacy: '/pages/user/agreement?type=privacy'
       }
       uni.navigateTo({ url: urls[type] })
     }

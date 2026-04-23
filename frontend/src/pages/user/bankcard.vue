@@ -61,7 +61,7 @@ export default {
   },
   methods: {
     addCard() {
-      uni.navigateTo({ url: '/pages/user/bankcard-add' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=添加银行卡&desc=新增银行卡页正在开发中，后续会补充绑卡流程。' })
     },
     setDefault(card) {
       this.cards.forEach(c => c.isDefault = false)

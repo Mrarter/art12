@@ -157,10 +157,10 @@ const pageSize = 10
 
 // 金刚区配置 - 深色主题
 const navItems = [
-  { id: 1, text: '画廊', icon: '/static/icons/gallery.png', path: '/pages/gallery/index' },
-  { id: 2, text: '艺术家', icon: '/static/icons/artist.png', path: '/pages/artist/home' },
-  { id: 3, text: '购物车', icon: '/static/icons/cart-circle.png', path: '/pages/cart/index' },
-  { id: 4, text: '鉴赏', icon: '/static/icons/appreciate.png', path: '/pages/appreciate/index' }
+  { id: 1, text: '画廊', icon: '/static/icons/nav-gallery.svg', path: '/pages/gallery/index' },
+  { id: 2, text: '艺术家', icon: '/static/icons/nav-artist.svg', path: '/pages/artist/home' },
+  { id: 3, text: '购物车', icon: '/static/icons/nav-cart.svg', path: '/pages/cart/index' },
+  { id: 4, text: '鉴赏', icon: '/static/icons/nav-appreciate.svg', path: '/pages/common/coming-soon?title=鉴赏专区&desc=鉴赏频道正在整理中，后续会接入专题内容与策展推荐。' }
 ]
 
 // 获取Banner
@@ -270,12 +270,21 @@ const goSearch = () => {
 
 // 跳转消息
 const goMessage = () => {
-  uni.navigateTo({ url: '/pages/user/messages' })
+  uni.navigateTo({ url: '/pages/message/index' })
 }
 
 // 金刚区导航
 const goNav = (item) => {
-  if (item.path.startsWith('/pages/')) {
+  const tabBarPages = new Set([
+    '/pages/index/index',
+    '/pages/gallery/index',
+    '/pages/auction/index',
+    '/pages/cart/index',
+    '/pages/user/index'
+  ])
+
+  const purePath = item.path.split('?')[0]
+  if (tabBarPages.has(purePath)) {
     uni.switchTab({ url: item.path })
   } else {
     uni.navigateTo({ url: item.path })
@@ -488,25 +497,27 @@ $price-down: #4CAF50;
     align-items: center;
     
     .nav-icon-wrapper {
-      width: 100rpx;
-      height: 100rpx;
+      width: 108rpx;
+      height: 108rpx;
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: $bg-secondary;
-      border-radius: 24rpx;
-      margin-bottom: 12rpx;
-      border: 1rpx solid rgba(255, 255, 255, 0.05);
+      background: radial-gradient(circle at 30% 30%, rgba(36, 42, 56, 0.9), rgba(22, 24, 31, 0.98));
+      border-radius: 50%;
+      margin-bottom: 14rpx;
+      border: 1rpx solid rgba(71, 95, 132, 0.35);
+      box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.03);
     }
     
     .nav-icon-img {
-      width: 56rpx;
-      height: 56rpx;
+      width: 52rpx;
+      height: 52rpx;
     }
     
     .nav-text {
       font-size: 24rpx;
       color: $text-secondary;
+      letter-spacing: 1rpx;
     }
   }
 }

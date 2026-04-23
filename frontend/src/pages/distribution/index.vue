@@ -168,7 +168,7 @@ export default {
       uni.navigateTo({ url: '/pages/user/wallet' })
     },
     goToProductList() {
-      uni.navigateTo({ url: '/pages/product/list' })
+      uni.navigateTo({ url: '/pages/gallery/index' })
     },
     shareToFriend() {
       uni.showToast({ title: '分享功能开发中', icon: 'none' })

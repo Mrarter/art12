@@ -290,7 +290,7 @@ export default {
     },
 
     goCards() {
-      uni.navigateTo({ url: '/pages/user/cards' })
+      uni.navigateTo({ url: '/pages/user/bankcard' })
     },
 
     goInvoice() {
@@ -298,7 +298,7 @@ export default {
     },
 
     goTransactionList() {
-      uni.navigateTo({ url: '/pages/user/transaction' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=交易明细&desc=钱包流水页正在开发中，后续会补充充值、提现与消费记录。' })
     }
   }
 }

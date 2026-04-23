@@ -116,10 +116,10 @@ export default {
   },
   methods: {
     changePassword() {
-      uni.navigateTo({ url: '/pages/user/change-password' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=修改密码&desc=密码管理页正在开发中，后续会补充账户安全能力。' })
     },
     bindPhone() {
-      uni.navigateTo({ url: '/pages/user/bind-phone' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=绑定手机号&desc=手机号绑定页正在开发中，后续会补充验证码校验流程。' })
     },
     bindWechat() {
       uni.showToast({ title: '微信已绑定', icon: 'success' })

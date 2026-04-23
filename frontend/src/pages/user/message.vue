@@ -432,7 +432,7 @@ const handleAction = (msg) => {
       if (msg.actionText === '查看物流') {
         uni.navigateTo({ url: '/pages/order/logistics' })
       } else if (msg.actionText === '立即发货') {
-        uni.navigateTo({ url: '/pages/order/deliver?id=' + msg.id })
+        uni.navigateTo({ url: '/pages/common/coming-soon?title=发货处理&desc=发货处理页正在开发中，后续会补充物流录入与状态流转。' })
       } else if (msg.actionText === '去评价') {
         uni.navigateTo({ url: '/pages/order/review' })
       }

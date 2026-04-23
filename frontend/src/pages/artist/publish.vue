@@ -6,7 +6,6 @@
       <view class="cover-upload" @click="chooseCover">
         <image v-if="formData.cover" :src="formData.cover" mode="aspectFill" class="cover-preview"></image>
         <view v-else class="upload-placeholder">
-          
           <text class="upload-text">上传封面图</text>
           <text class="upload-tip">建议尺寸 800x800</text>
         </view>
@@ -27,13 +26,38 @@
         />
       </view>
 
-      <view class="form-item">
+      <!-- 艺术家搜索 -->
+      <view class="form-item artist-form-item">
         <text class="form-label">作者</text>
-        <input 
-          class="form-input" 
-          v-model="formData.author" 
-          placeholder="请输入作者姓名"
-        />
+        <view class="artist-input-wrapper">
+          <input 
+            class="form-input artist-input" 
+            :class="{ 'artist-new': artistStatus === 'new', 'artist-exists': artistStatus === 'exists' }"
+            v-model="artistKeyword" 
+            placeholder="输入艺术家名称搜索"
+            @input="onArtistInput"
+            @focus="showArtistDropdown = true"
+            @blur="hideArtistDropdown"
+          />
+          <view class="artist-status-tag" :class="'status-' + artistStatus" v-if="artistKeyword">
+            {{ artistStatusText }}
+          </view>
+        </view>
+        <!-- 艺术家下拉列表 -->
+        <view class="artist-dropdown" v-if="showArtistDropdown && artistList.length > 0">
+          <view 
+            class="artist-option" 
+            v-for="artist in artistList" 
+            :key="artist.id"
+            @click="selectArtist(artist)"
+          >
+            <image class="artist-avatar" :src="artist.avatar || '/static/avatar/default.png'" mode="aspectFill"></image>
+            <view class="artist-info">
+              <text class="artist-name">{{ artist.name }}</text>
+              <text class="artist-badge" v-if="artist.certified">已认证</text>
+            </view>
+          </view>
+        </view>
       </view>
 
       <view class="form-item">
@@ -43,7 +67,6 @@
             <text :class="{ placeholder: !formData.year }">
               {{ formData.year ? formData.year + '年' : '请选择年代' }}
             </text>
-            
           </view>
         </picker>
       </view>
@@ -75,7 +98,6 @@
             <text :class="{ placeholder: !formData.material }">
               {{ formData.material || '请选择材质' }}
             </text>
-            
           </view>
         </picker>
       </view>
@@ -87,7 +109,6 @@
             <text :class="{ placeholder: !formData.category }">
               {{ formData.category || '请选择门类' }}
             </text>
-            
           </view>
         </picker>
       </view>
@@ -156,7 +177,6 @@
         >
           <image :src="img" mode="aspectFill"></image>
           <view class="image-delete" @click="removeImage(index)">
-            
           </view>
         </view>
         <view 
@@ -164,7 +184,6 @@
           v-if="formData.images.length < 9" 
           @click="chooseImages"
         >
-          
           <text>添加图片</text>
         </view>
       </view>
@@ -180,6 +199,7 @@
 
 <script>
 import { publishArtwork, updateArtwork } from '@/api/product.js'
+import { searchArtists, findOrCreateArtist } from '@/api/user.js'
 
 export default {
   data() {
@@ -189,7 +209,8 @@ export default {
       formData: {
         cover: '',
         title: '',
-        author: '',
+        authorId: null,
+        authorName: '',
         year: '',
         width: '',
         height: '',
@@ -201,6 +222,13 @@ export default {
         description: '',
         images: []
       },
+      // 艺术家搜索相关
+      artistKeyword: '',
+      artistList: [],
+      artistStatus: '', // '', 'exists', 'new', 'notfound'
+      artistId: null,
+      showArtistDropdown: false,
+      searchTimer: null,
       yearRange: [
         { label: '2020年代', value: 2020 },
         { label: '2010年代', value: 2010 },
@@ -223,6 +251,17 @@ export default {
     }
   },
 
+  computed: {
+    artistStatusText() {
+      switch (this.artistStatus) {
+        case 'exists': return '已存在'
+        case 'new': return '新创建'
+        case 'notfound': return '不存在将自动创建'
+        default: return ''
+      }
+    }
+  },
+
   onLoad(options) {
     if (options.id) {
       this.isEdit = true
@@ -233,11 +272,104 @@ export default {
 
   methods: {
     async loadArtwork(id) {
-      // 模拟加载作品详情
       uni.showLoading({ title: '加载中...' })
-      setTimeout(() => {
+      try {
+        const res = await getArtworkDetail(id)
+        if (res) {
+          this.formData = {
+            cover: res.cover || '',
+            title: res.title || '',
+            authorId: res.authorId || null,
+            authorName: res.authorName || '',
+            year: res.year || '',
+            width: res.width || '',
+            height: res.height || '',
+            material: res.material || '',
+            category: res.category || '',
+            price: res.price || '',
+            allowAuction: res.allowAuction || false,
+            stock: res.stock || 1,
+            description: res.description || '',
+            images: res.images || []
+          }
+          this.artistKeyword = res.authorName || ''
+          if (res.authorId) {
+            this.artistId = res.authorId
+            this.artistStatus = 'exists'
+          }
+        }
+      } catch (e) {
+        console.error('加载作品失败', e)
+      } finally {
         uni.hideLoading()
-      }, 500)
+      }
+    },
+
+    // 艺术家输入事件
+    onArtistInput() {
+      // 清除之前的定时器
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer)
+      }
+
+      if (!this.artistKeyword.trim()) {
+        this.artistList = []
+        this.artistStatus = ''
+        this.artistId = null
+        this.formData.authorId = null
+        this.formData.authorName = ''
+        return
+      }
+
+      // 防抖搜索
+      this.searchTimer = setTimeout(() => {
+        this.searchArtist()
+      }, 300)
+    },
+
+    // 搜索艺术家
+    async searchArtist() {
+      try {
+        const res = await searchArtists(this.artistKeyword)
+        this.artistList = res || []
+        
+        if (this.artistList.length === 0) {
+          this.artistStatus = 'notfound'
+        } else {
+          // 检查是否有完全匹配的
+          const exactMatch = this.artistList.find(a => 
+            a.name === this.artistKeyword
+          )
+          if (exactMatch) {
+            this.artistStatus = 'exists'
+          } else {
+            this.artistStatus = 'notfound'
+          }
+        }
+      } catch (e) {
+        console.error('搜索艺术家失败', e)
+        this.artistList = []
+        this.artistStatus = 'notfound'
+      }
+    },
+
+    // 选择艺术家
+    selectArtist(artist) {
+      this.artistKeyword = artist.name
+      this.artistId = artist.id
+      this.formData.authorId = artist.id
+      this.formData.authorName = artist.name
+      this.artistStatus = artist.certified ? 'exists' : 'new'
+      this.artistList = []
+      this.showArtistDropdown = false
+    },
+
+    // 隐藏下拉框
+    hideArtistDropdown() {
+      // 延迟隐藏，以便点击选项
+      setTimeout(() => {
+        this.showArtistDropdown = false
+      }, 200)
     },
 
     chooseCover() {
@@ -289,6 +421,10 @@ export default {
         uni.showToast({ title: '请输入作品名称', icon: 'none' })
         return false
       }
+      if (!this.artistKeyword.trim()) {
+        uni.showToast({ title: '请输入艺术家名称', icon: 'none' })
+        return false
+      }
       if (!this.formData.price) {
         uni.showToast({ title: '请输入价格', icon: 'none' })
         return false
@@ -310,8 +446,25 @@ export default {
       uni.showLoading({ title: '提交中...' })
 
       try {
+        // 如果艺术家名称已输入但未选择，需要查找或创建
+        if (this.artistKeyword.trim() && !this.formData.authorId) {
+          try {
+            const artistRes = await findOrCreateArtist(this.artistKeyword.trim())
+            if (artistRes) {
+              this.formData.authorId = artistRes.id
+              this.formData.authorName = artistRes.name
+              if (artistRes.pending) {
+                uni.showToast({ title: '艺术家不存在，已创建待审核', icon: 'none', duration: 2000 })
+              }
+            }
+          } catch (e) {
+            console.error('创建艺术家失败', e)
+          }
+        }
+
         const submitData = {
           ...this.formData,
+          author: this.formData.authorName || this.artistKeyword,
           size: `${this.formData.width}×${this.formData.height}cm`
         }
 
@@ -424,6 +577,113 @@ export default {
   text-align: right;
   font-size: 28rpx;
   color: #333;
+}
+
+.artist-form-item {
+  position: relative;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.artist-input-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.artist-input {
+  flex: 1;
+  text-align: left;
+  padding: 16rpx 20rpx;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+
+.artist-input.artist-new {
+  border: 2rpx solid #e74c3c;
+  background: #fff5f5;
+}
+
+.artist-input.artist-exists {
+  border: 2rpx solid #50c878;
+  background: #f0fff4;
+}
+
+.artist-status-tag {
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  white-space: nowrap;
+}
+
+.artist-status-tag.status-exists {
+  background: #50c878;
+  color: #fff;
+}
+
+.artist-status-tag.status-new {
+  background: #ff9800;
+  color: #fff;
+}
+
+.artist-status-tag.status-notfound {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.artist-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 12rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  max-height: 400rpx;
+  overflow-y: auto;
+  margin-top: 8rpx;
+}
+
+.artist-option {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.artist-option:last-child {
+  border-bottom: none;
+}
+
+.artist-avatar {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+  background: #f0f0f0;
+}
+
+.artist-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.artist-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.artist-badge {
+  font-size: 20rpx;
+  color: #50c878;
+  background: #f0fff4;
+  padding: 4rpx 12rpx;
+  border-radius: 4rpx;
 }
 
 .form-picker {

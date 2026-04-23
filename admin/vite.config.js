@@ -48,27 +48,27 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/product/, '/product')
       },
-      // 订单服务 -> 8082
+      // 订单服务 -> 8083
       '/api/order': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8083',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/order/, '/order')
       },
-      // 拍卖服务 -> 8082
+      // 拍卖服务 -> 8084
       '/api/auction': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8084',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/auction/, '/auction')
       },
-      // 社区服务 -> 8082
+      // 社区服务 -> 8086
       '/api/community': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8086',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/community/, '/community')
       },
-      // 分销服务 -> 8082
+      // 分销服务 -> 8085
       '/api/promotion': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8085',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/promotion/, '/promoter')
       },

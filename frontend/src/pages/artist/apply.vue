@@ -426,7 +426,7 @@ export default {
               uni.showToast({ title: '提交成功', icon: 'success' })
               setTimeout(() => {
                 uni.redirectTo({
-                  url: '/pages/artist/applyStatus?status=pending'
+                  url: '/pages/common/coming-soon?title=申请状态&desc=申请状态页正在开发中，当前可稍后在艺术家中心查看审核结果。'
                 })
               }, 1000)
             }, 1500)

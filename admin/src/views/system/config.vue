@@ -2,9 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <span class="title">系统配置</span>
-      <el-button type="primary" @click="handleSave">
-        <el-icon><Save /></el-icon>保存配置
-      </el-button>
+      <el-button type="primary" @click="handleSave">保存配置</el-button>
     </div>
     
     <el-tabs v-model="activeTab" class="config-tabs">
@@ -309,7 +307,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Save } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const activeTab = ref('trade')

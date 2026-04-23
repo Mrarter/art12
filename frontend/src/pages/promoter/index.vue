@@ -268,7 +268,7 @@ export default {
     },
 
     goWithdrawList() {
-      uni.navigateTo({ url: '/pages/promoter/withdraw-list' })
+      uni.navigateTo({ url: '/pages/promoter/withdrawLog' })
     },
 
     copyCode() {

@@ -451,7 +451,7 @@ export default {
         uni.navigateTo({ url: '/pages/login/index' })
         return
       }
-      uni.navigateTo({ url: `/pages/chat/index?userId=${this.artistId}` })
+      uni.navigateTo({ url: `/pages/message/chat?userId=${this.artistId}` })
     },
 
     goWorkDetail(id) {
@@ -459,23 +459,23 @@ export default {
     },
 
     goWorksList() {
-      uni.navigateTo({ url: `/pages/artist/works?id=${this.artistId}` })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=艺术家作品集&desc=更完整的作品集页还在整理中，当前可先在主页继续浏览作品。' })
     },
 
     goFollowList() {
-      uni.navigateTo({ url: `/pages/artist/follow-list?id=${this.artistId}` })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=关注与粉丝&desc=关注关系页还在建设中，后续会展示完整的关注列表。' })
     },
 
     goSalesDetail() {
-      uni.navigateTo({ url: '/pages/artist/sales-detail' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=销售明细&desc=销售明细页正在开发中，后续会补充订单与趋势数据。' })
     },
 
     goRevenueDetail() {
-      uni.navigateTo({ url: '/pages/artist/revenue-detail' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=收益明细&desc=收益明细页正在开发中，后续会补充结算与账单信息。' })
     },
 
     goPriceRecords() {
-      uni.navigateTo({ url: '/pages/artist/price-records' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=价格记录&desc=价格轨迹页正在开发中，后续会展示涨跌历史和触发原因。' })
     },
 
     goCertApply() {
@@ -484,7 +484,7 @@ export default {
         return
       }
       if (this.artistInfo.certStatus === 'certified') {
-        uni.navigateTo({ url: '/pages/artist/cert-info' })
+        uni.navigateTo({ url: '/pages/artist/cert' })
         return
       }
       uni.navigateTo({ url: '/pages/artist/cert' })

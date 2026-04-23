@@ -117,6 +117,16 @@
         </dependencies>
     </dependencyManagement>
 
-    <!-- spring-boot-maven-plugin 只在需要打包成可执行jar的模块中配置 -->
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
 </project>
