@@ -3,7 +3,7 @@
     <!-- 申请须知 -->
     <view class="notice-section card">
       <view class="notice-header">
-        <u-icon name="info-circle" size="20" color="#667eea"></u-icon>
+        
         <text>申请须知</text>
       </view>
       <view class="notice-content">
@@ -25,7 +25,7 @@
         <view class="avatar-upload" @click="chooseAvatar">
           <image v-if="form.avatar" :src="form.avatar" mode="aspectFill"></image>
           <view v-else class="upload-placeholder">
-            <u-icon name="camera" size="32" color="#ccc"></u-icon>
+            
             <text>上传头像</text>
           </view>
         </view>
@@ -80,7 +80,7 @@
         <picker mode="date" :value="form.birthYear" fields="year" @change="onBirthYearChange">
           <view class="picker-value">
             {{ form.birthYear || '请选择' }}
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -91,7 +91,7 @@
         <picker mode="region" @change="onCityChange">
           <view class="picker-value">
             {{ form.city || '请选择' }}
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -107,7 +107,7 @@
         <picker :value="form.artCategoryIndex" :range="artCategories" range-key="name" @change="onArtCategoryChange">
           <view class="picker-value">
             {{ form.artCategory || '请选择' }}
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -142,11 +142,11 @@
           <view class="work-item" v-for="(work, index) in form.works" :key="index">
             <image :src="work" mode="aspectFill"></image>
             <view class="work-delete" @click="deleteWork(index)">
-              <u-icon name="close" size="14" color="#fff"></u-icon>
+              
             </view>
           </view>
           <view class="work-add" v-if="form.works.length < 9" @click="chooseWork">
-            <u-icon name="plus" size="32" color="#ccc"></u-icon>
+            
             <text>上传作品</text>
           </view>
         </view>
@@ -223,7 +223,7 @@
         <view class="idcard-upload" @click="chooseIdCard('front')">
           <image v-if="form.idCardFront" :src="form.idCardFront" mode="aspectFill"></image>
           <view v-else class="upload-placeholder">
-            <u-icon name="camera" size="32" color="#ccc"></u-icon>
+            
             <text>点击上传</text>
           </view>
         </view>
@@ -235,7 +235,7 @@
         <view class="idcard-upload" @click="chooseIdCard('back')">
           <image v-if="form.idCardBack" :src="form.idCardBack" mode="aspectFill"></image>
           <view v-else class="upload-placeholder">
-            <u-icon name="camera" size="32" color="#ccc"></u-icon>
+            
             <text>点击上传</text>
           </view>
         </view>
@@ -247,7 +247,7 @@
     <!-- 协议确认 -->
     <view class="agreement-section">
       <view class="agreement-check" @click="agreeAgreement">
-        <u-icon :name="agreed ? 'checkbox-mark' : 'checkbox-mark-outline'" size="20" :color="agreed ? '#667eea' : '#999'"></u-icon>
+        
         <text>我已阅读并同意</text>
       </view>
       <text class="agreement-link" @click="showAgreement">《艺术家入驻协议》</text>

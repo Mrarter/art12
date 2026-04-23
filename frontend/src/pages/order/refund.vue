@@ -22,7 +22,7 @@
           :class="{ active: refundType === 'refund' }"
           @click="refundType = 'refund'"
         >
-          <u-icon name="red-packet" size="24" :color="refundType === 'refund' ? '#fff' : '#e74c3c'"></u-icon>
+          
           <text>仅退款</text>
           <text class="type-desc">未收到货或不需要商品</text>
         </view>
@@ -31,7 +31,7 @@
           :class="{ active: refundType === 'return' }"
           @click="refundType = 'return'"
         >
-          <u-icon name="bag" size="24" :color="refundType === 'return' ? '#fff' : '#e74c3c'"></u-icon>
+          <text>🛍</text>
           <text>退款退货</text>
           <text class="type-desc">已收到货，需要退货退款</text>
         </view>
@@ -84,7 +84,7 @@
           </view>
         </view>
         <view class="add-image" v-if="images.length < 3" @click="chooseImage">
-          <u-icon name="camera" size="40" color="#ccc"></u-icon>
+          
           <text>添加图片</text>
         </view>
       </view>

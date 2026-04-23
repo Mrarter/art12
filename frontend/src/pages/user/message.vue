@@ -91,17 +91,17 @@
     <!-- 底部操作 -->
     <view class="bottom-actions">
       <view class="action-btn" @click="markAllRead">
-        <u-icon name="checkmark" size="18" color="#667eea"></u-icon>
+        
         <text>全部已读</text>
       </view>
       <view class="action-btn" @click="showSettings">
-        <u-icon name="setting" size="18" color="#666"></u-icon>
+        
         <text>消息设置</text>
       </view>
     </view>
 
     <!-- 消息详情弹窗 -->
-    <u-popup v-model="showDetail" mode="center" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="detail-modal" v-if="currentMsg">
         <view class="detail-header">
           <view class="detail-icon">
@@ -123,14 +123,14 @@
           </view>
           <view class="detail-action" v-if="currentMsg.actionText" @click="handleAction(currentMsg)">
             <text>{{ currentMsg.actionText }}</text>
-            <u-icon name="arrow-right" size="14" color="#667eea"></u-icon>
+            
           </view>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
 
     <!-- 消息设置弹窗 -->
-    <u-popup v-model="showSettingsModal" mode="bottom" border-radius="16">
+    <!-- 弹窗开始 -->
       <view class="settings-modal">
         <view class="modal-title">消息通知设置</view>
         
@@ -167,7 +167,7 @@
 
         <button class="save-btn" @click="saveSettings">保存设置</button>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

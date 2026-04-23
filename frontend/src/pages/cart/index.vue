@@ -23,7 +23,7 @@
             <view class="publisher-info" @click="goPublisherHome(group.publisherId)">
               <image class="publisher-avatar" :src="group.publisherAvatar" mode="aspectFill"></image>
               <text class="publisher-name">{{ group.publisherName }}</text>
-              <u-icon name="arrow-right" size="12" color="#666"></u-icon>
+              
             </view>
           </view>
         </view>
@@ -44,7 +44,7 @@
               <view class="item-header">
                 <view class="item-title" @click="goDetail(item.productId)">{{ item.title }}</view>
                 <view class="item-delete" @click="deleteItem(item.id)" v-if="!item.locked && isEditMode">
-                  <u-icon name="close" size="14" color="#666"></u-icon>
+                  
                 </view>
               </view>
               <view class="item-artist">{{ item.artistName }}</view>
@@ -55,15 +55,15 @@
                 </view>
                 <view class="item-num" v-if="!item.locked">
                   <view class="num-btn minus" @click="decreaseNum(item)">
-                    <u-icon name="minus" size="10" color="#999"></u-icon>
+                    
                   </view>
                   <text class="num-value">{{ item.num }}</text>
                   <view class="num-btn plus" @click="increaseNum(item)">
-                    <u-icon name="plus" size="10" color="#999"></u-icon>
+                    
                   </view>
                 </view>
                 <view class="locked-tag" v-else>
-                  <u-icon name="lock" size="12" color="#666"></u-icon>
+                  <text>🔒</text>
                 </view>
               </view>
             </view>
@@ -73,7 +73,7 @@
         <!-- 艺荐官信息 -->
         <view class="promoter-info" v-if="group.promoterId">
           <view class="promoter-badge">
-            <u-icon name="star" size="12" color="#c9a227"></u-icon>
+            <text>★</text>
             <text>艺荐官</text>
           </view>
           <text class="promoter-name">{{ group.promoterName }}</text>
@@ -84,7 +84,7 @@
     <!-- 空购物车 -->
     <view class="empty-cart" v-else>
       <view class="empty-icon-wrap">
-        <u-icon name="shopping-cart" size="120" color="#333"></u-icon>
+        <text>🛒</text>
       </view>
       <text class="empty-title">购物车空空如也</text>
       <text class="empty-subtitle">快去发现心仪的艺术品吧</text>

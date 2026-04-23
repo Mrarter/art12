@@ -40,7 +40,7 @@
                 <text class="category-name">{{ item.category }}</text>
               </view>
               <view class="product-size">
-                <u-icon name="photo" size="12" color="#999"></u-icon>
+                <text>🖼</text>
                 <text>{{ item.size }}</text>
               </view>
               <view class="product-footer">
@@ -49,7 +49,7 @@
                   <text class="original-price" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
-                  <u-icon name="arrow-up" size="10" color="#e74c3c"></u-icon>
+                  
                   <text>{{ item.priceChange }}%</text>
                 </view>
               </view>
@@ -77,7 +77,7 @@
                 <text class="category-name">{{ item.category }}</text>
               </view>
               <view class="product-size">
-                <u-icon name="photo" size="12" color="#999"></u-icon>
+                <text>🖼</text>
                 <text>{{ item.size }}</text>
               </view>
               <view class="product-footer">
@@ -86,7 +86,7 @@
                   <text class="original-price" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
-                  <u-icon name="arrow-up" size="10" color="#e74c3c"></u-icon>
+                  
                   <text>{{ item.priceChange }}%</text>
                 </view>
               </view>
@@ -96,7 +96,7 @@
       </view>
       
       <view class="load-more" v-if="hasMore && loading">
-        <u-loading mode="circle"></u-loading>
+        <text class="loading-text">加载中...</text>
         <text>加载中...</text>
       </view>
       <view class="no-more" v-else-if="!hasMore && productList.length > 0">
@@ -112,121 +112,7 @@
     </scroll-view>
 
     <!-- 筛选弹出层 -->
-    <u-popup v-model:show="showFilterPopup" mode="top" :round="24">
-      <view class="filter-popup">
-        <view class="popup-header">
-          <text class="popup-title">{{ getFilterTitle }}</text>
-        </view>
-        
-        <view class="filter-content" v-if="filterType === 'price'">
-          <view class="filter-title">价格区间</view>
-          <view class="price-range">
-            <input class="price-input" type="number" v-model="tempMinPrice" placeholder="最低价" @blur="applyPriceFilter" />
-            <text class="range-sep">-</text>
-            <input class="price-input" type="number" v-model="tempMaxPrice" placeholder="最高价" @blur="applyPriceFilter" />
-          </view>
-          <view class="quick-price">
-            <view class="quick-item" :class="{ active: tempMinPrice === '' && tempMaxPrice === '10000' }" @click="setPriceRange('', '10000')">1万以下</view>
-            <view class="quick-item" :class="{ active: tempMinPrice === '10000' && tempMaxPrice === '50000' }" @click="setPriceRange('10000', '50000')">1-5万</view>
-            <view class="quick-item" :class="{ active: tempMinPrice === '50000' && tempMaxPrice === '100000' }" @click="setPriceRange('50000', '100000')">5-10万</view>
-            <view class="quick-item" :class="{ active: tempMinPrice === '100000' && tempMaxPrice === '' }" @click="setPriceRange('100000', '')">10万以上</view>
-          </view>
-        </view>
-        
-        <view class="filter-content" v-if="filterType === 'year'">
-          <view class="filter-title">创作年代</view>
-          <view class="filter-options-grid">
-            <view 
-              class="filter-option" 
-              :class="{ active: filterParams.year === item.value }"
-              v-for="item in yearOptions" 
-              :key="item.value"
-              @click="selectYear(item)"
-            >
-              <text>{{ item.label }}</text>
-              <u-icon v-if="filterParams.year === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
-            </view>
-          </view>
-        </view>
-        
-        <view class="filter-content" v-if="filterType === 'size'">
-          <view class="filter-title">尺寸</view>
-          <view class="filter-options-grid">
-            <view 
-              class="filter-option" 
-              :class="{ active: filterParams.size === item.value }"
-              v-for="item in sizeOptions" 
-              :key="item.value"
-              @click="selectSize(item)"
-            >
-              <text>{{ item.label }}</text>
-              <u-icon v-if="filterParams.size === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
-            </view>
-          </view>
-        </view>
-        
-        <!-- 更多筛选 -->
-        <view class="filter-content" v-if="filterType === 'more'">
-          <view class="filter-section">
-            <view class="filter-title">艺术家</view>
-            <view class="artist-search">
-              <input class="artist-input" type="text" v-model="artistKeyword" placeholder="搜索艺术家名称" @confirm="searchArtist" />
-              <view class="search-btn" @click="searchArtist">
-                <u-icon name="search" size="16" color="#fff"></u-icon>
-              </view>
-            </view>
-            <view class="artist-list" v-if="artistList.length > 0">
-              <view class="artist-chips">
-                <view 
-                  class="artist-chip" 
-                  :class="{ active: filterParams.artistId === item.id }"
-                  v-for="item in artistList" 
-                  :key="item.id"
-                  @click="selectArtist(item)"
-                >
-                  <image class="artist-avatar" :src="item.avatar || '/static/avatar/default.png'" mode="aspectFill"></image>
-                  <text class="artist-name">{{ item.name }}</text>
-                  <view class="artist-badge" v-if="item.badge">{{ item.badge }}</view>
-                  <u-icon v-if="filterParams.artistId === item.id" name="checkmark" size="14" color="#c9a227"></u-icon>
-                </view>
-              </view>
-            </view>
-          </view>
-          
-          <view class="filter-section">
-            <view class="filter-title">持有时长</view>
-            <view class="filter-options-grid">
-              <view 
-                class="filter-option" 
-                :class="{ active: filterParams.holdTime === item.value }"
-                v-for="item in holdTimeOptions" 
-                :key="item.value"
-                @click="selectHoldTime(item)"
-              >
-                <text>{{ item.label }}</text>
-                <u-icon v-if="filterParams.holdTime === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
-              </view>
-            </view>
-          </view>
-          
-          <view class="filter-section">
-            <view class="filter-title">艺术家类型</view>
-            <view class="filter-options-grid">
-              <view 
-                class="filter-option" 
-                :class="{ active: filterParams.artistType === item.value }"
-                v-for="item in artistTypeOptions" 
-                :key="item.value"
-                @click="selectArtistType(item)"
-              >
-                <text>{{ item.label }}</text>
-                <u-icon v-if="filterParams.artistType === item.value" name="checkmark" size="14" color="#c9a227"></u-icon>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-    </u-popup>
+    <!-- 筛选功能暂未实现 -->
   </view>
 </template>
 
@@ -1098,5 +984,19 @@ $accent-gold-light: #e6c65c;
 // 隐藏任何 icon-filter 伪元素
 .icon-filter::before {
   content: '' !important;
+}
+</style>
+
+<style>
+.loading-spinner {
+  width: 40rpx;
+  height: 40rpx;
+  border: 3rpx solid #f0f0f0;
+  border-top-color: #c9a227;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

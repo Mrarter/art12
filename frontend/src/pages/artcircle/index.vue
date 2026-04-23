@@ -89,21 +89,21 @@
         <!-- 互动栏 -->
         <view class="interaction-bar">
           <view class="interaction-item" @click.stop="toggleLike(post)">
-            <u-icon
+            <text>›</text>
               :name="post.isLiked ? 'thumb-up-fill' : 'thumb-up'"
               :color="post.isLiked ? '#e74c3c' : '#999'"
               size="22"
-            ></u-icon>
+            >
             <text :style="{ color: post.isLiked ? '#e74c3c' : '#999' }">
               {{ post.likeCount || 0 }}
             </text>
           </view>
           <view class="interaction-item" @click.stop="goDetail(post.id)">
-            <u-icon name="chat" size="22" color="#999"></u-icon>
+            
             <text>{{ post.commentCount || 0 }}</text>
           </view>
           <view class="interaction-item" @click.stop="sharePost(post)">
-            <u-icon name="share" size="22" color="#999"></u-icon>
+            <text>↗</text>
             <text>{{ post.shareCount || 0 }}</text>
           </view>
         </view>
@@ -111,7 +111,7 @@
 
       <!-- 加载更多 -->
       <view class="load-more" v-if="loading">
-        <u-loading mode="circle"></u-loading>
+        <text class="loading-text">加载中...</text>
         <text>加载中...</text>
       </view>
       <view class="no-more" v-else-if="postList.length > 0">
@@ -127,7 +127,7 @@
 
     <!-- 发布按钮 -->
     <view class="publish-btn" @click="goPublish">
-      <u-icon name="plus" size="32" color="#fff"></u-icon>
+      
     </view>
   </view>
 </template>

@@ -13,7 +13,7 @@
                 {{ getIdentityLabel(artistInfo.identityType) }}
               </view>
               <view class="cert-status certified" v-if="artistInfo.certStatus === 'certified'">
-                <u-icon name="checkmark-circle-fill" size="14" color="#50c878"></u-icon>
+                
                 已认证
               </view>
             </view>
@@ -42,7 +42,7 @@
             已关注
           </view>
           <view class="action-btn btn-message" @click="sendMessage">
-            <u-icon name="chat" size="18" color="#666"></u-icon>
+            
             私信
           </view>
         </view>
@@ -53,7 +53,7 @@
     <view class="private-dashboard card" v-if="isOwnProfile">
       <view class="dashboard-header">
         <text class="dashboard-title">
-          <u-icon name="lock" size="16" color="#667eea"></u-icon>
+          <text>🔒</text>
           数据看板
         </text>
         <view class="dashboard-tip">仅自己可见</view>
@@ -106,12 +106,12 @@
     <view class="price-records card" v-if="isOwnProfile">
       <view class="section-header">
         <text class="section-title">
-          <u-icon name="pie-chart" size="16" color="#667eea"></u-icon>
+          
           作品价格动态
         </text>
         <view class="more-link" @click="goPriceRecords">
           <text>查看全部</text>
-          <u-icon name="arrow-right" size="12" color="#999"></u-icon>
+          
         </view>
       </view>
       <view class="price-list">
@@ -121,7 +121,7 @@
             <text class="price-title">{{ item.title }}</text>
             <view class="price-change">
               <text class="old-price">¥{{ item.oldPrice }}</text>
-              <u-icon name="arrow-right" size="12" color="#999"></u-icon>
+              
               <text class="new-price">¥{{ item.newPrice }}</text>
               <text class="change-rate" :class="item.changeRate > 0 ? 'up' : 'down'">
                 {{ item.changeRate > 0 ? '+' : '' }}{{ item.changeRate }}%
@@ -135,27 +135,27 @@
     <!-- 认证状态入口 -->
     <view class="cert-section card" v-if="isOwnProfile && artistInfo.identityType === 'artist'" @click="goCertApply">
       <view class="cert-content" v-if="!artistInfo.certStatus || artistInfo.certStatus === 'none'">
-        <u-icon name="badge" size="24" color="#e6be8a"></u-icon>
+        
         <view class="cert-info">
           <text class="cert-title">申请艺术家认证</text>
           <text class="cert-desc">认证后可获得更多曝光和信任背书</text>
         </view>
-        <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+        
       </view>
       <view class="cert-content" v-else-if="artistInfo.certStatus === 'pending'">
-        <u-icon name="clock" size="24" color="#ff9800"></u-icon>
+        
         <view class="cert-info">
           <text class="cert-title">认证审核中</text>
           <text class="cert-desc">预计3个工作日内完成审核</text>
         </view>
       </view>
       <view class="cert-content certified" v-else-if="artistInfo.certStatus === 'certified'">
-        <u-icon name="badge-fill" size="24" color="#50c878"></u-icon>
+        
         <view class="cert-info">
           <text class="cert-title">已通过艺术家认证</text>
           <text class="cert-desc">认证有效期至 {{ artistInfo.certExpireDate }}</text>
         </view>
-        <u-icon name="arrow-right" size="16" color="#50c878"></u-icon>
+        
       </view>
     </view>
 
@@ -169,7 +169,7 @@
       </view>
       <view class="intro-toggle" @click="introExpanded = !introExpanded">
         <text>{{ introExpanded ? '收起' : '展开全部' }}</text>
-        <u-icon :name="introExpanded ? 'arrow-up' : 'arrow-down'" size="14" color="#666"></u-icon>
+        
       </view>
     </view>
 

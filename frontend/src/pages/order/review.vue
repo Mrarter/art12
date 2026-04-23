@@ -19,11 +19,11 @@
           :key="star"
           @click="setRating(star)"
         >
-          <u-icon
+          <text>›</text>
             :name="star <= rating ? 'star-fill' : 'star'"
             :color="star <= rating ? '#f6d365' : '#ddd'"
             size="48"
-          ></u-icon>
+          >
         </view>
       </view>
       <text class="rating-label">{{ ratingLabels[rating - 1] || '请评分' }}</text>
@@ -52,7 +52,7 @@
           </view>
         </view>
         <view class="add-image" v-if="images.length < 9" @click="chooseImage">
-          <u-icon name="camera" size="48" color="#ccc"></u-icon>
+          
           <text>添加图片</text>
         </view>
       </view>

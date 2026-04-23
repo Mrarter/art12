@@ -3,15 +3,15 @@
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-back" @click="goBack">
-        <u-icon name="arrow-left" size="20" color="#fff"></u-icon>
+        
       </view>
       <view class="nav-title">拍品详情</view>
       <view class="nav-actions">
         <view class="action-item" @click="share">
-          <u-icon name="share" size="20" color="#fff"></u-icon>
+          <text>↗</text>
         </view>
         <view class="action-item" @click="toggleFavorite">
-          <u-icon :name="isFavorite ? 'heart-fill' : 'heart'" size="20" :color="isFavorite ? '#e74c3c' : '#fff'"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -77,7 +77,7 @@
               <text class="currency">¥</text>
               <text class="amount">{{ currentPrice }}</text>
               <view class="price-trend up" v-if="priceChange > 0">
-                <u-icon name="arrow-up" size="12" color="#07c160"></u-icon>
+                
                 <text>+{{ priceChange }}</text>
               </view>
             </view>
@@ -119,7 +119,7 @@
           </view>
         </view>
         <view class="countdown-tip" v-if="countdown.total < 300000">
-          <u-icon name="warning" size="14" color="#ff7f50"></u-icon>
+          
           <text>即将结束，请及时出价</text>
         </view>
       </view>
@@ -136,7 +136,7 @@
         </view>
         <view class="records-right">
           <text class="top-bidder">最高: {{ topBidder }}</text>
-          <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -155,7 +155,7 @@
     </view>
 
     <!-- 出价记录弹窗 -->
-    <u-popup v-model="showRecordsModal" mode="bottom" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="records-modal">
         <view class="modal-header">
           <text class="modal-title">出价记录</text>
@@ -178,17 +178,17 @@
           </view>
         </scroll-view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
 
     <!-- 底部操作栏 -->
     <view class="bottom-bar">
       <view class="bar-left">
         <view class="icon-btn" @click="setReminder">
-          <u-icon name="bell" size="22" :color="hasReminder ? '#667eea' : '#666'"></u-icon>
+          
           <text class="btn-text">{{ hasReminder ? '已提醒' : '提醒' }}</text>
         </view>
         <view class="icon-btn" @click="contact">
-          <u-icon name="phone" size="22" color="#666"></u-icon>
+          
           <text class="btn-text">咨询</text>
         </view>
       </view>
@@ -211,7 +211,7 @@
     </view>
 
     <!-- 出价弹窗 -->
-    <u-popup v-model="showBidModal" mode="bottom" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="bid-modal">
         <view class="modal-title">我要出价</view>
         
@@ -263,7 +263,7 @@
         </view>
 
         <view class="bid-tips">
-          <u-icon name="info-circle" size="14" color="#999"></u-icon>
+          
           <text>出价即表示您同意《竞拍协议》，出价后无法撤销</text>
         </view>
 
@@ -271,10 +271,10 @@
           确认出价 ¥{{ bidPrice || 0 }}
         </button>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
 
     <!-- 保证金弹窗 -->
-    <u-popup v-model="showDepositModal" mode="bottom" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="deposit-modal">
         <view class="modal-title">缴纳保证金</view>
         
@@ -307,14 +307,14 @@
           确认缴纳 ¥{{ deposit }}
         </button>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
 
     <!-- 竞拍成功/失败弹窗 -->
-    <u-popup v-model="showResultModal" mode="center" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="result-modal" :class="resultType">
         <view class="result-icon">
-          <u-icon :name="resultType === 'success' ? 'checkmark-circle' : 'close-circle'" 
-            :size="80" :color="resultType === 'success' ? '#07c160' : '#ff453a'"></u-icon>
+          <:name="resultType === 'success' ? 'checkmark-circle' : 'close-circle'" 
+            :size="80" :color="resultType === 'success' ? '#07c160' : '#ff453a'">
         </view>
         <view class="result-title">{{ resultTitle }}</view>
         <view class="result-desc">{{ resultDesc }}</view>
@@ -325,7 +325,7 @@
           </button>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

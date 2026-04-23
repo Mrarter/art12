@@ -71,7 +71,7 @@
         <text class="card-title">分销达人榜</text>
         <view class="more-link" @click="viewAllRanking">
           <text>查看全部</text>
-          <u-icon name="arrow-right" size="12" color="#666"></u-icon>
+          
         </view>
       </view>
       <view class="ranking-list">
@@ -102,7 +102,7 @@
       <view class="card-header">
         <text class="card-title">业绩明细</text>
         <view class="filter-btn" @click="showFilter = true">
-          <u-icon name="filter" size="14" color="#c9a227"></u-icon>
+          
           <text>筛选</text>
         </view>
       </view>
@@ -129,7 +129,7 @@
     </view>
 
     <!-- 筛选弹窗 -->
-    <u-popup v-model="showFilter" mode="bottom" border-radius="24" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="filter-popup">
         <view class="popup-header">
           <text class="popup-title">筛选条件</text>
@@ -167,7 +167,7 @@
           <view class="btn-confirm" @click="applyFilter">确定</view>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

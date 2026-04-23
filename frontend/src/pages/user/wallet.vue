@@ -26,11 +26,11 @@
         <!-- 操作按钮 -->
         <view class="action-buttons">
           <view class="action-btn recharge" @click="goRecharge">
-            <u-icon name="plus-circle" size="20" color="#fff"></u-icon>
+            
             <text>充值</text>
           </view>
           <view class="action-btn withdraw" @click="goWithdraw">
-            <u-icon name="rmb-circle" size="20" color="#fff"></u-icon>
+            
             <text>提现</text>
           </view>
         </view>
@@ -41,7 +41,7 @@
     <view class="menu-section">
       <view class="menu-item" @click="goCoupon">
         <view class="menu-left">
-          <view class="menu-icon coupon-icon">
+          <view class="mencoupon-icon">
             <text>🎫</text>
           </view>
           <view class="menu-info">
@@ -49,12 +49,12 @@
             <text class="menu-count">{{ couponCount }}张可用</text>
           </view>
         </view>
-        <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+        
       </view>
       
       <view class="menu-item" @click="goPoints">
         <view class="menu-left">
-          <view class="menu-icon points-icon">
+          <view class="menpoints-icon">
             <text>⭐</text>
           </view>
           <view class="menu-info">
@@ -62,12 +62,12 @@
             <text class="menu-count">{{ points }}积分</text>
           </view>
         </view>
-        <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+        
       </view>
       
       <view class="menu-item" @click="goCards">
         <view class="menu-left">
-          <view class="menu-icon card-icon">
+          <view class="mencard-icon">
             <text>💳</text>
           </view>
           <view class="menu-info">
@@ -75,12 +75,12 @@
             <text class="menu-count">已绑定 {{ cardCount }}张</text>
           </view>
         </view>
-        <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+        
       </view>
       
       <view class="menu-item" @click="goInvoice">
         <view class="menu-left">
-          <view class="menu-icon invoice-icon">
+          <view class="meninvoice-icon">
             <text>📄</text>
           </view>
           <view class="menu-info">
@@ -88,7 +88,7 @@
             <text class="menu-count">申请发票</text>
           </view>
         </view>
-        <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+        
       </view>
     </view>
     
@@ -148,7 +148,7 @@
     </view>
     
     <!-- 充值/提现弹窗 -->
-    <u-popup v-model:show="showRecharge" mode="bottom" border-radius="16">
+    <!-- 弹窗开始 -->
       <view class="recharge-popup">
         <view class="popup-title">充值金额</view>
         <view class="amount-input">
@@ -179,9 +179,9 @@
         </view>
         <button class="confirm-btn" @click="confirmRecharge">确认充值</button>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
     
-    <u-popup v-model:show="showWithdraw" mode="bottom" border-radius="16">
+    <!-- 弹窗开始 -->
       <view class="withdraw-popup">
         <view class="popup-title">提现金额</view>
         <view class="withdraw-tip">
@@ -203,7 +203,7 @@
           <text>3. 每日限提现3次</text>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 
@@ -440,7 +440,7 @@ export default {
       display: flex;
       align-items: center;
 
-      .menu-icon {
+      .men{
         width: 72rpx;
         height: 72rpx;
         border-radius: 16rpx;

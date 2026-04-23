@@ -63,7 +63,7 @@
           v-if="images.length < 9"
           @click="chooseImage"
         >
-          <u-icon name="camera" size="48" color="#999"></u-icon>
+          
           <text>添加图片</text>
         </view>
       </view>
@@ -80,7 +80,7 @@
           class="artwork-cover"
         ></image>
         <view class="artwork-placeholder" v-else>
-          <u-icon name="photo" size="40" color="#ccc"></u-icon>
+          <text>🖼</text>
           <text>选择作品</text>
         </view>
         <view class="artwork-info" v-if="selectedArtwork">
@@ -88,7 +88,7 @@
           <text class="artwork-price">¥{{ formatPrice(selectedArtwork.price) }}</text>
         </view>
         <view class="clear-artwork" v-if="selectedArtwork" @click.stop="clearArtwork">
-          <u-icon name="close-circle" size="28" color="#999"></u-icon>
+          
         </view>
       </view>
     </view>

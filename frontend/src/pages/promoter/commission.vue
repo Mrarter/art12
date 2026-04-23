@@ -31,7 +31,7 @@
     <!-- 佣金说明 -->
     <view class="info-card">
       <view class="card-header">
-        <u-icon name="info-circle" size="18" color="#667eea"></u-icon>
+        
         <text class="card-title">佣金说明</text>
       </view>
       <view class="info-content">
@@ -85,7 +85,7 @@
 
       <!-- 加载更多 -->
       <view class="load-more" v-if="loading">
-        <u-loading mode="circle"></u-loading>
+        <text class="loading-text">加载中...</text>
         <text>加载中...</text>
       </view>
       <view class="no-more" v-else-if="records.length > 0">

@@ -3,7 +3,7 @@
     <!-- 商品列表 -->
     <view class="product-list card">
       <view class="list-header">
-        <u-icon name="bag" size="20" color="#667eea"></u-icon>
+        <text>🛍</text>
         <text>待结算商品</text>
         <text class="count">({{ productList.length }})</text>
       </view>
@@ -24,7 +24,7 @@
     <!-- 收货地址 -->
     <view class="address-section card" @click="selectAddress">
       <view class="section-icon">
-        <u-icon name="map" size="24" color="#667eea"></u-icon>
+        
       </view>
       <view class="address-content" v-if="selectedAddress">
         <view class="address-top">
@@ -36,7 +36,7 @@
       <view class="address-empty" v-else>
         <text>请选择收货地址</text>
       </view>
-      <u-icon name="arrow-right" size="18" color="#ccc"></u-icon>
+      
     </view>
 
     <!-- 配送方式 -->
@@ -50,7 +50,7 @@
           :class="{ active: item.id === selectedDelivery }"
           @click="selectDelivery(item.id)"
         >
-          <u-icon :name="item.icon" size="20" :color="item.id === selectedDelivery ? '#667eea' : '#999'"></u-icon>
+          
           <text>{{ item.name }}</text>
           <text class="delivery-fee" v-if="item.fee > 0">+¥{{ item.fee }}</text>
         </view>
@@ -61,17 +61,17 @@
     <view class="discount-section card">
       <view class="discount-item" @click="useCoupon">
         <view class="discount-left">
-          <u-icon name="ticket" size="20" color="#ff9800"></u-icon>
+          
           <text>优惠券</text>
         </view>
         <view class="discount-right">
           <text :class="{ 'coupon-active': selectedCoupon }">{{ couponText }}</text>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
       </view>
       <view class="discount-item" @click="usePoints">
         <view class="discount-left">
-          <u-icon name="star" size="20" color="#52c41a"></u-icon>
+          <text>★</text>
           <text>积分抵扣</text>
         </view>
         <view class="discount-right">
@@ -84,7 +84,7 @@
     <!-- 艺荐官佣金 -->
     <view class="commission-section card" v-if="commission > 0">
       <view class="section-header">
-        <u-icon name="share" size="20" color="#667eea"></u-icon>
+        <text>↗</text>
         <text>分享赚佣金</text>
       </view>
       <view class="commission-info">

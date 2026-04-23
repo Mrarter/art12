@@ -32,7 +32,7 @@
       <view class="works-grid" v-if="worksList.length > 0">
         <view class="work-item" v-for="item in worksList" :key="item.id">
           <view class="edit-check" v-if="isEditMode" @click="toggleSelect(item.id)">
-            <u-icon :name="isSelected(item.id) ? 'checkbox-mark' : 'checkbox-mark-outline'" size="22" :color="isSelected(item.id) ? '#667eea' : '#999'"></u-icon>
+            
           </view>
           <image class="work-cover" :src="item.cover" mode="aspectFill" @click="goDetail(item.id)"></image>
           <view class="work-info">
@@ -44,10 +44,10 @@
           </view>
           <view class="work-actions" v-if="!isEditMode">
             <view class="action-btn" @click="shareWork(item)">
-              <u-icon name="share" size="18" color="#999"></u-icon>
+              <text>↗</text>
             </view>
             <view class="action-btn" @click="cancelFavorite(item)">
-              <u-icon name="heart-fill" size="18" color="#ff4d4f"></u-icon>
+              <text>❤</text>
             </view>
           </view>
         </view>

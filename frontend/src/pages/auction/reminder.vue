@@ -2,7 +2,7 @@
   <view class="reminder-page">
     <!-- 顶部提示 -->
     <view class="tip-section">
-      <u-icon name="bell" size="20" color="#2979ff"></u-icon>
+      
       <text class="tip-text">开启竞拍提醒，在拍卖开始前及时收到通知</text>
     </view>
 
@@ -21,7 +21,7 @@
               <text class="session-name">{{ item.sessionName }}</text>
               <text class="lot-name" v-if="item.lotName">拍品: {{ item.lotName }}</text>
               <view class="session-time">
-                <u-icon name="clock" size="12" color="#999"></u-icon>
+                
                 <text>{{ formatTime(item.startTime) }}</text>
               </view>
             </view>
@@ -37,26 +37,26 @@
           <view class="card-body">
             <view class="notify-type">
               <view class="type-item" :class="{ active: item.notifyBefore }">
-                <u-icon name="bell" size="14"></u-icon>
+                
                 <text>开始前提醒</text>
               </view>
               <view class="type-item" :class="{ active: item.notifyOutbid }">
-                <u-icon name="warning" size="14"></u-icon>
+                
                 <text>被超越时</text>
               </view>
               <view class="type-item" :class="{ active: item.notifyEnd }">
-                <u-icon name="clock" size="14"></u-icon>
+                
                 <text>即将结束</text>
               </view>
             </view>
 
             <view class="card-actions">
               <view class="action-btn" @click="editReminder(item)">
-                <u-icon name="edit-pen" size="14"></u-icon>
+                
                 <text>编辑</text>
               </view>
               <view class="action-btn delete" @click="deleteReminder(item)">
-                <u-icon name="trash" size="14"></u-icon>
+                
                 <text>删除</text>
               </view>
             </view>
@@ -65,7 +65,7 @@
 
         <!-- 空状态 -->
         <view class="empty-state" v-if="reminders.length === 0">
-          <u-icon name="bell" size="80" color="#ddd"></u-icon>
+          
           <text class="empty-text">暂无竞拍提醒</text>
           <text class="empty-sub">去拍卖专场设置提醒吧</text>
           <view class="empty-btn" @click="goAuctionList">浏览专场</view>
@@ -74,7 +74,7 @@
     </view>
 
     <!-- 设置提醒弹窗 -->
-    <u-popup v-model="showEditModal" mode="center" border-radius="16" :mask-close-able="true">
+    <!-- 弹窗开始 -->
       <view class="edit-modal">
         <view class="modal-title">{{ isEdit ? '编辑提醒' : '设置提醒' }}</view>
 
@@ -84,7 +84,7 @@
             <picker mode="selector" :range="remindTimeOptions" range-key="label" @change="onRemindTimeChange">
               <view class="picker-value">
                 {{ currentEdit.remindMinutes }}分钟前
-                <u-icon name="arrow-down" size="12"></u-icon>
+                
               </view>
             </picker>
           </view>
@@ -127,7 +127,7 @@
           <view class="btn confirm" @click="saveReminder">保存</view>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
 
     <!-- 删除确认弹窗 -->
     <u-modal 

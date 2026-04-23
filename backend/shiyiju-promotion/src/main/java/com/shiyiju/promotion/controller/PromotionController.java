@@ -584,4 +584,29 @@ public class PromotionController {
             return Result.success(List.of());
         }
     }
+
+    /**
+     * 获取作品佣金信息 (GET /promoter/product-commission)
+     */
+    @GetMapping("/product-commission")
+    public Result<Map<String, Object>> getProductCommission(
+            @RequestParam Long productId,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId
+    ) {
+        try {
+            Map<String, Object> commissionInfo = new HashMap<>();
+            // 默认佣金比例
+            commissionInfo.put("commissionRate", 10);
+            commissionInfo.put("commission", 0);
+            commissionInfo.put("estimatedEarning", 0);
+            return Result.success(commissionInfo);
+        } catch (Exception e) {
+            log.warn("获取作品佣金异常: productId={}, error={}", productId, e.getMessage());
+            Map<String, Object> defaultInfo = new HashMap<>();
+            defaultInfo.put("commissionRate", 10);
+            defaultInfo.put("commission", 0);
+            defaultInfo.put("estimatedEarning", 0);
+            return Result.success(defaultInfo);
+        }
+    }
 }

@@ -46,15 +46,15 @@
           <text class="method-desc">{{ item.desc }}</text>
         </view>
         <view class="method-check">
-          <u-icon name="checkmark-circle-fill" size="24" color="#667eea" v-if="selectedPay === item.id"></u-icon>
-          <u-icon name="circle" size="24" color="#ddd" v-else></u-icon>
+          
+          
         </view>
       </view>
     </view>
 
     <!-- 支付安全 -->
     <view class="security-tips">
-      <u-icon name="lock" size="18" color="#999"></u-icon>
+      <text>🔒</text>
       <text>支付安全由微信支付全程保障</text>
     </view>
 
@@ -73,7 +73,7 @@
     <view class="pay-success-modal" v-if="showSuccess">
       <view class="success-content">
         <view class="success-icon">
-          <u-icon name="checkmark-circle" size="100" color="#4caf50"></u-icon>
+          
         </view>
         <text class="success-title">支付成功</text>
         <text class="success-desc">您的订单已支付成功</text>

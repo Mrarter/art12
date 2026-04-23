@@ -11,7 +11,7 @@
           :class="{ active: currentType === type.value }"
           @click="selectType(type.value)"
         >
-          <u-icon :name="type.icon" size="24" :color="currentType === type.value ? '#667eea' : '#999'"></u-icon>
+          
           <text class="type-text">{{ type.label }}</text>
         </view>
       </view>
@@ -40,11 +40,11 @@
           <view class="upload-item" v-for="(img, index) in images" :key="index">
             <image :src="img" mode="aspectFill"></image>
             <view class="delete-btn" @click="deleteImage(index)">
-              <u-icon name="close" size="12" color="#fff"></u-icon>
+              
             </view>
           </view>
           <view class="upload-btn" v-if="images.length < 6" @click="chooseImage">
-            <u-icon name="camera" size="32" color="#999"></u-icon>
+            
             <text class="upload-text">添加图片</text>
           </view>
         </view>
@@ -82,7 +82,7 @@
         <text class="section-title">常见问题</text>
         <view class="more-btn" @click="goFaq">
           <text>查看更多</text>
-          <u-icon name="arrow-right" size="12" color="#999"></u-icon>
+          
         </view>
       </view>
       <view class="faq-list">
@@ -96,7 +96,7 @@
             <text class="q-icon">Q</text>
             <text class="q-text">{{ faq.question }}</text>
           </view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -109,10 +109,10 @@
     </view>
 
     <!-- 提交成功弹窗 -->
-    <u-popup v-model="showSuccessModal" mode="center" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="success-modal">
         <view class="success-icon">
-          <u-icon name="checkmark-circle" size="80" color="#07c160"></u-icon>
+          
         </view>
         <view class="success-title">反馈提交成功</view>
         <view class="success-desc">
@@ -124,7 +124,7 @@
           <button class="action-btn secondary" @click="goBack">返回</button>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

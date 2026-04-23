@@ -104,7 +104,7 @@
 
       <!-- 空状态 -->
       <view class="empty-state" v-if="filteredList.length === 0">
-        <u-icon name="file-text" size="100" color="#ddd"></u-icon>
+        
         <text class="empty-text">暂无提现记录</text>
         <view class="empty-action" @click="goWithdraw">去提现</view>
       </view>
@@ -117,7 +117,7 @@
     </view>
 
     <!-- 详情弹窗 -->
-    <u-popup v-model="showDetailModal" mode="center" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="detail-modal" v-if="currentItem">
         <view class="modal-title">提现详情</view>
         
@@ -186,7 +186,7 @@
           </view>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

@@ -87,7 +87,7 @@
         <text class="card-title">团队管理</text>
         <view class="more-link" @click="goTeamList">
           <text>查看全部</text>
-          <u-icon name="arrow-right" size="12" color="#999"></u-icon>
+          
         </view>
       </view>
       <view class="team-list">
@@ -130,19 +130,19 @@
     <!-- 功能菜单 -->
     <view class="menu-section card">
       <view class="menu-item" @click="goEarningsList('order')">
-        <u-icon name="order" size="22" color="#667eea"></u-icon>
+        <text>📋</text>
         <text>订单佣金明细</text>
-        <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+        
       </view>
       <view class="menu-item" @click="goWithdrawList">
-        <u-icon name="red-packet" size="22" color="#ff6b6b"></u-icon>
+        
         <text>提现记录</text>
-        <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+        
       </view>
       <view class="menu-item" @click="showInviteGuide">
-        <u-icon name="question-circle" size="22" color="#50c878"></u-icon>
+        
         <text>如何成为艺荐官</text>
-        <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+        
       </view>
     </view>
   </view>

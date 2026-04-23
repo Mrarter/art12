@@ -3,11 +3,11 @@
     <!-- 顶部导航栏 -->
     <view class="nav-bar">
       <view class="nav-back" @click="goBack">
-        <u-icon name="arrow-left" size="20" color="#fff"></u-icon>
+        
       </view>
       <view class="nav-actions">
         <view class="nav-action" @click="onShare">
-          <u-icon name="share" size="20" color="#fff"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -22,7 +22,7 @@
     
     <!-- 视频按钮 -->
     <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">
-      <u-icon name="play-right" size="14" color="#fff"></u-icon>
+      <text class="play-icon">▶</text>
       <text>观看视频</text>
     </view>
     
@@ -44,7 +44,7 @@
           </view>
         </view>
         <view class="contact-artist" @click="contactArtist">
-          <u-icon name="chat" size="16" color="#c9a227"></u-icon>
+          
         </view>
         <view class="follow-btn" :class="{ following: detail.isFollowing }" @click="onFollow">
           {{ detail.isFollowing ? '已关注' : '+ 关注' }}
@@ -57,7 +57,7 @@
       </view>
       
       <view class="price-change" v-if="detail.priceRise > 0">
-        <u-icon name="arrow-up" size="10" color="#e74c3c"></u-icon>
+        <text class="arrow-up">↑</text>
         <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
       </view>
     </view>
@@ -101,27 +101,27 @@
       </view>
       <view class="story-toggle" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">
         <text>{{ storyExpanded ? '收起' : '展开全部' }}</text>
-        <u-icon :name="storyExpanded ? 'arrow-up' : 'arrow-down'" size="12" color="#c9a227"></u-icon>
+        <text>{{ storyExpanded ? '↑' : '↓' }}</text>
       </view>
     </view>
     
     <!-- 分享赚佣金提示 -->
     <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
-      <u-icon name="star" size="16" color="#c9a227"></u-icon>
+      <text class="star-icon">★</text>
       <text class="tip-text">分享推广可获得佣金</text>
       <text class="tip-amount">¥{{ commission }}</text>
-      <u-icon name="arrow-right" size="12" color="#c9a227"></u-icon>
+      <text class="arrow-icon">›</text>
     </view>
     
     <!-- 底部操作栏 -->
     <view class="action-bar safe-area-bottom">
       <view class="action-icons">
         <view class="action-item" @click="onFavorite">
-          <u-icon :name="detail.isFavorite ? 'heart-fill' : 'heart'" size="22" :color="detail.isFavorite ? '#c9a227' : '#999'"></u-icon>
+          <text :class="['icon-heart', detail.isFavorite ? 'active' : '']">{{ detail.isFavorite ? '❤' : '♡' }}</text>
           <text>{{ detail.favoriteCount || 0 }}</text>
         </view>
         <view class="action-item" @click="onShare">
-          <u-icon name="share" size="22" color="#999"></u-icon>
+          <text class="icon-share">↗</text>
           <text>分享</text>
         </view>
       </view>
@@ -159,7 +159,7 @@
         <view class="contact-header">
           <text class="contact-title">联系艺术家</text>
           <view class="contact-close" @click="showContactModal = false">
-            <u-icon name="close" size="20" color="#999"></u-icon>
+            
           </view>
         </view>
         <view class="contact-artist-info">
@@ -168,11 +168,11 @@
         </view>
         <view class="contact-actions">
           <view class="contact-item" @click="sendMessage">
-            <u-icon name="chat" size="28" color="#c9a227"></u-icon>
+            <text class="contact-icon">💬</text>
             <text>发送消息</text>
           </view>
           <view class="contact-item" @click="makePhoneCall">
-            <u-icon name="phone" size="28" color="#c9a227"></u-icon>
+            <text class="contact-icon">📞</text>
             <text>拨打电话</text>
           </view>
         </view>
@@ -225,16 +225,27 @@ export default {
       
       try {
         const data = await getProductDetail(id)
-        this.detail = data
-        
-        if (data.images && data.images.length > 0) {
-          this.images = data.images
-        } else if (data.coverImage) {
-          this.images = [data.coverImage]
+        if (data) {
+          this.detail = data
+          
+          // 处理图片显示
+          if (data.images && data.images.length > 0) {
+            this.images = data.images
+          } else if (data.cover) {
+            this.images = [data.cover]
+          } else if (data.coverImage) {
+            this.images = [data.coverImage]
+          } else {
+            // 使用默认图片
+            this.images = ['https://picsum.photos/750/750?random=' + id]
+          }
+          
+          this.loadCommission(id)
+        } else {
+          this.loadMockData()
         }
-        
-        this.loadCommission(id)
       } catch (e) {
+        console.error('获取详情失败', e)
         this.loadMockData()
       }
     },
@@ -244,7 +255,7 @@ export default {
         id: 1,
         title: '山水长卷',
         authorName: '张大千',
-        authorAvatar: '/static/avatar/default.png',
+        authorAvatar: 'https://picsum.photos/100/100?random=avatar',
         authorIdentity: 'artist',
         isFollowing: false,
         isFavorite: false,
@@ -262,7 +273,7 @@ export default {
         description: '此幅《山水长卷》是张大千先生晚年精品之作，以传统山水画技法为基础，融合了泼墨泼彩的现代表现形式。画面气势恢宏，云雾缭绕间，群山层叠起伏，展现出祖国大好河山的壮丽景象。作品构图疏密有致，色彩丰富而不失雅致，是张大千先生艺术生涯中的代表作之一。',
         videoUrl: ''
       }
-      this.images = ['/static/product/demo1.jpg']
+      this.images = ['https://picsum.photos/750/750?random=artwork1']
     },
     
     async loadCommission(productId) {
@@ -306,7 +317,7 @@ export default {
       
       try {
         if (this.detail.isFavorite) {
-          await removeFavorite(this.detail.artworkId)
+          await removeFavorite(this.detail.id)
           this.detail.isFavorite = false
           this.detail.favoriteCount = (this.detail.favoriteCount || 1) - 1
         } else {
@@ -561,6 +572,10 @@ $accent-gold-light: #e6c65c;
   font-size: 24rpx;
   border-radius: 30rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.2);
+  
+  .play-icon {
+    font-size: 20rpx;
+  }
 }
 
 // SOLD标签
@@ -700,6 +715,10 @@ $accent-gold-light: #e6c65c;
   border-radius: 8rpx;
   font-size: 22rpx;
   color: #e74c3c;
+  
+  .arrow-up {
+    font-size: 16rpx;
+  }
 }
 
 // 基本信息
@@ -795,6 +814,11 @@ $accent-gold-light: #e6c65c;
   border: 1rpx solid rgba(201, 162, 39, 0.3);
   border-radius: 16rpx;
   
+  .star-icon {
+    font-size: 16rpx;
+    color: $accent-gold;
+  }
+  
   .tip-text {
     font-size: 24rpx;
     color: $text-secondary;
@@ -807,6 +831,11 @@ $accent-gold-light: #e6c65c;
     color: $accent-gold;
     font-weight: 600;
     margin-left: 12rpx;
+  }
+  
+  .arrow-icon {
+    font-size: 20rpx;
+    color: $accent-gold;
   }
 }
 
@@ -831,6 +860,19 @@ $accent-gold-light: #e6c65c;
       display: flex;
       flex-direction: column;
       align-items: center;
+      
+      .icon-heart {
+        font-size: 26rpx;
+        color: #999;
+        &.active {
+          color: #c9a227;
+        }
+      }
+      
+      .icon-share {
+        font-size: 24rpx;
+        color: #999;
+      }
       
       text {
         font-size: 20rpx;
@@ -1004,6 +1046,10 @@ $accent-gold-light: #e6c65c;
         padding: 30rpx;
         background: $bg-elevated;
         border-radius: 16rpx;
+        
+        .contact-icon {
+          font-size: 32rpx;
+        }
         
         text {
           font-size: 24rpx;

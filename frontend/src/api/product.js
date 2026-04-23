@@ -37,6 +37,14 @@ export const getProductDetail = (id) => {
 }
 
 /**
+ * 获取作品详情（通过 artcircle）
+ * GET /artcircle/detail/{id}
+ */
+export const getArtworkDetail = (id) => {
+  return request.get(`/artcircle/detail/${id}`)
+}
+
+/**
  * 搜索作品
  * GET /product/search
  * @param {string} params.keyword - 搜索关键词

@@ -29,18 +29,16 @@ public class ArtworkVO implements Serializable {
     private String artType;
     
     /** 材质 */
-    @JsonProperty("material")
-    private String medium;
+    private String material;
     
     private String size;
     
     /** 创作年份 */
-    @JsonProperty("createYear")
     private Integer year;
     private String edition;
     private String description;
     
-    @JsonProperty("cover")
+    /** 封面图 */
     private String coverImage;
     
     private List<String> images;

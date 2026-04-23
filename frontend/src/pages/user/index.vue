@@ -5,10 +5,10 @@
       <!-- 头部操作按钮 -->
       <view class="header-actions">
         <view class="action-btn" @click="goSettings">
-          <u-icon name="setting" size="22" color="#fff"></u-icon>
+          
         </view>
         <view class="action-btn" @click="goMessage">
-          <u-icon name="chat" size="22" color="#fff"></u-icon>
+          
           <view class="badge" v-if="unreadCount > 0">{{ unreadCount }}</view>
         </view>
       </view>
@@ -18,7 +18,7 @@
         <view class="avatar-wrap">
           <image class="user-avatar" :src="userInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
           <view class="avatar-badge" v-if="userInfo.isArtist">
-            <u-icon name="star" size="12" color="#c9a227"></u-icon>
+            <text>★</text>
           </view>
         </view>
         <view class="user-detail">
@@ -61,7 +61,7 @@
       <view class="identity-card" v-if="userInfo.isArtist" @click="goArtistHome">
         <view class="card-left">
           <view class="card-icon artist-icon">
-            <u-icon name="star-fill" size="24" color="#c9a227"></u-icon>
+            <text>★</text>
           </view>
           <view class="card-info">
             <text class="card-title">艺术家中心</text>
@@ -69,7 +69,7 @@
           </view>
         </view>
         <view class="card-arrow">
-          <u-icon name="arrow-right" size="16" color="#666"></u-icon>
+          
         </view>
       </view>
       
@@ -77,7 +77,7 @@
       <view class="identity-card" v-if="userInfo.isPromoter" @click="goPromoter">
         <view class="card-left">
           <view class="card-icon promoter-icon">
-            <u-icon name="diamond-fill" size="24" color="#c9a227"></u-icon>
+            <text>💎</text>
           </view>
           <view class="card-info">
             <text class="card-title">艺荐官中心</text>
@@ -85,7 +85,7 @@
           </view>
         </view>
         <view class="card-arrow">
-          <u-icon name="arrow-right" size="16" color="#666"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -95,7 +95,7 @@
       <view class="function-grid">
         <view class="grid-item" v-for="item in functionList" :key="item.id" @click="goFunction(item)">
           <view class="grid-icon" :style="{ background: item.bgColor }">
-            <u-icon :name="item.icon" size="32" :color="item.iconColor"></u-icon>
+            
           </view>
           <text class="grid-name">{{ item.name }}</text>
         </view>

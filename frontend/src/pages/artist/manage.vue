@@ -26,10 +26,10 @@
         <text class="works-title">我的作品</text>
         <view class="header-actions">
           <view class="action-btn" @click="switchView">
-            <u-icon :name="viewMode === 'list' ? 'grid' : 'list'" size="18" color="#666"></u-icon>
+            
           </view>
           <view class="add-btn" @click="goPublish">
-            <u-icon name="plus" size="16" color="#fff"></u-icon>
+            
             发布作品
           </view>
         </view>
@@ -64,15 +64,15 @@
             </view>
             <view class="work-actions">
               <view class="action-item" @click="editWork(work)">
-                <u-icon name="edit-pen" size="16" color="#666"></u-icon>
+                
                 <text>编辑</text>
               </view>
               <view class="action-item" @click="toggleStatus(work)">
-                <u-icon :name="work.status === 'online' ? 'arrow-down' : 'arrow-up'" size="16" color="#666"></u-icon>
+                
                 <text>{{ work.status === 'online' ? '下架' : '上架' }}</text>
               </view>
               <view class="action-item" @click="deleteWork(work)">
-                <u-icon name="trash" size="16" color="#e74c3c"></u-icon>
+                
                 <text>删除</text>
               </view>
             </view>

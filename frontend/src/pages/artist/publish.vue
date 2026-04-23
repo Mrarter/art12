@@ -6,7 +6,7 @@
       <view class="cover-upload" @click="chooseCover">
         <image v-if="formData.cover" :src="formData.cover" mode="aspectFill" class="cover-preview"></image>
         <view v-else class="upload-placeholder">
-          <u-icon name="camera" size="48" color="#ccc"></u-icon>
+          
           <text class="upload-text">上传封面图</text>
           <text class="upload-tip">建议尺寸 800x800</text>
         </view>
@@ -43,7 +43,7 @@
             <text :class="{ placeholder: !formData.year }">
               {{ formData.year ? formData.year + '年' : '请选择年代' }}
             </text>
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -75,7 +75,7 @@
             <text :class="{ placeholder: !formData.material }">
               {{ formData.material || '请选择材质' }}
             </text>
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -87,7 +87,7 @@
             <text :class="{ placeholder: !formData.category }">
               {{ formData.category || '请选择门类' }}
             </text>
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -156,7 +156,7 @@
         >
           <image :src="img" mode="aspectFill"></image>
           <view class="image-delete" @click="removeImage(index)">
-            <u-icon name="close" size="12" color="#fff"></u-icon>
+            
           </view>
         </view>
         <view 
@@ -164,7 +164,7 @@
           v-if="formData.images.length < 9" 
           @click="chooseImages"
         >
-          <u-icon name="plus" size="32" color="#ccc"></u-icon>
+          
           <text>添加图片</text>
         </view>
       </view>

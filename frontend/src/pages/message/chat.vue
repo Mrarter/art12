@@ -3,7 +3,7 @@
     <!-- 聊天头部 -->
     <view class="chat-header">
       <view class="header-left" @click="goBack">
-        <u-icon name="arrow-left" size="24" color="#333"></u-icon>
+        
       </view>
       <view class="header-center">
         <view class="user-info">
@@ -15,7 +15,7 @@
         </view>
       </view>
       <view class="header-right">
-        <u-icon name="more-dot" size="24" color="#333" @click="showUserMenu"></u-icon>
+        
       </view>
     </view>
 
@@ -77,7 +77,7 @@
               <!-- 订单消息 -->
               <view class="bubble order-bubble" v-else-if="msg.type === 'order'">
                 <view class="order-card">
-                  <u-icon name="file-text" size="32" color="#667eea"></u-icon>
+                  
                   <view class="order-info">
                     <text class="order-title">订单 {{ msg.orderNo }}</text>
                     <text class="order-status">{{ msg.orderStatus }}</text>
@@ -93,8 +93,8 @@
 
             <!-- 发送状态 -->
             <view class="send-status" v-if="msg.isMine">
-              <u-icon v-if="msg.status === 'sending'" name="reload" size="16" color="#999"></u-icon>
-              <u-icon v-else-if="msg.status === 'failed'" name="warning" size="16" color="#ff4d4f"></u-icon>
+              
+              
             </view>
           </view>
 
@@ -111,13 +111,13 @@
       <!-- 快捷操作 -->
       <view class="quick-actions">
         <view class="action-btn" @click="toggleEmoji">
-          <u-icon name="happy" size="28" color="#666"></u-icon>
+          
         </view>
         <view class="action-btn" @click="chooseImage">
-          <u-icon name="photo" size="28" color="#666"></u-icon>
+          <text>🖼</text>
         </view>
         <view class="action-btn" @click="sendWork">
-          <u-icon name="grid" size="28" color="#666"></u-icon>
+          
         </view>
       </view>
 

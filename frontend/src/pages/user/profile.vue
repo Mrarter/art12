@@ -9,7 +9,7 @@
           <view class="avatar-wrapper" @click="changeAvatar">
             <image class="avatar" :src="userInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
             <view class="avatar-edit">
-              <u-icon name="camera" size="16" color="#fff"></u-icon>
+              
             </view>
           </view>
         </view>
@@ -51,7 +51,7 @@
     <!-- 编辑资料按钮 -->
     <view class="edit-section card">
       <view class="edit-btn" @click="goEditProfile">
-        <u-icon name="edit-pen" size="20" color="#667eea"></u-icon>
+        
         <text>编辑资料</text>
       </view>
     </view>
@@ -62,56 +62,56 @@
       <view class="info-list">
         <view class="info-item" @click="editField('nickname')">
           <view class="info-left">
-            <u-icon name="account" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">昵称</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.nickname || '未设置' }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
 
         <view class="info-item" @click="editField('bio')">
           <view class="info-left">
-            <u-icon name="file-text" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">简介</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.bio || '未填写' }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
 
         <view class="info-item" @click="editField('gender')">
           <view class="info-left">
-            <u-icon name="man" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">性别</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ getGenderText(userInfo.gender) }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
 
         <view class="info-item" @click="editField('birthday')">
           <view class="info-left">
-            <u-icon name="cake" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">生日</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.birthday || '未设置' }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
 
         <view class="info-item" @click="editField('location')">
           <view class="info-left">
-            <u-icon name="map" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">地区</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.location || '未设置' }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
       </view>
@@ -123,7 +123,7 @@
       <view class="info-list">
         <view class="info-item">
           <view class="info-left">
-            <u-icon name="phone" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">手机号</text>
           </view>
           <view class="info-right">
@@ -133,23 +133,23 @@
 
         <view class="info-item" @click="editField('email')">
           <view class="info-left">
-            <u-icon name="email" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">邮箱</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.email || '未绑定' }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
 
         <view class="info-item" @click="editField('wechat')">
           <view class="info-left">
-            <u-icon name="weixin" size="20" color="#52c41a"></u-icon>
+            
             <text class="info-label">微信</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.wechat || '未绑定' }}</text>
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
       </view>
@@ -161,7 +161,7 @@
       <view class="info-list">
         <view class="info-item">
           <view class="info-left">
-            <u-icon name="star" size="20" color="#ff9800"></u-icon>
+            <text>★</text>
             <text class="info-label">艺术门类</text>
           </view>
           <view class="info-right">
@@ -171,7 +171,7 @@
 
         <view class="info-item">
           <view class="info-left">
-            <u-icon name="heart" size="20" color="#ff9800"></u-icon>
+            <text>♡</text>
             <text class="info-label">创作风格</text>
           </view>
           <view class="info-right">
@@ -181,7 +181,7 @@
 
         <view class="info-item">
           <view class="info-left">
-            <u-icon name="file-text" size="20" color="#ff9800"></u-icon>
+            
             <text class="info-label">认证状态</text>
           </view>
           <view class="info-right">
@@ -197,21 +197,21 @@
       <view class="info-list">
         <view class="info-item" @click="showPrivacy">
           <view class="info-left">
-            <u-icon name="lock" size="20" color="#667eea"></u-icon>
+            <text>🔒</text>
             <text class="info-label">隐私设置</text>
           </view>
           <view class="info-right">
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
 
         <view class="info-item" @click="goPage('/pages/user/settings')">
           <view class="info-left">
-            <u-icon name="setting" size="20" color="#667eea"></u-icon>
+            
             <text class="info-label">账户设置</text>
           </view>
           <view class="info-right">
-            <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+            
           </view>
         </view>
       </view>
@@ -219,12 +219,12 @@
 
     <!-- 底部安全提示 -->
     <view class="security-tip">
-      <u-icon name="info-circle" size="14" color="#999"></u-icon>
+      
       <text>为了账户安全，部分信息需验证后修改</text>
     </view>
 
     <!-- 编辑弹窗 -->
-    <u-popup v-model:show="showEditPopup" mode="center" :round="10">
+    <!-- 弹窗开始 -->
       <view class="edit-popup">
         <view class="popup-title">编辑{{ editFieldName }}</view>
         <input
@@ -254,7 +254,7 @@
           <view class="popup-btn confirm" @click="saveEdit">保存</view>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

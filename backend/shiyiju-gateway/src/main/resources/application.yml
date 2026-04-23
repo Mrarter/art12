@@ -47,6 +47,13 @@ spring:
             - Path=/api/promotion/**
           filters:
             - StripPrefix=1
+        # 艺荐官接口（路由到 promotion 服务）
+        - id: shiyiju-promoter
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/promoter/**
+          filters:
+            - StripPrefix=1
         # 社区服务
         - id: shiyiju-community
           uri: http://localhost:8082

@@ -70,21 +70,17 @@
     <!-- 互动栏 -->
     <view class="interaction-bar">
       <view class="interaction-item" @click="toggleLike">
-        <u-icon
-          :name="post.isLiked ? 'thumb-up-fill' : 'thumb-up'"
-          :color="post.isLiked ? '#e74c3c' : '#999'"
-          size="24"
-        ></u-icon>
+        <text :class="['icon-btn', post.isLiked ? 'liked' : '']">{{ post.isLiked ? '👍' : '👍' }}</text>
         <text :style="{ color: post.isLiked ? '#e74c3c' : '#999' }">
           {{ post.likeCount || 0 }}
         </text>
       </view>
       <view class="interaction-item">
-        <u-icon name="chat" size="24" color="#999"></u-icon>
+        <text class="icon-btn">💬</text>
         <text>{{ post.commentCount || 0 }}</text>
       </view>
       <view class="interaction-item" @click="sharePost">
-        <u-icon name="share" size="24" color="#999"></u-icon>
+        <text class="icon-btn">↗</text>
         <text>{{ post.shareCount || 0 }}</text>
       </view>
     </view>
@@ -478,6 +474,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.icon-btn {
+  font-size: 24rpx;
+  &.liked {
+    color: #e74c3c;
+  }
 }
 
 .interaction-item text {

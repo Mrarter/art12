@@ -18,10 +18,10 @@
         </view>
         <view class="item-actions">
           <view class="action-btn edit" @click.stop="editAddress(item)">
-            <u-icon name="edit-pen" size="18" color="#667eea"></u-icon>
+            
           </view>
           <view class="action-btn delete" @click.stop="deleteAddress(item)">
-            <u-icon name="trash" size="18" color="#e74c3c"></u-icon>
+            
           </view>
         </view>
       </view>
@@ -37,7 +37,7 @@
     <!-- 添加按钮 -->
     <view class="add-section">
       <view class="add-btn" @click="addAddress">
-        <u-icon name="plus" size="20" color="#667eea"></u-icon>
+        
         <text>添加新地址</text>
       </view>
     </view>

@@ -8,11 +8,11 @@
     <!-- 操作按钮 -->
     <view class="action-bar">
       <view class="action-btn save" @click="savePoster">
-        <u-icon name="download" size="20"></u-icon>
+        
         <text>保存图片</text>
       </view>
       <view class="action-btn share" @click="sharePoster">
-        <u-icon name="share" size="20"></u-icon>
+        <text>↗</text>
         <text>分享海报</text>
       </view>
     </view>
@@ -63,7 +63,7 @@
         <view class="code-display">
           <text class="code-value">{{ inviteCode }}</text>
           <view class="copy-btn" @click="copyCode">
-            <u-icon name="copy" size="14"></u-icon>
+            
             <text>复制</text>
           </view>
         </view>

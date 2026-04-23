@@ -8,7 +8,7 @@
           <text class="user-name">{{ userInfo.nickname || '未登录' }}</text>
           <text class="user-id" v-if="userInfo.id">ID: {{ userInfo.id }}</text>
         </view>
-        <u-icon name="arrow-right" size="18" color="#999"></u-icon>
+        
       </view>
     </view>
 
@@ -17,24 +17,24 @@
       <view class="section-title">账号安全</view>
       <view class="menu-list">
         <view class="menu-item" @click="goPage('/pages/user/bindPhone')">
-          <u-icon name="phone" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">手机号绑定</text>
           <view class="menu-value" v-if="userInfo.phone">{{ formatPhone(userInfo.phone) }}</view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
         <view class="menu-item" @click="goPage('/pages/user/password')">
-          <u-icon name="lock" size="20" color="#667eea"></u-icon>
+          <text>🔒</text>
           <text class="menu-text">登录密码</text>
           <view class="menu-value">修改</view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
         <view class="menu-item" @click="goPage('/pages/user/realname')">
-          <u-icon name="idcard" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">实名认证</text>
           <view class="menu-value" :class="{ 'status-certified': userInfo.realNameStatus === 1 }">
             {{ getRealNameStatus(userInfo.realNameStatus) }}
           </view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -44,25 +44,25 @@
       <view class="section-title">偏好设置</view>
       <view class="menu-list">
         <view class="menu-item">
-          <u-icon name="bell" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">消息推送</text>
           <switch :checked="settings.pushEnabled" @change="togglePush" color="#667eea"></switch>
         </view>
         <view class="menu-item">
-          <u-icon name="volume" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">声音</text>
           <switch :checked="settings.soundEnabled" @change="toggleSound" color="#667eea"></switch>
         </view>
         <view class="menu-item">
-          <u-icon name="wifi" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">仅WiFi加载图片</text>
           <switch :checked="settings.wifiOnly" @change="toggleWifiOnly" color="#667eea"></switch>
         </view>
         <view class="menu-item" @click="showLanguagePicker">
-          <u-icon name="language" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">语言</text>
           <view class="menu-value">简体中文</view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -72,16 +72,16 @@
       <view class="section-title">通用设置</view>
       <view class="menu-list">
         <view class="menu-item" @click="clearCache">
-          <u-icon name="trash" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">清理缓存</text>
           <view class="menu-value">{{ cacheSize }}</view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
         <view class="menu-item" @click="checkUpdate">
-          <u-icon name="reload" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">检查更新</text>
           <view class="menu-value version">v{{ version }}</view>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -91,24 +91,24 @@
       <view class="section-title">关于</view>
       <view class="menu-list">
         <view class="menu-item" @click="goPage('/pages/user/agreement?type=user')">
-          <u-icon name="file-text" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">用户协议</text>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
         <view class="menu-item" @click="goPage('/pages/user/agreement?type=privacy')">
-          <u-icon name="file-text" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">隐私政策</text>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
         <view class="menu-item" @click="goPage('/pages/user/feedback')">
-          <u-icon name="edit-pen" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">意见反馈</text>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
         <view class="menu-item" @click="showAbout">
-          <u-icon name="info-circle" size="20" color="#667eea"></u-icon>
+          
           <text class="menu-text">关于我们</text>
-          <u-icon name="arrow-right" size="14" color="#ccc"></u-icon>
+          
         </view>
       </view>
     </view>
@@ -123,7 +123,7 @@
     </view>
 
     <!-- 关于弹窗 -->
-    <u-popup v-model:show="showAboutPopup" mode="center" :round="10">
+    <!-- 弹窗开始 -->
       <view class="about-popup">
         <image class="app-logo" src="/static/logo.png" mode="aspectFit"></image>
         <text class="app-name">拾艺局</text>
@@ -138,7 +138,7 @@
         </view>
         <view class="about-copyright">© 2024 拾艺局 All Rights Reserved</view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

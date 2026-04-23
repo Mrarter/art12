@@ -42,7 +42,7 @@
         @click="goMessageDetail(item)"
       >
         <view class="message-icon" :class="item.type">
-          <u-icon :name="getIconName(item.type)" size="28" color="#fff"></u-icon>
+          
         </view>
         <view class="message-content">
           <view class="message-header">
@@ -55,7 +55,7 @@
           </view>
         </view>
         <view class="message-arrow">
-          <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+          
         </view>
       </view>
 
@@ -67,7 +67,7 @@
 
       <!-- 加载更多 -->
       <view class="load-more" v-if="loading">
-        <u-loading mode="circle"></u-loading>
+        <text class="loading-text">加载中...</text>
       </view>
     </scroll-view>
 

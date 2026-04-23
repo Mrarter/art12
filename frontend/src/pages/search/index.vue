@@ -3,7 +3,7 @@
     <!-- 搜索栏 -->
     <view class="search-header">
       <view class="search-box">
-        <u-icon name="search" size="18" color="#999"></u-icon>
+        
         <input 
           class="search-input" 
           v-model="keyword" 
@@ -12,7 +12,7 @@
           @confirm="onSearch"
           @input="onInput"
         />
-        <u-icon v-if="keyword" name="close-circle" size="16" color="#999" @click="clearKeyword"></u-icon>
+        
       </view>
       <text class="cancel-btn" @click="goBack">取消</text>
     </view>
@@ -22,7 +22,7 @@
       <view class="section-header">
         <text class="section-title">搜索历史</text>
         <view class="clear-btn" @click="clearHistory">
-          <u-icon name="trash" size="14" color="#999"></u-icon>
+          
           <text>清除</text>
         </view>
       </view>
@@ -43,7 +43,7 @@
       <view class="section-header">
         <text class="section-title">热门搜索</text>
         <view class="refresh-btn" @click="refreshHot">
-          <u-icon name="reload" size="14" color="#999"></u-icon>
+          
           <text>换一换</text>
         </view>
       </view>
@@ -72,7 +72,7 @@
         <text class="result-count">找到 {{ totalCount }} 个结果</text>
         <view class="result-filter" @click="showFilter">
           <text>筛选</text>
-          <u-icon name="filter" size="14" color="#666"></u-icon>
+          
         </view>
       </view>
 
@@ -201,7 +201,7 @@
         :key="item.id"
         @click="selectSuggestion(item)"
       >
-        <u-icon name="search" size="16" color="#999"></u-icon>
+        
         <text class="suggestion-text">{{ item.keyword }}</text>
         <text class="suggestion-type">{{ item.type }}</text>
       </view>
@@ -209,7 +209,7 @@
 
     <!-- 加载状态 -->
     <view class="loading-overlay" v-if="loading">
-      <u-loading mode="circle" size="40" color="#667eea"></u-loading>
+      <view class="loading-spinner"></view>
     </view>
   </view>
 </template>

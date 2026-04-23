@@ -18,7 +18,7 @@
     <!-- 物流状态时间线 -->
     <view class="track-timeline card">
       <view class="timeline-header">
-        <u-icon name="car" size="24" color="#667eea"></u-icon>
+        
         <text class="current-status">{{ currentStatus }}</text>
       </view>
 
@@ -44,7 +44,7 @@
     <!-- 收货信息 -->
     <view class="receiver-info card">
       <view class="info-header">
-        <u-icon name="map" size="20" color="#667eea"></u-icon>
+        
         <text>收货信息</text>
       </view>
       <view class="info-content">
@@ -66,7 +66,7 @@
     <!-- 商品信息 -->
     <view class="product-info card">
       <view class="info-header">
-        <u-icon name="bag" size="20" color="#667eea"></u-icon>
+        <text>🛍</text>
         <text>商品信息</text>
       </view>
       <view class="product-list">
@@ -87,7 +87,7 @@
     <!-- 物流公司选择 -->
     <view class="express-selector card">
       <view class="info-header">
-        <u-icon name="reload" size="20" color="#667eea"></u-icon>
+        
         <text>其他物流查询</text>
       </view>
       <view class="express-list">
@@ -105,7 +105,7 @@
 
     <!-- 联系快递员 -->
     <view class="contact-courier" @click="callCourier">
-      <u-icon name="phone" size="20" color="#fff"></u-icon>
+      
       <text>联系快递员</text>
     </view>
   </view>

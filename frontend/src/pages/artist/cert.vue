@@ -3,7 +3,7 @@
     <!-- 顶部说明 -->
     <view class="cert-header">
       <view class="header-icon">
-        <u-icon name="info-circle" size="48" color="#667eea"></u-icon>
+        
       </view>
       <view class="header-text">
         <text class="title">成为认证艺术家</text>
@@ -14,7 +14,7 @@
     <!-- 认证状态 -->
     <view class="cert-status" v-if="certStatus.status !== 'none'">
       <view class="status-badge" :class="certStatus.status">
-        <u-icon :name="certStatus.icon" size="32" :color="certStatus.color"></u-icon>
+        
         <text class="status-text">{{ certStatus.text }}</text>
       </view>
       <view class="status-detail" v-if="certStatus.status === 'pending'">
@@ -52,7 +52,7 @@
           <picker class="item-picker" mode="selector" :range="artFields" range-key="name" @change="onFieldChange">
             <view class="picker-content">
               <text :class="{ placeholder: !form.artFieldName }">{{ form.artFieldName || '请选择擅长领域' }}</text>
-              <u-icon name="arrow-right" size="16" color="#999"></u-icon>
+              
             </view>
           </picker>
         </view>
@@ -80,7 +80,7 @@
             <view class="upload-item" @click="chooseImage('idCardFront')">
               <image v-if="form.idCardFront" :src="form.idCardFront" mode="aspectFill" class="upload-image"></image>
               <view v-else class="upload-placeholder">
-                <u-icon name="camera" size="40" color="#ccc"></u-icon>
+                
                 <text class="upload-text">身份证正面</text>
               </view>
               <view class="upload-label">正面</view>
@@ -88,7 +88,7 @@
             <view class="upload-item" @click="chooseImage('idCardBack')">
               <image v-if="form.idCardBack" :src="form.idCardBack" mode="aspectFill" class="upload-image"></image>
               <view v-else class="upload-placeholder">
-                <u-icon name="camera" size="40" color="#ccc"></u-icon>
+                
                 <text class="upload-text">身份证背面</text>
               </view>
               <view class="upload-label">背面</view>
@@ -107,11 +107,11 @@
             <view class="work-item" v-for="(item, index) in form.works" :key="index">
               <image :src="item" mode="aspectFill"></image>
               <view class="work-delete" @click="removeWork(index)">
-                <u-icon name="close" size="16" color="#fff"></u-icon>
+                
               </view>
             </view>
             <view class="work-add" @click="chooseImage('works')" v-if="form.works.length < 5">
-              <u-icon name="plus" size="40" color="#ccc"></u-icon>
+              
               <text>添加作品</text>
             </view>
           </view>

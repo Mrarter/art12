@@ -79,6 +79,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/promotion/commission/list",
             "/promotion/withdraw/list",
             "/promotion/admin/stats",
+            "/promotion/product-commission",
+            "/promoter/",
             "/system/admin/list",
             "/system/banner/list",
             "/system/operation-log/list",

@@ -128,7 +128,7 @@
             <text class="item-title">免打扰时段</text>
             <text class="item-desc">{{ quietMode.startTime }} - {{ quietMode.endTime }}</text>
           </view>
-          <u-icon name="arrow-right" size="18" color="#ccc"></u-icon>
+          
         </view>
       </view>
     </view>

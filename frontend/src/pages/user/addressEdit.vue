@@ -30,7 +30,7 @@
         <picker mode="region" :value="region" @change="onRegionChange">
           <view class="picker-value">
             {{ regionText || '请选择' }}
-            <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+            
           </view>
         </picker>
       </view>
@@ -73,13 +73,13 @@
     <!-- 地图定位 -->
     <view class="location-section card" @click="selectOnMap">
       <view class="location-icon">
-        <u-icon name="map" size="24" color="#667eea"></u-icon>
+        
       </view>
       <view class="location-content">
         <text class="location-title">在地图上选择</text>
         <text class="location-tip">可以通过地图快速定位</text>
       </view>
-      <u-icon name="arrow-right" size="16" color="#ccc"></u-icon>
+      
     </view>
 
     <!-- 保存按钮 -->

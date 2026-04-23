@@ -4,7 +4,7 @@
     <view class="hot-topics">
       <view class="section-header">
         <view class="section-title">
-          <u-icon name="fire" color="#e74c3c" size="24"></u-icon>
+          
           <text>热门话题</text>
         </view>
       </view>
@@ -29,7 +29,7 @@
     <view class="all-topics">
       <view class="section-header">
         <view class="section-title">
-          <u-icon name="grid" color="#667eea" size="24"></u-icon>
+          
           <text>全部话题</text>
         </view>
         <text class="topic-total">{{ allTopics.length }}个话题</text>

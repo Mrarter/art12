@@ -14,7 +14,7 @@
     <!-- 收货信息 -->
     <view class="receiver-info">
       <view class="receiver-avatar">
-        <u-icon name="person" size="32" color="#667eea"></u-icon>
+        
       </view>
       <view class="receiver-detail">
         <text class="receiver-name">{{ logisticsInfo.receiver }}</text>
@@ -72,11 +72,11 @@
     <!-- 底部操作 -->
     <view class="logistics-footer">
       <button class="action-btn copy" @click="copyExpressNo">
-        <u-icon name="clipboard" size="20" color="#667eea"></u-icon>
+        
         <text>复制单号</text>
       </button>
       <button class="action-btn contact" @click="contactExpress">
-        <u-icon name="phone" size="20" color="#fff"></u-icon>
+        
         <text>联系快递</text>
       </button>
     </view>

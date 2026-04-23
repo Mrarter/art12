@@ -5,7 +5,7 @@
       <view class="balance-header">
         <text class="label">可提现余额（元）</text>
         <view class="refresh-btn" @click="refreshBalance">
-          <u-icon name="refresh" size="16" color="#fff"></u-icon>
+          
         </view>
       </view>
       <view class="balance-amount">
@@ -34,7 +34,7 @@
     <view class="rules-section">
       <view class="rules-header" @click="showRules = !showRules">
         <text class="rules-title">提现规则</text>
-        <u-icon :name="showRules ? 'arrow-up' : 'arrow-down'" size="14" color="#666"></u-icon>
+        
       </view>
       <view class="rules-content" v-if="showRules">
         <view class="rule-item">
@@ -132,7 +132,7 @@
               <text class="method-name">微信零钱</text>
               <text class="method-desc">自动到账至微信零钱</text>
             </view>
-            <u-icon name="checkmark-circle-fill" size="20" color="#07c160"></u-icon>
+            
           </view>
         </view>
       </view>
@@ -163,25 +163,25 @@
     <!-- 提现记录入口 -->
     <view class="records-entry" @click="goToRecords">
       <view class="entry-left">
-        <u-icon name="order" size="18" color="#667eea"></u-icon>
+        <text>📋</text>
         <text class="entry-text">提现记录</text>
       </view>
       <view class="entry-right">
         <text class="pending-count" v-if="pendingCount > 0">
           {{ pendingCount }} 笔处理中
         </text>
-        <u-icon name="arrow-right" size="14" color="#999"></u-icon>
+        
       </view>
     </view>
 
     <!-- 安全提示 -->
     <view class="security-tip">
-      <u-icon name="info-circle" size="14" color="#999"></u-icon>
+      
       <text class="tip-text">资金安全由保险公司承保，请放心使用</text>
     </view>
 
     <!-- 提现确认弹窗 -->
-    <u-popup v-model="showConfirmModal" mode="center" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="confirm-modal">
         <view class="modal-title">确认提现</view>
         <view class="modal-content">
@@ -207,13 +207,13 @@
           <button class="confirm-btn" @click="confirmSubmit">确认提交</button>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
 
     <!-- 成功弹窗 -->
-    <u-popup v-model="showSuccessModal" mode="center" border-radius="16" :closeable="true">
+    <!-- 弹窗开始 -->
       <view class="success-modal">
         <view class="success-icon">
-          <u-icon name="checkmark-circle" size="80" color="#07c160"></u-icon>
+          
         </view>
         <view class="success-title">提现申请已提交</view>
         <view class="success-desc">
@@ -225,7 +225,7 @@
           <button class="back-btn" @click="goBack">返回</button>
         </view>
       </view>
-    </u-popup>
+<!-- 弹窗结束 -->
   </view>
 </template>
 

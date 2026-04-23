@@ -11,7 +11,7 @@
     <!-- 收货地址 -->
     <view class="address-section" v-if="orderInfo.address">
       <view class="address-icon">
-        <u-icon name="map" size="40" color="#667eea"></u-icon>
+        
       </view>
       <view class="address-info">
         <view class="address-user">
@@ -98,11 +98,11 @@
     <view class="bottom-bar">
       <view class="left-actions">
         <view class="action-btn btn-contact" @click="contactSeller">
-          <u-icon name="chat" size="18" color="#666"></u-icon>
+          
           <text>联系卖家</text>
         </view>
         <view class="action-btn" @click="viewLogistics" v-if="orderInfo.status === 'shipped' || orderInfo.status === 'completed'">
-          <u-icon name="bag" size="18" color="#666"></u-icon>
+          <text>🛍</text>
           <text>查看物流</text>
         </view>
       </view>
