@@ -51,4 +51,21 @@ public class SystemConfigController {
         systemConfigPersistenceService.updateAllConfig(params);
         return Result.success();
     }
+
+    /**
+     * 获取价格增长配置
+     */
+    @GetMapping("/priceGrowth")
+    public Result<Map<String, Object>> getPriceGrowthConfig() {
+        return Result.success(systemConfigPersistenceService.getPriceGrowthConfig());
+    }
+
+    /**
+     * 更新价格增长配置
+     */
+    @PostMapping("/priceGrowth")
+    public Result<Void> updatePriceGrowthConfig(@RequestBody Map<String, Object> params) {
+        systemConfigPersistenceService.updatePriceGrowthConfig(params);
+        return Result.success();
+    }
 }

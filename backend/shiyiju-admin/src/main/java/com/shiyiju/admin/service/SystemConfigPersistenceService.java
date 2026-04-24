@@ -171,6 +171,64 @@ public class SystemConfigPersistenceService {
         }
     }
 
+    /**
+     * 获取价格增长配置
+     */
+    public Map<String, Object> getPriceGrowthConfig() {
+        Map<String, Object> all = getAllConfig();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> priceGrowth = (Map<String, Object>) all.get("priceGrowth");
+        return priceGrowth != null ? priceGrowth : new LinkedHashMap<>();
+    }
+
+    /**
+     * 更新价格增长配置
+     */
+    public void updatePriceGrowthConfig(Map<String, Object> params) {
+        String tableName = resolveConfigTable();
+        boolean hasGroupName = schemaInspector.hasColumn(tableName, "group_name");
+        boolean hasRemark = schemaInspector.hasColumn(tableName, "remark");
+        boolean hasConfigName = schemaInspector.hasColumn(tableName, "config_name");
+        boolean hasDescription = schemaInspector.hasColumn(tableName, "description");
+
+        for (ConfigItem item : CONFIG_ITEMS) {
+            if (!"priceGrowth".equals(item.group)) {
+                continue;
+            }
+            if (!params.containsKey(item.field)) {
+                continue;
+            }
+            String rawValue = stringify(params.get(item.field), item.defaultValue);
+            if (hasGroupName || hasRemark) {
+                jdbcTemplate.update(
+                    """
+                    INSERT INTO %s (config_key, config_value, config_type, group_name, remark)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        config_value = VALUES(config_value),
+                        config_type = VALUES(config_type),
+                        group_name = VALUES(group_name),
+                        remark = VALUES(remark)
+                    """.formatted(tableName),
+                    item.configKey, rawValue, item.configType, item.group, item.remark
+                );
+            } else if (hasConfigName || hasDescription) {
+                jdbcTemplate.update(
+                    """
+                    INSERT INTO %s (config_key, config_value, config_name, config_type, description)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        config_value = VALUES(config_value),
+                        config_name = VALUES(config_name),
+                        config_type = VALUES(config_type),
+                        description = VALUES(description)
+                    """.formatted(tableName),
+                    item.configKey, rawValue, item.remark, item.configType, item.remark
+                );
+            }
+        }
+    }
+
     private String resolveConfigTable() {
         String tableName = schemaInspector.resolveTable("config", "system_config", "sys_configs");
         if (!schemaInspector.getColumns(tableName).isEmpty()) {
