@@ -386,7 +386,7 @@ const loadData = async () => {
       artworkId: item.id,
       title: item.title,
       artistName: item.artistName,  // 后端返回 artistName
-      cover: item.cover,             // 后端返回 cover
+      cover: item.coverImage || item.cover || '', // 后端返回 coverImage
       categoryId: item.categoryId,
       categoryName: item.category,  // 后端返回 category
       artType: item.artType,        // 画种
@@ -421,7 +421,7 @@ const loadData = async () => {
 
 const loadCategories = async () => {
   try {
-    categories.value = await requestApi.get('/product/categories')
+    categories.value = await request.get('/product/categories')
   } catch (e) {
     categories.value = [
       { id: 1, name: '国画' },

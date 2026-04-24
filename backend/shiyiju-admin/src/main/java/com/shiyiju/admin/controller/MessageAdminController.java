@@ -1,10 +1,12 @@
 package com.shiyiju.admin.controller;
 
+import com.shiyiju.admin.service.MessageAdminPersistenceService;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 管理员 - 消息管理控制器
@@ -13,46 +15,30 @@ import java.util.*;
 @RequestMapping("/admin/message")
 public class MessageAdminController {
 
+    private final MessageAdminPersistenceService messageAdminPersistenceService;
+
+    public MessageAdminController(MessageAdminPersistenceService messageAdminPersistenceService) {
+        this.messageAdminPersistenceService = messageAdminPersistenceService;
+    }
+
     /**
      * 消息列表
      */
     @GetMapping("/list")
     public Result<PageResult<Map<String, Object>>> getMessageList(
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) Integer type,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        
-        List<Map<String, Object>> list = new ArrayList<>();
-        String[] titles = {"系统通知", "活动提醒", "订单更新"};
-        
-        for (int i = 1; i <= 5; i++) {
-            Map<String, Object> msg = new LinkedHashMap<>();
-            msg.put("id", i);
-            msg.put("title", titles[i % 3]);
-            msg.put("content", "消息内容" + i);
-            msg.put("type", i % 3);
-            msg.put("targetType", "ALL");
-            msg.put("sendCount", 1000 + i * 100);
-            msg.put("readCount", 500 + i * 50);
-            msg.put("createTime", "2024-04-" + String.format("%02d", 15 + i) + " 10:30:00");
-            list.add(msg);
-        }
-        
-        PageResult<Map<String, Object>> result = new PageResult<>();
-        result.setRecords(list);
-        result.setTotal(20L);
-        result.setPage(page);
-        result.setPageSize(size);
-        return Result.success(result);
+        return Result.success(messageAdminPersistenceService.listMessages(type, status, page, size));
     }
 
     /**
      * 发送消息
      */
     @PostMapping("/send")
-    public Result<Void> send(@RequestBody Map<String, Object> params) {
-        return Result.success();
+    public Result<Long> send(@RequestBody Map<String, Object> params) {
+        return Result.success(messageAdminPersistenceService.sendMessage(params));
     }
 
     /**
@@ -60,19 +46,7 @@ public class MessageAdminController {
      */
     @GetMapping("/template/list")
     public Result<List<Map<String, Object>>> getTemplateList() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        String[] names = {"注册欢迎", "订单通知", "拍卖提醒", "活动通知"};
-        
-        for (int i = 0; i < names.length; i++) {
-            Map<String, Object> template = new LinkedHashMap<>();
-            template.put("id", i + 1);
-            template.put("name", names[i]);
-            template.put("content", "模板内容" + (i + 1));
-            template.put("variables", "username,time");
-            template.put("status", i < 2 ? "ENABLED" : "DISABLED");
-            list.add(template);
-        }
-        return Result.success(list);
+        return Result.success(messageAdminPersistenceService.listTemplates());
     }
 
     /**
@@ -80,7 +54,7 @@ public class MessageAdminController {
      */
     @PostMapping("/template")
     public Result<Long> createTemplate(@RequestBody Map<String, Object> params) {
-        return Result.success(System.currentTimeMillis());
+        return Result.success(messageAdminPersistenceService.createTemplate(params));
     }
 
     /**
@@ -88,6 +62,7 @@ public class MessageAdminController {
      */
     @PutMapping("/template/{id}")
     public Result<Void> updateTemplate(@PathVariable Long id, @RequestBody Map<String, Object> params) {
+        messageAdminPersistenceService.updateTemplate(id, params);
         return Result.success();
     }
 
@@ -96,6 +71,7 @@ public class MessageAdminController {
      */
     @DeleteMapping("/template/{id}")
     public Result<Void> deleteTemplate(@PathVariable Long id) {
+        messageAdminPersistenceService.deleteTemplate(id);
         return Result.success();
     }
 
@@ -104,6 +80,8 @@ public class MessageAdminController {
      */
     @PutMapping("/template/{id}/status")
     public Result<Void> updateTemplateStatus(@PathVariable Long id, @RequestBody Map<String, Object> params) {
+        int status = params.get("status") instanceof Number number ? number.intValue() : Integer.parseInt(String.valueOf(params.get("status")));
+        messageAdminPersistenceService.updateTemplateStatus(id, status);
         return Result.success();
     }
 
@@ -112,11 +90,6 @@ public class MessageAdminController {
      */
     @GetMapping("/stats")
     public Result<Map<String, Object>> getStats() {
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalSent", 50000);
-        stats.put("todaySent", 120);
-        stats.put("totalRead", 35000);
-        stats.put("readRate", 70.0);
-        return Result.success(stats);
+        return Result.success(messageAdminPersistenceService.getStats());
     }
 }

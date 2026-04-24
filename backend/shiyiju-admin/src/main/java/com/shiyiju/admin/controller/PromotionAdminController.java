@@ -1,14 +1,17 @@
 package com.shiyiju.admin.controller;
 
+import com.shiyiju.admin.service.PromotionService;
 import com.shiyiju.common.result.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 /**
- * 管理员 - 分销管理控制器
+ * 管理员 - 分销管理控制器（真实持久化版本）
  */
 @RestController
 @RequestMapping("/admin/promotion")
@@ -16,46 +19,42 @@ public class PromotionAdminController {
 
     private static final Logger log = LoggerFactory.getLogger(PromotionAdminController.class);
 
+    @Autowired
+    private PromotionService promotionService;
+
     /**
-     * 获取分销配置
+     * 获取分销配置（真实查询）
      */
     @GetMapping("/config")
     public Result<Map<String, Object>> getConfig() {
-        Map<String, Object> config = new HashMap<>();
-        config.put("platformRate", 5);
-        config.put("totalDistributionLimit", 30);
-        config.put("levels", getLevels());
+        Map<String, Object> config = promotionService.getConfig();
         return Result.success(config);
     }
 
-    private List<Map<String, Object>> getLevels() {
-        List<Map<String, Object>> levels = new ArrayList<>();
-        levels.add(createLevel(1, "Lv.1见习", 0, 0, 0));
-        levels.add(createLevel(2, "Lv.2新锐", 3, 2000, 1));
-        levels.add(createLevel(3, "Lv.3资深", 10, 10000, 2));
-        levels.add(createLevel(4, "Lv.4金牌", 30, 50000, 3));
-        levels.add(createLevel(5, "Lv.5合伙人", 80, 200000, 5));
-        return levels;
-    }
-
-    private Map<String, Object> createLevel(int level, String name, int minDirect, long minSales, double teamBonus) {
-        Map<String, Object> levelConfig = new HashMap<>();
-        levelConfig.put("level", level);
-        levelConfig.put("name", name);
-        levelConfig.put("minDirectCount", minDirect);
-        levelConfig.put("minTeamMonthlySales", minSales);
-        levelConfig.put("teamBonusRate", teamBonus);
-        return levelConfig;
-    }
-
     /**
-     * 更新分销配置
+     * 更新分销配置（真保存）
      */
     @PostMapping("/config")
     public Result<Void> updateConfig(@RequestBody Map<String, Object> params) {
-        log.info("更新分销配置: platformRate={}, totalDistributionLimit={}", 
-            params.get("platformRate"), params.get("totalDistributionLimit"));
-        return Result.success();
+        try {
+            if (params.get("directRate") != null) {
+                promotionService.updateConfig("commission.direct.rate", String.valueOf(params.get("directRate")));
+            }
+            if (params.get("teamRate") != null) {
+                promotionService.updateConfig("commission.team.rate", String.valueOf(params.get("teamRate")));
+            }
+            if (params.get("firstLevelRate") != null) {
+                promotionService.updateConfig("commission.level.first", String.valueOf(params.get("firstLevelRate")));
+            }
+            if (params.get("secondLevelRate") != null) {
+                promotionService.updateConfig("commission.level.second", String.valueOf(params.get("secondLevelRate")));
+            }
+            log.info("更新分销配置成功");
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新分销配置失败", e);
+            return Result.fail("更新失败: " + e.getMessage());
+        }
     }
 
     /**
@@ -63,72 +62,36 @@ public class PromotionAdminController {
      */
     @GetMapping("/distribution")
     public Result<Map<String, Object>> getDistributionConfig() {
-        Map<String, Object> config = new HashMap<>();
-        config.put("firstRate", 0.10);
-        config.put("secondRate", 0.05);
-        config.put("lockPeriod", 30);
+        Map<String, Object> config = promotionService.getConfig();
         return Result.success(config);
     }
 
     /**
-     * 获取等级分布统计
+     * 获取等级分布统计（真实查询）
      */
     @GetMapping("/statistics/level-distribution")
     public Result<Map<String, Object>> getLevelDistribution() {
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", 1256);
-        result.put("distribution", Arrays.asList(
-            createDistItem(1, "Lv.1见习", 520, 41.4),
-            createDistItem(2, "Lv.2新锐", 380, 30.3),
-            createDistItem(3, "Lv.3资深", 220, 17.5),
-            createDistItem(4, "Lv.4金牌", 100, 8.0),
-            createDistItem(5, "Lv.5合伙人", 36, 2.9)
-        ));
+        Map<String, Object> result = promotionService.getLevelDistribution();
         return Result.success(result);
     }
 
-    private Map<String, Object> createDistItem(int level, String name, int count, double percent) {
-        Map<String, Object> item = new HashMap<>();
-        item.put("level", level);
-        item.put("name", name);
-        item.put("count", count);
-        item.put("percent", percent);
-        return item;
-    }
-
     /**
-     * 佣金发放趋势
+     * 佣金发放趋势（真实查询）
      */
     @GetMapping("/statistics/commission-trend")
     public Result<List<Map<String, Object>>> getCommissionTrend(
             @RequestParam(defaultValue = "30") int days) {
-        List<Map<String, Object>> trend = new ArrayList<>();
-        for (int i = days; i >= 0; i--) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("date", "2024-04-" + String.format("%02d", 20 - i % 30));
-            item.put("amount", 5000 + (days - i) * 200);
-            trend.add(item);
-        }
+        List<Map<String, Object>> trend = promotionService.getCommissionTrend(days);
         return Result.success(trend);
     }
 
     /**
-     * 头部团队业绩排行
+     * 头部团队业绩排行（真实查询）
      */
     @GetMapping("/statistics/top-teams")
     public Result<List<Map<String, Object>>> getTopTeams(
             @RequestParam(defaultValue = "10") int limit) {
-        List<Map<String, Object>> teams = new ArrayList<>();
-        String[] names = {"艺术推广大使", "金牌代理", "资深推广"};
-        for (int i = 0; i < names.length && i < limit; i++) {
-            Map<String, Object> team = new HashMap<>();
-            team.put("rank", i + 1);
-            team.put("nickname", names[i]);
-            team.put("level", 5 - i);
-            team.put("teamSize", 100 - i * 15);
-            team.put("monthlySales", 500000 - i * 50000);
-            teams.add(team);
-        }
+        List<Map<String, Object>> teams = promotionService.getTopTeams(limit);
         return Result.success(teams);
     }
 }

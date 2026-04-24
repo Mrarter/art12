@@ -72,9 +72,38 @@
         <el-form-item label="专场名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入专场名称" />
         </el-form-item>
+        
+        <!-- 封面图上传 -->
         <el-form-item label="封面图" prop="cover">
-          <el-input v-model="form.cover" placeholder="请输入封面图URL" />
+          <div class="upload-area" @click="triggerCoverUpload">
+            <el-image 
+              v-if="form.cover" 
+              :src="getFullImageUrl(form.cover)" 
+              class="upload-preview"
+              fit="cover"
+            />
+            <div v-else class="upload-placeholder">
+              <el-icon class="upload-icon"><Plus /></el-icon>
+              <span>点击上传封面图</span>
+            </div>
+            <div v-if="form.cover" class="upload-mask">
+              <el-icon><Edit /></el-icon>
+              <span>更换图片</span>
+            </div>
+          </div>
+          <input 
+            ref="coverFileInput" 
+            type="file" 
+            accept="image/*" 
+            style="display: none" 
+            @change="handleCoverChange"
+          />
+          <div class="upload-tip">支持 JPG、PNG 格式，文件大小不超过 10MB</div>
+          <div v-if="uploading" class="upload-progress">
+            <el-progress :percentage="uploadProgress" />
+          </div>
         </el-form-item>
+        
         <el-form-item label="预展时间" required>
           <el-col :span="10">
             <el-form-item prop="previewStart">
@@ -105,12 +134,51 @@
           <el-input-number v-model="form.deposit" :min="0" :precision="2" />
         </el-form-item>
         <el-form-item label="描述" prop="description">
-          <el-input v-model="form.description" type="textarea" :rows="3" />
+          <div class="description-editor">
+            <div class="description-preview" v-if="form.description" v-html="form.description"></div>
+            <el-input 
+              v-else 
+              placeholder="点击添加专场描述，支持富文本格式"
+              disabled
+              style="cursor: pointer"
+            />
+            <el-button type="primary" link @click="showDescriptionDialog" style="margin-top: 8px">
+              {{ form.description ? '编辑描述' : '添加描述' }}
+            </el-button>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 描述编辑对话框 -->
+    <el-dialog v-model="descDialogVisible" title="编辑专场描述" width="800px" destroy-on-close>
+      <div class="desc-editor-container">
+        <div class="editor-toolbar">
+          <el-button-group>
+            <el-button size="small" @click="insertTag('b')"><b>B</b></el-button>
+            <el-button size="small" @click="insertTag('i')"><i>I</i></el-button>
+            <el-button size="small" @click="insertTag('u')"><u>U</u></el-button>
+            <el-button size="small" @click="insertTag('br')">换行</el-button>
+          </el-button-group>
+          <el-button size="small" @click="insertTag('p')">段落</el-button>
+        </div>
+        <el-input
+          ref="descTextarea"
+          v-model="descContent"
+          type="textarea"
+          :rows="12"
+          placeholder="请输入专场描述..."
+          @keydown.ctrl.enter="saveDescription"
+        />
+        <div class="editor-tip">支持 HTML 标签：&lt;b&gt;加粗&lt;/b&gt;、&lt;i&gt;斜体&lt;/i&gt;、&lt;u&gt;下划线&lt;/u&gt;、&lt;br&gt;换行</div>
+      </div>
+      <template #footer>
+        <el-button @click="descDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveDescription">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -119,16 +187,27 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Edit } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import request from '@/api/request'
+import { uploadFile, getFullImageUrl as getUrl } from '@/api/request'
 
+const getFullImageUrl = getUrl
 const router = useRouter()
 
 const loading = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref()
+const coverFileInput = ref()
 const tableData = ref([])
 const isEdit = ref(false)
+const uploading = ref(false)
+const uploadProgress = ref(0)
+
+// 描述编辑相关
+const descDialogVisible = ref(false)
+const descContent = ref('')
+const descTextarea = ref()
 
 const searchForm = reactive({
   name: '',
@@ -210,6 +289,81 @@ const showDialog = (type, row = null) => {
   dialogVisible.value = true
 }
 
+// 封面图上传相关
+const triggerCoverUpload = () => {
+  coverFileInput.value?.click()
+}
+
+const handleCoverChange = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    return
+  }
+
+  // 验证文件大小 (10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 10MB')
+    return
+  }
+
+  uploading.value = true
+  uploadProgress.value = 0
+
+  try {
+    const result = await uploadFile(file, (percent) => {
+      uploadProgress.value = percent
+    })
+    form.cover = result?.url || result || ''
+    ElMessage.success('封面上传成功')
+  } catch (e) {
+    ElMessage.error(e.message || '封面上传失败')
+  } finally {
+    uploading.value = false
+    uploadProgress.value = 0
+    if (coverFileInput.value) {
+      coverFileInput.value.value = ''
+    }
+  }
+}
+
+// 描述编辑相关
+const showDescriptionDialog = () => {
+  descContent.value = form.description || ''
+  descDialogVisible.value = true
+}
+
+const insertTag = (tag) => {
+  const textarea = descTextarea.value?.$el?.querySelector('textarea')
+  if (!textarea) return
+  
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const selectedText = descContent.value.substring(start, end)
+  
+  let insertText = ''
+  if (tag === 'br') {
+    insertText = '<br>'
+  } else if (tag === 'p') {
+    insertText = '\n<p></p>\n'
+  } else {
+    insertText = `<${tag}>${selectedText}</${tag}>`
+  }
+  
+  descContent.value = descContent.value.substring(0, start) + insertText + descContent.value.substring(end)
+}
+
+const saveDescription = () => {
+  form.description = descContent.value
+  descDialogVisible.value = false
+  if (descContent.value) {
+    ElMessage.success('描述已保存')
+  }
+}
+
 const handleSubmit = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -263,5 +417,93 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 封面上传样式 */
+.upload-area {
+  position: relative;
+  width: 240px;
+  height: 120px;
+  cursor: pointer;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.upload-area:hover {
+  border-color: #409eff;
+}
+.upload-preview {
+  width: 100%;
+  height: 100%;
+}
+.upload-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  color: #909399;
+}
+.upload-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.upload-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.upload-area:hover .upload-mask {
+  opacity: 1;
+}
+.upload-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+.upload-progress {
+  margin-top: 10px;
+  width: 240px;
+}
+
+/* 描述编辑器样式 */
+.description-editor {
+  .description-preview {
+    padding: 12px;
+    background: #f5f7fa;
+    border-radius: 4px;
+    min-height: 60px;
+    max-height: 150px;
+    overflow: auto;
+    margin-bottom: 8px;
+  }
+}
+
+.desc-editor-container {
+  .editor-toolbar {
+    margin-bottom: 12px;
+    padding: 8px;
+    background: #f5f7fa;
+    border-radius: 4px;
+  }
+  .editor-tip {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #909399;
+  }
 }
 </style>

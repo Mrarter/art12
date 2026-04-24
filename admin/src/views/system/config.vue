@@ -252,7 +252,7 @@
           </el-form-item>
           
           <el-form-item label="延时周期">
-            <el-input-number v-model="auctionForm延时Cycles" :min="1" :max="10" />
+            <el-input-number v-model="auctionForm.delayCycles" :min="1" :max="10" />
             <span class="tips">轮（临近结束时每次延长此轮数）</span>
           </el-form-item>
           
@@ -394,7 +394,7 @@ const auditForm = reactive({
 // 加载所有配置
 const loadAllConfig = async () => {
   try {
-    const data = await request.get('/admin/config/all')
+    const data = await request.get('/config/all')
     
     // 合并到各表单
     if (data.trade) Object.assign(tradeForm, data.trade)
@@ -403,24 +403,24 @@ const loadAllConfig = async () => {
     if (data.auction) Object.assign(auctionForm, data.auction)
     if (data.audit) Object.assign(auditForm, data.audit)
   } catch (e) {
-    console.log('使用默认配置')
+    ElMessage.error('配置加载失败')
   }
 }
 
 // 保存配置
 const handleSave = async () => {
   try {
-    await request.post('/admin/config/update', {
+    await request.post('/config/update', {
       trade: tradeForm,
       promotion: promotionForm,
       priceGrowth: priceForm,
       auction: auctionForm,
       audit: auditForm
     })
+    await loadAllConfig()
     ElMessage.success('配置保存成功')
   } catch (e) {
-    // 模拟保存成功
-    ElMessage.success('配置保存成功（已缓存）')
+    ElMessage.error('配置保存失败')
   }
 }
 

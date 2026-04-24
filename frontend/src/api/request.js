@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8080/api'
+const BASE_URL = 'http://localhost:8090/api'
 
 // 增加超时时间到 30 秒
 const TIMEOUT = 30000

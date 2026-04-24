@@ -1,8 +1,178 @@
 # 拾艺局 API 接口字段字典 V1.0
 
-> 文档版本：V1.0  
-> 更新时间：2026-04-23  
+> 文档版本：V1.2  
+> 更新时间：2026-04-24 13:07  
 > 项目地址：https://github.com/Mrarter/art12
+
+---
+
+## 修复记录
+
+### V1.2 (2026-04-24)
+1. **修复运营后台 Banner 列表显示 0 条问题**
+   - 问题：代理配置 `/api/admin/system` 错误映射为 `/admin/system/banner`
+   - 修复：调整为 `/admin` 前缀，正确映射到 `/admin/banner`
+   - 文件：`admin/vite.config.js`
+
+2. **修复小程序前端无法显示真实数据**
+   - 问题：缺少 `api/product.js` 文件，首页 API 调用失败
+   - 修复：创建完整的 API 定义文件
+   - 问题：Banner API 路径错误 `/banner/list` → `/product/homepage/banners`
+   - 文件：`test-miniprogram/api/product.js`, `test-miniprogram/services/home/home.js`
+
+3. **艺术家列表说明**
+   - API 正常工作，数据存在于数据库
+   - 默认显示 `pending`（待审核）tab，需切换到 `approved` 查看已认证艺术家
+
+---
+
+## 服务地址
+
+---
+
+## 一、服务地址
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| 后台管理 (admin) | 8090 | 运营后台 API |
+| 商品服务 (product) | 8082 | 作品/商品 API |
+| API 网关 | 8080 | 统一入口（未启用）|
+
+---
+
+## 二、已验证可用接口
+
+### 2.1 商品/作品服务 (localhost:8082)
+
+#### GET /product/list - 作品列表
+
+请求参数：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码，默认1 |
+| size | int | 否 | 每页数量，默认10 |
+| status | int | 否 | 状态：1-上架，0-下架 |
+
+响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "total": 22,
+    "records": [{
+      "id": 19,
+      "title": "远航",
+      "authorName": "王强",
+      "coverImage": "http://localhost:8087/upload/images/...",
+      "price": 0,
+      "originalPrice": 0,
+      "status": 1,
+      "isHot": false,
+      "isNew": true,
+      "artType": null,
+      "size": "100*80",
+      "year": 2024,
+      "createTime": "2026-04-20T18:22:57"
+    }]
+  }
+}
+```
+
+#### GET /product/banners - Banner轮播图
+
+响应示例：
+```json
+{
+  "code": 200,
+  "data": [{
+    "id": 5,
+    "title": "124",
+    "imageUrl": "http://localhost:8087/upload/images/...",
+    "linkType": "OTHER",
+    "linkValue": "2",
+    "sort": 1,
+    "status": 1
+  }]
+}
+```
+
+#### GET /product/{id} - 作品详情
+
+#### GET /product/recommend - 推荐作品
+
+#### GET /product/following - 关注作品
+
+#### GET /product/categories - 作品分类
+
+#### GET /product/search - 搜索作品
+
+#### POST /product/artwork/favorite/{id} - 收藏作品
+
+#### POST /product/artwork/unfavorite/{id} - 取消收藏
+
+#### POST /product/create - 创建作品
+
+### 2.2 后台管理服务 (localhost:8090)
+
+#### GET /admin/system/admin/list - 管理员列表
+
+响应示例：
+```json
+{
+  "code": 200,
+  "data": [{
+    "id": 1,
+    "username": "admin",
+    "email": "admin@shiyiju.com",
+    "phone": "13800000000",
+    "role": "super",
+    "status": 1,
+    "lastLoginTime": "2026-04-24T10:45:16",
+    "createTime": "2026-04-24T10:26:26"
+  }]
+}
+```
+
+#### GET /admin/permission/admins - 管理员列表（分页）
+
+#### POST /admin/system/admin - 添加管理员
+
+#### PUT /admin/system/admin/{id} - 更新管理员
+
+#### DELETE /admin/system/admin/{id} - 删除管理员
+
+#### GET /admin/banner/list - Banner列表
+
+#### POST /admin/banner - 添加Banner
+
+#### PUT /admin/banner/{id} - 更新Banner
+
+#### GET /admin/product/list - 后台作品列表
+
+#### PUT /admin/product/{id} - 更新作品
+
+---
+
+## 三、前端配置
+
+### 3.1 小程序配置 (test-miniprogram/config/index.js)
+
+```javascript
+export const config = {
+  useMock: false,  // 已关闭 Mock，使用真实 API
+  apiBase: 'http://localhost:8082',
+};
+```
+
+### 3.2 H5前端配置 (frontend/src/api/request.js)
+
+```javascript
+const BASE_URL = 'http://localhost:8090/api'
+```
+
+---
+
+*最后更新：2026-04-24*
 
 ---
 

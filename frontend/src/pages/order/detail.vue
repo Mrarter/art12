@@ -30,7 +30,7 @@
       </view>
       <view class="goods-list">
         <view class="goods-item" v-for="item in orderInfo.goodsList" :key="item.id" @click="goGoodsDetail(item.goodsId)">
-          <image class="goods-image" :src="item.goodsImage" mode="aspectFill"></image>
+          <image class="goods-image" :src="getFullImageUrl(item.goodsImage)" mode="aspectFill"></image>
           <view class="goods-info">
             <text class="goods-title">{{ item.goodsName }}</text>
             <text class="goods-spec" v-if="item.specName">{{ item.specName }}</text>
@@ -119,6 +119,7 @@
 
 <script>
 import { getOrderDetail, cancelOrder, confirmReceive } from '@/api/order.js'
+import { getFullImageUrl } from '@/utils/image.js'
 
 export default {
   data() {

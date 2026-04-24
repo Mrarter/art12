@@ -126,19 +126,30 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await request.get('/order/aftersale/list', { params: { page: pagination.page, size: pagination.size, status: status.value } })
-    tableData.value = data.list
-    pagination.total = data.total
+    // 状态映射：前端 pending->待处理, approved->已通过, rejected->已拒绝
+    // 后端参数：null=全部, 1=退款中, 2=已退款
+    const statusMap = { pending: 1, approved: 2, rejected: null }
+    const data = await request.get('/admin/order/aftersale/list', { 
+      params: { page: pagination.page, size: pagination.size, status: statusMap[status.value] } 
+    })
+    
+    // 处理返回数据，适配前端字段名
+    tableData.value = (data.records || []).map(item => ({
+      id: item.id,
+      orderNo: item.orderNo,
+      cover: item.coverImage || '',
+      artworkTitle: item.artworkTitle || item.goodsTitle || '',
+      buyerName: item.buyerName || item.buyerNickname || '',
+      type: item.type || 'refund',
+      amount: item.amount || item.payAmount || 0,
+      reason: item.reason || item.refundReason || '',
+      status: item.status === 'REFUNDING' ? 'pending' : item.status === 'REFUNDED' ? 'approved' : 'rejected',
+      createTime: item.createTime || item.applyTime || ''
+    }))
+    pagination.total = data.total || 0
   } catch (e) {
-    // 使用本地模拟数据
-    if (!tableData.value.length) {
-      tableData.value = [
-        { id: 1, orderNo: 'SYJ20240120001', cover: '', artworkTitle: '山水国画', buyerName: '张三', type: 'refund', amount: 58000, reason: '作品与描述不符', status: 'pending', createTime: '2024-01-21 10:00:00' },
-        { id: 2, orderNo: 'SYJ20240118002', cover: '', artworkTitle: '油画风景', buyerName: '李四', type: 'return', amount: 32000, reason: '不喜欢，想退货', status: 'pending', createTime: '2024-01-20 14:30:00' },
-        { id: 3, orderNo: 'SYJ20240115003', cover: '', artworkTitle: '书法对联', buyerName: '王五', type: 'refund', amount: 15000, reason: '未收到货', status: 'approved', createTime: '2024-01-15 09:00:00' }
-      ]
-      pagination.total = 3
-    }
+    console.error('加载售后列表失败', e)
+    tableData.value = []
   } finally {
     loading.value = false
   }
@@ -147,19 +158,41 @@ const loadData = async () => {
 const handleApprove = async (row) => {
   try {
     await ElMessageBox.confirm('确定通过该售后申请吗？', '提示', { type: 'success' })
-    // 本地更新
-    row.status = 'approved'
+    // 调用后端API保存
+    await request.post('/admin/order/aftersale/handle', {
+      id: row.id,
+      status: 1,  // 1=已通过
+      remark: '管理员通过'
+    })
     ElMessage.success('已通过')
-  } catch (e) {}
+    // 刷新列表
+    loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('操作失败')
+    }
+  }
 }
 
 const handleReject = async (row) => {
   try {
     await ElMessageBox.confirm('确定拒绝该售后申请吗？', '提示', { type: 'warning' })
-    // 本地更新
-    row.status = 'rejected'
+    // 调用后端API保存
+    await request.post('/admin/order/aftersale/handle', {
+      id: row.id,
+      status: 2,  // 2=已拒绝
+      remark: '管理员拒绝'
+    })
     ElMessage.success('已拒绝')
-  } catch (e) {}
+    // 关闭详情弹窗
+    detailVisible.value = false
+    // 刷新列表
+    loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('操作失败')
+    }
+  }
 }
 
 const viewDetail = (row) => {

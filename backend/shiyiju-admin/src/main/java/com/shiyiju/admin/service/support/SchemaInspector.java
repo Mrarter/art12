@@ -50,6 +50,12 @@ public class SchemaInspector {
         return columnCache.computeIfAbsent(tableName, this::detectColumns);
     }
 
+    public void evictColumns(String tableName) {
+        if (tableName != null) {
+            columnCache.remove(tableName);
+        }
+    }
+
     private String detectTable(String... candidates) {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();

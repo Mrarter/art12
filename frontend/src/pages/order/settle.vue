@@ -9,7 +9,7 @@
       </view>
 
       <view class="product-item" v-for="item in productList" :key="item.id">
-        <image class="product-img" :src="item.cover" mode="aspectFill"></image>
+        <image class="product-img" :src="getFullImageUrl(item.cover || item.coverImage)" mode="aspectFill"></image>
         <view class="product-info">
           <view class="product-title">{{ item.title }}</view>
           <view class="product-artist">{{ item.artist }}</view>
@@ -140,6 +140,8 @@
 </template>
 
 <script>
+import { getFullImageUrl } from '@/utils/image.js'
+
 export default {
   data() {
     return {

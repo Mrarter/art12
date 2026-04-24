@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component;
 public class AdminSchemaInitializer {
 
     private final JdbcTemplate jdbcTemplate;
+    private final SchemaInspector schemaInspector;
 
-    public AdminSchemaInitializer(JdbcTemplate jdbcTemplate) {
+    public AdminSchemaInitializer(JdbcTemplate jdbcTemplate, SchemaInspector schemaInspector) {
         this.jdbcTemplate = jdbcTemplate;
+        this.schemaInspector = schemaInspector;
     }
 
     @PostConstruct
@@ -27,6 +29,7 @@ public class AdminSchemaInitializer {
         seedRoles();
         seedSuperAdmin();
         seedMessageTemplates();
+        alignUserSchema();
     }
 
     private void createAdminRoleTable() {
@@ -140,9 +143,9 @@ public class AdminSchemaInitializer {
             INSERT INTO admin_user (username, password, email, phone, role_code, status)
             VALUES ('admin', 'admin123', 'admin@shiyiju.com', '13800000000', 'super', 1)
             ON DUPLICATE KEY UPDATE
-                email = COALESCE(admin_user.email, VALUES(email)),
-                phone = COALESCE(admin_user.phone, VALUES(phone)),
-                role_code = admin_user.role_code
+                email = IFNULL(email, VALUES(email)),
+                phone = IFNULL(phone, VALUES(phone)),
+                role_code = role_code
             """);
     }
 
@@ -161,5 +164,22 @@ public class AdminSchemaInitializer {
                 SELECT 1 FROM admin_message_template WHERE name = '艺术家认证结果'
             )
             """);
+    }
+
+    private void alignUserSchema() {
+        String userTable = schemaInspector.resolveTable("user-alignment", "users", "sys_user");
+        if (!schemaInspector.getColumns(userTable).isEmpty()) {
+            addColumnIfMissing(userTable, "artist_level", "ALTER TABLE " + userTable + " ADD COLUMN artist_level VARCHAR(20) DEFAULT NULL");
+            addColumnIfMissing(userTable, "promoter_level", "ALTER TABLE " + userTable + " ADD COLUMN promoter_level VARCHAR(20) DEFAULT NULL");
+            addColumnIfMissing(userTable, "total_commission", "ALTER TABLE " + userTable + " ADD COLUMN total_commission DECIMAL(12,2) DEFAULT 0");
+            addColumnIfMissing(userTable, "available_commission", "ALTER TABLE " + userTable + " ADD COLUMN available_commission DECIMAL(12,2) DEFAULT 0");
+        }
+    }
+
+    private void addColumnIfMissing(String tableName, String columnName, String ddl) {
+        if (!schemaInspector.hasColumn(tableName, columnName)) {
+            jdbcTemplate.execute(ddl);
+            schemaInspector.evictColumns(tableName);
+        }
     }
 }

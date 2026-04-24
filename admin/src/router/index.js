@@ -66,7 +66,7 @@ const routes = [
             path: 'category',
             name: 'Category',
             component: () => import('@/views/product/category.vue'),
-            meta: { title: '分类管理' }
+            meta: { title: '作品分类' }
           },
           {
             path: 'audit',

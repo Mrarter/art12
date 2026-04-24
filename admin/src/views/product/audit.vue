@@ -145,15 +145,11 @@ const loadData = async () => {
   try {
     const params = { page: pagination.page, size: pagination.size, auditStatus: status.value }
     const data = await request.get('/product/audit/list', { params })
-    tableData.value = data.list
-    pagination.total = data.total
+    tableData.value = data.list || []
+    pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = [
-      { artworkId: 'A101', title: '新作品1', artistName: '艺术家A', cover: '', categoryName: '国画', price: 28000, size: '100x80cm', material: '宣纸', year: '2024', description: '作品描述...', auditStatus: 'pending', createTime: '2024-01-20 10:00:00' },
-      { artworkId: 'A102', title: '新作品2', artistName: '艺术家B', cover: '', categoryName: '油画', price: 42000, size: '120x90cm', material: '布面油画', year: '2024', description: '作品描述...', auditStatus: 'approved', createTime: '2024-01-19 14:00:00' },
-      { artworkId: 'A103', title: '新作品3', artistName: '艺术家C', cover: '', categoryName: '书法', price: 15000, size: '四尺整张', material: '宣纸', year: '2024', description: '作品描述...', auditStatus: 'rejected', createTime: '2024-01-18 09:00:00' }
-    ]
-    pagination.total = 3
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -167,9 +163,9 @@ const viewDetail = (row) => {
 const handleApprove = async (row) => {
   try {
     await ElMessageBox.confirm('确定通过该作品审核吗？', '提示', { type: 'success' })
-    // 本地更新状态
-    row.auditStatus = 'approved'
+    await request.post('/product/audit/approve', { artworkId: row.artworkId })
     ElMessage.success('已通过审核')
+    await loadData()
   } catch (e) {}
 }
 
@@ -180,10 +176,12 @@ const handleReject = (row) => {
 }
 
 const handleApproveFromDetail = async () => {
-  // 本地更新状态
-  currentArtwork.value.auditStatus = 'approved'
-  ElMessage.success('已通过审核')
-  detailVisible.value = false
+  try {
+    await request.post('/product/audit/approve', { artworkId: currentArtwork.value.artworkId })
+    ElMessage.success('已通过审核')
+    detailVisible.value = false
+    await loadData()
+  } catch (e) {}
 }
 
 const handleRejectFromDetail = () => {
@@ -196,11 +194,16 @@ const confirmReject = async () => {
     ElMessage.warning('请输入拒绝原因')
     return
   }
-  // 本地更新状态
-  currentArtwork.value.auditStatus = 'rejected'
-  ElMessage.success('已拒绝')
-  rejectVisible.value = false
-  detailVisible.value = false
+  try {
+    await request.post('/product/audit/reject', {
+      artworkId: currentArtwork.value.artworkId,
+      reason: rejectReason.value
+    })
+    ElMessage.success('已拒绝')
+    rejectVisible.value = false
+    detailVisible.value = false
+    await loadData()
+  } catch (e) {}
 }
 
 onMounted(() => {

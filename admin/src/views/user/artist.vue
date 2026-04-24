@@ -294,26 +294,15 @@ const loadData = async () => {
     const data = await request.get('/user/artist/list', { params })
     tableData.value = data.records || data.list || []
     pagination.total = data.total || 0
-    
-    // 模拟各状态数量（实际应从接口获取）
-    if (activeTab.value === 'all') {
-      pendingCount.value = tableData.value.filter(t => t.status === 0 || t.status === 'pending').length
-      approvedCount.value = tableData.value.filter(t => t.status === 1 || t.status === 'approved').length
-      rejectedCount.value = tableData.value.filter(t => t.status === 2 || t.status === 'rejected').length
-    }
+    pendingCount.value = data.pendingCount || 0
+    approvedCount.value = data.approvedCount || 0
+    rejectedCount.value = data.rejectedCount || 0
   } catch (e) {
-    // 模拟数据
-    tableData.value = [
-      { id: 1, nickname: '张大千', phone: '13800138001', avatar: '', realName: '张伟', idCard: '110101199001011234', status: 1, badge: 'master', certified: true, createTime: '2024-01-20 10:00:00', resume: '著名国画大师', images: '' },
-      { id: 2, nickname: '李娜', phone: '13800138002', avatar: '', realName: '李娜', idCard: '110101199002022345', status: 1, badge: 'popular', certified: true, createTime: '2024-01-19 14:30:00', resume: '专注油画创作', images: '' },
-      { id: 3, nickname: '王强', phone: '13800138003', avatar: '', realName: '王强', idCard: '110101199003033456', status: 0, badge: '', certified: false, createTime: '2024-01-18 09:15:00', resume: '书法爱好者', images: '' },
-      { id: 4, nickname: '赵敏', phone: '13800138004', avatar: '', realName: '赵敏', idCard: '110101199004044567', status: 2, badge: '', certified: false, createTime: '2024-01-17 11:20:00', resume: '版画创作者', images: '' },
-      { id: 5, nickname: '钱多多', phone: '13800138005', avatar: '', realName: '钱伟', idCard: '110101199005055678', status: 1, badge: 'verified', certified: true, createTime: '2024-01-16 16:45:00', resume: '雕塑艺术家', images: '' }
-    ]
-    pagination.total = 5
-    pendingCount.value = 1
-    approvedCount.value = 3
-    rejectedCount.value = 1
+    tableData.value = []
+    pagination.total = 0
+    pendingCount.value = 0
+    approvedCount.value = 0
+    rejectedCount.value = 0
   } finally {
     loading.value = false
   }
@@ -334,13 +323,8 @@ const handleApprove = async (row) => {
     await ElMessageBox.confirm('确定通过该艺术家认证吗？', '提示', { type: 'success' })
     await request.post('/user/artist/approve', { id: row.id })
     ElMessage.success('已通过认证')
-    loadData()
-  } catch (e) {
-    // 本地模拟
-    row.status = 1
-    row.certified = true
-    ElMessage.success('已通过认证')
-  }
+    await loadData()
+  } catch (e) {}
 }
 
 const handleReject = (row) => {
@@ -358,14 +342,8 @@ const confirmReject = async () => {
     await request.post('/user/artist/reject', { id: currentRecord.value.id, reason: rejectReason.value })
     ElMessage.success('已拒绝')
     rejectVisible.value = false
-    loadData()
-  } catch (e) {
-    // 本地模拟
-    currentRecord.value.status = 2
-    currentRecord.value.certified = false
-    ElMessage.success('已拒绝')
-    rejectVisible.value = false
-  }
+    await loadData()
+  } catch (e) {}
 }
 
 // 取消认证
@@ -374,14 +352,8 @@ const handleRevoke = async (row) => {
     await ElMessageBox.confirm('确定取消该艺术家认证吗？', '提示', { type: 'warning' })
     await request.post('/user/artist/revoke', { id: row.id })
     ElMessage.success('已取消认证')
-    loadData()
-  } catch (e) {
-    // 本地模拟
-    row.status = 0
-    row.certified = false
-    row.badge = ''
-    ElMessage.success('已取消认证')
-  }
+    await loadData()
+  } catch (e) {}
 }
 
 // 重新认证
@@ -390,12 +362,8 @@ const handleReapply = async (row) => {
     await ElMessageBox.confirm('确定重新发起认证吗？', '提示', { type: 'info' })
     await request.post('/user/artist/reapply', { id: row.id })
     ElMessage.success('已重新发起认证')
-    loadData()
-  } catch (e) {
-    // 本地模拟
-    row.status = 0
-    ElMessage.success('已重新发起认证')
-  }
+    await loadData()
+  } catch (e) {}
 }
 
 // 添加艺术家
@@ -409,30 +377,12 @@ const confirmAdd = async () => {
   if (!valid) return
 
   try {
-    await request.post('/user/artist/add', addForm)
-    ElMessage.success('添加成功')
+    const result = await request.post('/user/artist/add', addForm)
+    const msg = result.message || (result.isNewUser ? `新用户已创建，用户ID：${result.userId}` : `用户ID：${result.userId}`)
+    ElMessage.success({ message: '添加成功！' + msg, duration: 5000 })
     addVisible.value = false
-    loadData()
-  } catch (e) {
-    // 本地模拟
-    const newId = Math.max(...tableData.value.map(t => t.id), 0) + 1
-    tableData.value.unshift({
-      id: newId,
-      nickname: addForm.realName,
-      phone: addForm.phone,
-      realName: addForm.realName,
-      idCard: addForm.idCard,
-      badge: addForm.badge,
-      resume: addForm.resume,
-      status: addForm.badge ? 1 : 0,  // 选择等级则直接认证
-      certified: !!addForm.badge,
-      createTime: new Date().toLocaleString('zh-CN'),
-      images: ''
-    })
-    pagination.total++
-    ElMessage.success('添加成功')
-    addVisible.value = false
-  }
+    await loadData()
+  } catch (e) {}
 }
 
 // 设置等级
@@ -450,13 +400,8 @@ const confirmBadge = async () => {
     })
     ElMessage.success('等级设置成功')
     badgeVisible.value = false
-    loadData()
-  } catch (e) {
-    // 本地模拟
-    currentRecord.value.badge = selectedBadge.value
-    ElMessage.success('等级设置成功')
-    badgeVisible.value = false
-  }
+    await loadData()
+  } catch (e) {}
 }
 
 onMounted(() => {

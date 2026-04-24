@@ -3,6 +3,10 @@
     <div class="page-header">
       <span class="title">用户管理</span>
       <div class="header-actions">
+        <el-button type="primary" @click="openAddDialog">
+          <el-icon><Plus /></el-icon>
+          添加用户
+        </el-button>
         <el-button type="primary" @click="exportData">
           <el-icon><Download /></el-icon>
           导出数据
@@ -69,24 +73,30 @@
     <!-- 用户列表 -->
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="userId" label="用户ID" width="100" />
-      <el-table-column label="用户信息" min-width="200">
+      <el-table-column label="用户信息" min-width="220">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="row.avatar" :size="50" />
+            <el-avatar :src="row.avatar" :size="50" class="clickable-avatar" @click="copyId(row)" />
             <div class="user-detail">
               <p class="nickname">
                 {{ row.nickname }}
                 <el-tag v-if="row.isVip" type="warning" size="small">VIP</el-tag>
               </p>
-              <p class="user-id">ID: {{ row.userId }}</p>
+              <p class="user-id" :title="row.openId || row.userId">ID: {{ row.openId ? (row.openId.slice(0, 16) + '...') : row.userId }}</p>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="联系方式" width="140">
+      <el-table-column label="联系方式" width="160">
         <template #default="{ row }">
-          <p>{{ row.phone || '-' }}</p>
-          <p class="email" v-if="row.email">{{ row.email }}</p>
+          <p class="contact-item">
+            <el-icon><Phone /></el-icon>
+            <span @click="copyText(row.phone, '手机号')" class="clickable-text">{{ row.phone || '-' }}</span>
+          </p>
+          <p class="contact-item" v-if="row.email">
+            <el-icon><Message /></el-icon>
+            <span @click="copyText(row.email, '邮箱')" class="clickable-text">{{ row.email }}</span>
+          </p>
         </template>
       </el-table-column>
       <el-table-column label="身份" width="140">
@@ -197,26 +207,49 @@
         <el-button type="primary" @click="saveEdit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 添加用户弹窗 -->
+    <el-dialog v-model="addVisible" title="添加用户" width="450px" destroy-on-close>
+      <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="90px">
+        <el-alert type="info" :closable="false" style="margin-bottom: 15px;">
+          创建后默认身份为收藏者，可通过编辑功能添加其他身份
+        </el-alert>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="addForm.phone" placeholder="请输入手机号" />
+        </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="addForm.nickname" placeholder="可选，默认为\"用户\"+手机号后4位" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addVisible = false">取消</el-button>
+        <el-button type="primary" :loading="addLoading" @click="handleAdd">确认添加</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download } from '@element-plus/icons-vue'
+import { Download, Plus, Phone, Message } from '@element-plus/icons-vue'
+import request from '@/api/request'
 
 const loading = ref(false)
 const tableData = ref([])
 const detailVisible = ref(false)
 const editVisible = ref(false)
+const addVisible = ref(false)
+const addLoading = ref(false)
 const currentUser = ref({})
 const editFormRef = ref()
+const addFormRef = ref()
 
 const stats = reactive({
-  total: 12580,
-  artist: 856,
-  promoter: 342,
-  todayNew: 28
+  total: 0,
+  artist: 0,
+  promoter: 0,
+  todayNew: 0
 })
 
 const searchForm = reactive({
@@ -234,6 +267,15 @@ const editForm = reactive({
   remark: ''
 })
 
+const addForm = reactive({
+  phone: '',
+  nickname: ''
+})
+
+const addRules = {
+  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }]
+}
+
 const editRules = {
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }]
@@ -250,21 +292,51 @@ const getSourceText = (source) => {
   return map[source] || source
 }
 
+// 复制用户ID
+const copyId = async (row) => {
+  const id = row.openId || row.userId
+  try {
+    await navigator.clipboard.writeText(id)
+    ElMessage.success('已复制用户ID')
+  } catch {
+    ElMessage.info('用户ID: ' + id)
+  }
+}
+
+// 复制文本
+const copyText = async (text, label) => {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(`已复制${label}`)
+  } catch {
+    ElMessage.info(`${label}: ${text}`)
+  }
+}
+
 const loadData = async () => {
   loading.value = true
   try {
-    // 实际API调用
-    // const data = await request.get('/user/list', { params: {...pagination, ...searchForm} })
+    const params = {
+      page: pagination.page,
+      size: pagination.size,
+      userId: searchForm.userId || undefined,
+      nickname: searchForm.nickname || undefined,
+      phone: searchForm.phone || undefined,
+      identity: searchForm.identity || undefined,
+      startDate: searchForm.dateRange?.[0] || undefined,
+      endDate: searchForm.dateRange?.[1] || undefined
+    }
+    const [data, statsData] = await Promise.all([
+      request.get('/user/list', { params }),
+      request.get('/user/stats')
+    ])
+    tableData.value = data.records || []
+    pagination.total = data.total || 0
+    Object.assign(stats, statsData)
   } catch (e) {
-    // 模拟数据
-    tableData.value = [
-      { userId: 10001, nickname: '艺术收藏家', avatar: '', phone: '13800138001', email: 'collector@test.com', isVip: true, isArtist: true, isPromoter: false, balance: 5000, couponCount: 5, totalConsume: 125000, orderCount: 12, registerTime: '2023-06-15 10:30:00', source: 'wechat', status: 'normal' },
-      { userId: 10002, nickname: '油画爱好者', avatar: '', phone: '13800138002', email: '', isVip: false, isArtist: false, isPromoter: true, balance: 1200, couponCount: 2, totalConsume: 35000, orderCount: 5, registerTime: '2023-07-20 14:20:00', source: 'app', status: 'normal' },
-      { userId: 10003, nickname: '画家李明', avatar: '', phone: '13800138003', email: 'liming@test.com', isVip: true, isArtist: true, isPromoter: false, balance: 28000, couponCount: 0, totalConsume: 5000, orderCount: 1, registerTime: '2023-08-10 09:15:00', source: 'wechat', status: 'normal' },
-      { userId: 10004, nickname: '张三', avatar: '', phone: '13800138004', email: '', isVip: false, isArtist: false, isPromoter: false, balance: 500, couponCount: 1, totalConsume: 8800, orderCount: 2, registerTime: '2023-09-05 16:45:00', source: 'web', status: 'normal' },
-      { userId: 10005, nickname: '艺术推手', avatar: '', phone: '13800138005', email: '', isVip: true, isArtist: false, isPromoter: true, balance: 15000, couponCount: 8, totalConsume: 68000, orderCount: 8, registerTime: '2023-10-12 11:30:00', source: 'wechat', status: 'normal' }
-    ]
-    pagination.total = 5
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -283,6 +355,36 @@ const resetSearch = () => {
 const exportData = () => {
   ElMessage.info('正在导出数据...')
   // TODO: 实现导出功能
+}
+
+// 打开添加用户弹窗
+const openAddDialog = () => {
+  Object.assign(addForm, { phone: '', nickname: '' })
+  addVisible.value = true
+}
+
+// 添加用户
+const handleAdd = async () => {
+  const valid = await addFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  try {
+    addLoading.value = true
+    // 调用创建用户接口
+    const result = await request.post('/user/create', addForm)
+    // 如果返回了 userId，说明创建成功
+    if (result.userId) {
+      ElMessage.success({ message: '用户创建成功！用户ID：' + result.userId, duration: 5000 })
+    } else {
+      ElMessage.info(result.message || '用户已存在')
+    }
+    addVisible.value = false
+    await loadData()
+  } catch (e) {
+    ElMessage.error('创建失败：' + (e.message || '未知错误'))
+  } finally {
+    addLoading.value = false
+  }
 }
 
 const viewDetail = (row) => {
@@ -308,22 +410,30 @@ const saveEdit = async () => {
   const valid = await editFormRef.value?.validate().catch(() => false)
   if (!valid) return
 
-  // 本地模拟更新
-  currentUser.value.nickname = editForm.nickname
-  currentUser.value.phone = editForm.phone
-  currentUser.value.isArtist = editForm.identities.includes('artist')
-  currentUser.value.isPromoter = editForm.identities.includes('promoter')
-  
-  editVisible.value = false
-  ElMessage.success('保存成功')
-  loadData()
+  try {
+    await request.put(`/user/${currentUser.value.userId}`, {
+      nickname: editForm.nickname,
+      phone: editForm.phone,
+      identities: editForm.identities,
+      remark: editForm.remark
+    })
+    editVisible.value = false
+    await loadData()
+    ElMessage.success('保存成功')
+  } catch (e) {
+    ElMessage.error('保存失败')
+  }
 }
 
 const toggleStatus = async (row) => {
   const action = row.status === 'normal' ? '禁用' : '启用'
   try {
     await ElMessageBox.confirm(`确定要${action}该用户吗？`, '提示', { type: 'warning' })
-    row.status = row.status === 'normal' ? 'disabled' : 'normal'
+    await request.post('/user/updateStatus', {
+      userId: row.userId,
+      status: row.status === 'normal' ? 0 : 1
+    })
+    await loadData()
     ElMessage.success(`${action}成功`)
   } catch (e) {}
 }
@@ -386,6 +496,15 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
 
+  .clickable-avatar {
+    cursor: pointer;
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
   .user-detail {
     .nickname {
       font-weight: 500;
@@ -399,6 +518,31 @@ onMounted(() => {
       font-size: 12px;
       color: #999;
       margin: 0;
+      cursor: pointer;
+
+      &:hover {
+        color: #409eff;
+      }
+    }
+  }
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+
+  .el-icon {
+    color: #909399;
+  }
+
+  .clickable-text {
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #409eff;
     }
   }
 }

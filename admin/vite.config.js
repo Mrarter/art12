@@ -24,13 +24,14 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      // 系统管理接口 -> admin服务(8090) (处理 /api/admin/system/xxx -> /admin/banner/xxx)
+      // 系统管理接口 -> admin服务(8090)
+      // Banner管理: /api/admin/system/banner/xxx -> /admin/banner/xxx
       '/api/admin/system': {
         target: 'http://localhost:8090',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/admin\/system/, '/admin')
       },
-      // 管理员接口 -> admin服务(8090)
+      // 管理员接口 -> admin服务(8090) (处理 /api/admin/xxx -> /admin/xxx)
       '/api/admin': {
         target: 'http://localhost:8090',
         changeOrigin: true,

@@ -34,7 +34,7 @@
             <span>作品管理</span>
           </template>
           <el-menu-item index="/product/list">作品列表</el-menu-item>
-          <el-menu-item index="/product/category">分类管理</el-menu-item>
+          <el-menu-item index="/product/category">作品分类</el-menu-item>
           <el-menu-item index="/product/audit">审核管理</el-menu-item>
         </el-sub-menu>
         

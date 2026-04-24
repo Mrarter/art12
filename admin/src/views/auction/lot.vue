@@ -294,6 +294,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-container {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.page-header .title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.search-form {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .artwork-info {
   display: flex;
   gap: 10px;

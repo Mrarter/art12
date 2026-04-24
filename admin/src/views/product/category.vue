@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <span class="title">分类管理</span>
+      <span class="title">作品分类</span>
       <el-button type="primary" @click="showDialog('add')">添加分类</el-button>
     </div>
     
@@ -92,16 +92,7 @@ const loadData = async () => {
   try {
     tableData.value = await request.get('/product/categories')
   } catch (e) {
-    // 使用本地模拟数据
-    if (!tableData.value.length) {
-      tableData.value = [
-        { id: 1, name: '国画', icon: 'Picture', weight: 100, artworkCount: 256, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 2, name: '油画', icon: 'Picture', weight: 90, artworkCount: 189, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 3, name: '书法', icon: 'EditPen', weight: 80, artworkCount: 145, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 4, name: '版画', icon: 'Picture', weight: 70, artworkCount: 78, status: 1, createTime: '2023-01-01 00:00:00' },
-        { id: 5, name: '雕塑', icon: 'Box', weight: 60, artworkCount: 56, status: 1, createTime: '2023-01-01 00:00:00' }
-      ]
-    }
+    tableData.value = []
   } finally {
     loading.value = false
   }
@@ -124,24 +115,14 @@ const handleSubmit = async () => {
   
   try {
     if (isEdit.value) {
-      // 本地更新
-      const index = tableData.value.findIndex(item => item.id === form.id)
-      if (index > -1) {
-        tableData.value[index] = { ...tableData.value[index], ...form }
-        ElMessage.success('更新成功')
-      }
+      await request.put(`/product/categories/${form.id}`, form)
+      ElMessage.success('更新成功')
     } else {
-      // 本地添加
-      const newId = Math.max(...tableData.value.map(item => item.id), 0) + 1
-      tableData.value.unshift({
-        id: newId,
-        ...form,
-        artworkCount: 0,
-        createTime: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-')
-      })
+      await request.post('/product/categories', form)
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    await loadData()
   } catch (e) {
     ElMessage.error('操作失败')
   }
@@ -150,12 +131,9 @@ const handleSubmit = async () => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该分类吗？', '提示', { type: 'warning' })
-    // 本地删除
-    const index = tableData.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      ElMessage.success('删除成功')
-    }
+    await request.delete(`/product/categories/${row.id}`)
+    ElMessage.success('删除成功')
+    await loadData()
   } catch (e) {}
 }
 

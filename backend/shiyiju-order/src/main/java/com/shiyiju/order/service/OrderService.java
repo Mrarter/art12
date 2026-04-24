@@ -18,7 +18,9 @@ import com.shiyiju.order.vo.CartVO;
 import com.shiyiju.order.vo.OrderItemVO;
 import com.shiyiju.order.vo.OrderVO;
 import com.shiyiju.common.entity.Artwork;
+import com.shiyiju.common.entity.User;
 import com.shiyiju.common.mapper.ArtworkMapper;
+import com.shiyiju.common.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -42,6 +44,7 @@ public class OrderService {
     private final CartMapper cartMapper;
     private final AddressMapper addressMapper;
     private final ArtworkMapper artworkMapper;
+    private final UserMapper userMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final WxPayService wxPayService;
 
@@ -310,6 +313,19 @@ public class OrderService {
         order.setSource(dto.getCartIds() != null ? OrderConstant.SOURCE_CART : OrderConstant.SOURCE_DIRECT);
         order.setStatus(OrderConstant.STATUS_PENDING_PAYMENT);
         order.setCreateTime(LocalDateTime.now());
+        
+        // 设置卖家信息（从第一个订单项的作者获取）
+        if (!orderItems.isEmpty()) {
+            OrderItem firstItem = orderItems.get(0);
+            if (firstItem.getArtistId() != null) {
+                User seller = userMapper.selectById(firstItem.getArtistId());
+                if (seller != null) {
+                    order.setSellerName(seller.getNickname());
+                    order.setSellerAvatar(seller.getAvatar());
+                }
+            }
+        }
+        
         orderMapper.insert(order);
 
         // 保存订单项
@@ -786,10 +802,23 @@ public class OrderService {
         vo.setSourceText(getSourceText(order.getSource()));
         vo.setStatusText(getStatusText(order.getStatus()));
 
-        // 卖家信息（从第一个订单项获取）
+        // 卖家信息（从第一个订单项的作者获取）
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId())
         );
+        
+        // 如果订单没有卖家信息，尝试从订单项获取
+        if ((order.getSellerName() == null || order.getSellerName().isEmpty()) && !items.isEmpty()) {
+            OrderItem firstItem = items.get(0);
+            if (firstItem.getArtistId() != null) {
+                User seller = userMapper.selectById(firstItem.getArtistId());
+                if (seller != null) {
+                    order.setSellerName(seller.getNickname());
+                    order.setSellerAvatar(seller.getAvatar());
+                }
+            }
+        }
+        
         vo.setItems(items.stream().map(item -> {
             OrderItemVO itemVO = new OrderItemVO();
             itemVO.setId(item.getId());
@@ -801,13 +830,12 @@ public class OrderService {
             itemVO.setPrice(item.getPrice());
             itemVO.setQuantity(item.getQuantity());
             itemVO.setSubtotal(item.getSubtotal());
-            // 从订单获取卖家信息设置到第一个商品
-            if (vo.getSellerName() == null && order.getSellerName() != null) {
-                vo.setSellerName(order.getSellerName());
-                vo.setSellerAvatar(order.getSellerAvatar());
-            }
             return itemVO;
         }).collect(Collectors.toList()));
+
+        // 设置卖家信息到VO
+        vo.setSellerName(order.getSellerName());
+        vo.setSellerAvatar(order.getSellerAvatar());
 
         return vo;
     }

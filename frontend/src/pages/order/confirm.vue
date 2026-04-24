@@ -3,7 +3,7 @@
     <!-- 商品信息 -->
     <view class="goods-section card" v-if="goodsType === 'direct'">
       <view class="goods-item" v-for="item in goodsList" :key="item.id">
-        <image class="goods-image" :src="item.coverImage"></image>
+        <image class="goods-image" :src="getFullImageUrl(item.coverImage)" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-title">{{ item.title }}</text>
           <text class="goods-meta">{{ item.artType }} · {{ item.size }}</text>
@@ -17,7 +17,7 @@
     
     <view class="goods-section card" v-else>
       <view class="goods-item" v-for="item in goodsList" :key="item.id">
-        <image class="goods-image" :src="item.coverImage"></image>
+        <image class="goods-image" :src="getFullImageUrl(item.coverImage)" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-title">{{ item.title }}</text>
           <text class="goods-meta">{{ item.artType }}</text>
@@ -104,6 +104,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getProductDetail } from '@/api/product'
 import { getCartList, getAddressList, createOrderFromCart, directBuy } from '@/api/order'
 import { useUserStore } from '@/store/modules/user'
+import { getFullImageUrl } from '@/utils/image'
 
 const userStore = useUserStore()
 

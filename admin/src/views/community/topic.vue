@@ -114,29 +114,28 @@ const showDialog = (type, row = null) => {
 const handleSubmit = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
-  
+
   try {
     if (isEdit.value) {
-      // 本地更新
-      const index = tableData.value.findIndex(item => item.topicId === form.topicId)
-      if (index > -1) {
-        tableData.value[index] = { ...tableData.value[index], ...form }
-        ElMessage.success('更新成功')
-      }
+      await request.post('/community/topic/update', {
+        topicId: form.topicId,
+        name: form.name,
+        description: form.description,
+        status: form.status
+      })
+      ElMessage.success('更新成功')
     } else {
-      // 本地添加
-      const newId = Math.max(...tableData.value.map(item => item.topicId), 0) + 1
-      tableData.value.unshift({
-        topicId: newId,
-        ...form,
-        postCount: 0,
-        viewCount: 0,
-        createTime: new Date().toLocaleString('zh-CN').replace(/\//g, '-')
+      await request.post('/community/topic/create', {
+        name: form.name,
+        description: form.description,
+        status: form.status
       })
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    loadData()
   } catch (e) {
+    console.error('操作失败', e)
     ElMessage.error('操作失败')
   }
 }
@@ -144,13 +143,12 @@ const handleSubmit = async () => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该话题吗？', '提示', { type: 'warning' })
-    // 本地删除
-    const index = tableData.value.findIndex(item => item.topicId === row.topicId)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      ElMessage.success('删除成功')
-    }
-  } catch (e) {}
+    await request.post('/community/topic/delete', { topicId: row.topicId })
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (e) {
+    console.error('删除失败', e)
+  }
 }
 
 onMounted(() => {

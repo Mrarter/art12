@@ -115,13 +115,7 @@ const loadData = async () => {
   try {
     tableData.value = await request.get('/system/admin/list')
   } catch (e) {
-    // 使用本地模拟数据
-    if (!tableData.value.length) {
-      tableData.value = [
-        { id: 1, username: 'admin', email: 'admin@shiyiju.com', phone: '13800000000', role: 'super', status: 1, lastLoginTime: '2024-01-21 10:00:00', createTime: '2023-01-01 00:00:00' },
-        { id: 2, username: 'operator', email: 'op@shiyiju.com', phone: '13800000001', role: 'admin', status: 1, lastLoginTime: '2024-01-20 15:30:00', createTime: '2023-06-01 00:00:00' }
-      ]
-    }
+    tableData.value = []
   } finally {
     loading.value = false
   }
@@ -144,28 +138,26 @@ const handleSubmit = async () => {
   
   try {
     if (isEdit.value) {
-      // 本地更新
-      const index = tableData.value.findIndex(item => item.id === form.id)
-      if (index > -1) {
-        tableData.value[index] = { ...tableData.value[index], email: form.email, phone: form.phone, role: form.role, status: form.status }
-        ElMessage.success('更新成功')
-      }
-    } else {
-      // 本地添加
-      const newId = Math.max(...tableData.value.map(item => item.id), 0) + 1
-      tableData.value.unshift({
-        id: newId,
-        username: form.username,
+      await request.put(`/system/admin/${form.id}`, {
         email: form.email,
         phone: form.phone,
         role: form.role,
-        status: form.status,
-        lastLoginTime: '-',
-        createTime: new Date().toLocaleString('zh-CN').replace(/\//g, '-')
+        status: form.status
+      })
+      ElMessage.success('更新成功')
+    } else {
+      await request.post('/system/admin', {
+        username: form.username,
+        password: form.password,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        status: form.status
       })
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    await loadData()
   } catch (e) {
     ElMessage.error('操作失败')
   }
@@ -178,12 +170,9 @@ const handleDelete = async (row) => {
   }
   try {
     await ElMessageBox.confirm('确定要删除该管理员吗？', '提示', { type: 'warning' })
-    // 本地删除
-    const index = tableData.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      ElMessage.success('删除成功')
-    }
+    await request.delete(`/system/admin/${row.id}`)
+    ElMessage.success('删除成功')
+    await loadData()
   } catch (e) {}
 }
 

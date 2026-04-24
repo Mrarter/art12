@@ -7,12 +7,28 @@ function mockFetchGoodCategory() {
   return delay().then(() => getCategoryList());
 }
 
+/** 分类列表 - 真实API */
+function realFetchGoodCategory() {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${config.apiBase}/product/categories`,
+      method: 'GET',
+      success: (res) => {
+        if (res.statusCode === 200) {
+          resolve(res.data?.data || []);
+        } else {
+          reject(res);
+        }
+      },
+      fail: reject
+    });
+  });
+}
+
 /** 获取商品列表 */
 export function getCategoryList() {
   if (config.useMock) {
     return mockFetchGoodCategory();
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return realFetchGoodCategory();
 }

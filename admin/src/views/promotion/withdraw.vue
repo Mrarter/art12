@@ -199,10 +199,13 @@ const resetSearch = () => {
 const handleApprove = async (row) => {
   try {
     await ElMessageBox.confirm('确定通过该提现申请吗？', '提示', { type: 'success' })
-    // 本地更新
-    row.status = 'approved'
+    await request.post('/promotion/withdraw/approve', { id: row.id })
+    detailVisible.value = false
     ElMessage.success('已通过')
-  } catch (e) {}
+    loadData()
+  } catch (e) {
+    console.error('通过失败', e)
+  }
 }
 
 const handleReject = (row) => {
@@ -216,10 +219,18 @@ const confirmReject = async () => {
     ElMessage.warning('请输入拒绝原因')
     return
   }
-  // 本地更新
-  currentRecord.value.status = 'rejected'
-  ElMessage.success('已拒绝')
-  rejectVisible.value = false
+  try {
+    await request.post('/promotion/withdraw/reject', {
+      id: currentRecord.value.id,
+      reason: rejectReason.value
+    })
+    ElMessage.success('已拒绝')
+    rejectVisible.value = false
+    detailVisible.value = false
+    loadData()
+  } catch (e) {
+    console.error('拒绝失败', e)
+  }
 }
 
 const viewDetail = (row) => {

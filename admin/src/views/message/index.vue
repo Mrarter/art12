@@ -407,39 +407,17 @@ const loadData = async () => {
     ])
     messageList.value = messageRes.records || messageRes.list || []
     pagination.total = messageRes.total || 0
-    templateList.value = templateRes.list || []
-    Object.assign(stats, statsRes)
+    templateList.value = Array.isArray(templateRes) ? templateRes : (templateRes.list || [])
+    Object.assign(stats, statsRes || {})
   } catch (error) {
     console.error('加载数据失败', error)
-    mockData()
+    messageList.value = []
+    templateList.value = []
+    pagination.total = 0
+    Object.assign(stats, { total: 0, todaySent: 0, pending: 0, failed: 0 })
   } finally {
     loading.value = false
   }
-}
-
-const mockData = () => {
-  stats.total = 15680
-  stats.todaySent = 328
-  stats.pending = 12
-  stats.failed = 45
-
-  templateList.value = [
-    { id: 1, name: '订单支付成功', type: 'order', title: '订单支付成功通知', content: '尊敬的{username}，您的订单{orderNo}已支付成功，金额{amount}元', status: 1 },
-    { id: 2, name: '订单发货通知', type: 'order', title: '订单已发货', content: '尊敬的{username}，您的订单{orderNo}已发货，快递单号：{expressNo}', status: 1 },
-    { id: 3, name: '拍卖开始提醒', type: 'auction', title: '拍卖即将开始', content: '{username}，您关注的【{lotTitle}】拍卖即将开始，快来参与吧！', status: 1 },
-    { id: 4, name: '竞拍成功通知', type: 'auction', title: '恭喜竞拍成功', content: '恭喜{username}，您成功竞得【{lotTitle}】，成交价{price}元', status: 1 },
-    { id: 5, name: '艺术家认证结果', type: 'audit', title: '认证审核结果', content: '{username}，您的艺术家认证申请已{result}，{reason}', status: 1 },
-    { id: 6, name: '系统公告', type: 'system', title: '系统维护通知', content: '【系统维护】{content}，给您带来不便敬请谅解。', status: 1 }
-  ]
-
-  messageList.value = [
-    { id: 1001, type: 'system', title: '系统升级通知', content: '平台将于本周日凌晨2:00-6:00进行系统升级，届时部分功能将暂停使用。', targetType: 'all', sentAt: '2026-04-21 10:00:00', status: 'sent', push: true, sms: false, email: false, successCount: 15680, failCount: 0 },
-    { id: 1002, type: 'order', title: '订单发货通知', content: '您的订单ORD20260420001已发货，快递单号SF1234567890', targetType: 'single', nickname: '收藏家A', userAvatar: '', sentAt: '2026-04-21 09:30:00', status: 'sent', push: true, sms: true, email: false, successCount: 1, failCount: 0 },
-    { id: 1003, type: 'auction', title: '拍卖即将开始', content: '【当代艺术精品专场】将于今晚8点开始，快来参与吧！', targetType: 'group', groupName: '活跃用户', sentAt: '2026-04-21 08:00:00', status: 'sent', push: true, sms: false, email: false, successCount: 856, failCount: 12 },
-    { id: 1004, type: 'audit', title: '艺术家认证通过', content: '恭喜您通过艺术家认证，现在可以发布作品了！', targetType: 'single', nickname: '画家张三', userAvatar: '', sentAt: '2026-04-20 16:30:00', status: 'sent', push: true, sms: false, email: false, successCount: 1, failCount: 0 },
-    { id: 1005, type: 'activity', title: '五一活动预告', content: '五一期间全场作品享8折优惠，详情请点击查看。', targetType: 'all', createTime: '2026-04-21 14:00:00', status: 'pending', push: true, sms: false, email: false, successCount: 0, failCount: 0 }
-  ]
-  pagination.total = messageList.value.length
 }
 
 const showSendDialog = () => {
@@ -481,10 +459,14 @@ const editTemplate = (row) => {
 }
 
 const useTemplate = (row) => {
+  sendDialogVisible.value = true
   sendForm.type = row.type
   sendForm.title = row.title
   sendForm.content = row.content
-  showSendDialog()
+  sendForm.targetType = 'all'
+  sendForm.methods = ['push']
+  sendForm.timing = false
+  sendForm.sendTime = ''
 }
 
 const confirmTemplate = async () => {

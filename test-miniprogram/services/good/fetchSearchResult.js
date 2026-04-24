@@ -27,12 +27,41 @@ function mockSearchResult(params) {
   });
 }
 
+/** 搜索结果 - 真实API */
+function realSearchResult(params) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${config.apiBase}/product/search`,
+      data: params,
+      method: 'GET',
+      success: (res) => {
+        if (res.statusCode === 200) {
+          const records = res.data?.data?.records || [];
+          resolve({
+            spuList: records.map(item => ({
+              spuId: item.id,
+              thumb: item.coverImage,
+              title: item.title,
+              price: item.price || 0,
+              originPrice: item.originalPrice || 0,
+              authorName: item.authorName,
+              tags: [],
+            })),
+            totalCount: res.data?.data?.total || 0,
+          });
+        } else {
+          reject(res);
+        }
+      },
+      fail: reject
+    });
+  });
+}
+
 /** 获取搜索历史 */
 export function getSearchResult(params) {
   if (config.useMock) {
     return mockSearchResult(params);
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return realSearchResult(params);
 }

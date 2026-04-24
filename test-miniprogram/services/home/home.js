@@ -42,12 +42,41 @@ function mockFetchHome() {
   });
 }
 
+/** 获取首页数据 - 真实API */
+function realFetchHome() {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${config.apiBase}/product/homepage/banners`,
+      method: 'GET',
+      success: (res) => {
+        if (res.statusCode === 200) {
+          const banners = res.data?.data || [];
+          resolve({
+            swiper: banners.map(item => ({
+              imgUrl: item.imageUrl,
+              title: item.title,
+              linkType: item.linkType,
+              linkValue: item.linkValue,
+            })),
+            tabList: [
+              { text: '精选推荐', key: 0 },
+              { text: '新品上市', key: 1 },
+              { text: '热门作品', key: 2 },
+            ]
+          });
+        } else {
+          reject(res);
+        }
+      },
+      fail: reject
+    });
+  });
+}
+
 /** 获取首页数据 */
 export function fetchHome() {
   if (config.useMock) {
     return mockFetchHome();
   }
-  return new Promise((resolve) => {
-    resolve('real api');
-  });
+  return realFetchHome();
 }

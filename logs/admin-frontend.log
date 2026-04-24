@@ -1,0 +1,67 @@
+
+> shiyiju-admin@1.0.0 dev
+> vite --host 0.0.0.0 --port 5174
+
+
+  VITE v4.5.14  ready in 225 ms
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: http://192.168.1.176:5174/
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+(node:56697) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+10:45:07 AM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+10:45:09 AM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:28 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:28 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:28 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:29 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:29 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:30 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:30 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:18:30 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:26:30 PM [vite] http proxy error at /product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:26:38 PM [vite] http proxy error at /product/create:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)

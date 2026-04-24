@@ -42,8 +42,13 @@
     
     <!-- 订单列表 -->
     <scroll-view class="order-list" scroll-y @scrolltolower="loadMore">
-      <view class="order-card" v-for="order in orderList" :key="order.id">
+      <view class="order-card" v-for="order in orderList" :key="order.id" @click="goDetail(order.id)">
         <view class="order-header">
+          <!-- 卖家信息 -->
+          <view class="seller-info" v-if="order.sellerName" @click.stop>
+            <image class="seller-avatar" :src="getFullImageUrl(order.sellerAvatar)" mode="aspectFill"></image>
+            <text class="seller-name">{{ order.sellerName }}</text>
+          </view>
           <text class="order-no">订单号: {{ order.orderNo }}</text>
           <text class="order-status" :class="'status-' + order.status">
             {{ getStatusText(order.status) }}
@@ -51,9 +56,9 @@
         </view>
         
         <!-- 订单商品 -->
-        <view class="order-goods" @click="goDetail(order.id)">
+        <view class="order-goods">
           <view class="goods-item" v-for="item in order.items" :key="item.id">
-            <image class="goods-image" :src="item.coverImage"></image>
+            <image class="goods-image" :src="getFullImageUrl(item.coverImage)" mode="aspectFill" @error="onImageError($event, item)"></image>
             <view class="goods-info">
               <text class="goods-title">{{ item.title }}</text>
               <text class="goods-meta">{{ item.artType }}</text>
@@ -77,15 +82,15 @@
         </view>
         
         <!-- 操作按钮 -->
-        <view class="order-actions">
-          <template v-if="order.status === 1">
+        <view class="order-actions" @click.stop>
+          <template v-if="order.status === 'PENDING_PAYMENT'">
             <button class="action-btn cancel" @click="onCancel(order)">取消订单</button>
             <button class="action-btn primary" @click="onPay(order)">去支付</button>
           </template>
-          <template v-else-if="order.status === 3">
+          <template v-else-if="order.status === 'SHIPPED'">
             <button class="action-btn primary" @click="onConfirm(order)">确认收货</button>
           </template>
-          <template v-else-if="order.status === 5 || order.status === 7">
+          <template v-else-if="order.status === 'COMPLETED' || order.status === 'REFUNDED'">
             <button class="action-btn" @click="onDelete(order)">删除订单</button>
           </template>
           <button class="action-btn" @click="goDetail(order.id)">查看详情</button>
@@ -110,14 +115,17 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getOrderList, cancelOrder, confirmReceive } from '@/api/order'
+import { getFullImageUrl } from '@/utils/image'
 
-// 状态映射
+// 状态映射（后端使用字符串）
 const statusMap = {
   all: null,
-  pending: 1,
-  paid: 2,
-  completed: 5,
-  refund: 6
+  pending: 'PENDING_PAYMENT',
+  paid: 'PAID',
+  shipped: 'SHIPPED',
+  received: 'RECEIVED',
+  completed: 'COMPLETED',
+  refund: 'REFUNDING'
 }
 
 // 状态
@@ -254,25 +262,27 @@ const onDelete = (order) => {
 // 获取状态文字
 const getStatusText = (status) => {
   const map = {
-    0: '已取消',
-    1: '待付款',
-    2: '已付款',
-    3: '已发货',
-    4: '已收货',
-    5: '已完成',
-    6: '退款中',
-    7: '已退款'
+    'CANCELLED': '已取消',
+    'PENDING_PAYMENT': '待付款',
+    'PAID': '已付款',
+    'SHIPPED': '已发货',
+    'RECEIVED': '已收货',
+    'COMPLETED': '已完成',
+    'REFUNDING': '退款中',
+    'REFUNDED': '已退款'
   }
   return map[status] || '未知'
 }
 
-// 格式化价格
+// 格式化价格（后端返回分为单位，需除以100）
 const formatPrice = (price) => {
-  if (!price) return '0'
-  if (price >= 10000) {
-    return (price / 10000).toFixed(1) + '万'
+  if (!price && price !== 0) return '0.00'
+  // 分转元
+  const yuan = Number(price) / 100
+  if (yuan >= 10000) {
+    return (yuan / 10000).toFixed(1) + '万'
   }
-  return price.toLocaleString()
+  return yuan.toFixed(2)
 }
 
 // 格式化时间
@@ -280,6 +290,15 @@ const formatTime = (time) => {
   if (!time) return ''
   const date = new Date(time)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+// 图片加载失败处理
+const onImageError = (e, item) => {
+  console.warn('图片加载失败:', item.coverImage)
+  // 使用默认占位图
+  if (e.target) {
+    e.target.src = '/static/icons/artwork-default.png'
+  }
 }
 
 // 初始化
@@ -369,6 +388,25 @@ onMounted(() => {
     padding: 24rpx;
     border-bottom: 1rpx solid #f5f5f5;
     
+    .seller-info {
+      display: flex;
+      align-items: center;
+      
+      .seller-avatar {
+        width: 40rpx;
+        height: 40rpx;
+        border-radius: 50%;
+        margin-right: 8rpx;
+        background-color: #f5f5f5;
+      }
+      
+      .seller-name {
+        font-size: 26rpx;
+        color: #333333;
+        font-weight: 500;
+      }
+    }
+    
     .order-no {
       font-size: 24rpx;
       color: #999999;
@@ -377,11 +415,11 @@ onMounted(() => {
     .order-status {
       font-size: 26rpx;
       
-      &.status-1 { color: #ff4d4f; }
-      &.status-2 { color: #1890ff; }
-      &.status-3 { color: #faad14; }
-      &.status-5 { color: #52c41a; }
-      &.status-6, &.status-7 { color: #999999; }
+      &.status-PENDING_PAYMENT { color: #ff4d4f; }
+      &.status-PAID { color: #1890ff; }
+      &.status-SHIPPED { color: #faad14; }
+      &.status-COMPLETED { color: #52c41a; }
+      &.status-REFUNDING, &.status-REFUNDED, &.status-CANCELLED { color: #999999; }
     }
   }
   

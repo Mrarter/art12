@@ -2,6 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <span class="title">帖子管理</span>
+      <el-button type="primary" @click="openAddDialog">添加帖子</el-button>
     </div>
     
     <div class="search-form">
@@ -56,8 +57,9 @@
         <template #default="{ row }">{{ row.commentCount }}</template>
       </el-table-column>
       <el-table-column prop="createTime" label="发布时间" width="180" />
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
+          <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
           <el-button type="primary" link @click="viewComments(row)">评论</el-button>
           <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
         </template>
@@ -95,6 +97,45 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 添加/编辑帖子弹窗 -->
+    <el-dialog v-model="postDialogVisible" :title="isEdit ? '编辑帖子' : '添加帖子'" width="600px" destroy-on-close>
+      <el-form ref="postFormRef" :model="postForm" :rules="postRules" label-width="80px">
+        <el-form-item label="发布者" prop="userId">
+          <el-select v-model="postForm.userId" placeholder="请选择用户" filterable style="width: 100%">
+            <el-option v-for="user in userList" :key="user.userId" :label="user.nickname + ' (' + user.phone + ')'" :value="user.userId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="话题" prop="topicId">
+          <el-select v-model="postForm.topicId" placeholder="请选择话题（可选）" clearable style="width: 100%">
+            <el-option v-for="topic in topicList" :key="topic.topicId" :label="topic.name" :value="topic.topicId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="内容" prop="content">
+          <el-input v-model="postForm.content" type="textarea" :rows="5" placeholder="请输入帖子内容" maxlength="2000" show-word-limit />
+        </el-form-item>
+        <el-form-item label="图片">
+          <div class="image-upload">
+            <div v-for="(img, idx) in postForm.images" :key="idx" class="upload-item">
+              <el-image :src="img" fit="cover" />
+              <div class="upload-mask" @click="removeImage(idx)">
+                <el-icon><Delete /></el-icon>
+              </div>
+            </div>
+            <div v-if="postForm.images.length < 9" class="upload-btn" @click="triggerImageUpload">
+              <el-icon><Plus /></el-icon>
+              <span>添加图片</span>
+            </div>
+          </div>
+          <input ref="imageFileInput" type="file" accept="image/*" multiple style="display: none" @change="handleImageChange" />
+          <div class="upload-tip">最多9张图片</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="postDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -106,8 +147,28 @@ import request from '@/api/request'
 const loading = ref(false)
 const tableData = ref([])
 const commentsVisible = ref(false)
+const postDialogVisible = ref(false)
 const currentPost = ref({})
 const comments = ref([])
+const userList = ref([])
+const topicList = ref([])
+const isEdit = ref(false)
+const submitLoading = ref(false)
+const postFormRef = ref()
+const imageFileInput = ref()
+
+const postForm = reactive({
+  postId: '',
+  userId: '',
+  topicId: '',
+  content: '',
+  images: []
+})
+
+const postRules = {
+  userId: [{ required: true, message: '请选择发布者', trigger: 'change' }],
+  content: [{ required: true, message: '请输入内容', trigger: 'blur' }]
+}
 
 const searchForm = reactive({
   content: '',
@@ -180,6 +241,111 @@ const handleDeleteComment = async (comment) => {
       ElMessage.success('删除成功')
     }
   } catch (e) {}
+}
+
+// 打开添加弹窗
+const openAddDialog = async () => {
+  isEdit.value = false
+  Object.assign(postForm, { postId: '', userId: '', topicId: '', content: '', images: [] })
+  await loadUsers()
+  await loadTopics()
+  postDialogVisible.value = true
+}
+
+// 加载用户列表
+const loadUsers = async () => {
+  try {
+    const data = await request.get('/user/list', { params: { page: 1, size: 100 } })
+    userList.value = data.records || data.list || []
+  } catch (e) {
+    userList.value = []
+  }
+}
+
+// 加载话题列表
+const loadTopics = async () => {
+  try {
+    const data = await request.get('/community/topic/list')
+    topicList.value = data.list || data || []
+  } catch (e) {
+    topicList.value = []
+  }
+}
+
+// 编辑帖子
+const handleEdit = async (row) => {
+  isEdit.value = true
+  await loadUsers()
+  await loadTopics()
+  Object.assign(postForm, {
+    postId: row.postId,
+    userId: row.userId || '',
+    topicId: row.topicId || '',
+    content: row.content,
+    images: row.images ? [...row.images] : []
+  })
+  postDialogVisible.value = true
+}
+
+// 触发图片上传
+const triggerImageUpload = () => {
+  imageFileInput.value.click()
+}
+
+// 处理图片上传
+const handleImageChange = async (e) => {
+  const files = e.target.files
+  if (!files.length) return
+
+  for (const file of files) {
+    if (postForm.images.length >= 9) {
+      ElMessage.warning('最多上传9张图片')
+      break
+    }
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const url = await request.post('/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      // 支持返回URL或 { url: '...' } 格式
+      const imageUrl = typeof url === 'string' ? url : (url.url || url.data || url.path)
+      postForm.images.push(imageUrl)
+    } catch (e) {
+      console.error('图片上传失败', e)
+      ElMessage.error('图片上传失败')
+    }
+  }
+  // 清空input
+  e.target.value = ''
+}
+
+// 删除图片
+const removeImage = (index) => {
+  postForm.images.splice(index, 1)
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  if (!postFormRef.value) return
+  try {
+    await postFormRef.value.validate()
+    submitLoading.value = true
+
+    const api = isEdit.value ? '/community/post/update' : '/community/post/create'
+    const data = isEdit.value
+      ? { postId: postForm.postId, content: postForm.content, topicId: postForm.topicId, images: postForm.images }
+      : { userId: postForm.userId, content: postForm.content, topicId: postForm.topicId, images: postForm.images }
+
+    await request.post(api, data)
+    ElMessage.success(isEdit.value ? '编辑成功' : '添加成功')
+    postDialogVisible.value = false
+    loadData()
+  } catch (e) {
+    console.error('提交失败', e)
+  } finally {
+    submitLoading.value = false
+  }
 }
 
 onMounted(() => {
@@ -256,5 +422,76 @@ onMounted(() => {
 .comment-actions {
   margin-top: 8px;
   text-align: right;
+}
+
+.image-upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.upload-item {
+  width: 100px;
+  height: 100px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+
+  .el-image {
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.upload-btn {
+  width: 100px;
+  height: 100px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #909399;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: #409eff;
+    color: #409eff;
+  }
+
+  .el-icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+
+  span {
+    font-size: 12px;
+  }
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 8px;
 }
 </style>

@@ -1,6 +1,8 @@
 export const config = {
   /** 是否使用mock代替api返回 */
-  useMock: true,
+  useMock: false,
+  /** API 接口地址 */
+  apiBase: 'http://localhost:8082',
 };
 
 export const cdnBase =

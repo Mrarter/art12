@@ -91,7 +91,11 @@ public class ProductController {
     @GetMapping("/list")
     public Result<PageResult<ArtworkVO>> getProductList(
             @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(required = false) Integer size,
             @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String authorName,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Long minPrice,
@@ -100,11 +104,15 @@ public class ProductController {
             @RequestParam(required = false) Integer yearTo,
             @RequestParam(required = false) String region,
             @RequestParam(required = false) Integer holdDuration,
+            @RequestParam(required = false) Integer status,
             @RequestHeader(value = "X-User-Id", required = false) Long userId
     ) {
         ArtworkQueryDTO query = new ArtworkQueryDTO();
         query.setPage(page);
-        query.setPageSize(pageSize);
+        query.setPageSize(size != null ? size : pageSize);
+        query.setId(id);
+        query.setTitle(title);
+        query.setAuthorName(authorName);
         query.setCategoryId(categoryId);
         query.setSort(sort);
         query.setMinPrice(minPrice);
@@ -113,6 +121,7 @@ public class ProductController {
         query.setYearTo(yearTo);
         query.setRegion(region);
         query.setHoldDuration(holdDuration);
+        query.setStatus(status);
         return Result.success(productService.getProductList(query, userId));
     }
 

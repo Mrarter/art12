@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class ProductService {
     private final ArtworkFavoriteMapper favoriteMapper;
     private final BannerMapper bannerMapper;
     private final PriceGrowthService priceGrowthService;
+    private final RestTemplate restTemplate;
 
     /** 获取艺术门类列表（按权重降序，权重大的在前） */
     public List<Category> getCategoryList() {
@@ -246,10 +248,20 @@ public class ProductService {
     /** 创建作品 */
     @Transactional
     public Long createArtwork(ArtworkUpdateDTO dto) {
+        // 处理艺术家：如果有作者名称但没有作者ID，自动查找或创建
+        Long authorId = dto.getAuthorId();
+        String authorName = dto.getAuthorName();
+        if (authorId == null && authorName != null && !authorName.isEmpty()) {
+            authorId = findOrCreateArtist(authorName);
+        }
+        if (authorId == null) {
+            authorId = 1L; // 默认作者ID
+        }
+
         Artwork artwork = new Artwork();
         artwork.setTitle(dto.getTitle());
-        artwork.setAuthorId(dto.getAuthorId() != null ? dto.getAuthorId() : 1L);  // 默认作者ID
-        artwork.setAuthorName(dto.getAuthorName());
+        artwork.setAuthorId(authorId);
+        artwork.setAuthorName(authorName);
         artwork.setCategoryId(dto.getCategoryId());
         artwork.setCoverImage(dto.getCover() != null ? dto.getCover() : "https://picsum.photos/400/400");
         artwork.setPrice(dto.getPrice() != null ? dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue() : 0L);
@@ -314,7 +326,22 @@ public class ProductService {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
         }
         if (dto.getTitle() != null) artwork.setTitle(dto.getTitle());
-        if (dto.getAuthorName() != null) artwork.setAuthorName(dto.getAuthorName());
+        
+        // 处理艺术家：如果有作者名称但没有作者ID，自动查找或创建
+        if (dto.getAuthorName() != null && !dto.getAuthorName().isEmpty()) {
+            artwork.setAuthorName(dto.getAuthorName());
+            // 只有当 authorId 为空时才自动创建
+            if (dto.getAuthorId() == null) {
+                Long authorId = findOrCreateArtist(dto.getAuthorName());
+                if (authorId != null) {
+                    artwork.setAuthorId(authorId);
+                }
+            } else {
+                artwork.setAuthorId(dto.getAuthorId());
+            }
+        } else if (dto.getAuthorId() != null) {
+            artwork.setAuthorId(dto.getAuthorId());
+        }
         if (dto.getCategoryId() != null) artwork.setCategoryId(dto.getCategoryId());
         if (dto.getCover() != null) artwork.setCoverImage(dto.getCover());
         // 价格单位是分，转换 BigDecimal -> Long (分)
@@ -381,7 +408,6 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         vo.setAuthorId(artwork.getAuthorId());
         vo.setCategoryId(artwork.getCategoryId());
         vo.setArtType(artwork.getArtType());
-        vo.setMedium(artwork.getMedium());
         vo.setSize(artwork.getSize());
         vo.setYear(artwork.getYear());
         vo.setEdition(artwork.getEdition());
@@ -499,5 +525,32 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
             return "gallery";
         }
         return "artist";
+    }
+
+    /**
+     * 查找或创建艺术家
+     * 如果艺术家名称已存在则返回其ID，否则创建待审核艺术家并返回ID
+     */
+    private Long findOrCreateArtist(String artistName) {
+        if (artistName == null || artistName.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            // 调用 user 服务的 API
+            String url = "http://localhost:8081/user/artist/find-or-create?name=" + java.net.URLEncoder.encode(artistName.trim(), "UTF-8");
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            if (response != null && response.get("code") != null && ((Number) response.get("code")).intValue() == 0) {
+                Map<String, Object> data = (Map<String, Object>) response.get("data");
+                if (data != null && data.get("id") != null) {
+                    Long artistId = ((Number) data.get("id")).longValue();
+                    log.info("艺术家自动处理成功: 名称={}, ID={}, 是否新建={}", artistName, artistId, !Boolean.TRUE.equals(data.get("exists")));
+                    return artistId;
+                }
+            }
+            log.warn("艺术家自动处理返回异常: {}", response);
+        } catch (Exception e) {
+            log.error("调用艺术家查找/创建接口失败: {}", e.getMessage());
+        }
+        return null;
     }
 }
