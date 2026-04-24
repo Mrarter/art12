@@ -199,4 +199,17 @@ public class UserController {
     public Result<java.util.Map<String, Object>> findOrCreateArtist(@RequestParam String name) {
         return Result.success(userService.findOrCreateArtist(name));
     }
+
+    /**
+     * 获取艺术家详细信息 (GET /user/artist/info/{id})
+     * 用于作品服务关联艺术家信息
+     */
+    @GetMapping("/artist/info/{artistId}")
+    public Result<java.util.Map<String, Object>> getArtistInfo(@PathVariable Long artistId) {
+        java.util.Map<String, Object> data = userService.getArtistInfo(artistId);
+        if (data == null) {
+            return Result.fail(404, "艺术家不存在");
+        }
+        return Result.success(data);
+    }
 }

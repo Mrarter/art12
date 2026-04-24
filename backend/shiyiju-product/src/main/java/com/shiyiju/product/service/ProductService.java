@@ -16,6 +16,7 @@ import com.shiyiju.product.mapper.ArtworkFavoriteMapper;
 import com.shiyiju.product.mapper.ArtworkMapper;
 import com.shiyiju.product.mapper.BannerMapper;
 import com.shiyiju.product.mapper.CategoryMapper;
+import com.shiyiju.common.vo.ArtistInfoVO;
 import com.shiyiju.common.vo.ArtworkVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -446,7 +447,7 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
             isNew = artwork.getCreateTime().isAfter(thirtyDaysAgo);
         }
         vo.setIsNew(isNew);
-        
+
         // 是否热门（销量>0或收藏数>5）
         boolean isHot = (artwork.getSaleCount() != null && artwork.getSaleCount() > 0)
                 || (artwork.getFavoriteCount() != null && artwork.getFavoriteCount() > 5);
@@ -481,16 +482,26 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
             vo.setIsFavorited(false);
         }
 
-        // 作者信息
-        vo.setAuthorName(artwork.getAuthorName());
-        vo.setAuthorBadge(artwork.getAuthorBadge());
-        vo.setAuthorAvatar(artwork.getAuthorAvatar());
-        // 作者身份（从authorBadge推断）
-        vo.setAuthorIdentity(getAuthorIdentity(artwork.getAuthorBadge()));
-        // 作者简介（可扩展）
-        vo.setAuthorBio(artwork.getAuthorBio());
-        // 作者电话（可扩展）
-        vo.setAuthorPhone(artwork.getAuthorPhone());
+        // 获取艺术家详细信息（打通关联）
+        ArtistInfoVO artistInfo = getArtistInfo(artwork.getAuthorId());
+
+        if (artistInfo != null) {
+            // 使用艺术家表中的真实信息
+            vo.setAuthorName(artistInfo.getNickname() != null ? artistInfo.getNickname() : artwork.getAuthorName());
+            vo.setAuthorAvatar(artistInfo.getAvatar() != null ? artistInfo.getAvatar() : artwork.getAuthorAvatar());
+            vo.setAuthorBadge(artistInfo.getBadge() != null ? artistInfo.getBadge() : artwork.getAuthorBadge());
+            vo.setAuthorBio(artistInfo.getBio() != null ? artistInfo.getBio() : artwork.getAuthorBio());
+            vo.setAuthorPhone(artistInfo.getPhone() != null ? artistInfo.getPhone() : artwork.getAuthorPhone());
+            vo.setAuthorIdentity(artistInfo.getIdentityType() != null ? artistInfo.getIdentityType() : getAuthorIdentity(artwork.getAuthorBadge()));
+        } else {
+            // 回退到作品表中的冗余信息
+            vo.setAuthorName(artwork.getAuthorName());
+            vo.setAuthorBadge(artwork.getAuthorBadge());
+            vo.setAuthorAvatar(artwork.getAuthorAvatar());
+            vo.setAuthorBio(artwork.getAuthorBio());
+            vo.setAuthorPhone(artwork.getAuthorPhone());
+            vo.setAuthorIdentity(getAuthorIdentity(artwork.getAuthorBadge()));
+        }
 
         // 检查是否已关注艺术家（需要关注表，这里简化处理）
         vo.setIsFollowing(false);
@@ -509,6 +520,64 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         vo.setDistributionEarnings(artwork.getDistributionEarnings());
         vo.setDistributionUsers(artwork.getDistributionUsers());
         vo.setStatus(artwork.getStatus());
+
+        return vo;
+    }
+
+    /**
+     * 获取艺术家详细信息（打通作品与艺术家关联）
+     */
+    private ArtistInfoVO getArtistInfo(Long authorId) {
+        if (authorId == null) {
+            return null;
+        }
+        try {
+            // 调用 user 服务的艺术家详情接口
+            String url = "http://localhost:8081/user/artist/info/" + authorId;
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            if (response != null && response.get("code") != null && ((Number) response.get("code")).intValue() == 0) {
+                Map<String, Object> data = (Map<String, Object>) response.get("data");
+                if (data != null) {
+                    return mapToArtistInfoVO(data);
+                }
+            }
+            log.warn("获取艺术家信息返回异常: authorId={}, response={}", authorId, response);
+        } catch (Exception e) {
+            log.error("调用艺术家详情接口失败: authorId={}, error={}", authorId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 将Map转换为ArtistInfoVO
+     */
+    private ArtistInfoVO mapToArtistInfoVO(Map<String, Object> data) {
+        ArtistInfoVO vo = new ArtistInfoVO();
+        vo.setUserId(data.get("userId") != null ? ((Number) data.get("userId")).longValue() : null);
+        vo.setNickname((String) data.get("nickname"));
+        vo.setRealName((String) data.get("realName"));
+        vo.setAvatar((String) data.get("avatar"));
+        vo.setPhone((String) data.get("phone"));
+        vo.setBio((String) data.get("bio"));
+        vo.setResume((String) data.get("resume"));
+        vo.setRegion((String) data.get("region"));
+        vo.setCertStatus(data.get("certStatus") != null ? ((Number) data.get("certStatus")).intValue() : null);
+        vo.setIsArtist((Boolean) data.get("isArtist"));
+        vo.setIdentityType((String) data.get("identityType"));
+        vo.setFollowerCount(data.get("followerCount") != null ? ((Number) data.get("followerCount")).intValue() : 0);
+        vo.setArtworkCount(data.get("artworkCount") != null ? ((Number) data.get("artworkCount")).intValue() : 0);
+        vo.setBadge((String) data.get("badge"));
+
+        // 处理列表字段
+        if (data.get("identities") instanceof List) {
+            vo.setIdentities((List<String>) data.get("identities"));
+        }
+        if (data.get("exhibits") instanceof List) {
+            vo.setExhibits((List<String>) data.get("exhibits"));
+        }
+        if (data.get("artworks") instanceof List) {
+            vo.setArtworks((List<String>) data.get("artworks"));
+        }
 
         return vo;
     }

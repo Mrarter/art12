@@ -1,5 +1,5 @@
 Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
-2026-04-24T14:38:06.471+08:00  WARN 84489 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-04-25T00:55:59.388+08:00  WARN 55492 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -9,213 +9,310 @@ Standard Commons Logging discovery in action with spring-jcl: please remove comm
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.1.5)
 
-2026-04-24T14:38:06.498+08:00  WARN 84489 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
-2026-04-24T14:38:06.501+08:00  INFO 84489 --- [           main] com.shiyiju.user.UserApplication         : Starting UserApplication using Java 17.0.18 with PID 84489 (/Users/master/CodeBuddy/art12/backend/shiyiju-user/target/shiyiju-user-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12/backend)
-2026-04-24T14:38:06.501+08:00 DEBUG 84489 --- [           main] com.shiyiju.user.UserApplication         : Running with Spring Boot v3.1.5, Spring v6.0.13
-2026-04-24T14:38:06.501+08:00  INFO 84489 --- [           main] com.shiyiju.user.UserApplication         : No active profile set, falling back to 1 default profile: "default"
-2026-04-24T14:38:06.778+08:00  INFO 84489 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-04-24T14:38:06.782+08:00  INFO 84489 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-04-24T14:38:06.794+08:00  INFO 84489 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
-2026-04-24T14:38:06.869+08:00  INFO 84489 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=05f05e95-2a76-3cb6-adc8-ea9c5fcf2ad0
-2026-04-24T14:38:07.051+08:00  INFO 84489 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8081 (http)
-2026-04-24T14:38:07.055+08:00  INFO 84489 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-24T14:38:07.056+08:00  INFO 84489 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
-2026-04-24T14:38:07.084+08:00  INFO 84489 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-24T14:38:07.085+08:00  INFO 84489 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 563 ms
+2026-04-25T00:55:59.468+08:00  WARN 55492 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-04-25T00:55:59.477+08:00  INFO 55492 --- [           main] com.shiyiju.user.UserApplication         : Starting UserApplication using Java 17.0.19 with PID 55492 (/Users/master/CodeBuddy/art12/backend/shiyiju-user/target/shiyiju-user-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12/backend)
+2026-04-25T00:55:59.477+08:00 DEBUG 55492 --- [           main] com.shiyiju.user.UserApplication         : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-04-25T00:55:59.478+08:00  INFO 55492 --- [           main] com.shiyiju.user.UserApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-04-25T00:55:59.869+08:00  INFO 55492 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-25T00:55:59.872+08:00  INFO 55492 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-25T00:55:59.887+08:00  INFO 55492 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-04-25T00:55:59.967+08:00  INFO 55492 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=05f05e95-2a76-3cb6-adc8-ea9c5fcf2ad0
+2026-04-25T00:56:00.162+08:00  INFO 55492 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8081 (http)
+2026-04-25T00:56:00.167+08:00  INFO 55492 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-25T00:56:00.167+08:00  INFO 55492 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-04-25T00:56:00.195+08:00  INFO 55492 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-25T00:56:00.196+08:00  INFO 55492 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 673 ms
 Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
 Logging initialized using 'class org.apache.ibatis.logging.stdout.StdOutImpl' adapter.
 Get /192.168.1.176 network interface 
 Get network interface info: name:en1 (en1)
-Initialization Sequence datacenterId:13 workerId:23
+Initialization Sequence datacenterId:13 workerId:11
  _ _   |_  _ _|_. ___ _ |    _ 
 | | |\/|_)(_| | |_\  |_)||_|_\ 
      /               |         
                         3.5.8 
-2026-04-24T14:38:07.570+08:00  INFO 84489 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8081 (http) with context path ''
-2026-04-24T14:38:07.578+08:00  INFO 84489 --- [           main] com.shiyiju.user.UserApplication         : Started UserApplication in 1.264 seconds (process running for 1.481)
-2026-04-24T14:39:20.976+08:00  INFO 84489 --- [nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-04-24T14:39:20.977+08:00  INFO 84489 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-04-24T14:39:20.979+08:00  INFO 84489 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-2026-04-24T14:39:20.992+08:00  WARN 84489 --- [nio-8081-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.user.controller.UserController
-2026-04-24T14:39:20.999+08:00  INFO 84489 --- [nio-8081-exec-1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-04-24T14:39:21.065+08:00  INFO 84489 --- [nio-8081-exec-1] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@584d55fc
-2026-04-24T14:39:21.066+08:00  INFO 84489 --- [nio-8081-exec-1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-25T00:56:00.650+08:00  INFO 55492 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8081 (http) with context path ''
+2026-04-25T00:56:00.657+08:00  INFO 55492 --- [           main] com.shiyiju.user.UserApplication         : Started UserApplication in 1.545 seconds (process running for 1.901)
+2026-04-25T00:56:04.798+08:00  INFO 55492 --- [nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-25T00:56:04.798+08:00  INFO 55492 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-25T00:56:04.799+08:00  INFO 55492 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-04-25T00:56:04.812+08:00  WARN 55492 --- [nio-8081-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.user.controller.UserController
+2026-04-25T00:56:04.818+08:00  INFO 55492 --- [nio-8081-exec-1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-25T00:56:04.887+08:00  INFO 55492 --- [nio-8081-exec-1] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@68d3c34a
+2026-04-25T00:56:04.888+08:00  INFO 55492 --- [nio-8081-exec-1] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
 Creating a new SqlSession
-Registering transaction synchronization for SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90]
-JDBC Connection [HikariProxyConnection@1292642383 wrapping com.mysql.cj.jdbc.ConnectionImpl@584d55fc] will be managed by Spring
+Registering transaction synchronization for SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
+JDBC Connection [HikariProxyConnection@872341836 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will be managed by Spring
 ==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE deleted=0 AND (nickname = ? AND deleted = ?)
-==> Parameters: testart123(String), 0(Integer)
+==> Parameters: newartist789(String), 0(Integer)
 <==      Total: 0
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90]
-Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90] from current transaction
+Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
+Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845] from current transaction
 ==>  Preparing: INSERT INTO users ( nickname, avatar, status, create_time, update_time, deleted ) VALUES ( ?, ?, ?, ?, ?, ? )
-==> Parameters: testart123(String), https://picsum.photos/200/200?random=1777012761122(String), 1(Integer), 2026-04-24T14:39:21.122981(LocalDateTime), 2026-04-24T14:39:21.122983(LocalDateTime), 0(Integer)
+==> Parameters: newartist789(String), https://picsum.photos/200/200?random=1777049764947(String), 1(Integer), 2026-04-25T00:56:04.947048(LocalDateTime), 2026-04-25T00:56:04.947050(LocalDateTime), 0(Integer)
 <==    Updates: 1
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90]
-Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90] from current transaction
-==>  Preparing: INSERT INTO artist_certifications ( user_id, real_name, status, create_time, update_time ) VALUES ( ?, ?, ?, ?, ? )
-==> Parameters: 6(Long), testart123(String), 0(Integer), 2026-04-24T14:39:21.127572(LocalDateTime), 2026-04-24T14:39:21.127573(LocalDateTime)
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90]
-Transaction synchronization deregistering SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90]
-Transaction synchronization closing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5cf63d90]
-2026-04-24T14:39:21.157+08:00 ERROR 84489 --- [nio-8081-exec-1] c.s.c.exception.GlobalExceptionHandler   : 系统异常 - URI: /user/artist/find-or-create, Error: 
-### Error updating database.  Cause: java.sql.SQLSyntaxErrorException: Table 'shiyiju.artist_certifications' doesn't exist
-### The error may exist in com/shiyiju/user/mapper/ArtistCertificationMapper.java (best guess)
-### The error may involve com.shiyiju.user.mapper.ArtistCertificationMapper.insert-Inline
-### The error occurred while setting parameters
-### SQL: INSERT INTO artist_certifications  ( user_id, real_name,     status,   create_time, update_time )  VALUES (  ?, ?,     ?,   ?, ?  )
-### Cause: java.sql.SQLSyntaxErrorException: Table 'shiyiju.artist_certifications' doesn't exist
-; bad SQL grammar []
-
-org.springframework.jdbc.BadSqlGrammarException: 
-### Error updating database.  Cause: java.sql.SQLSyntaxErrorException: Table 'shiyiju.artist_certifications' doesn't exist
-### The error may exist in com/shiyiju/user/mapper/ArtistCertificationMapper.java (best guess)
-### The error may involve com.shiyiju.user.mapper.ArtistCertificationMapper.insert-Inline
-### The error occurred while setting parameters
-### SQL: INSERT INTO artist_certifications  ( user_id, real_name,     status,   create_time, update_time )  VALUES (  ?, ?,     ?,   ?, ?  )
-### Cause: java.sql.SQLSyntaxErrorException: Table 'shiyiju.artist_certifications' doesn't exist
-; bad SQL grammar []
-	at org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator.doTranslate(SQLErrorCodeSQLExceptionTranslator.java:246) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
-	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:73) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
-	at org.mybatis.spring.MyBatisExceptionTranslator.translateExceptionIfPossible(MyBatisExceptionTranslator.java:92) ~[mybatis-spring-2.1.2.jar!/:2.1.2]
-	at org.mybatis.spring.SqlSessionTemplate$SqlSessionInterceptor.invoke(SqlSessionTemplate.java:439) ~[mybatis-spring-2.1.2.jar!/:2.1.2]
-	at jdk.proxy2/jdk.proxy2.$Proxy77.insert(Unknown Source) ~[na:na]
-	at org.mybatis.spring.SqlSessionTemplate.insert(SqlSessionTemplate.java:272) ~[mybatis-spring-2.1.2.jar!/:2.1.2]
-	at com.baomidou.mybatisplus.core.override.MybatisMapperMethod.execute(MybatisMapperMethod.java:59) ~[mybatis-plus-core-3.5.8.jar!/:3.5.8]
-	at com.baomidou.mybatisplus.core.override.MybatisMapperProxy$PlainMethodInvoker.invoke(MybatisMapperProxy.java:152) ~[mybatis-plus-core-3.5.8.jar!/:3.5.8]
-	at com.baomidou.mybatisplus.core.override.MybatisMapperProxy.invoke(MybatisMapperProxy.java:89) ~[mybatis-plus-core-3.5.8.jar!/:3.5.8]
-	at jdk.proxy2/jdk.proxy2.$Proxy84.insert(Unknown Source) ~[na:na]
-	at com.shiyiju.user.service.UserService.findOrCreateArtist(UserService.java:626) ~[classes!/:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
-	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:343) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123) ~[spring-tx-6.0.13.jar!/:6.0.13]
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:391) ~[spring-tx-6.0.13.jar!/:6.0.13]
-	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.0.13.jar!/:6.0.13]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:703) ~[spring-aop-6.0.13.jar!/:6.0.13]
-	at com.shiyiju.user.service.UserService$$SpringCGLIB$$0.findOrCreateArtist(<generated>) ~[classes!/:na]
-	at com.shiyiju.user.controller.UserController.findOrCreateArtist(UserController.java:200) ~[classes!/:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
-	at java.base/java.lang.Thread.run(Thread.java:840) ~[na:na]
-Caused by: java.sql.SQLSyntaxErrorException: Table 'shiyiju.artist_certifications' doesn't exist
-	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
-	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
-	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
-	at com.mysql.cj.jdbc.ClientPreparedStatement.execute(ClientPreparedStatement.java:354) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
-	at com.zaxxer.hikari.pool.ProxyPreparedStatement.execute(ProxyPreparedStatement.java:44) ~[HikariCP-5.0.1.jar!/:na]
-	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.execute(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar!/:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
-	at org.apache.ibatis.logging.jdbc.PreparedStatementLogger.invoke(PreparedStatementLogger.java:58) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at jdk.proxy3/jdk.proxy3.$Proxy101.execute(Unknown Source) ~[na:na]
-	at org.apache.ibatis.executor.statement.PreparedStatementHandler.update(PreparedStatementHandler.java:48) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at org.apache.ibatis.executor.statement.RoutingStatementHandler.update(RoutingStatementHandler.java:75) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at org.apache.ibatis.executor.SimpleExecutor.doUpdate(SimpleExecutor.java:50) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at org.apache.ibatis.executor.BaseExecutor.update(BaseExecutor.java:117) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at org.apache.ibatis.executor.CachingExecutor.update(CachingExecutor.java:76) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at org.apache.ibatis.session.defaults.DefaultSqlSession.update(DefaultSqlSession.java:197) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at org.apache.ibatis.session.defaults.DefaultSqlSession.insert(DefaultSqlSession.java:184) ~[mybatis-3.5.16.jar!/:3.5.16]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
-	at org.mybatis.spring.SqlSessionTemplate$SqlSessionInterceptor.invoke(SqlSessionTemplate.java:425) ~[mybatis-spring-2.1.2.jar!/:2.1.2]
-	... 73 common frames omitted
-
+Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
+Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845] from current transaction
+==>  Preparing: INSERT INTO artist_certifications ( user_id, real_name, id_card, status, create_time, update_time ) VALUES ( ?, ?, ?, ?, ?, ? )
+==> Parameters: 25(Long), newartist789(String), (String), 0(Integer), 2026-04-25T00:56:04.952361(LocalDateTime), 2026-04-25T00:56:04.952363(LocalDateTime)
+<==    Updates: 1
+Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
+Transaction synchronization committing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
+Transaction synchronization deregistering SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
+Transaction synchronization closing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7db8845]
 Creating a new SqlSession
-Registering transaction synchronization for SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
-JDBC Connection [HikariProxyConnection@455708415 wrapping com.mysql.cj.jdbc.ConnectionImpl@584d55fc] will be managed by Spring
-==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE deleted=0 AND (nickname = ? AND deleted = ?)
-==> Parameters: testart123(String), 0(Integer)
-<==      Total: 0
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
-Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f] from current transaction
-==>  Preparing: INSERT INTO users ( nickname, avatar, status, create_time, update_time, deleted ) VALUES ( ?, ?, ?, ?, ?, ? )
-==> Parameters: testart123(String), https://picsum.photos/200/200?random=1777012788260(String), 1(Integer), 2026-04-24T14:39:48.260052(LocalDateTime), 2026-04-24T14:39:48.260057(LocalDateTime), 0(Integer)
-<==    Updates: 1
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
-Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f] from current transaction
-==>  Preparing: INSERT INTO artist_certifications ( user_id, real_name, status, create_time, update_time ) VALUES ( ?, ?, ?, ?, ? )
-==> Parameters: 7(Long), testart123(String), 0(Integer), 2026-04-24T14:39:48.261502(LocalDateTime), 2026-04-24T14:39:48.261504(LocalDateTime)
-<==    Updates: 1
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
-Transaction synchronization committing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
-Transaction synchronization deregistering SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
-Transaction synchronization closing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@11d1e58f]
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1df6fc12] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1653580973 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1df6fc12]
 Creating a new SqlSession
-Registering transaction synchronization for SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
-JDBC Connection [HikariProxyConnection@1580061355 wrapping com.mysql.cj.jdbc.ConnectionImpl@7674cc40] will be managed by Spring
-==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE deleted=0 AND (nickname = ? AND deleted = ?)
-==> Parameters: %E7%BD%97%E4%B8%AD%E7%AB%8B(String), 0(Integer)
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@33833f03] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1713355474 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
 <==      Total: 0
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
-Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890] from current transaction
-==>  Preparing: INSERT INTO users ( nickname, avatar, status, create_time, update_time, deleted ) VALUES ( ?, ?, ?, ?, ?, ? )
-==> Parameters: %E7%BD%97%E4%B8%AD%E7%AB%8B(String), https://picsum.photos/200/200?random=1777015481715(String), 1(Integer), 2026-04-24T15:24:41.715235(LocalDateTime), 2026-04-24T15:24:41.715249(LocalDateTime), 0(Integer)
-<==    Updates: 1
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
-Fetched SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890] from current transaction
-==>  Preparing: INSERT INTO artist_certifications ( user_id, real_name, status, create_time, update_time ) VALUES ( ?, ?, ?, ?, ? )
-==> Parameters: 9(Long), %E7%BD%97%E4%B8%AD%E7%AB%8B(String), 0(Integer), 2026-04-24T15:24:41.721556(LocalDateTime), 2026-04-24T15:24:41.721558(LocalDateTime)
-<==    Updates: 1
-Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
-Transaction synchronization committing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
-Transaction synchronization deregistering SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
-Transaction synchronization closing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1f10d890]
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@33833f03]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1b61bc1d] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@363221249 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1b61bc1d]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6585ebe9] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@980970123 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6585ebe9]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2dbce371] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@595265718 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2dbce371]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6246028d] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@682345183 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6246028d]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@714ba69b] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@2139903682 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@714ba69b]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@78e9ccc6] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1912080147 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@78e9ccc6]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3a3ef767] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@888737360 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3a3ef767]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@75c4046b] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1087985672 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@75c4046b]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3688d028] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@944715913 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3688d028]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@797232b2] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@160146468 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@797232b2]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@432f5f08] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1307093277 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@432f5f08]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@68b44422] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1056156974 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@68b44422]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1da97b8b] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@326014542 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@1da97b8b]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2fd0076a] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@2042694237 wrapping com.mysql.cj.jdbc.ConnectionImpl@68d3c34a] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2fd0076a]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6529e02e] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@596206559 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6529e02e]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@46798c78] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@780568819 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@46798c78]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@42000b] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@559987488 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@42000b]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@9d09f81] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@427984104 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@9d09f81]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@12b99d87] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1487529626 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@12b99d87]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@30fa7c60] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1852934749 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@30fa7c60]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@74a26a6a] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1432581467 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@74a26a6a]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6270302] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1630652566 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@6270302]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@54c1b3c8] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1660471914 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@54c1b3c8]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@dcb4e90] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1422779154 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@dcb4e90]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2d54f306] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@258397636 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@2d54f306]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@207ed9f] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@138535450 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@207ed9f]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4d23f076] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@265806096 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4d23f076]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7f0e6418] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@1171489935 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7f0e6418]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7e3222e7] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@252384338 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,openid,unionid,nickname,avatar,phone,gender,birthday,bio,region,identities,status,follower_count,following_count,register_time,last_login_time,create_time,update_time,deleted FROM users WHERE id=? AND deleted=0
+==> Parameters: 1(Long)
+<==    Columns: id, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region, identities, status, follower_count, following_count, register_time, last_login_time, create_time, update_time, deleted
+<==        Row: 1, mock_openid_test123, null, 测试用户, null, null, 0, null, null, null, collector, 1, 0, 0, 2026-04-20 08:33:20, 2026-04-20 08:33:20, null, 2026-04-24 14:31:51, 0
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@7e3222e7]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@17de5879] was not registered for synchronization because synchronization is not active
+JDBC Connection [HikariProxyConnection@933703901 wrapping com.mysql.cj.jdbc.ConnectionImpl@26382254] will not be managed by Spring
+==>  Preparing: SELECT id,user_id,real_name,id_card,resume,artworks,exhibits,status,reject_reason,review_time,create_time,update_time FROM artist_certifications WHERE (user_id = ? AND status = ?)
+==> Parameters: 1(Long), 1(Integer)
+<==      Total: 0
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@17de5879]

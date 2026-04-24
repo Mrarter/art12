@@ -1,0 +1,15 @@
+{
+  "envId": "shiyiju-9g4pxbgh603bf08b",
+  "cloudrun": {
+    "name": "shiyiju-admin",
+    "dockerFilePath": "Dockerfile",
+    "buildDir": ".",
+    "cpu": 0.5,
+    "memory": 512,
+    "minInstances": 1,
+    "maxInstances": 3,
+    "envParams": "SPRING_PROFILES_ACTIVE=prod"
+  },
+  "version": "2.0",
+  "$schema": "https://github.com/TencentCloudBase/tcb-util/raw/main/src/cloudbaserc/schema/schema.json"
+}

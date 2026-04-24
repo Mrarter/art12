@@ -450,6 +450,83 @@ public class UserService {
     }
 
     /**
+     * 获取艺术家详细信息（用于作品关联）
+     * 返回完整的艺术家信息供作品服务使用
+     */
+    public Map<String, Object> getArtistInfo(Long artistId) {
+        User artist = userMapper.selectById(artistId);
+        if (artist == null) {
+            return null;
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("userId", artist.getId());
+        data.put("nickname", artist.getNickname());
+        data.put("realName", null); // 真实姓名需要关联认证表
+        data.put("avatar", artist.getAvatar());
+        data.put("phone", artist.getPhone());
+        data.put("bio", artist.getBio());
+        data.put("region", artist.getRegion());
+
+        // 身份信息
+        List<String> identityList = artist.getIdentities() != null ?
+                Arrays.asList(artist.getIdentities().split(",")) : List.of();
+        data.put("identities", identityList);
+        data.put("isArtist", identityList.contains(UserConstant.IDENTITY_ARTIST));
+
+        // 推断艺术家身份类型
+        String identityType = "artist";
+        if (identityList.contains("collector")) {
+            identityType = "collector";
+        } else if (identityList.contains("gallery")) {
+            identityType = "gallery";
+        }
+        data.put("identityType", identityType);
+
+        data.put("followerCount", artist.getFollowerCount() != null ? artist.getFollowerCount() : 0);
+        data.put("artworkCount", 0); // TODO: 从作品服务获取
+
+        // 获取艺术家认证信息
+        ArtistCertification cert = artistCertMapper.selectOne(
+                new LambdaQueryWrapper<ArtistCertification>()
+                        .eq(ArtistCertification::getUserId, artistId)
+                        .eq(ArtistCertification::getStatus, UserConstant.ARTIST_CERT_APPROVED)
+        );
+
+        if (cert != null) {
+            data.put("certStatus", cert.getStatus());
+            data.put("realName", cert.getRealName());
+            data.put("resume", cert.getResume());
+            data.put("artworks", cert.getArtworks() != null ?
+                    Arrays.asList(cert.getArtworks().split(",")).stream().filter(s -> !s.isEmpty()).toList() : List.of());
+            data.put("exhibits", cert.getExhibits() != null ?
+                    Arrays.asList(cert.getExhibits().split(",")).stream().filter(s -> !s.isEmpty()).toList() : List.of());
+            data.put("badge", determineBadge(cert.getRealName(), identityList));
+        } else {
+            data.put("certStatus", null);
+            data.put("badge", determineBadge(artist.getNickname(), identityList));
+        }
+
+        return data;
+    }
+
+    /**
+     * 根据身份推断徽章
+     */
+    private String determineBadge(String name, List<String> identities) {
+        if (identities.contains(UserConstant.IDENTITY_ARTIST)) {
+            return "认证艺术家";
+        }
+        if (identities.contains("collector")) {
+            return "资深藏家";
+        }
+        if (identities.contains("gallery")) {
+            return "艺术机构";
+        }
+        return "艺术爱好者";
+    }
+
+    /**
      * 获取用户个人中心聚合数据
      */
     public Map<String, Object> getUserCenter(Long userId) {
@@ -620,6 +697,7 @@ public class UserService {
         ArtistCertification cert = new ArtistCertification();
         cert.setUserId(newUser.getId());
         cert.setRealName(name.trim());
+        cert.setIdCard(""); // 默认空身份证号，后续补全
         cert.setStatus(0); // 待审核
         cert.setCreateTime(LocalDateTime.now());
         cert.setUpdateTime(LocalDateTime.now());

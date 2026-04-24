@@ -195,6 +195,100 @@ public class SystemConfigController {
     }
 
     /**
+     * 更新价格增长配置
+     */
+    @PostMapping("/priceGrowth")
+    public Result<Void> updatePriceGrowthConfig(@RequestBody Map<String, Object> config) {
+        try {
+            if (config.containsKey("enabled")) {
+                priceGrowthConfig.setEnabled((Boolean) config.get("enabled"));
+            }
+            if (config.containsKey("baseDailyRate")) {
+                priceGrowthConfig.setBaseDailyRate(new java.math.BigDecimal(String.valueOf(config.get("baseDailyRate"))));
+            }
+            if (config.containsKey("matureDailyRate")) {
+                priceGrowthConfig.setMatureDailyRate(new java.math.BigDecimal(String.valueOf(config.get("matureDailyRate"))));
+            }
+            if (config.containsKey("matureDays")) {
+                priceGrowthConfig.setMatureDays(((Number) config.get("matureDays")).intValue());
+            }
+            if (config.containsKey("defaultBadgeRate")) {
+                priceGrowthConfig.setDefaultBadgeRate(new java.math.BigDecimal(String.valueOf(config.get("defaultBadgeRate"))));
+            }
+            if (config.containsKey("verifiedBadgeRate")) {
+                priceGrowthConfig.setVerifiedBadgeRate(new java.math.BigDecimal(String.valueOf(config.get("verifiedBadgeRate"))));
+            }
+            if (config.containsKey("popularBadgeRate")) {
+                priceGrowthConfig.setPopularBadgeRate(new java.math.BigDecimal(String.valueOf(config.get("popularBadgeRate"))));
+            }
+            if (config.containsKey("masterBadgeRate")) {
+                priceGrowthConfig.setMasterBadgeRate(new java.math.BigDecimal(String.valueOf(config.get("masterBadgeRate"))));
+            }
+            if (config.containsKey("viewThreshold1")) {
+                priceGrowthConfig.setViewThreshold1(((Number) config.get("viewThreshold1")).intValue());
+            }
+            if (config.containsKey("viewRate1")) {
+                priceGrowthConfig.setViewRate1(new java.math.BigDecimal(String.valueOf(config.get("viewRate1"))));
+            }
+            if (config.containsKey("viewThreshold2")) {
+                priceGrowthConfig.setViewThreshold2(((Number) config.get("viewThreshold2")).intValue());
+            }
+            if (config.containsKey("viewRate2")) {
+                priceGrowthConfig.setViewRate2(new java.math.BigDecimal(String.valueOf(config.get("viewRate2"))));
+            }
+            if (config.containsKey("viewThreshold3")) {
+                priceGrowthConfig.setViewThreshold3(((Number) config.get("viewThreshold3")).intValue());
+            }
+            if (config.containsKey("viewRate3")) {
+                priceGrowthConfig.setViewRate3(new java.math.BigDecimal(String.valueOf(config.get("viewRate3"))));
+            }
+            if (config.containsKey("viewThreshold4")) {
+                priceGrowthConfig.setViewThreshold4(((Number) config.get("viewThreshold4")).intValue());
+            }
+            if (config.containsKey("viewRate4")) {
+                priceGrowthConfig.setViewRate4(new java.math.BigDecimal(String.valueOf(config.get("viewRate4"))));
+            }
+            if (config.containsKey("favoriteThreshold1")) {
+                priceGrowthConfig.setFavoriteThreshold1(((Number) config.get("favoriteThreshold1")).intValue());
+            }
+            if (config.containsKey("favoriteRate1")) {
+                priceGrowthConfig.setFavoriteRate1(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate1"))));
+            }
+            if (config.containsKey("favoriteThreshold2")) {
+                priceGrowthConfig.setFavoriteThreshold2(((Number) config.get("favoriteThreshold2")).intValue());
+            }
+            if (config.containsKey("favoriteRate2")) {
+                priceGrowthConfig.setFavoriteRate2(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate2"))));
+            }
+            if (config.containsKey("favoriteThreshold3")) {
+                priceGrowthConfig.setFavoriteThreshold3(((Number) config.get("favoriteThreshold3")).intValue());
+            }
+            if (config.containsKey("favoriteRate3")) {
+                priceGrowthConfig.setFavoriteRate3(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate3"))));
+            }
+            if (config.containsKey("favoriteThreshold4")) {
+                priceGrowthConfig.setFavoriteThreshold4(((Number) config.get("favoriteThreshold4")).intValue());
+            }
+            if (config.containsKey("favoriteRate4")) {
+                priceGrowthConfig.setFavoriteRate4(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate4"))));
+            }
+            if (config.containsKey("saleRate")) {
+                priceGrowthConfig.setSaleRate(new java.math.BigDecimal(String.valueOf(config.get("saleRate"))));
+            }
+            if (config.containsKey("maxSaleCount")) {
+                priceGrowthConfig.setMaxSaleCount(((Number) config.get("maxSaleCount")).intValue());
+            }
+            if (config.containsKey("maxGrowthMultiple")) {
+                priceGrowthConfig.setMaxGrowthMultiple(new java.math.BigDecimal(String.valueOf(config.get("maxGrowthMultiple"))));
+            }
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新价格增长配置失败", e);
+            return Result.fail("更新配置失败");
+        }
+    }
+
+    /**
      * 获取分销配置
      */
     @GetMapping("/promotion")

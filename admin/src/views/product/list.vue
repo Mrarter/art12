@@ -2,10 +2,188 @@
   <div class="page-container">
     <div class="page-header">
       <span class="title">作品列表</span>
-      <el-button type="primary" @click="handleAdd">
-        <el-icon><Plus /></el-icon>增加作品
-      </el-button>
+      <div class="header-actions">
+        <el-button type="warning" @click="showPriceConfig">
+          <el-icon><Setting /></el-icon>价格增长配置
+        </el-button>
+        <el-button type="primary" @click="handleAdd">
+          <el-icon><Plus /></el-icon>增加作品
+        </el-button>
+      </div>
     </div>
+
+    <!-- 价格增长配置弹窗 -->
+    <el-dialog v-model="priceConfigVisible" title="作品价格增长配置" width="800px" destroy-on-close>
+      <el-form :model="priceConfigForm" label-width="120px">
+        <el-form-item label="功能开关">
+          <el-switch v-model="priceConfigForm.enabled" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
+        
+        <el-divider content-position="left">时间因素</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="基础日增长率">
+              <el-input-number v-model="priceConfigForm.baseDailyRate" :min="0" :precision="4" :step="0.0001" />
+              <span class="unit">（每天增长比例）</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="成熟期天数">
+              <el-input-number v-model="priceConfigForm.matureDays" :min="0" :max="365" />
+              <span class="unit">天</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="成熟期日增长率">
+              <el-input-number v-model="priceConfigForm.matureDailyRate" :min="0" :precision="4" :step="0.0001" />
+              <span class="unit">（超过天数后）</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-divider content-position="left">艺术家知名度系数</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="普通艺术家">
+              <el-input-number v-model="priceConfigForm.defaultBadgeRate" :min="0.1" :max="10" :precision="2" :step="0.1" />
+              <span class="unit">倍</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="认证艺术家">
+              <el-input-number v-model="priceConfigForm.verifiedBadgeRate" :min="0.1" :max="10" :precision="2" :step="0.1" />
+              <span class="unit">倍</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="人气艺术家">
+              <el-input-number v-model="priceConfigForm.popularBadgeRate" :min="0.1" :max="10" :precision="2" :step="0.1" />
+              <span class="unit">倍</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="大师级艺术家">
+              <el-input-number v-model="priceConfigForm.masterBadgeRate" :min="0.1" :max="10" :precision="2" :step="0.1" />
+              <span class="unit">倍</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-divider content-position="left">浏览量阈值</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="6">
+            <el-form-item label="阈值1">
+              <el-input-number v-model="priceConfigForm.viewThreshold1" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率1">
+              <el-input-number v-model="priceConfigForm.viewRate1" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="阈值2">
+              <el-input-number v-model="priceConfigForm.viewThreshold2" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率2">
+              <el-input-number v-model="priceConfigForm.viewRate2" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="阈值3">
+              <el-input-number v-model="priceConfigForm.viewThreshold3" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率3">
+              <el-input-number v-model="priceConfigForm.viewRate3" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="阈值4">
+              <el-input-number v-model="priceConfigForm.viewThreshold4" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率4">
+              <el-input-number v-model="priceConfigForm.viewRate4" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-divider content-position="left">收藏量阈值</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="6">
+            <el-form-item label="阈值1">
+              <el-input-number v-model="priceConfigForm.favoriteThreshold1" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率1">
+              <el-input-number v-model="priceConfigForm.favoriteRate1" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="阈值2">
+              <el-input-number v-model="priceConfigForm.favoriteThreshold2" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率2">
+              <el-input-number v-model="priceConfigForm.favoriteRate2" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="阈值3">
+              <el-input-number v-model="priceConfigForm.favoriteThreshold3" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率3">
+              <el-input-number v-model="priceConfigForm.favoriteRate3" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="阈值4">
+              <el-input-number v-model="priceConfigForm.favoriteThreshold4" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="倍率4">
+              <el-input-number v-model="priceConfigForm.favoriteRate4" :min="1" :max="10" :precision="2" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-divider content-position="left">销售加成与涨幅限制</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="单次销售加成">
+              <el-input-number v-model="priceConfigForm.saleRate" :min="0" :max="1" :precision="4" :step="0.01" />
+              <span class="unit">（每次加成比例）</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="最多计算次数">
+              <el-input-number v-model="priceConfigForm.maxSaleCount" :min="0" :max="100" />
+              <span class="unit">次</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="最大涨幅倍数">
+              <el-input-number v-model="priceConfigForm.maxGrowthMultiple" :min="1" :max="100" :precision="1" :step="0.5" />
+              <span class="unit">倍</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <el-button @click="priceConfigVisible = false">取消</el-button>
+        <el-button type="primary" @click="savePriceConfig" :loading="priceConfigLoading">保存配置</el-button>
+      </template>
+    </el-dialog>
     
     <div class="search-form">
       <el-form :inline="true" :model="searchForm">
@@ -307,11 +485,66 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Picture, Edit } from '@element-plus/icons-vue'
+import { Plus, Picture, Edit, Setting } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
 
 const loading = ref(false)
+const priceConfigVisible = ref(false)
+const priceConfigLoading = ref(false)
+const priceConfigForm = reactive({
+  enabled: true,
+  baseDailyRate: 0.0002,
+  matureDailyRate: 0.0003,
+  matureDays: 30,
+  defaultBadgeRate: 1.0,
+  verifiedBadgeRate: 1.5,
+  popularBadgeRate: 2.0,
+  masterBadgeRate: 3.0,
+  viewThreshold1: 100,
+  viewRate1: 1.1,
+  viewThreshold2: 500,
+  viewRate2: 1.2,
+  viewThreshold3: 1000,
+  viewRate3: 1.3,
+  viewThreshold4: 5000,
+  viewRate4: 1.5,
+  favoriteThreshold1: 5,
+  favoriteRate1: 1.1,
+  favoriteThreshold2: 20,
+  favoriteRate2: 1.2,
+  favoriteThreshold3: 50,
+  favoriteRate3: 1.3,
+  favoriteThreshold4: 100,
+  favoriteRate4: 1.5,
+  saleRate: 0.05,
+  maxSaleCount: 10,
+  maxGrowthMultiple: 5.0
+})
+
+const showPriceConfig = async () => {
+  priceConfigVisible.value = true
+  try {
+    const data = await request.get('/config/priceGrowth')
+    Object.assign(priceConfigForm, data)
+  } catch (e) {
+    console.error('获取配置失败', e)
+  }
+}
+
+const savePriceConfig = async () => {
+  priceConfigLoading.value = true
+  try {
+    await request.post('/config/priceGrowth', priceConfigForm)
+    ElMessage.success('配置保存成功')
+    priceConfigVisible.value = false
+  } catch (e) {
+    ElMessage.error('保存失败')
+  } finally {
+    priceConfigLoading.value = false
+  }
+}
+
 const saveLoading = ref(false)
 const tableData = ref([])
 const categories = ref([])
@@ -663,6 +896,22 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  .title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .header-actions {
+    display: flex;
+    gap: 10px;
+  }
+}
+
 .artwork-info {
   display: flex;
   gap: 12px;

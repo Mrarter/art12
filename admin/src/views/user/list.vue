@@ -76,7 +76,7 @@
       <el-table-column label="用户信息" min-width="220">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="row.avatar" :size="50" class="clickable-avatar" @click="copyId(row)" />
+            <el-avatar :src="getFullImageUrl(row.avatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
             <div class="user-detail">
               <p class="nickname">
                 {{ row.nickname }}
@@ -156,31 +156,106 @@
       />
     </div>
 
-    <!-- 用户详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="用户详情" width="800px">
-      <el-descriptions :column="2" border v-if="currentUser">
-        <el-descriptions-item label="用户ID">{{ currentUser.userId }}</el-descriptions-item>
-        <el-descriptions-item label="昵称">{{ currentUser.nickname }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ currentUser.phone || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="邮箱">{{ currentUser.email || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="性别">
-          {{ currentUser.gender === 'male' ? '男' : currentUser.gender === 'female' ? '女' : '未知' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="生日">{{ currentUser.birthday || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="注册时间">{{ currentUser.registerTime }}</el-descriptions-item>
-        <el-descriptions-item label="注册来源">{{ getSourceText(currentUser.source) }}</el-descriptions-item>
-        <el-descriptions-item label="账户余额">¥{{ currentUser.balance || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="累计消费">¥{{ currentUser.totalConsume || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="订单数量">{{ currentUser.orderCount || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="收藏数量">{{ currentUser.favoriteCount || 0 }}</el-descriptions-item>
-      </el-descriptions>
-      
-      <div class="user-tags" v-if="currentUser">
-        <p class="tags-title">身份标签</p>
-        <el-tag v-if="currentUser.isArtist" type="success" size="large">艺术家</el-tag>
-        <el-tag v-if="currentUser.isPromoter" type="warning" size="large">艺荐官</el-tag>
-        <el-tag v-if="currentUser.isVip" type="danger" size="large">VIP会员</el-tag>
+    <!-- 用户资料弹窗 -->
+    <el-dialog v-model="detailVisible" title="用户详情" width="600px" destroy-on-close>
+      <div class="user-profile" v-if="currentUser">
+        <!-- 用户基本信息 -->
+        <div class="profile-header">
+          <div class="avatar-wrapper">
+            <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
+            <el-upload
+              class="avatar-uploader"
+              :show-file-list="false"
+              :http-request="handleAvatarUpload"
+              accept="image/*"
+            >
+              <el-button size="small" type="primary">更换头像</el-button>
+            </el-upload>
+          </div>
+          <div class="profile-info">
+            <h3>{{ profileForm.nickname || currentUser.nickname }}
+              <el-tag v-if="currentUser.isVip" type="warning" size="small">VIP</el-tag>
+            </h3>
+            <p class="user-id">ID: {{ currentUser.openId || currentUser.userId }}</p>
+            <div class="identity-tags">
+              <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
+              <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
+              <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter" type="info" size="small">普通用户</el-tag>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 编辑表单 -->
+        <el-form ref="profileFormRef" :model="profileForm" label-width="90px" class="profile-form">
+          <el-divider content-position="left">基本信息</el-divider>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="昵称" prop="nickname">
+                <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="手机号">
+                <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="邮箱">
+            <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
+          </el-form-item>
+          
+          <el-divider content-position="left">身份配置</el-divider>
+          <el-form-item label="身份">
+            <el-checkbox-group v-model="profileForm.identities">
+              <el-checkbox label="artist">艺术家</el-checkbox>
+              <el-checkbox label="promoter">艺荐官</el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input v-model="profileForm.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+          </el-form-item>
+          
+          <el-divider content-position="left">账户信息</el-divider>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <div class="info-item">
+                <span class="label">账户余额</span>
+                <span class="value">¥{{ currentUser.balance || 0 }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="info-item">
+                <span class="label">累计消费</span>
+                <span class="value">¥{{ currentUser.totalConsume || 0 }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="info-item">
+                <span class="label">订单数量</span>
+                <span class="value">{{ currentUser.orderCount || 0 }}</span>
+              </div>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="info-item">
+                <span class="label">注册时间</span>
+                <span class="value">{{ currentUser.registerTime || '-' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <span class="label">注册来源</span>
+                <span class="value">{{ getSourceText(currentUser.source) }}</span>
+              </div>
+            </el-col>
+          </el-row>
+        </el-form>
       </div>
+      <template #footer>
+        <el-button @click="detailVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editLoading" @click="saveProfile">保存修改</el-button>
+      </template>
     </el-dialog>
 
     <!-- 编辑用户弹窗 -->
@@ -218,7 +293,7 @@
           <el-input v-model="addForm.phone" placeholder="请输入手机号" />
         </el-form-item>
         <el-form-item label="昵称">
-          <el-input v-model="addForm.nickname" placeholder="可选，默认为\"用户\"+手机号后4位" />
+          <el-input v-model="addForm.nickname" placeholder="可选，默认为'用户'+手机号后4位" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -233,7 +308,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Plus, Phone, Message } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl as getUrl, uploadFile } from '@/api/request'
+
+// 注意：request -> /api/admin (8090 admin服务) 用于管理员功能
+
+const getFullImageUrl = getUrl
 
 const loading = ref(false)
 const tableData = ref([])
@@ -244,6 +323,8 @@ const addLoading = ref(false)
 const currentUser = ref({})
 const editFormRef = ref()
 const addFormRef = ref()
+const profileFormRef = ref()
+const editLoading = ref(false)
 
 const stats = reactive({
   total: 0,
@@ -270,6 +351,15 @@ const editForm = reactive({
 const addForm = reactive({
   phone: '',
   nickname: ''
+})
+
+const profileForm = reactive({
+  nickname: '',
+  phone: '',
+  email: '',
+  avatar: '',
+  identities: [],
+  remark: ''
 })
 
 const addRules = {
@@ -387,25 +477,83 @@ const handleAdd = async () => {
   }
 }
 
-const viewDetail = (row) => {
+// 打开用户资料弹窗
+const openUserProfile = (row) => {
   currentUser.value = { ...row }
-  detailVisible.value = true
-}
-
-const editUser = (row) => {
-  currentUser.value = row
-  Object.assign(editForm, {
-    nickname: row.nickname,
-    phone: row.phone,
+  Object.assign(profileForm, {
+    nickname: row.nickname || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    avatar: row.avatar || '',
     identities: [
       row.isArtist ? 'artist' : '',
       row.isPromoter ? 'promoter' : ''
     ].filter(Boolean),
     remark: row.remark || ''
   })
-  editVisible.value = true
+  detailVisible.value = true
 }
 
+// 上传头像
+const handleAvatarUpload = async (options) => {
+  const { file, onSuccess, onError } = options
+  
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    onError(new Error('请选择图片文件'))
+    return
+  }
+  
+  // 验证文件大小 (10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 10MB')
+    onError(new Error('图片大小不能超过 10MB'))
+    return
+  }
+
+  try {
+    const result = await uploadFile(file)
+    // result 可能是 {url: 'xxx'} 或直接是 'xxx'
+    profileForm.avatar = result?.url || result || ''
+    ElMessage.success('头像上传成功')
+    onSuccess()
+  } catch (e) {
+    ElMessage.error(e.message || '头像上传失败')
+    onError(e)
+  }
+}
+
+// 编辑用户（兼容原有按钮）
+const editUser = (row) => {
+  openUserProfile(row)
+}
+
+// 保存用户资料
+const saveProfile = async () => {
+  const valid = await profileFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  try {
+    editLoading.value = true
+    await request.put(`/user/${currentUser.value.userId}`, {
+      nickname: profileForm.nickname,
+      avatar: profileForm.avatar,
+      phone: profileForm.phone,
+      email: profileForm.email,
+      identities: profileForm.identities
+    })
+    detailVisible.value = false
+    await loadData()
+    ElMessage.success('保存成功')
+  } catch (e) {
+    ElMessage.error('保存失败：' + (e.message || '未知错误'))
+  } finally {
+    editLoading.value = false
+  }
+}
+
+// 保存编辑（兼容原有弹窗）
 const saveEdit = async () => {
   const valid = await editFormRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -414,8 +562,7 @@ const saveEdit = async () => {
     await request.put(`/user/${currentUser.value.userId}`, {
       nickname: editForm.nickname,
       phone: editForm.phone,
-      identities: editForm.identities,
-      remark: editForm.remark
+      avatar: editForm.avatar
     })
     editVisible.value = false
     await loadData()
@@ -579,6 +726,79 @@ onMounted(() => {
   .tags-title {
     margin-bottom: 12px;
     font-weight: 500;
+  }
+}
+
+/* 用户资料弹窗样式 */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+
+  .avatar-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .profile-info {
+    h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-id {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .identity-tags {
+      display: flex;
+      gap: 4px;
+    }
+  }
+}
+
+.avatar-uploader {
+  :deep(.el-upload) {
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+}
+
+.profile-form {
+  :deep(.el-divider--horizontal) {
+    margin: 20px 0;
+  }
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+
+  .label {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 4px;
+  }
+
+  .value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
   }
 }
 </style>

@@ -127,9 +127,10 @@ public class UserManagementController {
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size,
         @RequestParam(required = false) String userId,
-        @RequestParam(required = false) String level
+        @RequestParam(required = false) String level,
+        @RequestParam(required = false) String status
     ) {
-        Map<String, Object> payload = userAdminPersistenceService.listPromoters(page, size, userId, level).get(0);
+        Map<String, Object> payload = userAdminPersistenceService.listPromoters(page, size, userId, level, status).get(0);
         return Result.success(payload);
     }
 
@@ -172,6 +173,44 @@ public class UserManagementController {
         @RequestParam(defaultValue = "20") int size
     ) {
         return Result.success(userAdminPersistenceService.getPromoterCommission(userId, page, size));
+    }
+
+    // ==================== 艺荐官认证管理 ====================
+
+    @PostMapping("/promoter/approve")
+    public Result<Void> approvePromoter(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        userAdminPersistenceService.approvePromoter(id);
+        return Result.success();
+    }
+
+    @PostMapping("/promoter/reject")
+    public Result<Void> rejectPromoter(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        userAdminPersistenceService.rejectPromoter(id, Objects.toString(params.get("reason"), ""));
+        return Result.success();
+    }
+
+    @PostMapping("/promoter/revoke")
+    public Result<Void> revokePromoter(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        userAdminPersistenceService.revokePromoter(id);
+        return Result.success();
+    }
+
+    @PostMapping("/promoter/reapply")
+    public Result<Void> reapplyPromoter(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        userAdminPersistenceService.reapplyPromoter(id);
+        return Result.success();
+    }
+
+    @PostMapping("/promoter/level")
+    public Result<Void> setPromoterLevel(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        int level = params.get("level") instanceof Number number ? number.intValue() : Integer.parseInt(String.valueOf(params.get("level")));
+        userAdminPersistenceService.setPromoterLevelById(id, level);
+        return Result.success();
     }
 
     @PostMapping("/create")

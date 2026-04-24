@@ -49,7 +49,7 @@
       <el-table-column label="作品信息" min-width="200">
         <template #default="{ row }">
           <div class="artwork-info">
-            <el-image :src="row.cover" style="width: 50px; height: 50px" fit="cover" />
+            <el-image :src="getFullImageUrl(row.cover)" style="width: 50px; height: 50px" fit="cover" />
             <span>{{ row.artworkTitle }}</span>
           </div>
         </template>
@@ -89,7 +89,9 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import request from '@/api/request'
+import request, { getFullImageUrl as getUrl } from '@/api/request'
+
+const getFullImageUrl = getUrl
 
 const loading = ref(false)
 const tableData = ref([])
