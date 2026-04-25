@@ -4,3 +4,22 @@ spring:
     nacos:
       discovery:
         enabled: false
+
+# 价格增长配置
+price:
+  growth:
+    enabled: true
+    base-daily-rate: 0.0002
+    mature-daily-rate: 0.0003
+    mature-days: 30
+    default-badge-rate: 1.0
+    verified-badge-rate: 1.5
+    popular-badge-rate: 2.0
+    master-badge-rate: 3.0
+    view-threshold: 100
+    view-rate: 1.1
+    favorite-threshold: 5
+    favorite-rate: 1.1
+    sale-rate: 0.05
+    max-sale-count: 10
+    max-growth-multiple: 5.0

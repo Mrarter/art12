@@ -32,6 +32,7 @@ public class PriceGrowthService {
     /**
      * 计算价格增长率
      * 综合考虑：发布时间、艺术家知名度、浏览量、收藏量、销售次数
+     * 支持单个作品的自定义配置
      */
     public BigDecimal calculatePriceRise(Artwork artwork) {
         // 检查开关
@@ -43,10 +44,15 @@ public class PriceGrowthService {
             return BigDecimal.ZERO;
         }
 
+        // 检查是否启用单个作品的自定义配置
+        boolean useCustomConfig = Boolean.TRUE.equals(artwork.getCustomPriceGrowthEnabled());
+
         BigDecimal totalMultiplier = BigDecimal.ONE;
 
         // 1. 时间因素：发布越久，增长越多
-        BigDecimal timeMultiplier = calculateTimeMultiplier(artwork.getCreateTime());
+        BigDecimal timeMultiplier = useCustomConfig 
+            ? calculateTimeMultiplierCustom(artwork) 
+            : calculateTimeMultiplier(artwork.getCreateTime());
         totalMultiplier = totalMultiplier.multiply(timeMultiplier);
 
         // 2. 艺术家知名度因素
@@ -54,11 +60,15 @@ public class PriceGrowthService {
         totalMultiplier = totalMultiplier.multiply(badgeMultiplier);
 
         // 3. 浏览量因素
-        BigDecimal viewMultiplier = calculateViewMultiplier(artwork.getViewCount());
+        BigDecimal viewMultiplier = useCustomConfig
+            ? calculateViewMultiplierCustom(artwork)
+            : calculateViewMultiplier(artwork.getViewCount());
         totalMultiplier = totalMultiplier.multiply(viewMultiplier);
 
         // 4. 收藏量因素
-        BigDecimal favoriteMultiplier = calculateFavoriteMultiplier(artwork.getFavoriteCount());
+        BigDecimal favoriteMultiplier = useCustomConfig
+            ? calculateFavoriteMultiplierCustom(artwork)
+            : calculateFavoriteMultiplier(artwork.getFavoriteCount());
         totalMultiplier = totalMultiplier.multiply(favoriteMultiplier);
 
         // 5. 销售次数因素
@@ -67,8 +77,10 @@ public class PriceGrowthService {
             totalMultiplier = totalMultiplier.multiply(BigDecimal.ONE.add(config.getSaleRate()));
         }
 
-        // 限制最大增长倍数
-        BigDecimal maxMultiple = config.getMaxGrowthMultiple();
+        // 限制最大增长倍数（支持自定义）
+        BigDecimal maxMultiple = useCustomConfig && artwork.getCustomMaxGrowthMultiple() != null
+            ? artwork.getCustomMaxGrowthMultiple() 
+            : config.getMaxGrowthMultiple();
         if (totalMultiplier.compareTo(maxMultiple) > 0) {
             totalMultiplier = maxMultiple;
         }
@@ -76,6 +88,61 @@ public class PriceGrowthService {
         // 计算增长率 = (当前倍数 - 1) * 100%
         return totalMultiplier.subtract(BigDecimal.ONE)
                 .setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 计算时间因素倍数（单个作品自定义配置）
+     */
+    private BigDecimal calculateTimeMultiplierCustom(Artwork artwork) {
+        if (artwork.getCreateTime() == null) {
+            return BigDecimal.ONE;
+        }
+
+        long days = ChronoUnit.DAYS.between(artwork.getCreateTime(), LocalDateTime.now());
+        if (days < 0) days = 0;
+
+        BigDecimal dailyRate;
+        int matureDays = artwork.getCustomMatureDays() != null ? artwork.getCustomMatureDays() : config.getMatureDays();
+        
+        if (days > matureDays) {
+            dailyRate = artwork.getCustomMatureDailyRate() != null ? artwork.getCustomMatureDailyRate() : config.getMatureDailyRate();
+            days = days - matureDays;
+        } else {
+            dailyRate = artwork.getCustomBaseDailyRate() != null ? artwork.getCustomBaseDailyRate() : config.getBaseDailyRate();
+        }
+
+        BigDecimal multiplier = BigDecimal.ONE.add(dailyRate.multiply(BigDecimal.valueOf(days)));
+        return multiplier;
+    }
+
+    /**
+     * 计算浏览量倍数（单个作品自定义配置）
+     */
+    private BigDecimal calculateViewMultiplierCustom(Artwork artwork) {
+        if (artwork.getViewCount() == null || artwork.getViewCount() <= 0) {
+            return BigDecimal.ONE;
+        }
+        
+        // 使用全局的浏览量阈值
+        if (artwork.getViewCount() >= config.getViewThreshold()) {
+            return artwork.getCustomViewRate() != null ? artwork.getCustomViewRate() : config.getViewRate();
+        }
+        return BigDecimal.ONE;
+    }
+
+    /**
+     * 计算收藏量倍数（单个作品自定义配置）
+     */
+    private BigDecimal calculateFavoriteMultiplierCustom(Artwork artwork) {
+        if (artwork.getFavoriteCount() == null || artwork.getFavoriteCount() <= 0) {
+            return BigDecimal.ONE;
+        }
+        
+        // 使用全局的收藏量阈值
+        if (artwork.getFavoriteCount() >= config.getFavoriteThreshold()) {
+            return artwork.getCustomFavoriteRate() != null ? artwork.getCustomFavoriteRate() : config.getFavoriteRate();
+        }
+        return BigDecimal.ONE;
     }
 
     /**
@@ -142,15 +209,9 @@ public class PriceGrowthService {
         if (viewCount == null || viewCount <= 0) {
             return BigDecimal.ONE;
         }
-
-        if (viewCount >= config.getViewThreshold4()) {
-            return config.getViewRate4();
-        } else if (viewCount >= config.getViewThreshold3()) {
-            return config.getViewRate3();
-        } else if (viewCount >= config.getViewThreshold2()) {
-            return config.getViewRate2();
-        } else if (viewCount >= config.getViewThreshold1()) {
-            return config.getViewRate1();
+        
+        if (viewCount >= config.getViewThreshold()) {
+            return config.getViewRate();
         }
         return BigDecimal.ONE;
     }
@@ -162,15 +223,9 @@ public class PriceGrowthService {
         if (favoriteCount == null || favoriteCount <= 0) {
             return BigDecimal.ONE;
         }
-
-        if (favoriteCount >= config.getFavoriteThreshold4()) {
-            return config.getFavoriteRate4();
-        } else if (favoriteCount >= config.getFavoriteThreshold3()) {
-            return config.getFavoriteRate3();
-        } else if (favoriteCount >= config.getFavoriteThreshold2()) {
-            return config.getFavoriteRate2();
-        } else if (favoriteCount >= config.getFavoriteThreshold1()) {
-            return config.getFavoriteRate1();
+        
+        if (favoriteCount >= config.getFavoriteThreshold()) {
+            return config.getFavoriteRate();
         }
         return BigDecimal.ONE;
     }

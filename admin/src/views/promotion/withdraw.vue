@@ -34,7 +34,11 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="withdrawCode" label="提现编号" width="200">
+        <template #default="{ row }">
+          <IdCell :value="row.withdrawCode" success-message="已复制提现编号" />
+        </template>
+      </el-table-column>
       <el-table-column label="艺荐官" min-width="150">
         <template #default="{ row }">
           <p>{{ row.userName }}</p>
@@ -131,6 +135,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+import IdCell from '@/components/IdCell.vue'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -176,9 +181,9 @@ const loadData = async () => {
     pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [
-      { id: 1, userName: '艺荐官A', phone: '13900139001', amount: 5000, type: 'wechat', account: 'wx123456', realName: '张三', status: 'pending', createTime: '2024-01-21 10:00:00' },
-      { id: 2, userName: '艺荐官B', phone: '13900139002', amount: 8000, type: 'alipay', account: '139****9002', realName: '李四', status: 'pending', createTime: '2024-01-20 14:30:00' },
-      { id: 3, userName: '艺荐官C', phone: '13900139003', amount: 3000, type: 'bank', account: '6222****1234', realName: '王五', status: 'approved', createTime: '2024-01-19 09:00:00' }
+      { id: 1, withdrawCode: 'WDR202604250001C2H7', userName: '艺荐官A', phone: '13900139001', amount: 5000, type: 'wechat', account: 'wx123456', realName: '张三', status: 'pending', createTime: '2024-01-21 10:00:00' },
+      { id: 2, withdrawCode: 'WDR202604250002G8T3', userName: '艺荐官B', phone: '13900139002', amount: 8000, type: 'alipay', account: '139****9002', realName: '李四', status: 'pending', createTime: '2024-01-20 14:30:00' },
+      { id: 3, withdrawCode: 'WDR202604250003M5F9', userName: '艺荐官C', phone: '13900139003', amount: 3000, type: 'bank', account: '6222****1234', realName: '王五', status: 'approved', createTime: '2024-01-19 09:00:00' }
     ]
     pagination.total = 3
   } finally {

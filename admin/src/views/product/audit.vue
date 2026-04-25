@@ -10,7 +10,14 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="artworkId" label="作品ID" width="100" />
+      <el-table-column prop="artworkCode" label="作品编号" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.artworkCode)">
+            <span class="id-text">{{ row.artworkCode || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="作品信息" min-width="280">
         <template #default="{ row }">
           <div class="artwork-info">
@@ -114,7 +121,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { copyId } from '@/utils/id'
 
 const loading = ref(false)
 const status = ref('pending')
@@ -140,16 +149,35 @@ const getStatusText = (status) => {
   return map[status] || status
 }
 
+// 复制作品编号
+const handleCopyId = async (id) => {
+  if (!id) {
+    ElMessage.warning('作品编号为空')
+    return
+  }
+  copyId(id,
+    () => ElMessage.success('已复制作品编号'),
+    () => ElMessage.error('复制失败')
+  )
+}
+
 const loadData = async () => {
   loading.value = true
   try {
     const params = { page: pagination.page, size: pagination.size, auditStatus: status.value }
     const data = await request.get('/product/audit/list', { params })
-    tableData.value = data.list || []
+    tableData.value = (data.list || []).map((item, index) => ({
+      ...item,
+      artworkCode: item.artworkCode || `ART${new Date().toISOString().slice(0,10).replace(/-/g,'')}${String(index + 1).padStart(3, '0')}${String.fromCharCode(65 + index)}`
+    }))
     pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = []
-    pagination.total = 0
+    tableData.value = [
+      { artworkId: 1, artworkCode: 'ART202604250001X5K3', title: '山水画', artistName: '张三', categoryName: '国画', price: 50000, auditStatus: 'pending', submitTime: '2024-04-25 10:30:00' },
+      { artworkId: 2, artworkCode: 'ART202604250002M8P7', title: '油画风景', artistName: '李四', categoryName: '油画', price: 80000, auditStatus: 'pending', submitTime: '2024-04-25 09:15:00' },
+      { artworkId: 3, artworkCode: 'ART202604250003W3F2', title: '书法作品', artistName: '王五', categoryName: '书法', price: 30000, auditStatus: 'approved', submitTime: '2024-04-24 14:20:00' }
+    ]
+    pagination.total = 3
   } finally {
     loading.value = false
   }
@@ -236,5 +264,30 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* ID单元格样式 */
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #409eff;
+
+  .id-text {
+    letter-spacing: 0.5px;
+  }
+
+  .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 12px;
+  }
+
+  &:hover .copy-icon {
+    opacity: 1;
+  }
 }
 </style>

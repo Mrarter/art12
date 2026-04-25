@@ -88,22 +88,10 @@ public class SystemConfigController {
         priceGrowth.put("verifiedBadgeRate", priceGrowthConfig.getVerifiedBadgeRate());
         priceGrowth.put("popularBadgeRate", priceGrowthConfig.getPopularBadgeRate());
         priceGrowth.put("masterBadgeRate", priceGrowthConfig.getMasterBadgeRate());
-        priceGrowth.put("viewThreshold1", priceGrowthConfig.getViewThreshold1());
-        priceGrowth.put("viewRate1", priceGrowthConfig.getViewRate1());
-        priceGrowth.put("viewThreshold2", priceGrowthConfig.getViewThreshold2());
-        priceGrowth.put("viewRate2", priceGrowthConfig.getViewRate2());
-        priceGrowth.put("viewThreshold3", priceGrowthConfig.getViewThreshold3());
-        priceGrowth.put("viewRate3", priceGrowthConfig.getViewRate3());
-        priceGrowth.put("viewThreshold4", priceGrowthConfig.getViewThreshold4());
-        priceGrowth.put("viewRate4", priceGrowthConfig.getViewRate4());
-        priceGrowth.put("favoriteThreshold1", priceGrowthConfig.getFavoriteThreshold1());
-        priceGrowth.put("favoriteRate1", priceGrowthConfig.getFavoriteRate1());
-        priceGrowth.put("favoriteThreshold2", priceGrowthConfig.getFavoriteThreshold2());
-        priceGrowth.put("favoriteRate2", priceGrowthConfig.getFavoriteRate2());
-        priceGrowth.put("favoriteThreshold3", priceGrowthConfig.getFavoriteThreshold3());
-        priceGrowth.put("favoriteRate3", priceGrowthConfig.getFavoriteRate3());
-        priceGrowth.put("favoriteThreshold4", priceGrowthConfig.getFavoriteThreshold4());
-        priceGrowth.put("favoriteRate4", priceGrowthConfig.getFavoriteRate4());
+        priceGrowth.put("viewThreshold", priceGrowthConfig.getViewThreshold());
+        priceGrowth.put("viewRate", priceGrowthConfig.getViewRate());
+        priceGrowth.put("favoriteThreshold", priceGrowthConfig.getFavoriteThreshold());
+        priceGrowth.put("favoriteRate", priceGrowthConfig.getFavoriteRate());
         priceGrowth.put("saleRate", priceGrowthConfig.getSaleRate());
         priceGrowth.put("maxSaleCount", priceGrowthConfig.getMaxSaleCount());
         priceGrowth.put("maxGrowthMultiple", priceGrowthConfig.getMaxGrowthMultiple());
@@ -147,7 +135,6 @@ public class SystemConfigController {
             }
             
             // 价格增长配置通过 Nacos 刷新
-            // 价格增长配置需要写入 Nacos 配置中心，Spring Cloud 会自动刷新 @RefreshScope Bean
             
             log.info("系统配置已更新");
             return Result.success(null);
@@ -171,22 +158,10 @@ public class SystemConfigController {
         result.put("verifiedBadgeRate", priceGrowthConfig.getVerifiedBadgeRate());
         result.put("popularBadgeRate", priceGrowthConfig.getPopularBadgeRate());
         result.put("masterBadgeRate", priceGrowthConfig.getMasterBadgeRate());
-        result.put("viewThreshold1", priceGrowthConfig.getViewThreshold1());
-        result.put("viewRate1", priceGrowthConfig.getViewRate1());
-        result.put("viewThreshold2", priceGrowthConfig.getViewThreshold2());
-        result.put("viewRate2", priceGrowthConfig.getViewRate2());
-        result.put("viewThreshold3", priceGrowthConfig.getViewThreshold3());
-        result.put("viewRate3", priceGrowthConfig.getViewRate3());
-        result.put("viewThreshold4", priceGrowthConfig.getViewThreshold4());
-        result.put("viewRate4", priceGrowthConfig.getViewRate4());
-        result.put("favoriteThreshold1", priceGrowthConfig.getFavoriteThreshold1());
-        result.put("favoriteRate1", priceGrowthConfig.getFavoriteRate1());
-        result.put("favoriteThreshold2", priceGrowthConfig.getFavoriteThreshold2());
-        result.put("favoriteRate2", priceGrowthConfig.getFavoriteRate2());
-        result.put("favoriteThreshold3", priceGrowthConfig.getFavoriteThreshold3());
-        result.put("favoriteRate3", priceGrowthConfig.getFavoriteRate3());
-        result.put("favoriteThreshold4", priceGrowthConfig.getFavoriteThreshold4());
-        result.put("favoriteRate4", priceGrowthConfig.getFavoriteRate4());
+        result.put("viewThreshold", priceGrowthConfig.getViewThreshold());
+        result.put("viewRate", priceGrowthConfig.getViewRate());
+        result.put("favoriteThreshold", priceGrowthConfig.getFavoriteThreshold());
+        result.put("favoriteRate", priceGrowthConfig.getFavoriteRate());
         result.put("saleRate", priceGrowthConfig.getSaleRate());
         result.put("maxSaleCount", priceGrowthConfig.getMaxSaleCount());
         result.put("maxGrowthMultiple", priceGrowthConfig.getMaxGrowthMultiple());
@@ -224,53 +199,17 @@ public class SystemConfigController {
             if (config.containsKey("masterBadgeRate")) {
                 priceGrowthConfig.setMasterBadgeRate(new java.math.BigDecimal(String.valueOf(config.get("masterBadgeRate"))));
             }
-            if (config.containsKey("viewThreshold1")) {
-                priceGrowthConfig.setViewThreshold1(((Number) config.get("viewThreshold1")).intValue());
+            if (config.containsKey("viewThreshold")) {
+                priceGrowthConfig.setViewThreshold(((Number) config.get("viewThreshold")).intValue());
             }
-            if (config.containsKey("viewRate1")) {
-                priceGrowthConfig.setViewRate1(new java.math.BigDecimal(String.valueOf(config.get("viewRate1"))));
+            if (config.containsKey("viewRate")) {
+                priceGrowthConfig.setViewRate(new java.math.BigDecimal(String.valueOf(config.get("viewRate"))));
             }
-            if (config.containsKey("viewThreshold2")) {
-                priceGrowthConfig.setViewThreshold2(((Number) config.get("viewThreshold2")).intValue());
+            if (config.containsKey("favoriteThreshold")) {
+                priceGrowthConfig.setFavoriteThreshold(((Number) config.get("favoriteThreshold")).intValue());
             }
-            if (config.containsKey("viewRate2")) {
-                priceGrowthConfig.setViewRate2(new java.math.BigDecimal(String.valueOf(config.get("viewRate2"))));
-            }
-            if (config.containsKey("viewThreshold3")) {
-                priceGrowthConfig.setViewThreshold3(((Number) config.get("viewThreshold3")).intValue());
-            }
-            if (config.containsKey("viewRate3")) {
-                priceGrowthConfig.setViewRate3(new java.math.BigDecimal(String.valueOf(config.get("viewRate3"))));
-            }
-            if (config.containsKey("viewThreshold4")) {
-                priceGrowthConfig.setViewThreshold4(((Number) config.get("viewThreshold4")).intValue());
-            }
-            if (config.containsKey("viewRate4")) {
-                priceGrowthConfig.setViewRate4(new java.math.BigDecimal(String.valueOf(config.get("viewRate4"))));
-            }
-            if (config.containsKey("favoriteThreshold1")) {
-                priceGrowthConfig.setFavoriteThreshold1(((Number) config.get("favoriteThreshold1")).intValue());
-            }
-            if (config.containsKey("favoriteRate1")) {
-                priceGrowthConfig.setFavoriteRate1(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate1"))));
-            }
-            if (config.containsKey("favoriteThreshold2")) {
-                priceGrowthConfig.setFavoriteThreshold2(((Number) config.get("favoriteThreshold2")).intValue());
-            }
-            if (config.containsKey("favoriteRate2")) {
-                priceGrowthConfig.setFavoriteRate2(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate2"))));
-            }
-            if (config.containsKey("favoriteThreshold3")) {
-                priceGrowthConfig.setFavoriteThreshold3(((Number) config.get("favoriteThreshold3")).intValue());
-            }
-            if (config.containsKey("favoriteRate3")) {
-                priceGrowthConfig.setFavoriteRate3(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate3"))));
-            }
-            if (config.containsKey("favoriteThreshold4")) {
-                priceGrowthConfig.setFavoriteThreshold4(((Number) config.get("favoriteThreshold4")).intValue());
-            }
-            if (config.containsKey("favoriteRate4")) {
-                priceGrowthConfig.setFavoriteRate4(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate4"))));
+            if (config.containsKey("favoriteRate")) {
+                priceGrowthConfig.setFavoriteRate(new java.math.BigDecimal(String.valueOf(config.get("favoriteRate"))));
             }
             if (config.containsKey("saleRate")) {
                 priceGrowthConfig.setSaleRate(new java.math.BigDecimal(String.valueOf(config.get("saleRate"))));

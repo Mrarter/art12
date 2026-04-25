@@ -33,7 +33,11 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="commissionCode" label="佣金编号" width="200">
+        <template #default="{ row }">
+          <IdCell :value="row.commissionCode" success-message="已复制佣金编号" />
+        </template>
+      </el-table-column>
       <el-table-column label="艺荐官" min-width="150">
         <template #default="{ row }">
           <p>{{ row.promoterName }}</p>
@@ -89,6 +93,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import request from '@/api/request'
+import IdCell from '@/components/IdCell.vue'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -118,7 +123,9 @@ const loadData = async () => {
     pagination.total = data.total
   } catch (e) {
     tableData.value = [
-      { id: 1, promoterName: '艺荐官A', promoterPhone: '13900139001', type: 'direct', orderNo: 'SYJ20240120001', buyerName: '张三', orderAmount: 58000, rate: 0.1, commission: 5800, status: 'settled', createTime: '2024-01-20 10:30:00' }
+      { id: 1, commissionCode: 'CMS202604250001A7K3', promoterName: '艺荐官A', promoterPhone: '13900139001', type: 'direct', orderNo: 'SYJ20240120001', buyerName: '张三', orderAmount: 58000, rate: 0.1, commission: 5800, status: 'settled', createTime: '2024-01-20 10:30:00' },
+      { id: 2, commissionCode: 'CMS202604250002D4P8', promoterName: '艺荐官A', promoterPhone: '13900139001', type: 'team', orderNo: 'SYJ20240120002', buyerName: '李四', orderAmount: 42000, rate: 0.05, commission: 2100, status: 'settled', createTime: '2024-01-19 14:20:00' },
+      { id: 3, commissionCode: 'CMS202604250003H2N5', promoterName: '艺荐官B', promoterPhone: '13900139002', type: 'direct', orderNo: 'SYJ20240120003', buyerName: '王五', orderAmount: 65000, rate: 0.1, commission: 6500, status: 'pending', createTime: '2024-01-18 09:15:00' }
     ]
     pagination.total = 1
   } finally {

@@ -12,6 +12,11 @@ import java.time.LocalDateTime;
 public class Artwork implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
+    
+    /** 作品标准化UID (19位: ART + 日期 + 序列 + 随机码) */
+    @TableField("artwork_code")
+    private String artworkUid;
+    
     private String title;
     private Long authorId;
     private String authorName;
@@ -51,6 +56,14 @@ public class Artwork implements Serializable {
     private Integer distributionOrders;
     private Long distributionEarnings;
     private Integer distributionUsers;
+    // 单个作品价格增长配置
+    private Boolean customPriceGrowthEnabled; // 是否启用自定义价格增长
+    private BigDecimal customBaseDailyRate; // 自定义基础日增长率
+    private BigDecimal customMatureDailyRate; // 自定义成熟期日增长率
+    private Integer customMatureDays; // 自定义成熟期天数
+    private BigDecimal customViewRate; // 自定义浏览量加成系数
+    private BigDecimal customFavoriteRate; // 自定义收藏量加成系数
+    private BigDecimal customMaxGrowthMultiple; // 自定义最大涨幅倍数
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

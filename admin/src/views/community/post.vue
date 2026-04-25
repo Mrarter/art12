@@ -21,7 +21,14 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="postId" label="ID" width="80" />
+      <el-table-column prop="postCode" label="帖子编号" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.postCode)">
+            <span class="id-text">{{ row.postCode || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="发布者" width="150">
         <template #default="{ row }">
           <p>{{ row.userName }}</p>
@@ -142,7 +149,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { copyId } from '@/utils/id'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -181,6 +190,18 @@ const pagination = reactive({
   total: 0
 })
 
+// 复制帖子编号
+const handleCopyId = async (id) => {
+  if (!id) {
+    ElMessage.warning('帖子编号为空')
+    return
+  }
+  copyId(id,
+    () => ElMessage.success('已复制帖子编号'),
+    () => ElMessage.error('复制失败')
+  )
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -189,7 +210,9 @@ const loadData = async () => {
     pagination.total = data.total
   } catch (e) {
     tableData.value = [
-      { postId: 1, userName: '用户A', phone: '13800138001', content: '这是一条帖子内容...', images: [], topicName: '#艺术分享', likeCount: 156, commentCount: 23, createTime: '2024-01-21 10:00:00' }
+      { postId: 1, postCode: 'POST202604250001X2M5', userName: '用户A', phone: '13800138001', content: '这是一条帖子内容，分享我的新收藏...', images: [], topicName: '#艺术分享', likeCount: 156, commentCount: 23, createTime: '2024-01-21 10:00:00' },
+      { postId: 2, postCode: 'POST202604250002K8P3', userName: '艺术家B', phone: '13800138002', content: '新作品发布，欢迎大家欣赏！', images: [], topicName: '#每日一画', likeCount: 89, commentCount: 12, createTime: '2024-01-20 14:30:00' },
+      { postId: 3, postCode: 'POST202604250003R5T7', userName: '用户C', phone: '13800138003', content: '今天在画廊看到一幅很美的画...', images: [], topicName: '#艺术品鉴赏', likeCount: 234, commentCount: 45, createTime: '2024-01-19 09:15:00' }
     ]
     pagination.total = 1
   } finally {
@@ -493,5 +516,30 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 8px;
+}
+
+/* UID单元格样式 */
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #409eff;
+  
+  .id-text {
+    letter-spacing: 0.5px;
+  }
+  
+  .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 12px;
+  }
+  
+  &:hover .copy-icon {
+    opacity: 1;
+  }
 }
 </style>

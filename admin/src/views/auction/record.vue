@@ -22,7 +22,22 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="lotId" label="拍品ID" width="100" />
+      <el-table-column prop="bidCode" label="竞拍编号" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.bidCode)">
+            <span class="id-text">{{ row.bidCode || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="lotCode" label="拍品编号" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.lotCode)">
+            <span class="id-text">{{ row.lotCode || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="拍品" min-width="200">
         <template #default="{ row }">
           <p>{{ row.lotTitle }}</p>
@@ -71,7 +86,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { copyId } from '@/utils/id'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -88,6 +106,18 @@ const pagination = reactive({
   total: 0
 })
 
+// 复制编号
+const handleCopyId = async (id) => {
+  if (!id) {
+    ElMessage.warning('编号为空')
+    return
+  }
+  copyId(id,
+    () => ElMessage.success('已复制编号'),
+    () => ElMessage.error('复制失败')
+  )
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -96,9 +126,11 @@ const loadData = async () => {
     pagination.total = data.total
   } catch (e) {
     tableData.value = [
-      { lotId: 'L001', lotTitle: '名家山水', artistName: '张大千', userName: '张三', phone: '13800138001', bidPrice: 68000, bidType: 'manual', isWin: true, bidTime: '2024-02-06 14:30:00' }
+      { bidCode: 'BID202604250001A3K7', lotCode: 'LOT202604240001A5K9', lotTitle: '名家山水', artistName: '张大千', userName: '张三', phone: '13800138001', bidPrice: 68000, bidType: 'manual', isWin: true, bidTime: '2024-02-06 14:30:00' },
+      { bidCode: 'BID202604250002M8P2', lotCode: 'LOT202604240001A5K9', lotTitle: '名家山水', artistName: '张大千', userName: '李四', phone: '13800138002', bidPrice: 65000, bidType: 'manual', isWin: false, bidTime: '2024-02-06 14:25:00' },
+      { bidCode: 'BID202604250003W5T9', lotCode: 'LOT202604240002B2F6', lotTitle: '花鸟画', artistName: '齐白石', userName: '王五', phone: '13800138003', bidPrice: 95000, bidType: 'proxy', isWin: true, bidTime: '2024-02-06 14:20:00' }
     ]
-    pagination.total = 1
+    pagination.total = 3
   } finally {
     loading.value = false
   }
@@ -132,5 +164,30 @@ onMounted(() => {
 .artist, .phone {
   font-size: 12px;
   color: #999;
+}
+
+/* UID单元格样式 */
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #409eff;
+
+  .id-text {
+    letter-spacing: 0.5px;
+  }
+
+  .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 12px;
+  }
+
+  &:hover .copy-icon {
+    opacity: 1;
+  }
 }
 </style>

@@ -25,7 +25,14 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="sessionId" label="专场ID" width="100" />
+      <el-table-column prop="sessionCode" label="专场编号" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.sessionCode)">
+            <span class="id-text">{{ row.sessionCode || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="name" label="专场名称" min-width="200" />
       <el-table-column label="封面" width="120">
         <template #default="{ row }">
@@ -187,10 +194,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit } from '@element-plus/icons-vue'
+import { Plus, Edit, DocumentCopy } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { uploadFile, getFullImageUrl as getUrl } from '@/api/request'
+import { copyId } from '@/utils/id'
 
 const getFullImageUrl = getUrl
 const router = useRouter()
@@ -247,6 +255,18 @@ const getStatusText = (status) => {
   return map[status] || status
 }
 
+// 复制专场编号
+const handleCopyId = async (id) => {
+  if (!id) {
+    ElMessage.warning('专场编号为空')
+    return
+  }
+  copyId(id,
+    () => ElMessage.success('已复制专场编号'),
+    () => ElMessage.error('复制失败')
+  )
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -258,9 +278,9 @@ const loadData = async () => {
     pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [
-      { sessionId: 'S001', name: '2024春季艺术品拍卖会', cover: '', previewStart: '2024-02-01 09:00', previewEnd: '2024-02-05 18:00', auctionStart: '2024-02-06 10:00', auctionEnd: '2024-02-06 18:00', status: 'ended', totalAmount: 2580000 },
-      { sessionId: 'S002', name: '当代艺术专场', cover: '', previewStart: '2024-03-01 09:00', previewEnd: '2024-03-05 18:00', auctionStart: '2024-03-06 10:00', auctionEnd: '2024-03-06 18:00', status: 'ongoing', totalAmount: 0 },
-      { sessionId: 'S003', name: '书画精品专场', cover: '', previewStart: '2024-03-15 09:00', previewEnd: '2024-03-20 18:00', auctionStart: '2024-03-21 10:00', auctionEnd: '2024-03-21 18:00', status: 'preview', totalAmount: 0 }
+      { sessionId: 'S001', sessionCode: 'SES202604240001M5K8', name: '2024春季艺术品拍卖会', cover: '', previewStart: '2024-02-01 09:00', previewEnd: '2024-02-05 18:00', auctionStart: '2024-02-06 10:00', auctionEnd: '2024-02-06 18:00', status: 'ended', totalAmount: 2580000 },
+      { sessionId: 'S002', sessionCode: 'SES202604250001A3F2', name: '当代艺术专场', cover: '', previewStart: '2024-03-01 09:00', previewEnd: '2024-03-05 18:00', auctionStart: '2024-03-06 10:00', auctionEnd: '2024-03-06 18:00', status: 'ongoing', totalAmount: 0 },
+      { sessionId: 'S003', sessionCode: 'SES202604250002W7N9', name: '书画精品专场', cover: '', previewStart: '2024-03-15 09:00', previewEnd: '2024-03-20 18:00', auctionStart: '2024-03-21 10:00', auctionEnd: '2024-03-21 18:00', status: 'preview', totalAmount: 0 }
     ]
     pagination.total = 3
   } finally {
@@ -504,6 +524,31 @@ onMounted(() => {
     margin-top: 8px;
     font-size: 12px;
     color: #909399;
+  }
+}
+
+/* UID单元格样式 */
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #409eff;
+  
+  .id-text {
+    letter-spacing: 0.5px;
+  }
+  
+  .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 12px;
+  }
+  
+  &:hover .copy-icon {
+    opacity: 1;
   }
 }
 </style>

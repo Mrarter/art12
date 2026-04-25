@@ -6,7 +6,11 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="topicId" label="ID" width="80" />
+      <el-table-column prop="topicCode" label="话题编号" width="200">
+        <template #default="{ row }">
+          <IdCell :value="row.topicCode" success-message="已复制话题编号" />
+        </template>
+      </el-table-column>
       <el-table-column label="话题" min-width="200">
         <template #default="{ row }">
           <el-tag size="large">{{ row.name }}</el-tag>
@@ -62,6 +66,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+import IdCell from '@/components/IdCell.vue'
 
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -89,11 +94,11 @@ const loadData = async () => {
   } catch (e) {
     // 使用本地模拟数据
     if (!tableData.value.length) {
-      tableData.value = [
-        { topicId: 1, name: '#艺术分享', description: '分享你的艺术收藏', postCount: 256, viewCount: 12580, status: 1, createTime: '2024-01-01 00:00:00' },
-        { topicId: 2, name: '#每日一画', description: '每天欣赏一幅画', postCount: 189, viewCount: 8920, status: 1, createTime: '2024-01-01 00:00:00' },
-        { topicId: 3, name: '#艺术品鉴赏', description: '一起鉴赏艺术品的魅力', postCount: 145, viewCount: 6780, status: 1, createTime: '2024-01-01 00:00:00' }
-      ]
+    tableData.value = [
+      { topicId: 1, topicCode: 'TOP202604250001B4M8', name: '#艺术分享', description: '分享你的艺术收藏', postCount: 256, viewCount: 12580, status: 1, createTime: '2024-01-01 00:00:00' },
+      { topicId: 2, topicCode: 'TOP202604250002K6F2', name: '#每日一画', description: '每天欣赏一幅画', postCount: 189, viewCount: 8920, status: 1, createTime: '2024-01-01 00:00:00' },
+      { topicId: 3, topicCode: 'TOP202604250003P9W5', name: '#艺术品鉴赏', description: '一起鉴赏艺术品的魅力', postCount: 145, viewCount: 6780, status: 1, createTime: '2024-01-01 00:00:00' }
+    ]
     }
   } finally {
     loading.value = false

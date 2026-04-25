@@ -9,6 +9,10 @@ import java.time.LocalDateTime;
 @Data
 public class sysUser {
     private Long id;
+    
+    /** 用户标准化UID (19位: USR + 日期 + 序列 + 随机码) */
+    private String uid;
+    
     private String nickname;
     private String phone;
     private String avatar;

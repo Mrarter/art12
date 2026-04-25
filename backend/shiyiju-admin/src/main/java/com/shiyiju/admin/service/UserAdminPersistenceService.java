@@ -348,7 +348,7 @@ public class UserAdminPersistenceService {
                    a.%s AS artist_status, a.%s AS review_time,
                    %s AS reject_reason,
                    u.nickname, u.phone, u.avatar, %s AS artist_level_value,
-                   a.%s AS create_time
+                   a.%s AS create_time, a.artist_code
             FROM %s a
             LEFT JOIN %s u ON a.user_id = u.id
             """.formatted(
@@ -576,7 +576,7 @@ public class UserAdminPersistenceService {
         String signTimeSelect = hasSignTimeCol ? ", p." + signTimeCol + " AS sign_time" : "";
         String sql = """
             SELECT p.id, p.user_id, p.%s AS level, p.subordinate_count AS team_size%s%s,
-                   u.nickname, u.phone, u.avatar,
+                   u.nickname, u.phone, u.avatar, p.promoter_code,
                    %s AS promoter_level_value,
                    p.total_commission AS total_commission_value,
                    p.withdrawable_commission AS available_commission_value,
@@ -1047,9 +1047,15 @@ public class UserAdminPersistenceService {
 
     private Map<String, Object> mapArtistRow(Map<String, Object> row) {
         int status = toInt(row.get("artist_status"), 0);
+        Long userId = toLong(row.get("user_id"));
+        String artistCode = String.valueOf(row.get("artist_code"));
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", toLong(row.get("id")));
-        item.put("userId", toLong(row.get("user_id")));
+        item.put("userId", userId);
+        // 优先使用新的artist_code，否则使用userId格式化
+        item.put("displayId", (artistCode != null && !artistCode.equals("null") && !artistCode.isEmpty()) 
+            ? artistCode 
+            : String.format("%04d", userId));
         item.put("nickname", row.get("nickname"));
         item.put("phone", row.get("phone"));
         item.put("avatar", row.get("avatar"));
@@ -1071,9 +1077,15 @@ public class UserAdminPersistenceService {
 
     private Map<String, Object> mapPromoterRow(Map<String, Object> row) {
         int status = toInt(row.get("status"), 1);
+        Long userId = toLong(row.get("user_id"));
+        String promoterCode = String.valueOf(row.get("promoter_code"));
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", toLong(row.get("id")));
-        item.put("userId", String.valueOf(row.get("user_id")));
+        item.put("userId", String.valueOf(userId));
+        // 优先使用新的promoter_code，否则使用userId格式化
+        item.put("displayId", (promoterCode != null && !promoterCode.equals("null") && !promoterCode.isEmpty()) 
+            ? promoterCode 
+            : String.format("%04d", userId));
         item.put("userNickname", row.get("nickname"));
         item.put("nickname", row.get("nickname"));
         item.put("userPhone", row.get("phone"));

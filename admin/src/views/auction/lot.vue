@@ -27,7 +27,14 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="lotId" label="拍品ID" width="100" />
+      <el-table-column prop="lotCode" label="拍品编号" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.lotCode)">
+            <span class="id-text">{{ row.lotCode || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="作品信息" min-width="250">
         <template #default="{ row }">
           <div class="artwork-info">
@@ -130,7 +137,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { copyId } from '@/utils/id'
 
 const route = useRoute()
 const loading = ref(false)
@@ -175,6 +184,18 @@ const getStatusText = (status) => {
   return map[status] || status
 }
 
+// 复制拍品编号
+const handleCopyId = async (id) => {
+  if (!id) {
+    ElMessage.warning('拍品编号为空')
+    return
+  }
+  copyId(id,
+    () => ElMessage.success('已复制拍品编号'),
+    () => ElMessage.error('复制失败')
+  )
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -186,10 +207,13 @@ const loadData = async () => {
     const sessionId = route.query.sessionId || ''
     if (!tableData.value.length) {
       tableData.value = sessionId === 'S002' ? [
-        { lotId: 'L101', title: '现代油画', artistName: '李明', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 30000, finalPrice: 0, bidCount: 5, status: 'pending' },
-        { lotId: 'L102', title: '抽象艺术', artistName: '王芳', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 50000, finalPrice: 0, bidCount: 8, status: 'pending' }
+        { lotId: 'L101', lotCode: 'LOT202604250001X7K2', title: '现代油画', artistName: '李明', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 30000, finalPrice: 0, bidCount: 5, status: 'pending' },
+        { lotId: 'L102', lotCode: 'LOT202604250002M9N5', title: '抽象艺术', artistName: '王芳', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 50000, finalPrice: 0, bidCount: 8, status: 'pending' },
+        { lotId: 'L103', lotCode: 'LOT202604250003W3T8', title: '风景写生', artistName: '赵丽', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 20000, finalPrice: 0, bidCount: 3, status: 'pending' }
       ] : [
-        { lotId: 'L001', title: '名家山水', artistName: '张大千', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 50000, finalPrice: 68000, bidCount: 12, status: 'sold' }
+        { lotId: 'L001', lotCode: 'LOT202604240001A5K9', title: '名家山水', artistName: '张大千', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 50000, finalPrice: 68000, bidCount: 12, status: 'sold' },
+        { lotId: 'L002', lotCode: 'LOT202604240002B2F6', title: '花鸟画', artistName: '齐白石', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 80000, finalPrice: 95000, bidCount: 15, status: 'sold' },
+        { lotId: 'L003', lotCode: 'LOT202604240003C8H1', title: '书法作品', artistName: '启功', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 100000, finalPrice: 0, bidCount: 2, status: 'unsold' }
       ]
     }
     pagination.total = tableData.value.length
@@ -351,6 +375,31 @@ onMounted(() => {
     color: #67c23a;
     font-weight: bold;
     font-size: 16px;
+  }
+}
+
+/* UID单元格样式 */
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #409eff;
+  
+  .id-text {
+    letter-spacing: 0.5px;
+  }
+  
+  .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 12px;
+  }
+  
+  &:hover .copy-icon {
+    opacity: 1;
   }
 }
 </style>

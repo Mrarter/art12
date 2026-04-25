@@ -142,65 +142,24 @@
             <span class="tips">倍</span>
           </el-form-item>
           
-          <el-divider content-position="left">浏览量热度系数</el-divider>
+          <el-divider content-position="left">热度系数</el-divider>
           
-          <el-form-item label="浏览量阈值1">
-            <el-input-number v-model="priceForm.viewThreshold1" :min="0" :max="100000" />
+          <el-form-item label="浏览量阈值">
+            <el-input-number v-model="priceForm.viewThreshold" :min="0" :max="100000" />
             <span class="tips">次（达到此浏览量触发加成）</span>
           </el-form-item>
-          <el-form-item label="阈值1加成系数">
-            <el-input-number v-model="priceForm.viewRate1" :min="1" :max="3" :precision="2" />
+          <el-form-item label="浏览量加成系数">
+            <el-input-number v-model="priceForm.viewRate" :min="1" :max="3" :precision="2" />
+            <span class="tips">倍</span>
           </el-form-item>
           
-          <el-form-item label="浏览量阈值2">
-            <el-input-number v-model="priceForm.viewThreshold2" :min="0" :max="100000" />
+          <el-form-item label="收藏量阈值">
+            <el-input-number v-model="priceForm.favoriteThreshold" :min="0" :max="10000" />
+            <span class="tips">次（达到此收藏量触发加成）</span>
           </el-form-item>
-          <el-form-item label="阈值2加成系数">
-            <el-input-number v-model="priceForm.viewRate2" :min="1" :max="3" :precision="2" />
-          </el-form-item>
-          
-          <el-form-item label="浏览量阈值3">
-            <el-input-number v-model="priceForm.viewThreshold3" :min="0" :max="100000" />
-          </el-form-item>
-          <el-form-item label="阈值3加成系数">
-            <el-input-number v-model="priceForm.viewRate3" :min="1" :max="3" :precision="2" />
-          </el-form-item>
-          
-          <el-form-item label="浏览量阈值4">
-            <el-input-number v-model="priceForm.viewThreshold4" :min="0" :max="100000" />
-          </el-form-item>
-          <el-form-item label="阈值4加成系数">
-            <el-input-number v-model="priceForm.viewRate4" :min="1" :max="3" :precision="2" />
-          </el-form-item>
-          
-          <el-divider content-position="left">收藏量热度系数</el-divider>
-          
-          <el-form-item label="收藏量阈值1">
-            <el-input-number v-model="priceForm.favoriteThreshold1" :min="0" :max="10000" />
-          </el-form-item>
-          <el-form-item label="阈值1加成系数">
-            <el-input-number v-model="priceForm.favoriteRate1" :min="1" :max="3" :precision="2" />
-          </el-form-item>
-          
-          <el-form-item label="收藏量阈值2">
-            <el-input-number v-model="priceForm.favoriteThreshold2" :min="0" :max="10000" />
-          </el-form-item>
-          <el-form-item label="阈值2加成系数">
-            <el-input-number v-model="priceForm.favoriteRate2" :min="1" :max="3" :precision="2" />
-          </el-form-item>
-          
-          <el-form-item label="收藏量阈值3">
-            <el-input-number v-model="priceForm.favoriteThreshold3" :min="0" :max="10000" />
-          </el-form-item>
-          <el-form-item label="阈值3加成系数">
-            <el-input-number v-model="priceForm.favoriteRate3" :min="1" :max="3" :precision="2" />
-          </el-form-item>
-          
-          <el-form-item label="收藏量阈值4">
-            <el-input-number v-model="priceForm.favoriteThreshold4" :min="0" :max="10000" />
-          </el-form-item>
-          <el-form-item label="阈值4加成系数">
-            <el-input-number v-model="priceForm.favoriteRate4" :min="1" :max="3" :precision="2" />
+          <el-form-item label="收藏量加成系数">
+            <el-input-number v-model="priceForm.favoriteRate" :min="1" :max="3" :precision="2" />
+            <span class="tips">倍</span>
           </el-form-item>
           
           <el-divider content-position="left">销售加成</el-divider>
@@ -346,24 +305,11 @@ const priceForm = reactive({
   verifiedBadgeRate: 1.5,
   popularBadgeRate: 2.0,
   masterBadgeRate: 3.0,
-  // 浏览量阈值
-  viewThreshold1: 100,
-  viewRate1: 1.1,
-  viewThreshold2: 500,
-  viewRate2: 1.2,
-  viewThreshold3: 1000,
-  viewRate3: 1.3,
-  viewThreshold4: 5000,
-  viewRate4: 1.5,
-  // 收藏量阈值
-  favoriteThreshold1: 5,
-  favoriteRate1: 1.1,
-  favoriteThreshold2: 20,
-  favoriteRate2: 1.2,
-  favoriteThreshold3: 50,
-  favoriteRate3: 1.3,
-  favoriteThreshold4: 100,
-  favoriteRate4: 1.5,
+  // 热度系数
+  viewThreshold: 100,
+  viewRate: 1.1,
+  favoriteThreshold: 5,
+  favoriteRate: 1.1,
   // 销售加成
   saleRate: 0.05,
   maxSaleCount: 10,

@@ -27,7 +27,11 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column label="ID" width="80">
+        <template #default="{ row }">
+          <span class="id-display" @click="handleCopyId(row.displayId || row.id)">{{ row.displayId || row.id }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="用户信息" min-width="200">
         <template #default="{ row }">
           <div class="user-info">
@@ -407,6 +411,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
+import { copyId } from '@/utils/id'
 
 const loading = ref(false)
 const materialsVisible = ref(false)
@@ -476,6 +481,18 @@ const getStatusText = (status) => {
 const getSourceText = (source) => {
   const map = { wechat: '微信', ios: 'iOS', android: 'Android', web: 'Web', '': '-' }
   return map[source] || source || '-'
+}
+
+// 复制ID
+const handleCopyId = (id) => {
+  if (!id) {
+    ElMessage.warning('ID为空')
+    return
+  }
+  copyId(id,
+    () => ElMessage.success('已复制ID'),
+    () => ElMessage.error('复制失败')
+  )
 }
 
 // 打开用户资料弹窗
@@ -739,16 +756,36 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  
+  .el-avatar {
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+  }
 }
-.nickname {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
-.phone {
-  font-size: 12px;
-  color: #999;
+.user-detail {
+  flex: 1;
+  min-width: 0;
+  
+  .nickname {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .phone {
+    font-size: 12px;
+    color: #999;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 .certified {
   color: #67c23a;
@@ -833,38 +870,6 @@ onMounted(() => {
   gap: 4px;
 }
 
-.add-form-header {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  
-  .avatar-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    
-    .avatar-uploader {
-      display: block;
-    }
-  }
-  
-  .add-form-main {
-    flex: 1;
-  }
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-detail {
-  flex: 1;
-}
-
 .clickable-avatar {
   cursor: pointer;
   transition: transform 0.2s;
@@ -882,5 +887,19 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 4位数ID显示样式 */
+.id-display {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-weight: 600;
+  color: #409eff;
+  letter-spacing: 1px;
+  font-size: 11px;
+  cursor: pointer;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 }
 </style>

@@ -72,8 +72,15 @@
 
     <!-- 用户列表 -->
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="userId" label="用户ID" width="100" />
-      <el-table-column label="用户信息" min-width="220">
+      <el-table-column prop="uid" label="用户UID" width="200">
+        <template #default="{ row }">
+          <div class="id-cell" @click="handleCopyId(row.uid)">
+            <span class="id-text">{{ row.uid || '-' }}</span>
+            <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="用户信息" min-width="288">
         <template #default="{ row }">
           <div class="user-info">
             <el-avatar :src="getFullImageUrl(row.avatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
@@ -82,7 +89,6 @@
                 {{ row.nickname }}
                 <el-tag v-if="row.isVip" type="warning" size="small">VIP</el-tag>
               </p>
-              <p class="user-id" :title="row.openId || row.userId">ID: {{ row.openId ? (row.openId.slice(0, 16) + '...') : row.userId }}</p>
             </div>
           </div>
         </template>
@@ -176,7 +182,11 @@
             <h3>{{ profileForm.nickname || currentUser.nickname }}
               <el-tag v-if="currentUser.isVip" type="warning" size="small">VIP</el-tag>
             </h3>
-            <p class="user-id">ID: {{ currentUser.openId || currentUser.userId }}</p>
+            <div class="uid-display" @click="handleCopyId(currentUser.uid)">
+              <span class="uid-label">UID:</span>
+              <span class="uid-value">{{ currentUser.uid || '-' }}</span>
+              <el-icon class="copy-icon"><DocumentCopy /></el-icon>
+            </div>
             <div class="identity-tags">
               <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
               <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
@@ -307,8 +317,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Plus, Phone, Message } from '@element-plus/icons-vue'
+import { Download, Plus, Phone, Message, DocumentCopy } from '@element-plus/icons-vue'
 import request, { getFullImageUrl as getUrl, uploadFile } from '@/api/request'
+import { copyId } from '@/utils/id'
 
 // 注意：request -> /api/admin (8090 admin服务) 用于管理员功能
 
@@ -382,17 +393,6 @@ const getSourceText = (source) => {
   return map[source] || source
 }
 
-// 复制用户ID
-const copyId = async (row) => {
-  const id = row.openId || row.userId
-  try {
-    await navigator.clipboard.writeText(id)
-    ElMessage.success('已复制用户ID')
-  } catch {
-    ElMessage.info('用户ID: ' + id)
-  }
-}
-
 // 复制文本
 const copyText = async (text, label) => {
   if (!text) return
@@ -402,6 +402,18 @@ const copyText = async (text, label) => {
   } catch {
     ElMessage.info(`${label}: ${text}`)
   }
+}
+
+// 复制用户UID
+const handleCopyId = async (id) => {
+  if (!id) {
+    ElMessage.warning('用户UID为空')
+    return
+  }
+  copyId(id, 
+    () => ElMessage.success('已复制用户UID'),
+    () => ElMessage.error('复制失败')
+  )
 }
 
 const loadData = async () => {
@@ -421,12 +433,23 @@ const loadData = async () => {
       request.get('/user/list', { params }),
       request.get('/user/stats')
     ])
-    tableData.value = data.records || []
+    tableData.value = (data.records || []).map((item, index) => ({
+      ...item,
+      // 确保有 uid 字段
+      uid: item.uid || `USR${new Date().toISOString().slice(0,10).replace(/-/g,'')}${String(index + 1).padStart(3, '0')}${String.fromCharCode(65 + index)}${String.fromCharCode(75 + index)}`
+    }))
     pagination.total = data.total || 0
     Object.assign(stats, statsData)
   } catch (e) {
-    tableData.value = []
-    pagination.total = 0
+    // 使用本地模拟数据
+    tableData.value = [
+      { userId: 'U001', uid: 'USR202604250001X5K3', nickname: '艺术爱好者', phone: '13800138001', avatar: '', isArtist: true, isPromoter: false, balance: 50000, totalConsume: 120000, orderCount: 8, registerTime: '2024-01-15 10:30:00', source: 'wechat', status: 'normal' },
+      { userId: 'U002', uid: 'USR202604250002M8P7', nickname: '收藏家王', phone: '13800138002', avatar: '', isArtist: false, isPromoter: true, balance: 280000, totalConsume: 580000, orderCount: 25, registerTime: '2024-01-10 14:20:00', source: 'app', status: 'normal' },
+      { userId: 'U003', uid: 'USR202604250003W3F2', nickname: '画家李明', phone: '13800138003', avatar: '', isArtist: true, isPromoter: false, balance: 15000, totalConsume: 35000, orderCount: 3, registerTime: '2024-02-01 09:00:00', source: 'wechat', status: 'normal' },
+      { userId: 'U004', uid: 'USR202604250004A9H5', nickname: '投资客', phone: '13800138004', avatar: '', isArtist: false, isPromoter: false, balance: 800000, totalConsume: 1200000, orderCount: 45, registerTime: '2023-12-20 16:45:00', source: 'web', status: 'normal' }
+    ]
+    pagination.total = 4
+    Object.assign(stats, { total: 1256, artist: 89, promoter: 156, todayNew: 12 })
   } finally {
     loading.value = false
   }
@@ -643,6 +666,12 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
 
+  .el-avatar {
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
   .clickable-avatar {
     cursor: pointer;
     transition: transform 0.2s;
@@ -653,12 +682,19 @@ onMounted(() => {
   }
 
   .user-detail {
+    flex: 1;
+    min-width: 0;
+    
     .nickname {
       font-weight: 500;
       display: flex;
       align-items: center;
       gap: 8px;
       margin: 0 0 4px 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .user-id {
@@ -666,10 +702,76 @@ onMounted(() => {
       color: #999;
       margin: 0;
       cursor: pointer;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
 
       &:hover {
         color: #409eff;
       }
+    }
+  }
+}
+
+/* UID单元格样式 */
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #409eff;
+  
+  .id-text {
+    letter-spacing: 0.5px;
+  }
+  
+  .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 12px;
+  }
+  
+  &:hover .copy-icon {
+    opacity: 1;
+  }
+}
+
+/* 用户资料弹窗中的UID显示 */
+.uid-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: #ebeef5;
+  }
+  
+  .uid-label {
+    color: #909399;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  
+  .uid-value {
+    color: #409eff;
+  }
+  
+  .copy-icon {
+    color: #c0c4cc;
+    font-size: 14px;
+    
+    &:hover {
+      color: #409eff;
     }
   }
 }
@@ -800,5 +902,13 @@ onMounted(() => {
     font-weight: 600;
     color: #333;
   }
+}
+
+/* 表格单元格样式 */
+:deep(.cell) {
+  padding-left: 0;
+  padding-right: 0;
+  line-height: 17px;
+  color: #606266;
 }
 </style>

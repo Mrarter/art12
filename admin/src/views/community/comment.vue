@@ -17,7 +17,11 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="commentId" label="ID" width="80" />
+      <el-table-column prop="commentCode" label="评论编号" width="200">
+        <template #default="{ row }">
+          <IdCell :value="row.commentCode" success-message="已复制评论编号" />
+        </template>
+      </el-table-column>
       <el-table-column label="评论者" width="150">
         <template #default="{ row }">
           <p>{{ row.userName }}</p>
@@ -84,6 +88,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+import IdCell from '@/components/IdCell.vue'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -110,11 +115,11 @@ const loadData = async () => {
   } catch (e) {
     // 使用本地模拟数据
     if (!tableData.value.length) {
-      tableData.value = [
-        { commentId: 1, userName: '用户B', phone: '13800138002', content: '这幅画真漂亮！', postContent: '这是一条帖子内容...', likeCount: 12, createTime: '2024-01-21 11:00:00' },
-        { commentId: 2, userName: '用户C', phone: '13800138003', content: '请问在哪里可以买到？', postContent: '新作品发布...', likeCount: 8, createTime: '2024-01-20 15:30:00' },
-        { commentId: 3, userName: '艺术家A', phone: '13800138001', content: '感谢大家关注！', postContent: '艺术分享...', likeCount: 25, createTime: '2024-01-19 09:00:00' }
-      ]
+    tableData.value = [
+      { commentId: 1, commentCode: 'CMT202604250001Y3H6', userName: '用户B', phone: '13800138002', content: '这幅画真漂亮！', postContent: '这是一条帖子内容...', likeCount: 12, createTime: '2024-01-21 11:00:00' },
+      { commentId: 2, commentCode: 'CMT202604250002N7K2', userName: '用户C', phone: '13800138003', content: '请问在哪里可以买到？', postContent: '新作品发布...', likeCount: 8, createTime: '2024-01-20 15:30:00' },
+      { commentId: 3, commentCode: 'CMT202604250003W9F4', userName: '艺术家A', phone: '13800138001', content: '感谢大家关注！', postContent: '艺术分享...', likeCount: 25, createTime: '2024-01-19 09:00:00' }
+    ]
       pagination.total = 3
     }
   } finally {

@@ -69,90 +69,30 @@
           </el-col>
         </el-row>
         
-        <el-divider content-position="left">浏览量阈值</el-divider>
+        <el-divider content-position="left">热度系数</el-divider>
         <el-row :gutter="20">
-          <el-col :span="6">
-            <el-form-item label="阈值1">
-              <el-input-number v-model="priceConfigForm.viewThreshold1" :min="0" />
+          <el-col :span="12">
+            <el-form-item label="浏览量阈值">
+              <el-input-number v-model="priceConfigForm.viewThreshold" :min="0" />
+              <span class="unit">次</span>
             </el-form-item>
           </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率1">
-              <el-input-number v-model="priceConfigForm.viewRate1" :min="1" :max="10" :precision="2" />
+          <el-col :span="12">
+            <el-form-item label="浏览量加成">
+              <el-input-number v-model="priceConfigForm.viewRate" :min="1" :max="10" :precision="2" />
+              <span class="unit">倍</span>
             </el-form-item>
           </el-col>
-          <el-col :span="6">
-            <el-form-item label="阈值2">
-              <el-input-number v-model="priceConfigForm.viewThreshold2" :min="0" />
+          <el-col :span="12">
+            <el-form-item label="收藏量阈值">
+              <el-input-number v-model="priceConfigForm.favoriteThreshold" :min="0" />
+              <span class="unit">次</span>
             </el-form-item>
           </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率2">
-              <el-input-number v-model="priceConfigForm.viewRate2" :min="1" :max="10" :precision="2" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="阈值3">
-              <el-input-number v-model="priceConfigForm.viewThreshold3" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率3">
-              <el-input-number v-model="priceConfigForm.viewRate3" :min="1" :max="10" :precision="2" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="阈值4">
-              <el-input-number v-model="priceConfigForm.viewThreshold4" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率4">
-              <el-input-number v-model="priceConfigForm.viewRate4" :min="1" :max="10" :precision="2" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        
-        <el-divider content-position="left">收藏量阈值</el-divider>
-        <el-row :gutter="20">
-          <el-col :span="6">
-            <el-form-item label="阈值1">
-              <el-input-number v-model="priceConfigForm.favoriteThreshold1" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率1">
-              <el-input-number v-model="priceConfigForm.favoriteRate1" :min="1" :max="10" :precision="2" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="阈值2">
-              <el-input-number v-model="priceConfigForm.favoriteThreshold2" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率2">
-              <el-input-number v-model="priceConfigForm.favoriteRate2" :min="1" :max="10" :precision="2" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="阈值3">
-              <el-input-number v-model="priceConfigForm.favoriteThreshold3" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率3">
-              <el-input-number v-model="priceConfigForm.favoriteRate3" :min="1" :max="10" :precision="2" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="阈值4">
-              <el-input-number v-model="priceConfigForm.favoriteThreshold4" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="倍率4">
-              <el-input-number v-model="priceConfigForm.favoriteRate4" :min="1" :max="10" :precision="2" />
+          <el-col :span="12">
+            <el-form-item label="收藏量加成">
+              <el-input-number v-model="priceConfigForm.favoriteRate" :min="1" :max="10" :precision="2" />
+              <span class="unit">倍</span>
             </el-form-item>
           </el-col>
         </el-row>
@@ -217,7 +157,7 @@
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column label="作品ID" width="120">
         <template #default="{ row }">
-          <span class="artwork-code">{{ row.artworkCode || row.artworkId }}</span>
+          <span class="artwork-code">{{ row.artworkCode || row.displayArtworkId || row.artworkId }}</span>
         </template>
       </el-table-column>
       <el-table-column label="作品信息" min-width="280">
@@ -243,7 +183,10 @@
             </div>
             <div class="detail">
               <p class="title" @click="handleEdit(row)">{{ row.title }}</p>
-              <p class="artist" @click="handleEdit(row)">{{ row.artistName }}</p>
+              <p class="artist" @click="handleEdit(row)">
+                {{ row.artistName }}
+                <span v-if="row.authorUid" class="artist-id-inline">ID: {{ row.authorUid }}</span>
+              </p>
               <p class="category">{{ row.categoryName }}</p>
             </div>
           </div>
@@ -415,13 +358,14 @@
     </el-dialog>
 
     <!-- 编辑作品弹窗 -->
-    <el-dialog v-model="editVisible" title="编辑作品" width="700px" destroy-on-close>
+    <el-dialog v-model="editVisible" title="编辑作品" width="800px" destroy-on-close>
       <el-form ref="formRef" :model="editForm" :rules="rules" label-width="100px">
         <el-form-item label="作品名称" prop="title">
           <el-input v-model="editForm.title" placeholder="请输入作品名称" />
         </el-form-item>
         <el-form-item label="艺术家" prop="artistName">
-          <el-input v-model="editForm.artistName" placeholder="请输入艺术家名称" />
+          <el-input v-model="editForm.artistName" placeholder="请输入艺术家名称" style="width: 60%; margin-right: 10px;" />
+          <span v-if="editForm.authorUid" class="artist-id-tag">ID: {{ editForm.authorUid }}</span>
         </el-form-item>
         <el-form-item label="分类" prop="categoryId">
           <el-select v-model="editForm.categoryId" placeholder="请选择分类" style="width: 100%">
@@ -473,6 +417,51 @@
             <el-radio :value="0">下架</el-radio>
           </el-radio-group>
         </el-form-item>
+        
+        <!-- 单个作品价格增长配置 -->
+        <el-divider content-position="left">价格增长配置</el-divider>
+        <div class="price-growth-config">
+          <el-form-item label="自定义配置">
+            <el-switch v-model="editForm.customPriceGrowthEnabled" active-text="启用" inactive-text="使用全局配置" />
+          </el-form-item>
+          
+          <template v-if="editForm.customPriceGrowthEnabled">
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="基础日增长率">
+                  <el-input-number v-model="editForm.customBaseDailyRate" :min="0" :precision="4" :step="0.0001" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="成熟期天数">
+                  <el-input-number v-model="editForm.customMatureDays" :min="0" :max="365" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="成熟期日增长率">
+                  <el-input-number v-model="editForm.customMatureDailyRate" :min="0" :precision="4" :step="0.0001" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="浏览量加成">
+                  <el-input-number v-model="editForm.customViewRate" :min="1" :max="10" :precision="2" />
+                  <span class="unit">倍</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="收藏量加成">
+                  <el-input-number v-model="editForm.customFavoriteRate" :min="1" :max="10" :precision="2" />
+                  <span class="unit">倍</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="最大涨幅倍数">
+                  <el-input-number v-model="editForm.customMaxGrowthMultiple" :min="1" :max="100" :precision="1" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </template>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
@@ -501,22 +490,10 @@ const priceConfigForm = reactive({
   verifiedBadgeRate: 1.5,
   popularBadgeRate: 2.0,
   masterBadgeRate: 3.0,
-  viewThreshold1: 100,
-  viewRate1: 1.1,
-  viewThreshold2: 500,
-  viewRate2: 1.2,
-  viewThreshold3: 1000,
-  viewRate3: 1.3,
-  viewThreshold4: 5000,
-  viewRate4: 1.5,
-  favoriteThreshold1: 5,
-  favoriteRate1: 1.1,
-  favoriteThreshold2: 20,
-  favoriteRate2: 1.2,
-  favoriteThreshold3: 50,
-  favoriteRate3: 1.3,
-  favoriteThreshold4: 100,
-  favoriteRate4: 1.5,
+  viewThreshold: 100,
+  viewRate: 1.1,
+  favoriteThreshold: 5,
+  favoriteRate: 1.1,
   saleRate: 0.05,
   maxSaleCount: 10,
   maxGrowthMultiple: 5.0
@@ -571,6 +548,8 @@ const pagination = reactive({
 
 const editForm = reactive({
   artworkId: '',
+  authorId: null,
+  authorUid: '',
   title: '',
   artistName: '',
   categoryId: '',
@@ -582,7 +561,15 @@ const editForm = reactive({
   originalPrice: 0,
   ownershipType: 1,  // 默认原创
   description: '',
-  status: 1
+  status: 1,
+  // 单个作品价格增长配置
+  customPriceGrowthEnabled: false,
+  customBaseDailyRate: 0.0002,
+  customMatureDailyRate: 0.0003,
+  customMatureDays: 30,
+  customViewRate: 1.1,
+  customFavoriteRate: 1.1,
+  customMaxGrowthMultiple: 5.0
 })
 
 const distForm = reactive({
@@ -617,8 +604,12 @@ const loadData = async () => {
     // 映射后端数据格式到前端
     tableData.value = (data.records || data.list || []).map(item => ({
       artworkId: item.id,
+      authorId: item.authorId,
+      displayArtworkId: item.displayArtworkId,
+      displayAuthorId: item.displayAuthorId,
+      authorUid: item.authorUid,
       title: item.title,
-      artistName: item.artistName,  // 后端返回 artistName
+      artistName: item.authorName || item.artistName,  // 后端返回 authorName
       cover: item.coverImage || item.cover || '', // 后端返回 coverImage
       categoryId: item.categoryId,
       categoryName: item.category,  // 后端返回 category
@@ -676,9 +667,11 @@ const resetSearch = () => {
   handleSearch()
 }
 
-const handleEdit = (row) => {
+const handleEdit = async (row) => {
   Object.assign(editForm, {
     artworkId: row.artworkId,
+    authorId: row.authorId || null,
+    authorUid: row.authorUid || '',
     title: row.title,
     artistName: row.artistName,
     categoryId: row.categoryId,
@@ -692,6 +685,33 @@ const handleEdit = (row) => {
     description: row.description || '',
     status: row.status
   })
+  
+  // 加载单个作品的价格增长配置
+  try {
+    const data = await requestApi.get(`/product/${row.artworkId}/priceGrowth`)
+    Object.assign(editForm, {
+      customPriceGrowthEnabled: data.customPriceGrowthEnabled || false,
+      customBaseDailyRate: data.customBaseDailyRate || 0.0002,
+      customMatureDailyRate: data.customMatureDailyRate || 0.0003,
+      customMatureDays: data.customMatureDays || 30,
+      customViewRate: data.customViewRate || 1.1,
+      customFavoriteRate: data.customFavoriteRate || 1.1,
+      customMaxGrowthMultiple: data.customMaxGrowthMultiple || 5.0
+    })
+  } catch (e) {
+    console.error('加载价格增长配置失败', e)
+    // 使用默认值
+    Object.assign(editForm, {
+      customPriceGrowthEnabled: false,
+      customBaseDailyRate: 0.0002,
+      customMatureDailyRate: 0.0003,
+      customMatureDays: 30,
+      customViewRate: 1.1,
+      customFavoriteRate: 1.1,
+      customMaxGrowthMultiple: 5.0
+    })
+  }
+  
   editVisible.value = true
 }
 
@@ -754,6 +774,7 @@ const handleSave = async () => {
   try {
     const params = {
       title: editForm.title,
+      authorId: editForm.authorId,
       authorName: editForm.artistName,
       categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
       artType: editForm.artType || null,
@@ -771,8 +792,21 @@ const handleSave = async () => {
     if (editForm.artworkId) {
       // 更新作品
       params.id = Number(editForm.artworkId)
-      const res = await requestApi.put('/product/update', params)
-      console.log('更新结果:', res)
+      await requestApi.put('/product/update', params)
+      
+      // 保存单个作品的价格增长配置
+      const priceGrowthParams = {
+        customPriceGrowthEnabled: editForm.customPriceGrowthEnabled,
+        customBaseDailyRate: editForm.customBaseDailyRate,
+        customMatureDailyRate: editForm.customMatureDailyRate,
+        customMatureDays: editForm.customMatureDays,
+        customViewRate: editForm.customViewRate,
+        customFavoriteRate: editForm.customFavoriteRate,
+        customMaxGrowthMultiple: editForm.customMaxGrowthMultiple
+      }
+      await requestApi.put(`/product/${editForm.artworkId}/priceGrowth`, priceGrowthParams)
+      
+      console.log('更新结果:')
       ElMessage.success('更新成功')
     } else {
       // 新增作品
@@ -958,6 +992,15 @@ onMounted(() => {
       &:hover {
         color: #409eff;
       }
+      .artist-id-inline {
+        margin-left: 6px;
+        padding: 1px 5px;
+        background: #ecf5ff;
+        color: #409eff;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 500;
+      }
     }
     .category {
       font-size: 12px;
@@ -1002,7 +1045,7 @@ onMounted(() => {
 }
 
 .artwork-code {
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Monaco', monospace;
   font-weight: 600;
   color: #409eff;
 }
@@ -1150,6 +1193,42 @@ onMounted(() => {
     font-size: 12px;
     opacity: 0.8;
     margin-top: 4px;
+  }
+}
+
+.price-growth-config {
+  background: #f5f7fa;
+  padding: 15px;
+  border-radius: 8px;
+  
+  .unit {
+    margin-left: 8px;
+    color: #909399;
+  }
+}
+
+.artist-id-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #ecf5ff;
+  color: #409eff;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+/* 4位数ID显示样式 */
+.id-display {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-weight: 600;
+  color: #409eff;
+  letter-spacing: 1px;
+  font-size: 11px;
+  cursor: pointer;
+  
+  &:hover {
+    text-decoration: underline;
   }
 }
 </style>

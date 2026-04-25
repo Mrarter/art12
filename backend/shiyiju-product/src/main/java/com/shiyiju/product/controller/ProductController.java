@@ -340,4 +340,24 @@ public Result<PageResult<ArtworkVO>> getFollowingWorks(
   query.setPageSize(pageSize);
   return Result.success(productService.getProductList(query, userId));
 }
+
+/**
+ * 获取单个作品价格增长配置 (GET /product/{id}/priceGrowth)
+ */
+@GetMapping("/{id}/priceGrowth")
+public Result<Map<String, Object>> getArtworkPriceGrowth(@PathVariable Long id) {
+    return Result.success(productService.getArtworkPriceGrowth(id));
+}
+
+/**
+ * 更新单个作品价格增长配置 (PUT /product/{id}/priceGrowth)
+ */
+@PutMapping("/{id}/priceGrowth")
+public Result<Void> updateArtworkPriceGrowth(
+        @PathVariable Long id,
+        @RequestBody Map<String, Object> config
+) {
+    productService.updateArtworkPriceGrowth(id, config);
+    return Result.success();
+}
 }
