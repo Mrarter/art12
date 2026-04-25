@@ -1,78 +1,77 @@
 # ID迁移API接口文档
 
+> 更新时间：2026-04-25
+> 版本：v1.2
+
 ## 基础信息
 
-- **Base URL**: `http://localhost:8090` (Admin API)
-- **认证**: 需要管理员Token
+- **User Service Base URL**: `http://localhost:8090/api/user` (用户服务)
+- **Admin Service Base URL**: `http://localhost:8090/api/admin` (管理服务)
+- **认证**: 需要管理员Token（Header: `Authorization: Bearer {token}`）
 
 ---
 
-## 一、迁移接口
+## 一、用户UID迁移接口
 
-### 1. 执行全量ID迁移
+### 1. 批量更新用户UID
 
 ```http
-POST /api/admin/id-migration/migrate-all
+POST /api/user/admin/batch-update-uids
+```
+
+**请求示例**:
+```json
+{
+  "userIds": [1, 2, 3, 4, 5],
+  "uids": [
+    "USR202604250001VKO5",
+    "USR202604250001XSEU",
+    "USR202604250002WWVT",
+    "USR202604250003MZ9L",
+    "USR202604250004YZ7S"
+  ]
+}
 ```
 
 **响应示例**:
 ```json
 {
   "success": true,
-  "message": "ID迁移任务执行成功"
+  "code": 200,
+  "message": "批量更新成功"
 }
 ```
 
 ---
 
-### 2. 分项迁移接口
-
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| `/api/admin/id-migration/migrate/users` | POST | 迁移用户ID |
-| `/api/admin/id-migration/migrate/sessions` | POST | 迁移专场ID |
-| `/api/admin/id-migration/migrate/lots` | POST | 迁移拍品ID |
-| `/api/admin/id-migration/migrate/posts` | POST | 迁移帖子ID |
-| `/api/admin/id-migration/migrate/comments` | POST | 迁移评论ID |
-| `/api/admin/id-migration/migrate/topics` | POST | 迁移话题ID |
-| `/api/admin/id-migration/migrate/withdraws` | POST | 迁移提现记录ID |
-| `/api/admin/id-migration/migrate/commissions` | POST | 迁移佣金记录ID |
-| `/api/admin/id-migration/migrate/bids` | POST | 迁移竞拍记录ID |
-| `/api/admin/id-migration/migrate/aftersales` | POST | 迁移售后记录ID |
-
----
-
-## 二、查询接口
-
-### 3. 获取迁移状态
+### 2. 更新单个用户UID
 
 ```http
-GET /api/admin/id-migration/status
+POST /api/user/admin/update-uid
+```
+
+**请求示例**:
+```json
+{
+  "userId": 1,
+  "uid": "USR202604250001VKO5"
+}
 ```
 
 **响应示例**:
 ```json
 {
   "success": true,
-  "data": {
-    "users": 1234,
-    "artworks": 567,
-    "sessions": 12,
-    "lots": 89,
-    "posts": 2345,
-    "comments": 6789,
-    "topics": 45,
-    "withdraws": 123,
-    "commissions": 456,
-    "bids": 7890,
-    "aftersales": 34
-  }
+  "code": 200,
+  "message": "更新成功"
 }
 ```
 
 ---
 
-### 4. 验证ID格式
+## 二、ID格式验证接口
+
+### 3. 验证UID格式
 
 ```http
 GET /api/admin/id-migration/validate/{id}
@@ -92,23 +91,100 @@ GET /api/admin/id-migration/validate/{id}
 
 ---
 
+### 4. 获取迁移状态
+
+```http
+GET /api/admin/id-migration/status
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "users": 50,
+    "artworks": 0,
+    "sessions": 0,
+    "lots": 0,
+    "posts": 0,
+    "comments": 0,
+    "topics": 0,
+    "withdraws": 0,
+    "commissions": 0,
+    "bids": 0,
+    "aftersales": 0
+  }
+}
+```
+
+---
+
 ## 三、Postman测试脚本
 
 ```javascript
-// Postman Collection - ID Migration
+// Postman Collection - 用户UID迁移
 
-// 全量迁移
-pm.test("全量迁移成功", function() {
+// 批量更新用户UID
+pm.test("批量更新UID成功", function() {
     pm.sendRequest({
-        url: 'http://localhost:8090/api/admin/id-migration/migrate-all',
+        url: 'http://localhost:8090/api/user/admin/batch-update-uids',
         method: 'POST',
         header: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + pm.collectionVariables.get("adminToken")
+        },
+        body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+                userIds: [1, 2, 3],
+                uids: [
+                    "USR202604250001VKO5",
+                    "USR202604250001XSEU",
+                    "USR202604250002WWVT"
+                ]
+            })
         }
     }, function(err, res) {
         var jsonData = res.json();
         pm.expect(jsonData.success).to.eq(true);
+    });
+});
+
+// 更新单个用户UID
+pm.test("更新单个UID成功", function() {
+    pm.sendRequest({
+        url: 'http://localhost:8090/api/user/admin/update-uid',
+        method: 'POST',
+        header: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + pm.collectionVariables.get("adminToken")
+        },
+        body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+                userId: 10,
+                uid: "USR202604250010A7KM"
+            })
+        }
+    }, function(err, res) {
+        var jsonData = res.json();
+        pm.expect(jsonData.success).to.eq(true);
+    });
+});
+
+// 验证ID格式
+pm.test("ID格式验证", function() {
+    var testId = "USR202604250001A7KM";
+    pm.sendRequest({
+        url: 'http://localhost:8090/api/admin/id-migration/validate/' + testId,
+        method: 'GET',
+        header: {
+            'Authorization': 'Bearer ' + pm.collectionVariables.get("adminToken")
+        }
+    }, function(err, res) {
+        var jsonData = res.json();
+        pm.expect(jsonData.valid).to.eq(true);
+        pm.expect(jsonData.type).to.eq("用户");
     });
 });
 
@@ -125,38 +201,22 @@ pm.test("迁移状态检查", function() {
         console.log("当前数据统计:", jsonData.data);
     });
 });
-
-// 验证ID格式
-pm.test("ID格式验证", function() {
-    var testId = "USR202604250001A7KM";
-    pm.sendRequest({
-        url: 'http://localhost:8090/api/admin/id-migration/validate/' + testId,
-        method: 'GET'
-    }, function(err, res) {
-        var jsonData = res.json();
-        pm.expect(jsonData.valid).to.eq(true);
-        pm.expect(jsonData.type).to.eq("用户");
-    });
-});
 ```
 
 ---
 
-## 四、迁移建议顺序
+## 四、UID格式说明
 
-如果分步迁移，建议按以下顺序执行：
+标准UID格式：`USR + YYYYMMDD + NNNN + XXXX`
 
-1. **用户 (users)** - 基础数据，其他表依赖
-2. **作品 (artworks)** - 商品数据
-3. **专场 (sessions)** - 拍卖专场
-4. **拍品 (lots)** - 依赖于专场
-5. **话题 (topics)** - 社区基础数据
-6. **帖子 (posts)** - 依赖于用户和话题
-7. **评论 (comments)** - 依赖于帖子
-8. **提现记录 (withdraws)** - 依赖于用户
-9. **佣金记录 (commissions)** - 依赖于用户和订单
-10. **竞拍记录 (bids)** - 依赖于拍品和用户
-11. **售后记录 (aftersales)** - 依赖于订单
+| 字段 | 位置 | 说明 | 示例 |
+|------|------|------|------|
+| 类型前缀 | 1-3 | USR=用户 | USR |
+| 日期 | 4-11 | 创建日期 | 20260425 |
+| 序号 | 12-15 | 当日序号 | 0001 |
+| 随机码 | 16-19 | 4位随机字符 | VKO5 |
+
+**示例**: `USR202604250001VKO5` = 用户 + 2026年4月25日 + 第1个 + 随机码VKO5
 
 ---
 
@@ -165,8 +225,8 @@ pm.test("ID格式验证", function() {
 迁移过程中查看日志：
 
 ```bash
-# Product API日志
-tail -f logs/shiyiju-product.log | grep "ID迁移"
+# User Service日志
+tail -f logs/shiyiju-user.log | grep "batchUpdateUids"
 
 # Admin API日志
 tail -f logs/shiyiju-admin.log | grep "ID迁移"
