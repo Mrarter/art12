@@ -3,11 +3,11 @@
     <!-- 自定义导航栏 -->
     <view class="nav-bar" :style="{ paddingTop: safeAreaTop + 'px', height: (safeAreaTop + 88) + 'rpx' }">
       <view class="search-box" @click="goSearch">
-        <image class="search-icon-img" src="/static/icons/search.png" mode="aspectFit"></image>
+        <image class="search-icon-img" src="/static/icons/search-magnifier.png" mode="aspectFit"></image>
         <text class="placeholder">搜索作品/艺术家</text>
       </view>
       <view class="message-icon" @click="goMessage">
-        <image class="message-icon-img" src="/static/icons/notice.png" mode="aspectFit"></image>
+        <image class="message-icon-img" src="/static/icons/bell.svg" mode="aspectFit"></image>
         <view class="badge-dot" v-if="hasMessage"></view>
       </view>
     </view>
@@ -206,10 +206,7 @@ const fetchProductList = async (reset = false) => {
       list = result?.records || result || []
     }
 
-    if (!list || list.length === 0) {
-      list = getMockArtworks()
-    }
-
+    // 分页处理
     if (reset) {
       productList.value = list || []
     } else {
@@ -223,24 +220,9 @@ const fetchProductList = async (reset = false) => {
     }
   } catch (e) {
     console.error('获取作品列表失败:', e)
-    if (reset) {
-      productList.value = getMockArtworks()
-    }
   } finally {
     loading.value = false
   }
-}
-
-// Mock 数据 - 深色主题
-const getMockArtworks = () => {
-  return [
-    { id: 1, title: '父亲', authorName: '罗中立', authorId: 1, authorAvatar: 'https://picsum.photos/100/100?random=10', coverImage: 'https://picsum.photos/400/500?random=1', artType: '油画', size: '218x150cm', createYear: 2023, price: 128000, priceChangeRate: 5.2, authorIdentity: 'artist', isHot: true },
-    { id: 2, title: '流动的光影', authorName: '当代艺术家', authorId: 2, authorAvatar: 'https://picsum.photos/100/100?random=11', coverImage: 'https://picsum.photos/400/400?random=2', artType: '油画', size: '80x100cm', createYear: 2024, price: 12500, priceChangeRate: 3.8, authorIdentity: 'artist', isHot: false },
-    { id: 3, title: '静物写生', authorName: '莫奈', authorId: 3, authorAvatar: 'https://picsum.photos/100/100?random=12', coverImage: 'https://picsum.photos/400/600?random=3', artType: '油画', size: '65x81cm', createYear: 2022, price: 256000, priceChangeRate: 8.5, authorIdentity: 'master', isHot: true },
-    { id: 4, title: '山水意境', authorName: '张大千', authorId: 4, authorAvatar: 'https://picsum.photos/100/100?random=13', coverImage: 'https://picsum.photos/400/500?random=4', artType: '国画', size: '97x180cm', createYear: 2024, price: 520000, priceChangeRate: 12.3, authorIdentity: 'artist', isHot: false },
-    { id: 5, title: '晨曦', authorName: '李娜', authorId: 5, authorAvatar: 'https://picsum.photos/100/100?random=14', coverImage: 'https://picsum.photos/400/400?random=5', artType: '油画', size: '80x100cm', createYear: 2024, price: 88000, priceChangeRate: 3.8, authorIdentity: 'artist', isHot: false },
-    { id: 6, title: '抽象系列', authorName: '赵无极', authorId: 6, authorAvatar: 'https://picsum.photos/100/100?random=15', coverImage: 'https://picsum.photos/400/500?random=6', artType: '油画', size: '97x130cm', createYear: 2024, price: 520000, priceChangeRate: -2.1, authorIdentity: 'artist', isHot: true }
-  ]
 }
 
 // 刷新
@@ -320,10 +302,11 @@ const goArtistHome = (userId) => {
 // 格式化价格
 const formatPrice = (price) => {
   if (!price) return '0'
-  if (price >= 10000) {
-    return (price / 10000).toFixed(1) + '万'
+  const yuan = price / 100  // 分转元
+  if (yuan >= 10000) {
+    return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
   }
-  return price.toLocaleString()
+  return yuan.toLocaleString()
 }
 
 // 获取身份文字

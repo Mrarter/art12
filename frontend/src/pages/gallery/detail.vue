@@ -90,6 +90,15 @@
           <text class="info-label">持有时长</text>
           <text class="info-value">{{ formatHoldDuration(detail.holdDuration) }}</text>
         </view>
+        <!-- 新增：作品编号和艺术家ID显示 -->
+        <view class="info-item" v-if="detail.artworkCode">
+          <text class="info-label">作品编号</text>
+          <text class="info-value id-value">{{ detail.artworkCode }}</text>
+        </view>
+        <view class="info-item" v-if="detail.displayAuthorId">
+          <text class="info-label">艺术家ID</text>
+          <text class="info-value id-value">{{ detail.displayAuthorId }}</text>
+        </view>
       </view>
     </view>
     
@@ -195,7 +204,15 @@ import { getProductCommission } from '@/api/promoter'
 export default {
   data() {
     return {
-      detail: {},
+      detail: {
+        images: null,
+        videoUrl: null,
+        cover: null,
+        coverImage: null,
+        title: '',
+        authorName: '',
+        price: 0
+      },
       images: [],
       currentImageIndex: 0,
       storyExpanded: false,
@@ -229,7 +246,7 @@ export default {
           this.detail = data
           
           // 处理图片显示
-          if (data.images && data.images.length > 0) {
+          if (data.images && Array.isArray(data.images) && data.images.length > 0) {
             this.images = data.images
           } else if (data.cover) {
             this.images = [data.cover]
@@ -465,10 +482,11 @@ export default {
     
     formatPrice(price) {
       if (!price) return '0'
-      if (price >= 10000) {
-        return (price / 10000).toFixed(price % 10000 === 0 ? 0 : 1) + '万'
+      const yuan = price / 100  // 分转元
+      if (yuan >= 10000) {
+        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
       }
-      return price.toLocaleString()
+      return yuan.toLocaleString()
     },
     
     formatHoldDuration(days) {
@@ -539,6 +557,7 @@ $accent-gold-light: #e6c65c;
 
 // 图片轮播
 .image-swiper {
+  position: relative;
   height: 750rpx;
   background: $bg-card;
   
@@ -584,20 +603,23 @@ $accent-gold-light: #e6c65c;
   top: 0;
   left: 0;
   right: 0;
-  height: 750rpx;
-  background: rgba(0, 0, 0, 0.65);
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
   
   .sold-text {
-    padding: 10rpx 60rpx;
-    border: 3rpx solid rgba(255, 255, 255, 0.9);
-    border-radius: 4rpx;
-    font-size: 48rpx;
+    padding: 16rpx 80rpx;
+    border: 4rpx solid rgba(255, 255, 255, 0.9);
+    border-radius: 8rpx;
+    font-size: 56rpx;
     color: #fff;
-    font-weight: 600;
-    letter-spacing: 8rpx;
+    font-weight: 700;
+    letter-spacing: 10rpx;
+    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
+    transform: rotate(-15deg);
   }
 }
 
@@ -754,6 +776,13 @@ $accent-gold-light: #e6c65c;
         flex: 1;
         font-size: 24rpx;
         color: $text-secondary;
+        
+        &.id-value {
+          font-family: 'Courier New', monospace;
+          color: $accent-gold;
+          font-weight: 600;
+          letter-spacing: 2rpx;
+        }
       }
     }
   }
