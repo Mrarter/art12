@@ -23,10 +23,6 @@
           <view class="product-card" v-for="item in leftList" :key="item.id" @click="goDetail(item.id)">
             <view class="image-wrapper">
               <image class="product-image" :src="item.cover" mode="widthFix" :lazy-load="true"></image>
-              <!-- SOLD标签 -->
-              <view class="sold-badge" v-if="item.stock === 0">
-                <view class="sold-text">SOLD</view>
-              </view>
               <!-- 新作发布标签 -->
               <view class="stock-badge" v-if="item.isNew">
                 <text>新作发布</text>
@@ -60,10 +56,6 @@
           <view class="product-card" v-for="item in rightList" :key="item.id" @click="goDetail(item.id)">
             <view class="image-wrapper">
               <image class="product-image" :src="item.cover" mode="widthFix" :lazy-load="true"></image>
-              <!-- SOLD标签 -->
-              <view class="sold-badge" v-if="item.stock === 0">
-                <view class="sold-text">SOLD</view>
-              </view>
               <!-- 新作发布标签 -->
               <view class="stock-badge" v-if="item.isNew">
                 <text>新作发布</text>
@@ -111,15 +103,22 @@
       </view>
     </scroll-view>
 
+    <!-- 自定义TabBar -->
+    <CustomTabBar :currentIndex="1" />
+    
     <!-- 筛选弹出层 -->
     <!-- 筛选功能暂未实现 -->
   </view>
 </template>
 
 <script>
+import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getGalleryList, getCategories } from '@/api/product.js'
 
 export default {
+  components: {
+    CustomTabBar
+  },
   data() {
     return {
       loading: false,
@@ -164,6 +163,7 @@ export default {
       page: 1,
       pageSize: 10,
       hasMore: true,
+      currentSeed: Date.now(), // 当前随机种子，用于加权随机排序
       showFilterPopup: false,
       filterType: 'sort',
       tempMinPrice: '',
@@ -257,9 +257,37 @@ export default {
       }
     },
     
-    async loadProducts() {
+    // 加权随机排序函数（权重高的出现概率大，同时保持一定随机性）
+    weightedRandomSort(list, seed) {
+      if (!list || list.length === 0) return []
+      const random = this.createSeededRandom(seed)
+      return [...list].sort((a, b) => {
+        // 权重越高出现概率越大
+        const weightA = (a.weight || a.sortOrder || 0) + 1
+        const weightB = (b.weight || b.sortOrder || 0) + 1
+        const scoreA = random() * weightA
+        const scoreB = random() * weightB
+        return scoreB - scoreA // 分数高的排前面
+      })
+    },
+    
+    // 初始化随机数生成器（基于种子）
+    createSeededRandom(seed) {
+      return () => {
+        seed = (seed * 9301 + 49297) % 233280
+        return seed / 233280
+      }
+    },
+    
+    async loadProducts(isReset = false) {
       try {
         this.loading = true
+        
+        // 重置时更新随机种子
+        if (isReset) {
+          this.currentSeed = Date.now()
+        }
+        
         const res = await getGalleryList({
           category: this.currentCategory,
           page: this.page,
@@ -268,7 +296,12 @@ export default {
         })
         
         // 处理 PageResult 格式：{ records: [], total: xxx }
-        const list = res?.records || res?.list || res || []
+        let list = res?.records || res?.list || res || []
+        
+        // 加权随机排序（权重高的出现靠前，每次翻页随机顺序不同）
+        if (list && list.length > 0) {
+          list = this.weightedRandomSort(list, this.currentSeed + this.page)
+        }
         
         if (this.page === 1) {
           this.productList = list
@@ -278,26 +311,34 @@ export default {
         
         this.hasMore = list.length >= this.pageSize
       } catch (e) {
-        this.loadMockData()
+        this.loadMockData(isReset)
       } finally {
         this.loading = false
       }
     },
     
-    loadMockData() {
+    loadMockData(isReset = false) {
+      // 重置时更新随机种子
+      if (isReset) {
+        this.currentSeed = Date.now()
+      }
+      
       const mockData = [
-        { id: 1, cover: '/static/product/demo1.jpg', title: '山水长卷', artistName: '张大千', category: '油画', size: '100x200cm', price: 128000, originalPrice: 150000, priceChange: 5.2, stock: 0, isNew: true },
-        { id: 2, cover: '/static/product/demo2.jpg', title: '虾趣图', artistName: '齐白石', category: '水墨', size: '50x80cm', price: 88000, originalPrice: 100000, priceChange: 3.8, stock: 3, isNew: false },
-        { id: 3, cover: '/static/product/demo3.jpg', title: '奔马图', artistName: '徐悲鸿', category: '油画', size: '120x80cm', price: 256000, priceChange: 8.5, stock: 1, isNew: true },
-        { id: 4, cover: '/static/product/demo4.jpg', title: '松鹰图', artistName: '潘天寿', category: '水墨', size: '80x150cm', price: 158000, originalPrice: 180000, priceChange: 2.1, stock: 5, isNew: false },
-        { id: 5, cover: '/static/product/demo5.jpg', title: '春山云起', artistName: '李可染', category: '油画', size: '60x90cm', price: 98000, priceChange: 0, stock: 0, isNew: true },
-        { id: 6, cover: '/static/product/demo6.jpg', title: '江南水乡', artistName: '吴冠中', category: '水墨', size: '45x70cm', price: 156000, priceChange: 4.2, stock: 2, isNew: false }
+        { id: 1, cover: '/static/product/demo1.jpg', title: '山水长卷', artistName: '张大千', category: '油画', size: '100x200cm', price: 128000, originalPrice: 150000, priceChange: 5.2, stock: 0, isNew: true, weight: 10 },
+        { id: 2, cover: '/static/product/demo2.jpg', title: '虾趣图', artistName: '齐白石', category: '水墨', size: '50x80cm', price: 88000, originalPrice: 100000, priceChange: 3.8, stock: 3, isNew: false, weight: 8 },
+        { id: 3, cover: '/static/product/demo3.jpg', title: '奔马图', artistName: '徐悲鸿', category: '油画', size: '120x80cm', price: 256000, priceChange: 8.5, stock: 1, isNew: true, weight: 9 },
+        { id: 4, cover: '/static/product/demo4.jpg', title: '松鹰图', artistName: '潘天寿', category: '水墨', size: '80x150cm', price: 158000, originalPrice: 180000, priceChange: 2.1, stock: 5, isNew: false, weight: 7 },
+        { id: 5, cover: '/static/product/demo5.jpg', title: '春山云起', artistName: '李可染', category: '油画', size: '60x90cm', price: 98000, priceChange: 0, stock: 0, isNew: true, weight: 6 },
+        { id: 6, cover: '/static/product/demo6.jpg', title: '江南水乡', artistName: '吴冠中', category: '水墨', size: '45x70cm', price: 156000, priceChange: 4.2, stock: 2, isNew: false, weight: 8 }
       ]
       
+      // 加权随机排序
+      const sortedData = this.weightedRandomSort(mockData, this.currentSeed + this.page)
+      
       if (this.page === 1) {
-        this.productList = mockData
+        this.productList = sortedData
       } else {
-        this.productList = [...this.productList, ...mockData]
+        this.productList = [...this.productList, ...sortedData]
       }
       this.hasMore = false
     },
@@ -306,22 +347,23 @@ export default {
       this.resetFilter()
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     formatPrice(price) {
       if (!price) return '0'
-      if (price >= 10000) {
-        return (price / 10000).toFixed(price % 10000 === 0 ? 0 : 1) + '万'
+      const yuan = price / 100  // 分转元
+      if (yuan >= 10000) {
+        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
       }
-      return price.toLocaleString()
+      return yuan.toLocaleString()
     },
     
     selectCategory(id) {
       this.currentCategory = id
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     showFilter(type) {
@@ -336,7 +378,7 @@ export default {
       this.showFilterPopup = false
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     selectSize(item) {
@@ -344,7 +386,7 @@ export default {
       this.showFilterPopup = false
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     selectHoldTime(item) {
@@ -352,7 +394,7 @@ export default {
       this.showFilterPopup = false
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     selectArtistType(item) {
@@ -360,7 +402,7 @@ export default {
       this.showFilterPopup = false
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     searchArtist() {
@@ -381,7 +423,7 @@ export default {
       this.showFilterPopup = false
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     setPriceRange(min, max) {
@@ -392,7 +434,7 @@ export default {
       this.showFilterPopup = false
       this.page = 1
       this.productList = []
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     applyPriceFilter() {
@@ -402,7 +444,7 @@ export default {
         this.showFilterPopup = false
         this.page = 1
         this.productList = []
-        this.loadProducts()
+        this.loadProducts(true)
       }
     },
     
@@ -410,38 +452,38 @@ export default {
       this.filterParams.minPrice = ''
       this.filterParams.maxPrice = ''
       this.page = 1
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     clearYear() {
       this.filterParams.year = ''
       this.page = 1
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     clearSize() {
       this.filterParams.size = ''
       this.page = 1
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     clearArtist() {
       this.filterParams.artistId = ''
       this.filterParams.artistName = ''
       this.page = 1
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     clearArtistType() {
       this.filterParams.artistType = ''
       this.page = 1
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     clearAllFilters() {
       this.resetFilter()
       this.page = 1
-      this.loadProducts()
+      this.loadProducts(true)
     },
     
     resetFilter() {
@@ -464,13 +506,13 @@ export default {
     loadMore() {
       if (this.hasMore && !this.loading) {
         this.page++
-        this.loadProducts()
+        this.loadProducts(false) // 加载更多不重置种子，保持当前排序的连续性
       }
     },
     
     onRefresh() {
       this.page = 1
-      this.loadProducts().then(() => {
+      this.loadProducts(true).then(() => { // 刷新时重置种子，重新随机排序
         uni.showToast({ title: '刷新成功', icon: 'success' })
       })
     },
@@ -554,6 +596,7 @@ $accent-gold-light: #e6c65c;
   flex: 1;
   height: calc(100vh - 100rpx);
   padding: 16rpx;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
   background: $bg-primary;
 }
 
@@ -598,29 +641,6 @@ $accent-gold-light: #e6c65c;
   width: 100%;
   display: block;
   background: $bg-elevated;
-}
-
-// SOLD标签 - 设计图风格
-.sold-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  .sold-text {
-    padding: 10rpx 36rpx;
-    border: 2rpx solid rgba(255, 255, 255, 0.9);
-    border-radius: 4rpx;
-    font-size: 26rpx;
-    color: #fff;
-    font-weight: 600;
-    letter-spacing: 6rpx;
-  }
 }
 
 // 库存告急标签

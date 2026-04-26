@@ -78,13 +78,20 @@
         <text class="empty-text">暂无{{ getTabLabel() }}的拍卖</text>
       </view>
     </scroll-view>
+    
+    <!-- 自定义TabBar -->
+    <CustomTabBar :currentIndex="2" />
   </view>
 </template>
 
 <script>
+import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getAuctionSessions } from '@/api/auction'
 
 export default {
+  components: {
+    CustomTabBar
+  },
   data() {
     return {
       currentTab: 1, // 0-即将开始 1-进行中 2-已结束
@@ -252,6 +259,7 @@ export default {
 .auction-list {
   height: calc(100vh - 220rpx);
   padding: 20rpx;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 
 .auction-card {

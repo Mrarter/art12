@@ -255,21 +255,6 @@ CREATE TABLE IF NOT EXISTS `artist_certifications` (
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 艺术家认证表
-CREATE TABLE IF NOT EXISTS `artist_certifications` (
-  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `real_name` VARCHAR(64) NOT NULL,
-  `id_card` VARCHAR(32) COMMENT '身份证号',
-  `id_card_front` VARCHAR(256) COMMENT '身份证正面',
-  `id_card_back` VARCHAR(256) COMMENT '身份证背面',
-  `art_field` VARCHAR(64) COMMENT '艺术领域',
-  `portfolio` TEXT COMMENT '作品集URL',
-  `status` TINYINT DEFAULT 0 COMMENT '审核状态',
-  `reject_reason` VARCHAR(256) COMMENT '拒绝原因',
-  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- 文件上传记录表
 CREATE TABLE IF NOT EXISTS `file_records` (
   `id` BIGINT PRIMARY KEY AUTO_INCREMENT,

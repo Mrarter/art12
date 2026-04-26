@@ -44,7 +44,7 @@ CREATE TABLE `sys_user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- 艺术家认证表
-CREATE TABLE `artist_certification` (
+CREATE TABLE `artist_certifications` (
     `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `real_name` VARCHAR(50) NOT NULL COMMENT '真实姓名',

@@ -119,11 +119,15 @@
       <!-- 底部安全区 -->
       <view class="safe-area-bottom"></view>
     </scroll-view>
+    
+    <!-- 自定义TabBar -->
+    <CustomTabBar :currentIndex="0" />
   </view>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getBanners, getRecommend, getFollowingWorks } from '@/api/product'
 import { useUserStore } from '@/store/modules/user'
 
@@ -691,6 +695,6 @@ $price-down: #4CAF50;
 }
 
 .safe-area-bottom {
-  height: env(safe-area-inset-bottom);
+  height: calc(100rpx + env(safe-area-inset-bottom));
 }
 </style>

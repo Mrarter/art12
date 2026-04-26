@@ -1,141 +1,266 @@
 <template>
   <view class="user-page">
-    <!-- 顶部用户信息区 -->
-    <view class="user-header">
-      <!-- 头部操作按钮 -->
-      <view class="header-actions">
-        <view class="action-btn" @click="goSettings">
-          
-        </view>
-        <view class="action-btn" @click="goMessage">
-          
-          <view class="badge" v-if="unreadCount > 0">{{ unreadCount }}</view>
-        </view>
-      </view>
-      
-      <!-- 用户信息 -->
-      <view class="user-info" @click="handleUserClick">
-        <view class="avatar-wrap">
-          <image class="user-avatar" :src="userInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
-          <view class="avatar-badge" v-if="userInfo.isArtist">
-            <text>★</text>
-          </view>
-        </view>
-        <view class="user-detail">
-          <text class="user-name">{{ userInfo.nickname || '登录/注册' }}</text>
-          <text class="user-id" v-if="userInfo.id">ID: {{ userInfo.id }}</text>
-          <view class="user-tags" v-if="userInfo.isArtist || userInfo.isPromoter">
-            <text class="user-tag artist" v-if="userInfo.isArtist">艺术家</text>
-            <text class="user-tag promoter" v-if="userInfo.isPromoter">艺荐官</text>
-            <text class="user-tag collector" v-else>收藏家</text>
-          </view>
+    <!-- 顶部渐变背景 -->
+    <view class="header-bg"></view>
+
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="nav-left">
+        <view class="nav-btn icon-btn" @click="goInspiration">
+          <text class="icon-lightbulb">💡</text>
+          <text class="nav-text">创意灵感</text>
         </view>
       </view>
-      
-      <!-- 用户数据统计 -->
-      <view class="user-stats">
-        <view class="stat-item" @click="goArtistWorks" v-if="userInfo.isArtist">
-          <text class="stat-value">{{ artistStats.worksCount }}</text>
-          <text class="stat-label">发布作品</text>
-        </view>
-        <view class="stat-item" @click="goFollowing" v-else>
-          <text class="stat-value">{{ userStats.following }}</text>
-          <text class="stat-label">关注</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item" @click="goFollowing">
-          <text class="stat-value">{{ formatNumber(artistStats.fansCount || userStats.followers) }}</text>
-          <text class="stat-label">粉丝关注</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item" @click="goFavorites">
-          <text class="stat-value">{{ userStats.favorites }}</text>
-          <text class="stat-label">收藏佳作</text>
+      <view class="nav-right">
+        <view class="nav-btn icon-btn" @click="goScan">
+          <text class="icon-scan">🔍</text>
         </view>
       </view>
     </view>
 
-    <!-- 身份中心入口 -->
-    <view class="identity-section" v-if="userStore.isAuthenticated">
-      <!-- 艺术家中心入口 -->
-      <view class="identity-card" v-if="userInfo.isArtist" @click="goArtistHome">
-        <view class="card-left">
-          <view class="card-icon artist-icon">
-            <text>★</text>
-          </view>
-          <view class="card-info">
-            <text class="card-title">艺术家中心</text>
-            <text class="card-subtitle">管理您的艺术作品</text>
-          </view>
+    <!-- 用户信息区域 -->
+    <view class="user-section" @click="handleUserClick">
+      <!-- 未登录状态 -->
+      <view class="login-state" v-if="!userStore.isAuthenticated">
+        <view class="login-avatar">
+          <image class="avatar-img" src="/static/avatar/default.jpg" mode="aspectFill"></image>
         </view>
-        <view class="card-arrow">
-          
+        <view class="login-text">
+          <text class="login-title">登录 / 注册</text>
         </view>
       </view>
-      
-      <!-- 艺荐官中心入口 -->
-      <view class="identity-card" v-if="userInfo.isPromoter" @click="goPromoter">
-        <view class="card-left">
-          <view class="card-icon promoter-icon">
-            <text>💎</text>
-          </view>
-          <view class="card-info">
-            <text class="card-title">艺荐官中心</text>
-            <text class="card-subtitle">本月预估佣金: ¥{{ formatMoney(promoterStats.monthlyCommission) }}</text>
+
+      <!-- 已登录状态 -->
+      <view class="user-logined" v-else>
+        <view class="avatar-container">
+          <image
+            class="user-avatar"
+            :src="userInfo.avatar || '/static/avatar/default.jpg'"
+            mode="aspectFill"
+          ></image>
+          <view class="avatar-vip" v-if="isVip">
+            <text>VIP</text>
           </view>
         </view>
-        <view class="card-arrow">
-          
+
+        <view class="user-name">{{ userInfo.nickname || '用户' }}</view>
+
+        <view class="user-meta">
+          <text class="uid">ID: {{ formatUid(userInfo.uid) }}</text>
+          <view class="credit-badge" v-if="creditScore > 0">
+            <text class="credit-icon">🛡</text>
+            <text class="credit-text">信用 {{ creditScore }}</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <!-- 功能网格 -->
-    <view class="function-section">
-      <view class="function-grid">
-        <view class="grid-item" v-for="item in functionList" :key="item.id" @click="goFunction(item)">
-          <view class="grid-icon" :style="{ background: item.bgColor }">
-            
-          </view>
-          <text class="grid-name">{{ item.name }}</text>
+    <!-- 社交数据 -->
+    <view class="social-stats" v-if="userStore.isAuthenticated">
+      <view class="stat-item" @click="goFollowing">
+        <text class="stat-value">{{ formatCount(userStats.following) }}</text>
+        <text class="stat-label">关注</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" @click="goFollowers">
+        <text class="stat-value">{{ formatCount(userStats.followers) }}</text>
+        <text class="stat-label">粉丝</text>
+        <view class="red-dot" v-if="hasNewFollowers"></view>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item" @click="goMedals">
+        <text class="stat-value">{{ medalCount }}</text>
+        <text class="stat-label">勋章</text>
+      </view>
+    </view>
+
+    <!-- 认证卡片 -->
+    <view class="cert-section" v-if="userStore.isAuthenticated">
+      <view class="cert-card" v-if="!userInfo.isArtist">
+        <view class="cert-content">
+          <text class="cert-title">认证艺术家</text>
+          <text class="cert-desc">让更多人发现你的作品</text>
+        </view>
+        <view class="cert-btn" @click.stop="goCertApply">
+          <text>去认证</text>
+        </view>
+      </view>
+
+      <view class="cert-card artist" v-else>
+        <view class="cert-content">
+          <text class="cert-title">🎨 艺术家中心</text>
+          <text class="cert-desc">管理作品，查看数据</text>
+        </view>
+        <view class="cert-btn" @click.stop="goArtistHome">
+          <text>进入</text>
         </view>
       </view>
     </view>
 
-    <!-- 底部占位 -->
-    <view class="page-footer"></view>
+    <!-- 资产统计 -->
+    <view class="asset-section" v-if="userStore.isAuthenticated">
+      <view class="asset-grid">
+        <view class="asset-item" @click="goWallet">
+          <text class="asset-value">{{ charcoalCount }}</text>
+          <text class="asset-label">炭粒</text>
+        </view>
+        <view class="asset-item" @click="goCoupon">
+          <text class="asset-value">{{ couponCount }}</text>
+          <text class="asset-label">优惠券</text>
+        </view>
+        <view class="asset-item" @click="goFavorites">
+          <text class="asset-value">{{ markedCount }}</text>
+          <text class="asset-label">标记</text>
+        </view>
+        <view class="asset-item" @click="goCart">
+          <text class="asset-value">{{ cartCount }}</text>
+          <text class="asset-label">购物车</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 交易服务 -->
+    <view class="transaction-section">
+      <view class="trans-grid">
+        <view class="trans-item" @click="goOrderList('bought')">
+          <text class="trans-icon">🛍</text>
+          <text class="trans-name">我买到的</text>
+        </view>
+        <view class="trans-item" @click="goOrderList('sold')">
+          <text class="trans-icon">📤</text>
+          <text class="trans-name">我卖出的</text>
+        </view>
+        <view class="trans-item" @click="goAfterSale">
+          <text class="trans-icon">🔧</text>
+          <text class="trans-name">售后</text>
+        </view>
+        <view class="trans-item" @click="goMyReviews">
+          <text class="trans-icon">⭐</text>
+          <text class="trans-name">评价</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 活动卡片 -->
+    <view class="activity-section" v-if="userStore.isAuthenticated">
+      <view class="activity-grid">
+        <view class="activity-card" @click="goSignIn">
+          <view class="activity-left">
+            <text class="activity-title">🎁 签到</text>
+            <text class="activity-desc">连续签到领积分</text>
+          </view>
+          <view class="sign-btn" v-if="!isSignedToday">
+            <text>去签到</text>
+          </view>
+          <view class="signed-badge" v-else>
+            <text>已签到</text>
+          </view>
+        </view>
+
+        <view class="activity-card" @click="goCertificate">
+          <view class="activity-left">
+            <text class="activity-title">🏆 收藏证书</text>
+            <text class="activity-desc">查看藏品认证</text>
+          </view>
+          <view class="cert-count">
+            <text>{{ certificateCount }}份</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 功能入口列表 -->
+    <view class="menu-section">
+      <view class="menu-grid">
+        <view class="menu-item" @click="goHistory">
+          <text class="menu-icon">📜</text>
+          <text class="menu-text">浏览记录</text>
+        </view>
+        <view class="menu-item" @click="goLiked">
+          <text class="menu-icon">👍</text>
+          <text class="menu-text">我赞过的</text>
+        </view>
+        <view class="menu-item" @click="goMedalHall">
+          <text class="menu-icon">🏅</text>
+          <text class="menu-text">勋章馆</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 更多服务 -->
+    <view class="more-section">
+      <view class="more-list">
+        <view class="more-item" @click="goAddress">
+          <text class="more-icon">📍</text>
+          <text class="more-text">收货地址</text>
+          <text class="more-arrow">›</text>
+        </view>
+        <view class="more-item" @click="goHelp">
+          <text class="more-icon">❓</text>
+          <text class="more-text">帮助中心</text>
+          <text class="more-arrow">›</text>
+        </view>
+        <view class="more-item" @click="goFeedback">
+          <text class="more-icon">💬</text>
+          <text class="more-text">意见反馈</text>
+          <text class="more-arrow">›</text>
+        </view>
+        <view class="more-item" @click="goAbout">
+          <text class="more-icon">ℹ️</text>
+          <text class="more-text">关于我们</text>
+          <text class="more-arrow">›</text>
+        </view>
+        <view class="more-item last" @click="goSettings">
+          <text class="more-icon">⚙️</text>
+          <text class="more-text">设置</text>
+          <text class="more-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部安全区 -->
+    <view class="safe-area-bottom"></view>
+    
+    <!-- 自定义TabBar -->
+    <CustomTabBar :currentIndex="4" />
   </view>
 </template>
 
 <script>
+import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { useUserStore } from '@/store/modules/user.js'
-import { getPromoterStats } from '@/api/promoter.js'
+import { getOrderCounts } from '@/api/order.js'
 
 export default {
+  components: {
+    CustomTabBar
+  },
   data() {
     return {
-      unreadCount: 0,
+      statusBarHeight: 20,
+      isVip: false,
+      creditScore: 0,
+      charcoalCount: 0,
+      couponCount: 0,
+      markedCount: 0,
+      cartCount: 0,
+      certificateCount: 0,
+      medalCount: 0,
+      hasNewFollowers: false,
+      isSignedToday: false,
       userStats: {
-        favorites: 48,
-        following: 12,
-        followers: 1200
+        favorites: 0,
+        following: 0,
+        followers: 0
       },
-      artistStats: {
-        worksCount: 12,
-        fansCount: 1200
-      },
-      promoterStats: {
-        monthlyCommission: 12850
-      },
-      functionList: [
-        { id: 'works', name: '作品管理', icon: 'photo', path: '/pages/artist/manage', bgColor: 'rgba(201,162,39,0.15)', iconColor: '#c9a227' },
-        { id: 'orders', name: '订单中心', icon: 'order', path: '/pages/order/list', bgColor: 'rgba(52,152,219,0.15)', iconColor: '#3498db' },
-        { id: 'wallet', name: '钱包余额', icon: 'wallet', path: '/pages/user/wallet', bgColor: 'rgba(46,204,113,0.15)', iconColor: '#2ecc71' },
-        { id: 'cert', name: '资质认证', icon: 'shield', path: '/pages/artist/cert', bgColor: 'rgba(155,89,182,0.15)', iconColor: '#9b59b6' }
-      ]
+      orderCounts: {
+        pending: 0,
+        paid: 0,
+        shipped: 0
+      }
     }
   },
-  
+
   computed: {
     userStore() {
       return useUserStore()
@@ -148,366 +273,692 @@ export default {
   onShow() {
     this.initUserInfo()
   },
-  
+
   methods: {
     initUserInfo() {
+      const systemInfo = uni.getSystemInfoSync()
+      this.statusBarHeight = systemInfo.statusBarHeight || 20
       this.userStore.initUserInfo()
-      
+
       if (this.userStore.isAuthenticated) {
-        this.loadPromoterStats()
+        this.loadUserStats()
+        this.loadOrderCounts()
       }
     },
-    
-    async loadPromoterStats() {
-      try {
-        const res = await getPromoterStats()
-        this.promoterStats = { ...this.promoterStats, ...res }
-      } catch (e) {}
+
+    async loadUserStats() {
+      // 模拟数据
+      this.userStats = {
+        favorites: 128,
+        following: 45,
+        followers: 1234
+      }
+      this.charcoalCount = 580
+      this.couponCount = 3
+      this.markedCount = 56
+      this.cartCount = 2
+      this.certificateCount = 12
+      this.medalCount = 8
+      this.creditScore = 850
+      this.isSignedToday = false
+      this.hasNewFollowers = true
+      this.isVip = false
     },
-    
+
+    async loadOrderCounts() {
+      try {
+        const res = await getOrderCounts()
+        this.orderCounts = { ...this.orderCounts, ...res }
+      } catch (e) {
+        console.log('获取订单数量失败', e)
+      }
+    },
+
     handleUserClick() {
       if (!this.userStore.isAuthenticated) {
         uni.navigateTo({ url: '/pages/login/index' })
-      } else {
-        uni.navigateTo({ url: '/pages/user/profile' })
       }
     },
-    
+
+    goInspiration() {
+      uni.navigateTo({ url: '/pages/inspiration/index' })
+    },
+
+    goScan() {
+      uni.scanCode({
+        success: (res) => {
+          console.log('扫码结果', res)
+        }
+      })
+    },
+
+    goArtistHome() {
+      uni.navigateTo({ url: `/pages/artist/home?id=${this.userInfo.id}` })
+    },
+
+    goCertApply() {
+      uni.navigateTo({ url: '/pages/artist/cert' })
+    },
+
     goSettings() {
       uni.navigateTo({ url: '/pages/user/settings' })
     },
-    
-    goMessage() {
-      uni.navigateTo({ url: '/pages/user/message' })
-    },
-    
-    goArtistHome() {
-      if (this.userStore.isAuthenticated && this.userInfo.isArtist) {
-        uni.navigateTo({ url: `/pages/artist/home?id=${this.userInfo.id}` })
-      } else {
-        uni.navigateTo({ url: '/pages/login/index' })
-      }
-    },
-    
-    goArtistWorks() {
-      if (this.userStore.isAuthenticated && this.userInfo.isArtist) {
-        uni.navigateTo({ url: '/pages/artist/manage' })
-      } else {
-        uni.navigateTo({ url: '/pages/login/index' })
-      }
-    },
-    
-    goPromoter() {
-      if (!this.userStore.isAuthenticated) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      uni.navigateTo({ url: '/pages/promoter/index' })
-    },
-    
-    goFavorites() {
-      if (!this.userStore.isAuthenticated) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      uni.navigateTo({ url: '/pages/user/favorites' })
-    },
-    
+
     goFollowing() {
-      if (!this.userStore.isAuthenticated) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
       uni.navigateTo({ url: '/pages/user/following' })
     },
-    
-    goFunction(item) {
-      if (!this.userStore.isAuthenticated) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      uni.navigateTo({ url: item.path })
+
+    goFollowers() {
+      uni.navigateTo({ url: '/pages/user/followers' })
     },
-    
-    formatNumber(num) {
-      if (!num) return '0'
-      if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'k'
-      }
-      return num.toString()
+
+    goMedals() {
+      uni.navigateTo({ url: '/pages/user/medals' })
     },
-    
-    formatMoney(amount) {
-      if (!amount) return '0.00'
-      return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+    goWallet() {
+      uni.navigateTo({ url: '/pages/user/wallet' })
+    },
+
+    goCoupon() {
+      uni.navigateTo({ url: '/pages/user/coupon' })
+    },
+
+    goFavorites() {
+      uni.navigateTo({ url: '/pages/user/favorites' })
+    },
+
+    goCart() {
+      uni.switchTab({ url: '/pages/cart/index' })
+    },
+
+    goOrderList(type) {
+      uni.navigateTo({ url: `/pages/order/list?type=${type}` })
+    },
+
+    goAfterSale() {
+      uni.navigateTo({ url: '/pages/order/after-sale' })
+    },
+
+    goMyReviews() {
+      uni.navigateTo({ url: '/pages/user/my-reviews' })
+    },
+
+    goSignIn() {
+      uni.navigateTo({ url: '/pages/signin/index' })
+    },
+
+    goCertificate() {
+      uni.navigateTo({ url: '/pages/certificate/list' })
+    },
+
+    goHistory() {
+      uni.navigateTo({ url: '/pages/user/history' })
+    },
+
+    goLiked() {
+      uni.navigateTo({ url: '/pages/user/liked' })
+    },
+
+    goMedalHall() {
+      uni.navigateTo({ url: '/pages/medal/hall' })
+    },
+
+    goAddress() {
+      uni.navigateTo({ url: '/pages/user/address' })
+    },
+
+    goHelp() {
+      uni.navigateTo({ url: '/pages/help/index' })
+    },
+
+    goFeedback() {
+      uni.navigateTo({ url: '/pages/user/feedback' })
+    },
+
+    goAbout() {
+      uni.navigateTo({ url: '/pages/about/index' })
+    },
+
+    formatUid(uid) {
+      if (!uid) return '------'
+      return uid.toString().padStart(6, '0')
+    },
+
+    formatCount(count) {
+      if (!count) return '0'
+      if (count >= 10000) {
+        return (count / 10000).toFixed(1) + 'w'
+      }
+      if (count >= 1000) {
+        return (count / 1000).toFixed(1) + 'k'
+      }
+      return count.toString()
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-/* 变量定义 */
-$bg-primary: #0d0d0d;
+// 深色艺术主题变量
+$bg-primary: #0a0a0a;
 $bg-card: #1a1a1a;
 $bg-elevated: #242424;
 $text-primary: #ffffff;
 $text-secondary: #999999;
 $text-muted: #666666;
 $accent-gold: #c9a227;
-$accent-gold-light: #e5c76b;
-$border-color: rgba(255, 255, 255, 0.08);
+$border-color: rgba(255, 255, 255, 0.06);
+$divider-color: rgba(255, 255, 255, 0.08);
 
 .user-page {
   min-height: 100vh;
   background: $bg-primary;
   padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* 顶部用户信息区 */
-.user-header {
-  padding: calc(var(--status-bar-height) + 20rpx) 32rpx 40rpx;
-  background: $bg-primary;
-}
-
-/* 头部操作按钮 */
-.header-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16rpx;
-  margin-bottom: 32rpx;
-}
-
-.action-btn {
   position: relative;
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.badge {
+/* 顶部渐变背景 */
+.header-bg {
   position: absolute;
   top: 0;
+  left: 0;
   right: 0;
-  min-width: 28rpx;
-  height: 28rpx;
-  line-height: 28rpx;
-  text-align: center;
-  background: #e74c3c;
-  color: #fff;
-  font-size: 18rpx;
-  border-radius: 14rpx;
-  padding: 0 6rpx;
+  height: 500rpx;
+  background: linear-gradient(
+    180deg,
+    rgba($accent-gold, 0.08) 0%,
+    $bg-primary 100%
+  );
+  pointer-events: none;
 }
 
-/* 用户信息 */
-.user-info {
-  display: flex;
-  align-items: center;
-  margin-bottom: 40rpx;
-}
-
-.avatar-wrap {
+/* 导航栏 */
+.nav-bar {
   position: relative;
-  margin-right: 24rpx;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 32rpx;
 }
 
-.user-avatar {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
-  border: 4rpx solid rgba($accent-gold, 0.3);
-  background: $bg-elevated;
-}
-
-.avatar-badge {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 36rpx;
-  height: 36rpx;
-  background: $accent-gold;
-  border-radius: 50%;
+.nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2rpx solid $bg-primary;
 }
 
-.user-detail {
-  flex: 1;
+.icon-btn {
+  padding: 12rpx 20rpx;
+  background: $bg-card;
+  border-radius: 24rpx;
+  gap: 8rpx;
+
+  .nav-text {
+    font-size: 26rpx;
+    color: $text-primary;
+    font-weight: 500;
+  }
+
+  .icon-lightbulb,
+  .icon-scan {
+    font-size: 28rpx;
+  }
 }
 
-.user-name {
-  display: block;
-  font-size: 40rpx;
-  font-weight: 600;
-  color: $text-primary;
-  margin-bottom: 8rpx;
-}
-
-.user-id {
-  display: block;
-  font-size: 24rpx;
-  color: $text-secondary;
-  margin-bottom: 12rpx;
-}
-
-.user-tags {
-  display: flex;
-  gap: 12rpx;
-}
-
-.user-tag {
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
-  font-size: 20rpx;
-  font-weight: 500;
-}
-
-.user-tag.artist {
-  background: rgba($accent-gold, 0.2);
-  color: $accent-gold;
-}
-
-.user-tag.promoter {
-  background: rgba(52, 152, 219, 0.2);
-  color: #3498db;
-}
-
-.user-tag.collector {
-  background: $bg-elevated;
-  color: $text-secondary;
-}
-
-/* 用户数据统计 */
-.user-stats {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 20rpx;
-}
-
-.stat-item {
+/* 用户信息区域 */
+.user-section {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
+  padding: 30rpx 32rpx 20rpx;
 }
 
-.stat-value {
-  font-size: 36rpx;
+/* 未登录状态 */
+.login-state {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.login-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: $bg-card;
+
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.login-text {
+  .login-title {
+    font-size: 36rpx;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+/* 已登录状态 */
+.user-logined {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatar-container {
+  position: relative;
+  width: 140rpx;
+  height: 140rpx;
+  margin-bottom: 20rpx;
+}
+
+.user-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba($accent-gold, 0.4);
+  background: $bg-card;
+}
+
+.avatar-vip {
+  position: absolute;
+  bottom: -8rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4rpx 16rpx;
+  background: linear-gradient(135deg, #ffd700, #ffb347);
+  border-radius: 12rpx;
+  font-size: 18rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.user-name {
+  font-size: 40rpx;
   font-weight: 700;
   color: $text-primary;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
 }
 
-.stat-label {
-  font-size: 24rpx;
-  color: $text-secondary;
+.user-meta {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+
+  .uid {
+    font-size: 24rpx;
+    color: $text-muted;
+    font-family: 'Courier New', monospace;
+  }
+
+  .credit-badge {
+    display: flex;
+    align-items: center;
+    gap: 6rpx;
+    padding: 6rpx 14rpx;
+    background: rgba(#2ecc71, 0.15);
+    border-radius: 12rpx;
+
+    .credit-icon {
+      font-size: 20rpx;
+    }
+
+    .credit-text {
+      font-size: 20rpx;
+      color: #2ecc71;
+      font-weight: 500;
+    }
+  }
+}
+
+/* 社交数据 */
+.social-stats {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24rpx 32rpx;
+  margin: 0 32rpx;
+  background: $bg-card;
+  border-radius: 20rpx;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  position: relative;
+
+  .stat-value {
+    font-size: 36rpx;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  .stat-label {
+    font-size: 24rpx;
+    color: $text-secondary;
+  }
 }
 
 .stat-divider {
   width: 1rpx;
-  height: 48rpx;
-  background: $border-color;
+  height: 40rpx;
+  background: $divider-color;
 }
 
-/* 身份中心入口 */
-.identity-section {
-  padding: 0 32rpx;
-  margin-top: 32rpx;
+.red-dot {
+  position: absolute;
+  top: -4rpx;
+  right: 30%;
+  width: 12rpx;
+  height: 12rpx;
+  background: #ff4757;
+  border-radius: 50%;
 }
 
-.identity-card {
+/* 认证卡片 */
+.cert-section {
+  position: relative;
+  z-index: 10;
+  padding: 20rpx 32rpx 0;
+}
+
+.cert-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: $bg-card;
-  border: 1rpx solid rgba($accent-gold, 0.3);
-  border-radius: 20rpx;
-  padding: 28rpx 24rpx;
-}
-
-.card-left {
-  display: flex;
-  align-items: center;
-}
-
-.card-icon {
-  width: 80rpx;
-  height: 80rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20rpx;
-  margin-right: 20rpx;
-  background: rgba($accent-gold, 0.15);
-}
-
-.card-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.card-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: $text-primary;
-  margin-bottom: 8rpx;
-}
-
-.card-subtitle {
-  font-size: 24rpx;
-  color: $text-secondary;
-}
-
-.card-arrow {
-  width: 48rpx;
-  height: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 功能网格 */
-.function-section {
-  padding: 32rpx;
-}
-
-.function-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24rpx;
-}
-
-.grid-item {
+  padding: 28rpx 32rpx;
   background: $bg-card;
   border-radius: 20rpx;
-  padding: 32rpx 28rpx;
+  border: 1rpx solid rgba(#2ecc71, 0.2);
+
+  &.artist {
+    border-color: rgba($accent-gold, 0.2);
+  }
+}
+
+.cert-content {
+  .cert-title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 6rpx;
+  }
+
+  .cert-desc {
+    font-size: 24rpx;
+    color: $text-muted;
+  }
+}
+
+.cert-btn {
+  padding: 12rpx 28rpx;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  border-radius: 24rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #ffffff;
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.cert-card.artist .cert-btn {
+  background: linear-gradient(135deg, $accent-gold, #b8941f);
+}
+
+/* 资产统计 */
+.asset-section {
+  position: relative;
+  z-index: 10;
+  padding: 20rpx 32rpx 0;
+}
+
+.asset-grid {
+  display: flex;
+  background: $bg-card;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.asset-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: 28rpx 0;
+  position: relative;
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1rpx;
+    background: $divider-color;
+  }
+
+  .asset-value {
+    font-size: 36rpx;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: 8rpx;
+  }
+
+  .asset-label {
+    font-size: 24rpx;
+    color: $text-secondary;
+  }
+}
+
+/* 交易服务 */
+.transaction-section {
+  position: relative;
+  z-index: 10;
+  padding: 20rpx 32rpx 0;
+}
+
+.trans-grid {
+  display: flex;
+  background: $bg-card;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.trans-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28rpx 0;
+  position: relative;
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1rpx;
+    background: $divider-color;
+  }
+
+  .trans-icon {
+    font-size: 40rpx;
+    margin-bottom: 12rpx;
+  }
+
+  .trans-name {
+    font-size: 24rpx;
+    color: $text-secondary;
+  }
+}
+
+/* 活动卡片 */
+.activity-section {
+  position: relative;
+  z-index: 10;
+  padding: 20rpx 32rpx 0;
+}
+
+.activity-grid {
+  display: flex;
   gap: 16rpx;
 }
 
-.grid-icon {
-  width: 64rpx;
-  height: 64rpx;
+.activity-card {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  background: $bg-card;
   border-radius: 16rpx;
 }
 
-.grid-name {
-  font-size: 28rpx;
-  color: $text-primary;
-  font-weight: 500;
+.activity-left {
+  .activity-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 6rpx;
+  }
+
+  .activity-desc {
+    font-size: 22rpx;
+    color: $text-muted;
+  }
 }
 
-/* 底部占位 */
-.page-footer {
-  height: 40rpx;
+.sign-btn {
+  padding: 10rpx 20rpx;
+  background: linear-gradient(135deg, $accent-gold, #b8941f);
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.signed-badge {
+  padding: 10rpx 20rpx;
+  background: rgba($accent-gold, 0.15);
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  color: $accent-gold;
+}
+
+.cert-count {
+  padding: 10rpx 20rpx;
+  background: rgba(231, 76, 60, 0.15);
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  color: #e74c3c;
+}
+
+/* 功能入口 */
+.menu-section {
+  position: relative;
+  z-index: 10;
+  padding: 20rpx 32rpx 0;
+}
+
+.menu-grid {
+  display: flex;
+  background: $bg-card;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.menu-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28rpx 0;
+  position: relative;
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1rpx;
+    background: $divider-color;
+  }
+
+  .menu-icon {
+    font-size: 36rpx;
+    margin-bottom: 10rpx;
+  }
+
+  .menu-text {
+    font-size: 24rpx;
+    color: $text-secondary;
+  }
+}
+
+/* 更多服务 */
+.more-section {
+  position: relative;
+  z-index: 10;
+  padding: 20rpx 32rpx 0;
+}
+
+.more-list {
+  background: $bg-card;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.more-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 28rpx;
+  border-bottom: 1rpx solid $divider-color;
+
+  &:active {
+    background: $bg-elevated;
+  }
+
+  &.last {
+    border-bottom: none;
+  }
+
+  .more-icon {
+    font-size: 32rpx;
+    margin-right: 20rpx;
+  }
+
+  .more-text {
+    flex: 1;
+    font-size: 30rpx;
+    color: $text-primary;
+  }
+
+  .more-arrow {
+    font-size: 28rpx;
+    color: $text-muted;
+  }
+}
+
+/* 安全区 */
+.safe-area-bottom {
+  height: calc(120rpx + 100rpx + env(safe-area-inset-bottom));
 }
 </style>

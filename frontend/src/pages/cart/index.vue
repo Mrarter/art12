@@ -114,14 +114,21 @@
         </view>
       </view>
     </view>
+    
+    <!-- 自定义TabBar -->
+    <CustomTabBar :currentIndex="3" />
   </view>
 </template>
 
 <script>
+import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { useCartStore } from '@/store/modules/cart.js'
 import { removeFromCart, updateCartNum, lockCartItems } from '@/api/cart.js'
 
 export default {
+  components: {
+    CustomTabBar
+  },
   data() {
     return {
       groupedCartList: [],
@@ -326,7 +333,11 @@ export default {
     
     formatPrice(price) {
       if (!price) return '0'
-      return Number(price).toLocaleString('zh-CN')
+      const yuan = price / 100  // 分转元
+      if (yuan >= 10000) {
+        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
+      }
+      return yuan.toLocaleString()
     }
   }
 }
@@ -376,6 +387,7 @@ $danger-color: #e74c3c;
 /* 购物车列表 */
 .cart-list {
   padding: 20rpx 24rpx;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 
 .cart-group {

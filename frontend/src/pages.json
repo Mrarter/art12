@@ -451,36 +451,37 @@
     "selectedColor": "#D4AF37",
     "backgroundColor": "#1A1A1A",
     "borderStyle": "black",
+    "custom": true,
     "list": [
       {
         "pagePath": "pages/index/index",
         "text": "首页",
-        "iconPath": "static/tabbar/home-luxury.svg",
-        "selectedIconPath": "static/tabbar/home-luxury-active.svg"
+        "iconPath": "static/tabbar/home-luxury.png",
+        "selectedIconPath": "static/tabbar/home-luxury-active.png"
       },
       {
         "pagePath": "pages/gallery/index",
         "text": "画廊",
-        "iconPath": "static/tabbar/gallery-luxury.svg",
-        "selectedIconPath": "static/tabbar/gallery-luxury-active.svg"
+        "iconPath": "static/tabbar/gallery-luxury.png",
+        "selectedIconPath": "static/tabbar/gallery-luxury-active.png"
       },
       {
         "pagePath": "pages/auction/index",
         "text": "拍卖",
-        "iconPath": "static/tabbar/auction-luxury.svg",
-        "selectedIconPath": "static/tabbar/auction-luxury-active.svg"
+        "iconPath": "static/tabbar/auction-luxury.png",
+        "selectedIconPath": "static/tabbar/auction-luxury-active.png"
       },
       {
         "pagePath": "pages/cart/index",
         "text": "购物车",
-        "iconPath": "static/tabbar/cart-luxury.svg",
-        "selectedIconPath": "static/tabbar/cart-luxury-active.svg"
+        "iconPath": "static/tabbar/cart-luxury.png",
+        "selectedIconPath": "static/tabbar/cart-luxury-active.png"
       },
       {
         "pagePath": "pages/user/index",
         "text": "我的",
-        "iconPath": "static/tabbar/user-luxury.svg",
-        "selectedIconPath": "static/tabbar/user-luxury-active.svg"
+        "iconPath": "static/tabbar/user-luxury.png",
+        "selectedIconPath": "static/tabbar/user-luxury-active.png"
       }
     ]
   },
