@@ -38,25 +38,25 @@ const request = (options) => {
       timeout: TIMEOUT,
       success: (res) => {
         if (res.statusCode === 200) {
-          if (res.data.code === 200) {
+          if (res.data && res.data.code === 200) {
             resolve(res.data.data)
-          } else if (res.data.code === 401) {
+          } else if (res.data && res.data.code === 401) {
             uni.showToast({ title: '请先登录', icon: 'none' })
             uni.navigateTo({ url: '/pages/login/index' })
-            reject(res.data)
+            reject(new Error('未授权'))
           } else {
-            // 其他错误码不弹 toast，直接返回空数据
+            // 其他错误码不弹 toast，抛出错误让调用方处理
             console.warn('API 返回错误:', res.data)
-            resolve(null)
+            reject(new Error(res.data?.message || 'API错误'))
           }
         } else {
           console.warn('HTTP 错误:', res.statusCode)
-          resolve(null)
+          reject(new Error('HTTP错误: ' + res.statusCode))
         }
       },
       fail: (err) => {
         console.warn('请求失败:', err)
-        resolve(null)
+        reject(new Error('网络请求失败'))
       }
     })
   })

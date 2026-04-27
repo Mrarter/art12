@@ -140,20 +140,33 @@ export default {
         })
 
         let list = []
-        if (res && res.code === 200) {
-          list = res.data?.records || res.data?.list || []
+        if (res) {
+          // 兼容不同的返回格式
+          if (Array.isArray(res)) {
+            list = res
+          } else if (res.records) {
+            list = res.records
+          } else if (res.list) {
+            list = res.list
+          }
         }
 
-        if (isReset) {
-          this.sessionList = list
+        if (list.length === 0) {
+          // API 返回空数据，加载 Mock 数据
+          console.warn('API 返回空数据，使用 Mock 数据')
+          this.loadMockData(isReset)
         } else {
-          this.sessionList = [...this.sessionList, ...list]
-        }
+          if (isReset) {
+            this.sessionList = list
+          } else {
+            this.sessionList = [...this.sessionList, ...list]
+          }
 
-        if (list.length < this.pageSize) {
-          this.noMore = true
-        } else {
-          this.page++
+          if (list.length < this.pageSize) {
+            this.noMore = true
+          } else {
+            this.page++
+          }
         }
       } catch (e) {
         console.error('加载拍卖专场失败，使用Mock数据', e)
