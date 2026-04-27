@@ -92,6 +92,14 @@ ORDER_PID=$!
 echo "  PID: $ORDER_PID"
 sleep 3
 
+# 启动文件服务
+echo -e "${YELLOW}→${NC} 启动 文件服务 (端口 8087)..."
+nohup java -jar shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar \
+  --spring.profiles.active=$PROFILE > ../logs/file.log 2>&1 &
+FILE_PID=$!
+echo "  PID: $FILE_PID"
+sleep 3
+
 echo ""
 echo "🎨 ========================================"
 echo ""

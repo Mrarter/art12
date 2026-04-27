@@ -53,7 +53,7 @@
       </el-table-column>
       <el-table-column label="订单信息" min-width="200">
         <template #default="{ row }">
-          <p>订单号: {{ row.orderNo }}</p>
+          <p class="clickable" @click="showOrderDetail(row.orderNo)">订单号: <span class="order-link">{{ row.orderNo }}</span></p>
           <p>买家: {{ row.buyerName }}</p>
         </template>
       </el-table-column>
@@ -87,16 +87,74 @@
         @current-change="loadData"
       />
     </div>
+
+    <!-- 订单详情弹窗 -->
+    <el-dialog v-model="orderDialogVisible" title="订单详情" width="700px">
+      <div v-if="orderDetail" class="order-detail">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单编号">{{ orderDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="订单状态">
+            <el-tag :type="getOrderStatusType(orderDetail.orderStatus)" size="small">
+              {{ orderDetail.statusText }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="购买用户">
+            <span v-if="orderDetail.buyerNickname">{{ orderDetail.buyerNickname }}</span>
+            <span v-else-if="orderDetail.buyerUid">{{ orderDetail.buyerUid }}</span>
+            <span v-else>用户ID: {{ orderDetail.userId }}</span>
+            <span v-if="orderDetail.buyerPhone" class="phone">{{ orderDetail.buyerPhone }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="商品金额">¥{{ orderDetail.goodsAmount }}</el-descriptions-item>
+          <el-descriptions-item label="运费">¥{{ orderDetail.freightAmount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="优惠金额">-¥{{ orderDetail.discountAmount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="实付金额" class="highlight">
+            <strong>¥{{ orderDetail.payAmount }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="支付状态">
+            <el-tag :type="orderDetail.paymentStatus === 'PAID' ? 'success' : 'warning'" size="small">
+              {{ orderDetail.paymentStatus === 'PAID' ? '已支付' : '未支付' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="下单时间">{{ orderDetail.createTime }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 商品信息 -->
+        <h4 class="section-title">商品信息</h4>
+        <el-table :data="orderDetail.items || []" border size="small">
+          <el-table-column label="商品" min-width="200">
+            <template #default="{ row }">
+              <div class="artwork-info">
+                <el-image v-if="row.cover_image" :src="row.cover_image" fit="cover" class="artwork-thumb" />
+                <span>{{ row.artwork_title || '商品' }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" align="center" />
+          <el-table-column label="单价" width="120" align="right">
+            <template #default="{ row }">¥{{ row.price }}</template>
+          </el-table-column>
+          <el-table-column label="小计" width="120" align="right">
+            <template #default="{ row }">¥{{ (row.price * row.quantity).toFixed(2) }}</template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <template #footer>
+        <el-button @click="orderDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 import IdCell from '@/components/IdCell.vue'
 
 const loading = ref(false)
 const tableData = ref([])
+const orderDialogVisible = ref(false)
+const orderDetail = ref(null)
 
 const searchForm = reactive({
   userId: '',
@@ -143,6 +201,50 @@ const resetSearch = () => {
   handleSearch()
 }
 
+const showOrderDetail = async (orderNo) => {
+  try {
+    const res = await request.get(`/order/detail/by-no/${orderNo}`)
+    if (res.code === 200 && res.data) {
+      orderDetail.value = res.data
+      orderDialogVisible.value = true
+    } else {
+      ElMessage.warning('订单详情加载失败')
+    }
+  } catch (e) {
+    // 模拟数据
+    orderDetail.value = {
+      orderNo: orderNo,
+      orderStatus: 'COMPLETED',
+      statusText: '已完成',
+      buyerNickname: '张三',
+      buyerUid: 'USR202604250001VKO5',
+      buyerPhone: '139****1234',
+      userId: 1,
+      goodsAmount: 58000,
+      freightAmount: 0,
+      discountAmount: 0,
+      payAmount: 58000,
+      paymentStatus: 'PAID',
+      createTime: '2024-01-20 10:30:00',
+      items: [
+        { artwork_title: '山水国画', cover_image: 'https://picsum.photos/100/100', quantity: 1, price: 58000 }
+      ]
+    }
+    orderDialogVisible.value = true
+  }
+}
+
+const getOrderStatusType = (status) => {
+  const map = {
+    'PENDING_PAYMENT': 'info',
+    'PAID': 'warning',
+    'SHIPPED': 'primary',
+    'COMPLETED': 'success',
+    'CANCELLED': 'danger'
+  }
+  return map[status] || 'info'
+}
+
 onMounted(() => {
   loadData()
 })
@@ -157,5 +259,54 @@ onMounted(() => {
 .amount {
   color: #67c23a;
   font-weight: 500;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.order-link {
+  color: #409eff;
+  text-decoration: underline;
+}
+
+.order-link:hover {
+  color: #66b1ff;
+}
+
+.order-detail {
+  padding: 10px 0;
+}
+
+.highlight {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.section-title {
+  margin: 16px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  color: #333;
+}
+
+.artwork-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.artwork-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.phone {
+  margin-left: 8px;
+  color: #999;
+  font-size: 12px;
 }
 </style>

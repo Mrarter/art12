@@ -10,8 +10,10 @@ import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 /**
@@ -95,7 +97,7 @@ public class UserController {
     @PostMapping("/user/artist/cert")
     public Result<Void> applyArtistCert(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
-            @RequestBody ArtistCertDTO dto
+            @Valid @RequestBody ArtistCertDTO dto
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
@@ -172,16 +174,9 @@ public class UserController {
     }
 
     /**
-     * 获取艺术家主页信息 (GET /artist/{userId})
-     */
-    @GetMapping("/artist/{artistId}")
-    public Result<Map<String, Object>> getArtistHomepage(@PathVariable Long artistId) {
-        return Result.success(userService.getArtistHomepage(artistId));
-    }
-
-    /**
      * 搜索艺术家 (GET /user/artist/search)
      * 根据艺术家名称模糊搜索已认证的艺术家
+     * 注意：此路由必须在 /artist/{artistId} 之前定义，避免 search 被当作 ID 处理
      */
     @GetMapping("/artist/search")
     public Result<java.util.List<java.util.Map<String, Object>>> searchArtists(
@@ -189,6 +184,14 @@ public class UserController {
             @RequestParam(defaultValue = "10") int limit
     ) {
         return Result.success(userService.searchArtists(keyword, limit));
+    }
+
+    /**
+     * 获取艺术家主页信息 (GET /artist/{userId})
+     */
+    @GetMapping("/artist/{artistId}")
+    public Result<Map<String, Object>> getArtistHomepage(@PathVariable Long artistId) {
+        return Result.success(userService.getArtistHomepage(artistId));
     }
 
     /**
@@ -211,5 +214,41 @@ public class UserController {
             return Result.fail(404, "艺术家不存在");
         }
         return Result.success(data);
+    }
+    
+    /**
+     * 批量更新用户UID (POST /user/admin/batch-update-uids)
+     * @param params 包含 userIds 和 uids 列表
+     */
+    @PostMapping("/admin/batch-update-uids")
+    public Result<Void> batchUpdateUids(@RequestBody java.util.Map<String, Object> params) {
+        java.util.List<?> userIdList = (java.util.List<?>) params.get("userIds");
+        java.util.List<?> uidList = (java.util.List<?>) params.get("uids");
+        
+        if (userIdList == null || uidList == null || userIdList.size() != uidList.size()) {
+            return Result.fail(400, "用户ID和UID列表不匹配");
+        }
+        
+        java.util.List<Long> userIds = userIdList.stream()
+            .map(o -> ((Number) o).longValue())
+            .collect(java.util.stream.Collectors.toList());
+        java.util.List<String> uids = uidList.stream()
+            .map(Object::toString)
+            .collect(java.util.stream.Collectors.toList());
+        
+        userService.batchUpdateUids(userIds, uids);
+        return Result.success();
+    }
+    
+    /**
+     * 更新单个用户UID (POST /user/admin/update-uid)
+     * @param params 包含 userId 和 uid
+     */
+    @PostMapping("/admin/update-uid")
+    public Result<Void> updateUid(@RequestBody java.util.Map<String, Object> params) {
+        Long userId = ((Number) params.get("userId")).longValue();
+        String uid = params.get("uid").toString();
+        userService.updateUid(userId, uid);
+        return Result.success();
     }
 }

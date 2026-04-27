@@ -1,22 +1,29 @@
-const BASE_URL = 'http://localhost:8090/api'
+// 根据环境变量设置 API 地址，默认使用开发环境地址
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL) || 'http://localhost:8080/api'
 
 // 增加超时时间到 30 秒
 const TIMEOUT = 30000
+
+// 兼容小程序的 URL 参数拼接函数
+const buildQueryString = (data) => {
+  if (!data) return ''
+  const params = []
+  for (const key in data) {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+      params.push(`${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
+    }
+  }
+  return params.length > 0 ? '?' + params.join('&') : ''
+}
 
 const request = (options) => {
   return new Promise((resolve, reject) => {
     // 判断是否是 GET 请求且有参数
     let url = BASE_URL + options.url
     if (options.method !== 'POST' && options.method !== 'PUT' && options.method !== 'DELETE' && options.data) {
-      const params = new URLSearchParams()
-      for (const key in options.data) {
-        if (options.data[key] !== undefined && options.data[key] !== null && options.data[key] !== '') {
-          params.append(key, options.data[key])
-        }
-      }
-      const queryString = params.toString()
+      const queryString = buildQueryString(options.data)
       if (queryString) {
-        url += '?' + queryString
+        url += queryString
       }
     }
 

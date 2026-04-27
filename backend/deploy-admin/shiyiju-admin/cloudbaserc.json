@@ -1,5 +1,5 @@
 {
-  "envId": "shiyiju-9g4pxbgh603bf08b",
+  "envId": "prod-1g8v85uf4e3d6ce6",
   "cloudrun": {
     "name": "shiyiju-admin",
     "dockerFilePath": "Dockerfile",

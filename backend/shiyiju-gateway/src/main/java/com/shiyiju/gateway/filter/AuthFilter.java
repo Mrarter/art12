@@ -66,16 +66,25 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/product/audit/list",
             "/product/upload",
             "/product/",  // 匹配 /product/{id} 详情接口
+            "/product/favorite",  // 收藏作品
+            "/product/favorites",  // 我的收藏
+            "/config/priceGrowth",  // 价格增长配置
             "/order/list",
             "/order/aftersale/list",
             "/user/artist/list",
+            "/user/artist/search",
             "/user/promoter/list",
             "/auction/session/list",
             "/auction/session/detail",
-            "/auction/lot/detail",
+            "/auction/sessions",
+            "/auction/sessions/",
+            "/auction/lot/",
+            "/auction/lots/",
             "/auction/lot/list",
+            "/auction/lot/detail",
             "/auction/record/list",
             "/auction/admin/stats",
+            "/auction/reminders",
             "/promotion/commission/list",
             "/promotion/withdraw/list",
             "/promotion/admin/stats",

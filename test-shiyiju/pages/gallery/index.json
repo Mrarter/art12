@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "画廊",
-  "usingComponents": {}
+  "usingComponents": {
+    "custom-tab-bar": "../../components/custom-tab-bar/index"
+  }
 }

@@ -22,6 +22,6 @@ public class FileApplication implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 映射 /upload/** 到本地文件目录
         registry.addResourceHandler("/upload/**")
-                .addResourceLocations("file:/tmp/shiyiju-uploads/");
+                .addResourceLocations("file:/Users/master/CodeBuddy/art12/uploads/");
     }
 }

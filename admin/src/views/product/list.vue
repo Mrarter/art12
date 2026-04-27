@@ -364,8 +364,32 @@
           <el-input v-model="editForm.title" placeholder="请输入作品名称" />
         </el-form-item>
         <el-form-item label="艺术家" prop="artistName">
-          <el-input v-model="editForm.artistName" placeholder="请输入艺术家名称" style="width: 60%; margin-right: 10px;" />
-          <span v-if="editForm.authorUid" class="artist-id-tag">ID: {{ editForm.authorUid }}</span>
+          <div class="artist-search-container">
+            <el-autocomplete
+              v-model="editForm.artistName"
+              :fetch-suggestions="searchArtists"
+              placeholder="输入艺术家名称或拼音首字母搜索"
+              :trigger-on-focus="false"
+              clearable
+              style="width: 60%"
+              @select="selectArtist"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+              <template #default="{ item }">
+                <div class="artist-search-item">
+                  <el-avatar v-if="item.avatar" :src="item.avatar" size="small" />
+                  <el-avatar v-else size="small">{{ item.name?.charAt(0) }}</el-avatar>
+                  <span class="artist-name">{{ item.name }}</span>
+                  <span v-if="item.artistCode" class="artist-code">ID: {{ item.artistCode }}</span>
+                  <span v-else-if="item.uid" class="artist-code">ID: {{ item.uid }}</span>
+                  <el-tag v-if="item.certified" type="success" size="small">已认证</el-tag>
+                </div>
+              </template>
+            </el-autocomplete>
+            <span v-if="editForm.authorUid" class="artist-id-tag">ID: {{ editForm.authorUid }}</span>
+          </div>
         </el-form-item>
         <el-form-item label="分类" prop="categoryId">
           <el-select v-model="editForm.categoryId" placeholder="请选择分类" style="width: 100%">
@@ -572,6 +596,40 @@ const editForm = reactive({
   customMaxGrowthMultiple: 5.0
 })
 
+// 艺术家搜索相关
+const artistSearchResults = ref([])
+const artistSearchLoading = ref(false)
+const artistSearchVisible = ref(false)
+
+// el-autocomplete 期望的搜索函数格式
+const searchArtists = (keyword, callback) => {
+  if (!keyword || keyword.length < 1) {
+    callback([])
+    return
+  }
+  artistSearchLoading.value = true
+  requestApi.get('/user/artist/search', { 
+    params: { keyword, limit: 10 } 
+  }).then(res => {
+    artistSearchResults.value = res || []
+    callback(artistSearchResults.value)
+  }).catch(e => {
+    console.error('搜索艺术家失败', e)
+    artistSearchResults.value = []
+    callback([])
+  }).finally(() => {
+    artistSearchLoading.value = false
+  })
+}
+
+const selectArtist = (artist) => {
+  editForm.authorId = artist.id
+  editForm.authorUid = artist.artistCode || artist.uid || `ID${artist.id}`
+  editForm.artistName = artist.name
+  artistSearchVisible.value = false
+  artistSearchResults.value = []
+}
+
 const distForm = reactive({
   artworkId: '',
   title: '',
@@ -668,6 +726,7 @@ const resetSearch = () => {
 }
 
 const handleEdit = async (row) => {
+  console.log('【DEBUG】handleEdit row.price:', row.price, 'row.originalPrice:', row.originalPrice)
   Object.assign(editForm, {
     artworkId: row.artworkId,
     authorId: row.authorId || null,
@@ -685,6 +744,7 @@ const handleEdit = async (row) => {
     description: row.description || '',
     status: row.status
   })
+  console.log('【DEBUG】handleEdit editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
   
   // 加载单个作品的价格增长配置
   try {
@@ -772,6 +832,9 @@ const handleSave = async () => {
   
   saveLoading.value = true
   try {
+    // 调试：打印编辑表单中的价格值
+    console.log('【DEBUG】editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
+    
     const params = {
       title: editForm.title,
       authorId: editForm.authorId,
@@ -787,6 +850,7 @@ const handleSave = async () => {
       description: editForm.description,
       status: editForm.status
     }
+    console.log('【DEBUG】保存参数 params.price:', params.price, 'params.originalPrice:', params.originalPrice)
     console.log('保存参数:', params)
     
     if (editForm.artworkId) {
@@ -1229,6 +1293,33 @@ onMounted(() => {
   
   &:hover {
     text-decoration: underline;
+  }
+}
+
+/* 艺术家搜索容器 */
+.artist-search-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 艺术家搜索下拉项 */
+.artist-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  
+  .artist-name {
+    flex: 1;
+    font-weight: 500;
+  }
+  
+  .artist-code {
+    color: #909399;
+    font-size: 12px;
+    font-family: 'Consolas', 'Monaco', monospace;
   }
 }
 </style>

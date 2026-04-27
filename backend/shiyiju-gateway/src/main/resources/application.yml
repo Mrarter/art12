@@ -77,13 +77,27 @@ spring:
             - Path=/api/file/**
           filters:
             - StripPrefix=1
-        # 运营后台管理接口 - 所有管理相关路径路由到 admin 服务
+        # 运营后台管理接口 - 列表查询类路由到 admin 服务
         - id: shiyiju-admin-product
           uri: http://localhost:8090
           predicates:
-            - Path=/product/list,/product/categories,/product/audit/list,/product/upload,/product/create,/product/update,/product/delete
+            - Path=/product/list,/product/categories,/product/audit/list
           filters:
             - RewritePath=/product(?<segment>/?.*), /admin/product$\{segment}
+        # 作品数据操作路由到 product 服务
+        - id: shiyiju-product-update
+          uri: http://localhost:8082
+          predicates:
+            - Path=/product/create,/product/update,/product/publish,/product/delete,/product/upload,/product/favorite,/product/favorites
+          filters:
+            - RewritePath=/product(?<segment>/?.*), /product$\{segment}
+        # 商品服务 - 支持 /product/{id}/priceGrowth 等接口
+        - id: shiyiju-product-direct
+          uri: http://localhost:8082
+          predicates:
+            - Path=/product/{id}/**,/product/{id}
+          filters:
+            - RewritePath=/product/(?<segment>.*), /product/$\{segment}
         - id: shiyiju-admin-order
           uri: http://localhost:8090
           predicates:
@@ -96,6 +110,13 @@ spring:
             - Path=/user/artist/list,/user/artist/approve,/user/artist/reject
           filters:
             - RewritePath=/user/artist(?<segment>/?.*), /admin/user/artist$\{segment}
+        # 艺术家搜索API - 路由到 user 服务
+        - id: shiyiju-user-artist-search
+          uri: http://localhost:8081
+          predicates:
+            - Path=/user/artist/search
+          filters:
+            - RewritePath=/user/artist(?<segment>/?.*), /artist$\{segment}
         - id: shiyiju-admin-promoter
           uri: http://localhost:8090
           predicates:

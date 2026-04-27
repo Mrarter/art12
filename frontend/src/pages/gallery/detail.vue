@@ -18,17 +18,13 @@
         <image class="product-image" :src="img" mode="aspectFit" @click="previewImage(index)"></image>
       </swiper-item>
     </swiper>
+    
     <view class="image-indicator">{{ currentImageIndex + 1 }}/{{ images.length }}</view>
     
     <!-- 视频按钮 -->
     <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">
       <text class="play-icon">▶</text>
       <text>观看视频</text>
-    </view>
-    
-    <!-- SOLD标签 -->
-    <view class="sold-overlay" v-if="detail.stock === 0">
-      <view class="sold-text">SOLD</view>
     </view>
     
     <!-- 商品信息卡片 -->
@@ -91,13 +87,13 @@
           <text class="info-value">{{ formatHoldDuration(detail.holdDuration) }}</text>
         </view>
         <!-- 新增：作品编号和艺术家ID显示 -->
-        <view class="info-item" v-if="detail.artworkCode">
+        <view class="info-item" v-if="detail.artworkCode || detail.displayArtworkId">
           <text class="info-label">作品编号</text>
-          <text class="info-value id-value">{{ detail.artworkCode }}</text>
+          <text class="info-value id-value">{{ detail.artworkCode || detail.displayArtworkId }}</text>
         </view>
-        <view class="info-item" v-if="detail.displayAuthorId">
+        <view class="info-item" v-if="detail.authorUid || detail.authorId">
           <text class="info-label">艺术家ID</text>
-          <text class="info-value id-value">{{ detail.displayAuthorId }}</text>
+          <text class="info-value id-value">{{ detail.authorUid || detail.authorId }}</text>
         </view>
       </view>
     </view>
@@ -257,13 +253,16 @@ export default {
             this.images = ['https://picsum.photos/750/750?random=' + id]
           }
           
+          // 商品价格加载完成后计算佣金
           this.loadCommission(id)
         } else {
           this.loadMockData()
+          this.loadCommission(id)
         }
       } catch (e) {
         console.error('获取详情失败', e)
         this.loadMockData()
+        this.loadCommission(id)
       }
     },
     
@@ -296,9 +295,16 @@ export default {
     async loadCommission(productId) {
       try {
         const res = await getProductCommission(productId)
-        this.commission = res.commission || 0
+        // 优先使用后端返回的佣金比例，否则使用商品的佣金比例，默认 5%
+        const rate = res.commissionRate || res.rate || this.detail.commissionRate || 5
+        // price 单位是"分"，需要转为"元"显示
+        const priceYuan = (this.detail.price || 0) / 100
+        this.commission = Math.floor(priceYuan * rate) / 100
       } catch (e) {
-        this.commission = 1280
+        // API 失败时，根据商品价格计算佣金（默认 5%）
+        const rate = this.detail.commissionRate || 5
+        const priceYuan = (this.detail.price || 0) / 100
+        this.commission = Math.floor(priceYuan * rate) / 100
       }
     },
     
@@ -557,7 +563,6 @@ $accent-gold-light: #e6c65c;
 
 // 图片轮播
 .image-swiper {
-  position: relative;
   height: 750rpx;
   background: $bg-card;
   
@@ -594,32 +599,6 @@ $accent-gold-light: #e6c65c;
   
   .play-icon {
     font-size: 20rpx;
-  }
-}
-
-// SOLD标签
-.sold-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  
-  .sold-text {
-    padding: 16rpx 80rpx;
-    border: 4rpx solid rgba(255, 255, 255, 0.9);
-    border-radius: 8rpx;
-    font-size: 56rpx;
-    color: #fff;
-    font-weight: 700;
-    letter-spacing: 10rpx;
-    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
-    transform: rotate(-15deg);
   }
 }
 

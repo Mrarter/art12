@@ -24,7 +24,7 @@
             <span>用户管理</span>
           </template>
           <el-menu-item index="/user/list">用户列表</el-menu-item>
-          <el-menu-item index="/user/artist">艺术家认证</el-menu-item>
+          <el-menu-item index="/user/artist">艺术家管理</el-menu-item>
           <el-menu-item index="/user/promoter">艺荐官管理</el-menu-item>
         </el-sub-menu>
         

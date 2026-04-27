@@ -69,17 +69,56 @@
       </view>
       
       <!-- 作品瀑布流 - 深色主题 -->
-      <view class="waterfall">
-        <view 
-          class="waterfall-item" 
-          v-for="(item, index) in productList" 
-          :key="item.id"
-          @click="goDetail(item)"
-        >
-          <view class="artwork-card">
+      <view class="waterfall-container">
+        <view class="waterfall-column">
+          <view
+            class="artwork-card" 
+            v-for="(item, index) in leftList" 
+            :key="item.id"
+            :class="{ 'card-pop': item.popping }"
+            @touchstart="onCardTouchStart(item)"
+            @touchend="onCardTouchEnd(item, $event)"
+            @click="goDetail(item)"
+          >
             <view class="artwork-image-wrapper">
-              <image class="artwork-card-image" :src="item.cover" mode="aspectFill"></image>
-              <view class="artwork-tag" v-if="item.isHot">热</view>
+              <image class="artwork-card-image" :src="item.cover" mode="widthFix" :lazy-load="true"></image>
+              <view class="artwork-tag hot-tag" v-if="item.isHot">热</view>
+              <view class="artwork-tag new-tag" v-if="item.isNew">新</view>
+            </view>
+            <view class="artwork-card-info">
+              <text class="artwork-title">{{ item.title }}</text>
+              <view class="artwork-author">
+                <text class="author-name">{{ item.artistName || item.authorName }}</text>
+                <view class="identity-tag" v-if="item.authorIdentity">
+                  <text>{{ getIdentityText(item.authorIdentity) }}</text>
+                </view>
+              </view>
+              <view class="artwork-footer">
+                <view class="price-info">
+                  <text class="price-symbol">¥</text>
+                  <text class="price-value">{{ formatPrice(item.price) }}</text>
+                  <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
+                  <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 第二列 -->
+        <view class="waterfall-column">
+          <view 
+            class="artwork-card" 
+            v-for="(item, index) in rightList" 
+            :key="item.id"
+            :class="{ 'card-pop': item.popping }"
+            @touchstart="onCardTouchStart(item)"
+            @touchend="onCardTouchEnd(item, $event)"
+            @click="goDetail(item)"
+          >
+            <view class="artwork-image-wrapper">
+              <image class="artwork-card-image" :src="item.cover" mode="widthFix" :lazy-load="true"></image>
+              <view class="artwork-tag hot-tag" v-if="item.isHot">热</view>
               <view class="artwork-tag new-tag" v-if="item.isNew">新</view>
             </view>
             <view class="artwork-card-info">
@@ -126,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getBanners, getRecommend, getFollowingWorks } from '@/api/product'
 import { useUserStore } from '@/store/modules/user'
@@ -298,6 +337,16 @@ const goDetail = (item) => {
   uni.navigateTo({ url: `/pages/gallery/detail?id=${item.id}` })
 }
 
+// 卡片触摸开始 - 点击放大
+const onCardTouchStart = (item) => {
+  item.popping = true
+}
+
+// 卡片触摸结束 - 点击缩小
+const onCardTouchEnd = (item, event) => {
+  item.popping = false
+}
+
 // 跳转艺术家主页
 const goArtistHome = (userId) => {
   uni.navigateTo({ url: `/pages/artist/home?userId=${userId}` })
@@ -312,6 +361,15 @@ const formatPrice = (price) => {
   }
   return yuan.toLocaleString()
 }
+
+// 计算左右列数据
+const leftList = computed(() => {
+  return productList.value.filter((item, index) => index % 2 === 0)
+})
+
+const rightList = computed(() => {
+  return productList.value.filter((item, index) => index % 2 === 1)
+})
 
 // 获取身份文字
 const getIdentityText = (identity) => {
@@ -477,36 +535,36 @@ $price-down: #4CAF50;
   gap: 20rpx;
   padding: 0 30rpx;
   margin-bottom: 40rpx;
-  
-  .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    
-    .nav-icon-wrapper {
-      width: 108rpx;
-      height: 108rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at 30% 30%, rgba(36, 42, 56, 0.9), rgba(22, 24, 31, 0.98));
-      border-radius: 50%;
-      margin-bottom: 14rpx;
-      border: 1rpx solid rgba(71, 95, 132, 0.35);
-      box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.03);
-    }
-    
-    .nav-icon-img {
-      width: 52rpx;
-      height: 52rpx;
-    }
-    
-    .nav-text {
-      font-size: 24rpx;
-      color: $text-secondary;
-      letter-spacing: 1rpx;
-    }
-  }
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nav-icon-wrapper {
+  width: 99rpx;
+  height: 99rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 30% 30%, rgba(36, 42, 56, 0.9), rgba(22, 24, 31, 0.98));
+  border-radius: 50%;
+  margin-bottom: 14rpx;
+  border: 1rpx solid rgba(71, 95, 132, 0.35);
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.03);
+}
+
+.nav-icon-img {
+  width: 65rpx;
+  height: 65rpx;
+}
+
+.nav-text {
+  font-size: 24rpx;
+  color: $text-secondary;
+  letter-spacing: 1rpx;
 }
 
 .content-tabs {
@@ -539,43 +597,41 @@ $price-down: #4CAF50;
   }
 }
 
-.waterfall {
+// 瀑布流容器
+.waterfall-container {
   display: flex;
-  flex-wrap: wrap;
-  width: 100%;
+  justify-content: space-between;
   padding: 0 20rpx;
-  box-sizing: border-box;
-  
-  .waterfall-item {
-    width: calc(50% - 10rpx);
-    margin-bottom: 20rpx;
-    
-    &:nth-child(2n) {
-      margin-left: 20rpx;
-    }
-  }
+}
+
+.waterfall-column {
+  width: 49%;
 }
 
 .artwork-card {
   background-color: $bg-card;
-  border-radius: 16rpx;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
   overflow: hidden;
-  border: 1rpx solid rgba(255, 255, 255, 0.05);
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
+  transition: transform 0.15s ease-out;
+  
+  &.card-pop {
+    transform: scale(1.05);
+  }
   
   .artwork-image-wrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 1;
     
     .artwork-card-image {
       width: 100%;
-      height: 100%;
+      display: block;
+      background: $bg-secondary;
     }
     
     .artwork-tag {
       position: absolute;
-      top: 16rpx;
-      right: 16rpx;
       width: 44rpx;
       height: 44rpx;
       display: flex;
@@ -587,9 +643,15 @@ $price-down: #4CAF50;
       color: $bg-primary;
       font-weight: 600;
       
+      &.hot-tag {
+        top: 16rpx;
+        left: 16rpx;
+      }
+      
       &.new-tag {
+        top: 16rpx;
+        right: 16rpx;
         background-color: $accent-gold;
-        right: 70rpx;
       }
     }
   }

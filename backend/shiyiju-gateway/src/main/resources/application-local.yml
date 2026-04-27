@@ -67,6 +67,73 @@ spring:
             - Path=/api/file/**
           filters:
             - StripPrefix=1
+        # 运营后台管理接口
+        - id: shiyiju-admin-product
+          uri: http://localhost:8090
+          predicates:
+            - Path=/product/list,/product/categories,/product/audit/list
+          filters:
+            - RewritePath=/product(?<segment>/?.*), /admin/product$\{segment}
+        - id: shiyiju-admin
+          uri: http://localhost:8090
+          predicates:
+            - Path=/api/admin/**
+          filters:
+            - RewritePath=/api/admin(?<segment>/?.*), /admin$\{segment}
+        - id: shiyiju-admin-order
+          uri: http://localhost:8090
+          predicates:
+            - Path=/order/list,/order/aftersale/list
+          filters:
+            - RewritePath=/order(?<segment>/?.*), /admin/order$\{segment}
+        - id: shiyiju-admin-artist
+          uri: http://localhost:8090
+          predicates:
+            - Path=/user/artist/list,/user/artist/approve,/user/artist/reject
+          filters:
+            - RewritePath=/user/artist(?<segment>/?.*), /admin/user/artist$\{segment}
+        - id: shiyiju-admin-promoter
+          uri: http://localhost:8090
+          predicates:
+            - Path=/user/promoter/list,/user/promoter/add,/user/promoter/freeze
+          filters:
+            - RewritePath=/user/promoter(?<segment>/?.*), /admin/user/promoter$\{segment}
+        - id: shiyiju-admin-community
+          uri: http://localhost:8090
+          predicates:
+            - Path=/community/topic/list,/community/comment/list,/community/post/list
+          filters:
+            - RewritePath=/community(?<segment>/?.*), /admin/community$\{segment}
+        - id: shiyiju-admin-system
+          uri: http://localhost:8090
+          predicates:
+            - Path=/system/admin/list,/system/banner/list,/system/operation-log/list,/system/operation-log/stats
+          filters:
+            - RewritePath=/system(?<segment>/?.*), /admin$\{segment}
+        - id: shiyiju-admin-message
+          uri: http://localhost:8090
+          predicates:
+            - Path=/message/list,/message/send,/message/template/list
+          filters:
+            - RewritePath=/message(?<segment>/?.*), /admin/message$\{segment}
+        - id: shiyiju-admin-auction
+          uri: http://localhost:8090
+          predicates:
+            - Path=/auction/session/list
+          filters:
+            - RewritePath=/auction/session/list, /admin/auction/sessions
+        - id: shiyiju-admin-auction-other
+          uri: http://localhost:8090
+          predicates:
+            - Path=/auction/lot/list,/auction/record/list,/auction/admin/stats,/auction/admin/session-rank,/auction/admin/artist-rank,/auction/admin/deals,/auction/admin/trend,/auction/sessions
+          filters:
+            - RewritePath=/auction(?<segment>/?.*), /admin/auction$\{segment}
+        - id: shiyiju-admin-promotion
+          uri: http://localhost:8090
+          predicates:
+            - Path=/promotion/commission/list,/promotion/withdraw/list,/promotion/admin/stats,/promotion/admin/rank,/promotion/admin/team-list,/promotion/admin/trend
+          filters:
+            - RewritePath=/promotion(?<segment>/?.*), /admin/promotion$\{segment}
 
 # 禁用Nacos
 spring.cloud.nacos.discovery.enabled: false

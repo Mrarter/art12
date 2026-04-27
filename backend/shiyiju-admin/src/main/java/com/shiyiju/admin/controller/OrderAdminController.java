@@ -42,6 +42,18 @@ public class OrderAdminController {
     }
 
     /**
+     * 订单详情（按订单号）
+     */
+    @GetMapping("/detail/by-no/{orderNo}")
+    public Result<Map<String, Object>> getOrderDetailByNo(@PathVariable String orderNo) {
+        Map<String, Object> order = orderService.getOrderByNo(orderNo);
+        if (order == null) {
+            return Result.fail("订单不存在");
+        }
+        return Result.success(order);
+    }
+    
+    /**
      * 订单详情
      */
     @GetMapping("/detail/{orderId}")

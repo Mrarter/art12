@@ -50,8 +50,9 @@ public class UserManagementController {
     }
 
     @GetMapping("/{userId}")
-    public Result<Map<String, Object>> getUserDetail(@PathVariable Long userId) {
-        Map<String, Object> detail = userAdminPersistenceService.getUserDetail(userId);
+    public Result<Map<String, Object>> getUserDetail(@PathVariable String userId) {
+        Long numericId = parseUserId(userId);
+        Map<String, Object> detail = userAdminPersistenceService.getUserDetail(numericId);
         if (detail == null) {
             return Result.fail(404, "用户不存在");
         }
@@ -59,8 +60,35 @@ public class UserManagementController {
     }
 
     @PutMapping("/{userId}")
-    public Result<Void> updateUser(@PathVariable Long userId, @RequestBody Map<String, Object> params) {
-        userAdminPersistenceService.updateUser(userId, params);
+    public Result<Void> updateUser(@PathVariable String userId, @RequestBody Map<String, Object> params) {
+        Long numericId = parseUserId(userId);
+        userAdminPersistenceService.updateUser(numericId, params);
+        return Result.success();
+    }
+    
+    @PostMapping("/updateUid")
+    public Result<Void> updateUserUid(@RequestBody Map<String, Object> params) {
+        Long userId = Long.parseLong(String.valueOf(params.get("userId")));
+        String uid = Objects.toString(params.get("uid"), "");
+        if (uid.isEmpty()) {
+            return Result.fail(400, "UID不能为空");
+        }
+        userAdminPersistenceService.updateUserUid(userId, uid);
+        return Result.success();
+    }
+    
+    @PostMapping("/batchUpdateUids")
+    public Result<Void> batchUpdateUserUids(@RequestBody Map<String, Object> params) {
+        List<Long> userIds = ((List<Number>) params.get("userIds")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        List<String> uids = ((List<?>) params.get("uids")).stream()
+            .map(Object::toString)
+            .collect(java.util.stream.Collectors.toList());
+        if (userIds.size() != uids.size()) {
+            return Result.fail(400, "用户ID数量和UID数量不匹配");
+        }
+        userAdminPersistenceService.batchUpdateUserUids(userIds, uids);
         return Result.success();
     }
 
@@ -149,8 +177,9 @@ public class UserManagementController {
     }
 
     @GetMapping("/promoter/{userId}")
-    public Result<Map<String, Object>> getPromoterDetail(@PathVariable Long userId) {
-        Map<String, Object> detail = userAdminPersistenceService.getPromoterDetail(userId);
+    public Result<Map<String, Object>> getPromoterDetail(@PathVariable String userId) {
+        Long numericId = parseUserId(userId);
+        Map<String, Object> detail = userAdminPersistenceService.getPromoterDetail(numericId);
         if (detail == null) {
             return Result.fail(404, "艺荐官不存在");
         }
@@ -159,20 +188,22 @@ public class UserManagementController {
 
     @GetMapping("/promoter/team/{userId}")
     public Result<List<Map<String, Object>>> getPromoterTeam(
-        @PathVariable Long userId,
+        @PathVariable String userId,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int size
     ) {
-        return Result.success(userAdminPersistenceService.getPromoterTeam(userId, page, size));
+        Long numericId = parseUserId(userId);
+        return Result.success(userAdminPersistenceService.getPromoterTeam(numericId, page, size));
     }
 
     @GetMapping("/promoter/commission/{userId}")
     public Result<List<Map<String, Object>>> getPromoterCommission(
-        @PathVariable Long userId,
+        @PathVariable String userId,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int size
     ) {
-        return Result.success(userAdminPersistenceService.getPromoterCommission(userId, page, size));
+        Long numericId = parseUserId(userId);
+        return Result.success(userAdminPersistenceService.getPromoterCommission(numericId, page, size));
     }
 
     // ==================== 艺荐官认证管理 ====================
@@ -213,6 +244,36 @@ public class UserManagementController {
         return Result.success();
     }
 
+    @GetMapping("/{userId}/artworks")
+    public Result<Map<String, Object>> getUserArtworks(
+        @PathVariable String userId,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        Long numericId = parseUserId(userId);
+        return Result.success(userAdminPersistenceService.listUserArtworks(numericId, page, size));
+    }
+
+    @GetMapping("/{userId}/sales")
+    public Result<Map<String, Object>> getUserSales(
+        @PathVariable String userId,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        Long numericId = parseUserId(userId);
+        return Result.success(userAdminPersistenceService.listUserSales(numericId, page, size));
+    }
+
+    @GetMapping("/{userId}/sharing")
+    public Result<Map<String, Object>> getUserSharing(
+        @PathVariable String userId,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        Long numericId = parseUserId(userId);
+        return Result.success(userAdminPersistenceService.listUserSharing(numericId, page, size));
+    }
+
     @PostMapping("/create")
     public Result<Map<String, Object>> createUser(@RequestBody Map<String, Object> params) {
         String phone = Objects.toString(params.get("phone"), "").trim();
@@ -244,5 +305,41 @@ public class UserManagementController {
         result.put("isNewUser", true);
         result.put("message", "新用户创建成功，用户ID：" + userId);
         return Result.success(result);
+    }
+
+    @DeleteMapping("/{userId}")
+    public Result<Void> deleteUser(@PathVariable String userId) {
+        Long numericId = parseUserId(userId);
+        userAdminPersistenceService.deleteUser(numericId);
+        return Result.success();
+    }
+
+    @DeleteMapping("/artist/{id}")
+    public Result<Void> deleteArtist(@PathVariable Long id) {
+        userAdminPersistenceService.deleteArtist(id);
+        return Result.success();
+    }
+
+    @DeleteMapping("/promoter/{id}")
+    public Result<Void> deletePromoter(@PathVariable Long id) {
+        userAdminPersistenceService.deletePromoter(id);
+        return Result.success();
+    }
+
+    /**
+     * 解析用户ID，支持数字ID和字符串UID
+     * @param userIdStr 用户ID字符串
+     * @return 数字用户ID
+     */
+    private Long parseUserId(String userIdStr) {
+        if (userIdStr == null || userIdStr.isEmpty()) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+        // 如果是纯数字，直接返回
+        if (userIdStr.matches("\\d+")) {
+            return Long.parseLong(userIdStr);
+        }
+        // 如果是字符串UID，查询对应的数字ID
+        return userAdminPersistenceService.getUserIdByUid(userIdStr);
     }
 }

@@ -266,7 +266,8 @@ public class PriceGrowthService {
                     Long currentPrice = calculateCurrentPrice(artwork);
                     
                     artwork.setPriceRise(priceRise);
-                    artwork.setPrice(currentPrice);
+                    // 注意：只更新 priceRise 和 currentPrice，不覆盖用户设置的 price
+                    // price 是用户设置的销售价格，currentPrice 是计算后的当前价格
                     artwork.setUpdateTime(LocalDateTime.now());
                     artworkMapper.updateById(artwork);
                     totalUpdated++;
@@ -301,7 +302,7 @@ public class PriceGrowthService {
         Long currentPrice = calculateCurrentPrice(artwork);
         
         artwork.setPriceRise(priceRise);
-        artwork.setPrice(currentPrice);
+        // 注意：不要覆盖用户设置的 price，只更新 priceRise
         artwork.setUpdateTime(LocalDateTime.now());
         artworkMapper.updateById(artwork);
     }

@@ -22,6 +22,19 @@ public class ArtistController {
     private final UserService userService;
 
     /**
+     * 搜索艺术家 (GET /artist/search)
+     * 根据艺术家名称模糊搜索已认证的艺术家，支持中文和拼音首字母搜索
+     * 注意：此路由必须在 /{userId} 之前定义，避免 search 被当作 ID 处理
+     */
+    @GetMapping("/search")
+    public Result<java.util.List<Map<String, Object>>> searchArtists(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return Result.success(userService.searchArtists(keyword, limit));
+    }
+
+    /**
      * 获取艺术家主页信息 (GET /artist/{userId})
      */
     @GetMapping("/{userId}")
@@ -91,5 +104,18 @@ public class ArtistController {
         }
         userService.unfollowArtist(currentUserId, userId);
         return Result.success();
+    }
+
+    /**
+     * 根据艺术家名称查找艺术家信息 (GET /artist/by-name)
+     * 用于解决作品表中author_id与艺术家表ID不一致的问题
+     */
+    @GetMapping("/by-name")
+    public Result<Map<String, Object>> getArtistByName(@RequestParam String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return Result.fail(400, "艺术家名称不能为空");
+        }
+        Map<String, Object> artist = userService.findOrCreateArtist(name.trim());
+        return Result.success(artist);
     }
 }

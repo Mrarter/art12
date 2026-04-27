@@ -1,0 +1,75 @@
+
+  VITE v4.5.14  ready in 162 ms
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: http://192.168.1.176:5174/
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+(node:97439) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+6:30:03 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:04 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:06 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:06 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:07 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:08 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:10 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:10 PM [vite] hmr update /src/views/user/promoter.vue
+6:30:11 PM [vite] hmr update /src/views/user/promoter.vue
+6:32:38 PM [vite] hmr update /src/views/Layout.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+6:36:13 PM [vite] hmr update /src/views/user/artist.vue
+6:36:18 PM [vite] hmr update /src/views/user/artist.vue
+6:38:39 PM [vite] hmr update /src/views/product/list.vue
+6:38:47 PM [vite] hmr update /src/views/product/list.vue
+6:38:53 PM [vite] hmr update /src/views/product/list.vue
+6:38:59 PM [vite] hmr update /src/views/product/list.vue
+6:42:07 PM [vite] hmr update /src/views/product/list.vue
+6:42:09 PM [vite] hmr update /src/views/product/list.vue
+6:42:13 PM [vite] hmr update /src/views/product/list.vue
+6:42:18 PM [vite] hmr update /src/views/product/list.vue
+6:58:44 PM [vite] hmr update /src/views/product/list.vue
+6:58:53 PM [vite] hmr update /src/views/product/list.vue
+6:58:54 PM [vite] ✨ new dependencies optimized: element-plus/es/components/autocomplete/style/css
+6:58:54 PM [vite] ✨ optimized dependencies changed. reloading
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+6:59:33 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+7:27:25 PM [vite] hmr update /src/views/product/list.vue
+7:27:31 PM [vite] hmr update /src/views/product/list.vue
+7:27:45 PM [vite] page reload dist/index.html
+7:34:39 PM [vite] hmr update /src/views/user/list.vue
+7:34:55 PM [vite] hmr update /src/views/user/list.vue
+7:35:06 PM [vite] hmr update /src/views/user/artist.vue
+7:35:21 PM [vite] hmr update /src/views/user/artist.vue
+7:35:32 PM [vite] hmr update /src/views/user/promoter.vue
+7:35:43 PM [vite] hmr update /src/views/user/promoter.vue
+7:35:57 PM [vite] page reload dist/index.html
+7:40:40 PM [vite] hmr update /src/views/user/artist.vue
+7:40:53 PM [vite] hmr update /src/views/user/artist.vue
+7:41:15 PM [vite] hmr update /src/views/user/artist.vue
+7:41:39 PM [vite] hmr update /src/views/user/artist.vue?vue&type=style&index=0&scoped=b2e14e46&lang.css
+7:41:53 PM [vite] hmr update /src/views/user/list.vue
+7:42:09 PM [vite] hmr update /src/views/user/list.vue
+7:42:24 PM [vite] hmr update /src/views/user/list.vue
+7:43:30 PM [vite] hmr update /src/views/user/list.vue?vue&type=style&index=0&scoped=40a217ae&lang.css
+7:43:46 PM [vite] hmr update /src/views/user/promoter.vue
+7:43:59 PM [vite] hmr update /src/views/user/promoter.vue
+7:44:14 PM [vite] hmr update /src/views/user/promoter.vue
+7:44:27 PM [vite] hmr update /src/views/user/promoter.vue?vue&type=style&index=0&scoped=aa8710ba&lang.css
+7:44:42 PM [vite] page reload dist/index.html

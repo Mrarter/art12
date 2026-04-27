@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "购物车",
-  "usingComponents": {}
+  "usingComponents": {
+    "custom-tab-bar": "../../components/custom-tab-bar/index"
+  }
 }

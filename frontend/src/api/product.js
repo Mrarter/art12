@@ -25,7 +25,16 @@ export const getProductList = (params) => {
 
 // 获取画廊列表（别名）
 export const getGalleryList = (params) => {
-  return getProductList(params)
+  return getProductList(params).then(data => {
+    if (data && data.records) {
+      // 字段映射：coverImage -> cover
+      data.records = data.records.map(item => ({
+        ...item,
+        cover: item.coverImage || item.cover
+      }))
+    }
+    return data
+  })
 }
 
 /**
@@ -37,11 +46,11 @@ export const getProductDetail = (id) => {
 }
 
 /**
- * 获取作品详情（通过 artcircle）
- * GET /artcircle/detail/{id}
+ * 获取作品详情
+ * GET /product/{id}
  */
 export const getArtworkDetail = (id) => {
-  return request.get(`/artcircle/detail/${id}`)
+  return request.get(`/product/${id}`)
 }
 
 /**
@@ -91,7 +100,16 @@ export const removeFavorite = (id) => {
  * GET /product/favorites
  */
 export const getFavorites = (params) => {
-  return request.get('/product/favorites', params)
+  return request.get('/product/favorites', params).then(data => {
+    if (data) {
+      const list = Array.isArray(data) ? data : (data.records || [])
+      // 字段映射：coverImage -> cover
+      return Array.isArray(data) 
+        ? list.map(item => ({ ...item, cover: item.coverImage || item.cover }))
+        : { ...data, records: list.map(item => ({ ...item, cover: item.coverImage || item.cover })) }
+    }
+    return data
+  })
 }
 
 /**
@@ -99,7 +117,16 @@ export const getFavorites = (params) => {
  * GET /product/recommend
  */
 export const getRecommend = (params) => {
-  return request.get('/product/recommend', params)
+  return request.get('/product/recommend', params).then(data => {
+    if (data) {
+      const list = Array.isArray(data) ? data : (data.records || [])
+      // 字段映射：coverImage -> cover
+      return Array.isArray(data) 
+        ? list.map(item => ({ ...item, cover: item.coverImage || item.cover }))
+        : { ...data, records: list.map(item => ({ ...item, cover: item.coverImage || item.cover })) }
+    }
+    return data
+  })
 }
 
 /**
@@ -107,7 +134,16 @@ export const getRecommend = (params) => {
  * GET /product/following
  */
 export const getFollowingWorks = (params) => {
-  return request.get('/product/following', params)
+  return request.get('/product/following', params).then(data => {
+    if (data) {
+      const list = Array.isArray(data) ? data : (data.records || [])
+      // 字段映射：coverImage -> cover
+      return Array.isArray(data) 
+        ? list.map(item => ({ ...item, cover: item.coverImage || item.cover }))
+        : { ...data, records: list.map(item => ({ ...item, cover: item.coverImage || item.cover })) }
+    }
+    return data
+  })
 }
 
 /**

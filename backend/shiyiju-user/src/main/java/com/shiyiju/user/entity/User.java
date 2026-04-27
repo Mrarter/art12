@@ -19,6 +19,9 @@ public class User implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 用户标准化UID (19位: USR + 日期 + 序列 + 随机码) */
+    private String uid;
+
     /** 微信OpenID */
     private String openid;
 

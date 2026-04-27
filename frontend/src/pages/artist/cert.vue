@@ -62,7 +62,7 @@
             <text class="required">*</text>
             <text>个人简介</text>
           </view>
-          <textarea class="item-textarea" v-model="form.bio" placeholder="请简单介绍一下您的艺术背景和创作风格..." placeholder-class="placeholder" maxlength="200" show-word-limit></textarea>
+          <textarea class="item-textarea" v-model="form.resume" placeholder="请简单介绍一下您的艺术背景和创作风格..." placeholder-class="placeholder" maxlength="200" show-word-limit></textarea>
         </view>
       </view>
 
@@ -104,13 +104,13 @@
         
         <view class="works-uploader">
           <view class="works-list">
-            <view class="work-item" v-for="(item, index) in form.works" :key="index">
+            <view class="work-item" v-for="(item, index) in form.artworks" :key="index">
               <image :src="item" mode="aspectFill"></image>
               <view class="work-delete" @click="removeWork(index)">
                 
               </view>
             </view>
-            <view class="work-add" @click="chooseImage('works')" v-if="form.works.length < 5">
+            <view class="work-add" @click="chooseImage('artworks')" v-if="form.artworks.length < 5">
               
               <text>添加作品</text>
             </view>
@@ -157,10 +157,10 @@ const form = ref({
   idCard: '',
   artField: '',
   artFieldName: '',
-  bio: '',
+  resume: '',  // 后端字段名统一为resume
   idCardFront: '',
   idCardBack: '',
-  works: []
+  artworks: []  // 后端字段名统一为artworks
 })
 
 const certStatus = ref({
@@ -174,7 +174,7 @@ const canSubmit = computed(() => {
   return form.value.realName && 
          form.value.idCard.length === 18 && 
          form.value.artField && 
-         form.value.bio &&
+         form.value.resume &&  // 改为resume
          form.value.idCardFront && 
          form.value.idCardBack
 })
@@ -187,22 +187,22 @@ const onFieldChange = (e) => {
 
 const chooseImage = (type) => {
   uni.chooseImage({
-    count: type === 'works' ? 5 - form.value.works.length : 1,
+    count: type === 'artworks' ? 5 - form.value.artworks.length : 1,
     sizeType: ['compressed'],
     success: (res) => {
       if (type === 'idCardFront') {
         form.value.idCardFront = res.tempFilePaths[0]
       } else if (type === 'idCardBack') {
         form.value.idCardBack = res.tempFilePaths[0]
-      } else if (type === 'works') {
-        form.value.works.push(...res.tempFilePaths)
+      } else if (type === 'artworks') {
+        form.value.artworks.push(...res.tempFilePaths)  // 改为artworks
       }
     }
   })
 }
 
 const removeWork = (index) => {
-  form.value.works.splice(index, 1)
+  form.value.artworks.splice(index, 1)  // 改为artworks
 }
 
 const showAgreement = () => {

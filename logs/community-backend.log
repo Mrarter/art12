@@ -1,0 +1,57 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< com.shiyiju:shiyiju-community >--------------------
+[INFO] Building 拾艺局 - 社区服务 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.1.5:run (default-cli) > test-compile @ shiyiju-community >>>
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ shiyiju-community ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ shiyiju-community ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ shiyiju-community ---
+[INFO] skip non existing resourceDirectory /Users/master/CodeBuddy/art12/backend/shiyiju-community/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ shiyiju-community ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:3.1.5:run (default-cli) < test-compile @ shiyiju-community <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.1.5:run (default-cli) @ shiyiju-community ---
+[INFO] Attaching agents: []
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+2026-04-27T08:23:10.345+08:00  WARN 24422 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.5)
+
+2026-04-27T08:23:10.365+08:00  WARN 24422 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-04-27T08:23:10.368+08:00  INFO 24422 --- [           main] c.s.community.CommunityApplication       : Starting CommunityApplication using Java 17.0.19 with PID 24422 (/Users/master/CodeBuddy/art12/backend/shiyiju-community/target/classes started by master in /Users/master/CodeBuddy/art12/backend/shiyiju-community)
+2026-04-27T08:23:10.368+08:00 DEBUG 24422 --- [           main] c.s.community.CommunityApplication       : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-04-27T08:23:10.368+08:00  INFO 24422 --- [           main] c.s.community.CommunityApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-04-27T08:23:10.588+08:00  INFO 24422 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-27T08:23:10.588+08:00  INFO 24422 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-27T08:23:10.601+08:00  INFO 24422 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-04-27T08:23:10.660+08:00  INFO 24422 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=1e0861da-a567-30dc-823f-4314f763987b
+2026-04-27T08:23:10.806+08:00  INFO 24422 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8086 (http)
+2026-04-27T08:23:10.811+08:00  INFO 24422 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-27T08:23:10.811+08:00  INFO 24422 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-04-27T08:23:10.848+08:00  INFO 24422 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-27T08:23:10.849+08:00  INFO 24422 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 456 ms
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        3.5.8 
+2026-04-27T08:23:11.179+08:00  INFO 24422 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8086 (http) with context path ''
+2026-04-27T08:23:11.184+08:00  INFO 24422 --- [           main] c.s.community.CommunityApplication       : Started CommunityApplication in 0.958 seconds (process running for 1.07)

@@ -51,8 +51,18 @@ public class AuctionController {
         }
         wrapper.orderByAsc(AuctionSession::getStartTime);
         
-        Page<AuctionSession> result = sessionMapper.selectPage(new Page<>(page, pageSize), wrapper);
-        return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
+        Page<AuctionSession> pageResult = new Page<>(page, pageSize);
+        Page<AuctionSession> result = sessionMapper.selectPage(pageResult, wrapper);
+        log.info("Query auction sessions: total={}, records={}", result.getTotal(), result.getRecords().size());
+        
+        PageResult<AuctionSession> pageResultData = new PageResult<>();
+        pageResultData.setTotal(result.getTotal());
+        pageResultData.setPage(page);
+        pageResultData.setPageSize(pageSize);
+        pageResultData.setTotalPages((int) Math.ceil((double) result.getTotal() / pageSize));
+        pageResultData.setRecords(result.getRecords());
+        
+        return Result.success(pageResultData);
     }
 
     /**

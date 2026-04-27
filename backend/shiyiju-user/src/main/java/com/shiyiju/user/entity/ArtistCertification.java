@@ -19,6 +19,9 @@ public class ArtistCertification implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 艺术家认证编号 (如: ART202604200001K9M3) */
+    private String artistCode;
+
     /** 用户ID */
     private Long userId;
 

@@ -265,7 +265,12 @@ export default {
     },
 
     formatPrice(price) {
-      return Number(price).toLocaleString()
+      if (!price) return '0'
+      const yuan = price / 100  // 分转元
+      if (yuan >= 10000) {
+        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
+      }
+      return yuan.toLocaleString()
     }
   }
 }

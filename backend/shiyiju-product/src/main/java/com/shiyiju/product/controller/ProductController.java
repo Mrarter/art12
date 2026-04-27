@@ -278,6 +278,10 @@ public class ProductController {
      */
     @PutMapping("/update")
     public Result<Void> updateProduct(@RequestBody ArtworkUpdateDTO updateDTO) {
+        // 调试日志
+        System.out.println("【DEBUG】updateProduct 接收到的参数: id=" + updateDTO.getId() 
+            + ", price=" + updateDTO.getPrice() 
+            + ", originalPrice=" + updateDTO.getOriginalPrice());
         productService.updateArtwork(updateDTO);
         return Result.success();
     }
@@ -300,64 +304,103 @@ public class ProductController {
         return Result.success(id);
     }
 
-/**
- * 删除作品 (DELETE /product/{id})
- */
-@DeleteMapping("/{id}")
-public Result<Void> deleteProduct(@PathVariable Long id) {
-  productService.deleteArtwork(id);
-  return Result.success();
-}
+    /**
+     * 发布作品 (POST /product/publish)
+     * 与 /create 相同，为前端提供统一入口
+     */
+    @PostMapping("/publish")
+    public Result<Long> publishProduct(@RequestBody ArtworkUpdateDTO dto) {
+        Long id = productService.createArtwork(dto);
+        return Result.success(id);
+    }
 
-/**
- * 获取推荐作品 (GET /product/recommend)
- * 复用作品列表接口
- */
-@GetMapping("/recommend")
-public Result<PageResult<ArtworkVO>> getRecommend(
-        @RequestParam(defaultValue = "1") Integer page,
-        @RequestParam(defaultValue = "10") Integer pageSize,
-        @RequestHeader(value = "X-User-Id", required = false) Long userId
-) {
-  ArtworkQueryDTO query = new ArtworkQueryDTO();
-  query.setPage(page);
-  query.setPageSize(pageSize);
-  return Result.success(productService.getProductList(query, userId));
-}
+    /**
+     * 更新作品 (PUT /product/{id})
+     */
+    @PutMapping("/{id}")
+    public Result<Void> updateProductById(@PathVariable Long id, @RequestBody ArtworkUpdateDTO dto) {
+        dto.setId(id);
+        productService.updateArtwork(dto);
+        return Result.success();
+    }
 
-/**
- * 获取关注艺术家作品 (GET /product/following)
- * 复用作品列表接口
- */
-@GetMapping("/following")
-public Result<PageResult<ArtworkVO>> getFollowingWorks(
-        @RequestParam(defaultValue = "1") Integer page,
-        @RequestParam(defaultValue = "10") Integer pageSize,
-        @RequestHeader(value = "X-User-Id", required = false) Long userId
-) {
-  ArtworkQueryDTO query = new ArtworkQueryDTO();
-  query.setPage(page);
-  query.setPageSize(pageSize);
-  return Result.success(productService.getProductList(query, userId));
-}
+    /**
+     * 删除作品 (DELETE /product/{id})
+     */
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteProduct(@PathVariable Long id) {
+        productService.deleteArtwork(id);
+        return Result.success();
+    }
 
-/**
- * 获取单个作品价格增长配置 (GET /product/{id}/priceGrowth)
- */
-@GetMapping("/{id}/priceGrowth")
-public Result<Map<String, Object>> getArtworkPriceGrowth(@PathVariable Long id) {
-    return Result.success(productService.getArtworkPriceGrowth(id));
-}
+    /**
+     * 获取我的作品列表 (GET /product/my-works)
+     */
+    @GetMapping("/my-works")
+    public Result<PageResult<ArtworkVO>> getMyWorks(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize
+    ) {
+        ArtworkQueryDTO query = new ArtworkQueryDTO();
+        query.setPage(page);
+        query.setPageSize(pageSize);
+        // 如果没有用户ID，返回空列表
+        if (userId == null) {
+            return Result.success(PageResult.<ArtworkVO>empty(page, pageSize));
+        }
+        return Result.success(productService.getMyWorks(userId, page, pageSize));
+    }
 
-/**
- * 更新单个作品价格增长配置 (PUT /product/{id}/priceGrowth)
- */
-@PutMapping("/{id}/priceGrowth")
-public Result<Void> updateArtworkPriceGrowth(
-        @PathVariable Long id,
-        @RequestBody Map<String, Object> config
-) {
-    productService.updateArtworkPriceGrowth(id, config);
-    return Result.success();
-}
+    /**
+     * 获取推荐作品 (GET /product/recommend)
+     * 复用作品列表接口
+     */
+    @GetMapping("/recommend")
+    public Result<PageResult<ArtworkVO>> getRecommend(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId
+    ) {
+        ArtworkQueryDTO query = new ArtworkQueryDTO();
+        query.setPage(page);
+        query.setPageSize(pageSize);
+        return Result.success(productService.getProductList(query, userId));
+    }
+
+    /**
+     * 获取关注艺术家作品 (GET /product/following)
+     * 复用作品列表接口
+     */
+    @GetMapping("/following")
+    public Result<PageResult<ArtworkVO>> getFollowingWorks(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId
+    ) {
+        ArtworkQueryDTO query = new ArtworkQueryDTO();
+        query.setPage(page);
+        query.setPageSize(pageSize);
+        return Result.success(productService.getProductList(query, userId));
+    }
+
+    /**
+     * 获取单个作品价格增长配置 (GET /product/{id}/priceGrowth)
+     */
+    @GetMapping("/{id}/priceGrowth")
+    public Result<Map<String, Object>> getArtworkPriceGrowth(@PathVariable Long id) {
+        return Result.success(productService.getArtworkPriceGrowth(id));
+    }
+
+    /**
+     * 更新单个作品价格增长配置 (PUT /product/{id}/priceGrowth)
+     */
+    @PutMapping("/{id}/priceGrowth")
+    public Result<Void> updateArtworkPriceGrowth(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> config
+    ) {
+        productService.updateArtworkPriceGrowth(id, config);
+        return Result.success();
+    }
 }

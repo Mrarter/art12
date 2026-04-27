@@ -71,21 +71,24 @@
           {{ row.becomeTime || row.createTime || row.createdAt || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <!-- 待审核状态 -->
           <template v-if="row.status === 0 || row.status === 'pending'">
             <el-button type="success" link @click="handleApprove(row)">通过</el-button>
             <el-button type="danger" link @click="handleReject(row)">拒绝</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
           <!-- 已认证状态 -->
           <template v-else-if="row.status === 1 || row.status === 'approved'">
             <el-button type="warning" link @click="showLevelDialog(row)">设置等级</el-button>
             <el-button type="danger" link @click="handleRevoke(row)">取消认证</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
           <!-- 已拒绝状态 -->
           <template v-else>
             <el-button type="primary" link @click="handleReapply(row)">重新认证</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </template>
       </el-table-column>
@@ -183,6 +186,44 @@
               </div>
             </el-col>
           </el-row>
+
+          <!-- 销售记录 -->
+          <el-divider content-position="left">销售记录 ({{ userSales.total || 0 }})</el-divider>
+          <div v-loading="salesLoading" class="sales-section">
+            <div v-if="userSales.list && userSales.list.length > 0" class="sales-list">
+              <el-table :data="userSales.list" size="small" border>
+                <el-table-column prop="orderNo" label="订单号" width="150" />
+                <el-table-column prop="amount" label="订单金额" width="100">
+                  <template #default="{ row }">¥{{ row.amount || 0 }}</template>
+                </el-table-column>
+                <el-table-column prop="commission" label="佣金" width="100">
+                  <template #default="{ row }">¥{{ row.commission || 0 }}</template>
+                </el-table-column>
+                <el-table-column prop="artworkId" label="作品ID" width="80" />
+                <el-table-column prop="orderTime" label="下单时间" />
+              </el-table>
+            </div>
+            <el-empty v-else description="暂无销售记录" :image-size="60" />
+          </div>
+          <div v-if="userSales.total > userSales.list?.length" class="load-more">
+            <el-button link type="primary" @click="loadMoreSales">加载更多</el-button>
+          </div>
+
+          <!-- 分享记录 -->
+          <el-divider content-position="left">分享销售记录 ({{ userSharing.total || 0 }})</el-divider>
+          <div v-loading="sharingLoading" class="sharing-section">
+            <div v-if="userSharing.list && userSharing.list.length > 0" class="sharing-list">
+              <el-table :data="userSharing.list" size="small" border>
+                <el-table-column prop="artworkId" label="作品ID" width="80" />
+                <el-table-column prop="shareCount" label="分享次数" width="100" />
+                <el-table-column prop="shareTime" label="最近分享时间" />
+              </el-table>
+            </div>
+            <el-empty v-else description="暂无分享记录" :image-size="60" />
+          </div>
+          <div v-if="userSharing.total > userSharing.list?.length" class="load-more">
+            <el-button link type="primary" @click="loadMoreSharing">加载更多</el-button>
+          </div>
         </el-form>
       </div>
       <template #footer>
@@ -328,6 +369,14 @@ const approvedCount = ref(0)
 const rejectedCount = ref(0)
 const tableData = ref([])
 const addFormRef = ref()
+const salesLoading = ref(false)
+const userSales = ref({ list: [], total: 0 })
+const salesPage = ref(1)
+const salesSize = 10
+const sharingLoading = ref(false)
+const userSharing = ref({ list: [], total: 0 })
+const sharingPage = ref(1)
+const sharingSize = 10
 
 const profileForm = reactive({
   nickname: '',
@@ -414,7 +463,72 @@ const openUserProfile = async (row) => {
     email: row.email || '',
     avatar: row.avatar || row.userAvatar || ''
   })
+
+  // 加载销售记录
+  salesPage.value = 1
+  userSales.value = { list: [], total: 0 }
+  await loadUserSales(userId)
+
+  // 加载分享记录
+  sharingPage.value = 1
+  userSharing.value = { list: [], total: 0 }
+  await loadUserSharing(userId)
+
   detailVisible.value = true
+}
+
+// 加载用户销售记录
+const loadUserSales = async (userId) => {
+  salesLoading.value = true
+  try {
+    const res = await request.get(`/user/${userId}/sales`, {
+      params: { page: salesPage.value, size: salesSize }
+    })
+    if (salesPage.value === 1) {
+      userSales.value = { list: res.list || [], total: res.total || 0 }
+    } else {
+      userSales.value.list = [...userSales.value.list, ...(res.list || [])]
+    }
+  } catch (e) {
+    console.error('加载销售记录失败', e)
+  } finally {
+    salesLoading.value = false
+  }
+}
+
+// 加载更多销售记录
+const loadMoreSales = () => {
+  const userId = currentUser.value.userId
+  if (!userId) return
+  salesPage.value++
+  loadUserSales(userId)
+}
+
+// 加载用户分享记录
+const loadUserSharing = async (userId) => {
+  sharingLoading.value = true
+  try {
+    const res = await request.get(`/user/${userId}/sharing`, {
+      params: { page: sharingPage.value, size: sharingSize }
+    })
+    if (sharingPage.value === 1) {
+      userSharing.value = { list: res.list || [], total: res.total || 0 }
+    } else {
+      userSharing.value.list = [...userSharing.value.list, ...(res.list || [])]
+    }
+  } catch (e) {
+    console.error('加载分享记录失败', e)
+  } finally {
+    sharingLoading.value = false
+  }
+}
+
+// 加载更多分享记录
+const loadMoreSharing = () => {
+  const userId = currentUser.value.userId
+  if (!userId) return
+  sharingPage.value++
+  loadUserSharing(userId)
 }
 
 // 上传头像
@@ -541,6 +655,24 @@ const handleReapply = async (row) => {
     ElMessage.success('已重新发起认证')
     await loadData()
   } catch (e) {}
+}
+
+// 删除艺荐官认证
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除艺荐官"${row.nickname || row.userNickname}"的认证记录吗？`, '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await request.delete(`/user/promoter/${row.id}`)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
 }
 
 // 添加艺荐官
@@ -758,9 +890,23 @@ onMounted(() => {
   letter-spacing: 1px;
   font-size: 11px;
   cursor: pointer;
-  
+
   &:hover {
     text-decoration: underline;
   }
+}
+
+.sales-section, .sharing-section {
+  min-height: 80px;
+  padding: 10px 0;
+}
+
+.sales-list, .sharing-list {
+  margin-bottom: 10px;
+}
+
+.load-more {
+  text-align: center;
+  padding: 10px 0;
 }
 </style>

@@ -128,11 +128,11 @@
         <view class="form-label"><text class="required">*</text>个人简介</view>
         <textarea
           class="form-textarea"
-          v-model="form.introduction"
+          v-model="form.resume"
           placeholder="请介绍一下您的艺术经历、代表作品等（50-500字）"
           maxlength="500"
         ></textarea>
-        <view class="word-count">{{ form.introduction.length }}/500</view>
+        <view class="word-count">{{ form.resume.length }}/500</view>
       </view>
 
       <!-- 代表作品 -->
@@ -281,7 +281,7 @@ export default {
         artCategory: '',
         artCategoryIndex: 0,
         style: '',
-        introduction: '',
+        resume: '',  // 统一字段名
         works: [],
         phone: '',
         code: '',
@@ -307,15 +307,16 @@ export default {
     }
   },
 
-  computed: {
+      computed: {
     canSubmit() {
       return (
         this.agreed &&
         this.form.name &&
+        this.form.gender &&
         this.form.birthYear &&
         this.form.city &&
         this.form.artCategory &&
-        this.form.introduction &&
+        this.form.resume &&
         this.form.works.length > 0 &&
         this.form.phone &&
         this.form.code &&

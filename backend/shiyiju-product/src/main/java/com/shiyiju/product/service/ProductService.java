@@ -90,6 +90,49 @@ public class ProductService {
         return PageResult.of(result.getTotal(), query.getPage(), query.getPageSize(), voList);
     }
 
+    /** 获取我的作品列表（艺术家自己的作品） */
+    public PageResult<ArtworkVO> getMyWorks(Long userId, int page, int pageSize) {
+        LambdaQueryWrapper<Artwork> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Artwork::getAuthorId, userId)
+                .orderByDesc(Artwork::getCreateTime);
+
+        Page<Artwork> artworkPage = new Page<>(page, pageSize);
+        Page<Artwork> result = artworkMapper.selectPage(artworkPage, wrapper);
+
+        List<ArtworkVO> voList = result.getRecords().stream()
+                .map(a -> convertToSimpleVO(a))
+                .collect(Collectors.toList());
+
+        return PageResult.of(result.getTotal(), page, pageSize, voList);
+    }
+
+    /** 转换为简化VO（避免调用可能出错的服务） */
+    private ArtworkVO convertToSimpleVO(Artwork artwork) {
+        ArtworkVO vo = new ArtworkVO();
+        vo.setId(artwork.getId());
+        vo.setTitle(artwork.getTitle());
+        vo.setAuthorId(artwork.getAuthorId());
+        vo.setAuthorName(artwork.getAuthorName());
+        vo.setCategoryId(artwork.getCategoryId());
+        vo.setArtType(artwork.getArtType());
+        vo.setSize(artwork.getSize());
+        vo.setDescription(artwork.getDescription());
+        vo.setCoverImage(artwork.getCoverImage());
+        if (artwork.getImages() != null) {
+            vo.setImages(Arrays.asList(artwork.getImages().split(",")));
+        }
+        vo.setPrice(artwork.getPrice());
+        vo.setOriginalPrice(artwork.getOriginalPrice());
+        vo.setCurrentPrice(artwork.getPrice());
+        vo.setStock(artwork.getStock());
+        vo.setStatus(artwork.getStatus());
+        vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
+        vo.setArtworkCode(artwork.getArtworkCode());
+        vo.setSaleCount(artwork.getSaleCount());
+        vo.setViewCount(artwork.getViewCount());
+        return vo;
+    }
+
     /** 获取作品列表 (旧方法，保持兼容) */
     public PageResult<ArtworkVO> getArtworkList(ArtworkQueryDTO query, Long userId) {
         return getProductList(query, userId);
@@ -322,10 +365,19 @@ public class ProductService {
     /** 更新作品 */
     @Transactional
     public void updateArtwork(ArtworkUpdateDTO dto) {
+        // 调试日志
+        System.out.println("【DEBUG】updateArtwork 开始执行: id=" + dto.getId() 
+            + ", price=" + dto.getPrice() 
+            + ", originalPrice=" + dto.getOriginalPrice());
+        
         Artwork artwork = artworkMapper.selectById(dto.getId());
         if (artwork == null) {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
         }
+        
+        // 打印当前数据库中的价格
+        System.out.println("【DEBUG】updateArtwork 数据库当前值: artwork.price=" + artwork.getPrice() 
+            + ", artwork.originalPrice=" + artwork.getOriginalPrice());
         if (dto.getTitle() != null) artwork.setTitle(dto.getTitle());
         
         // 记录原始艺术家名称，用于判断是否变化
@@ -348,10 +400,18 @@ public class ProductService {
         if (dto.getCategoryId() != null) artwork.setCategoryId(dto.getCategoryId());
         if (dto.getCover() != null) artwork.setCoverImage(dto.getCover());
         // 价格单位是分，转换 BigDecimal -> Long (分)
-        if (dto.getPrice() != null) artwork.setPrice(dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue());
-        if (dto.getOriginalPrice() != null) artwork.setOriginalPrice(dto.getOriginalPrice().multiply(BigDecimal.valueOf(100)).longValue());
+        if (dto.getPrice() != null) {
+            Long priceInFen = dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue();
+            System.out.println("【DEBUG】设置价格: dto.getPrice()=" + dto.getPrice() + " -> 转换为分=" + priceInFen);
+            artwork.setPrice(priceInFen);
+        }
+        if (dto.getOriginalPrice() != null) {
+            Long originalPriceInFen = dto.getOriginalPrice().multiply(BigDecimal.valueOf(100)).longValue();
+            System.out.println("【DEBUG】设置原价: dto.getOriginalPrice()=" + dto.getOriginalPrice() + " -> 转换为分=" + originalPriceInFen);
+            artwork.setOriginalPrice(originalPriceInFen);
+        }
         if (dto.getStock() != null) artwork.setStock(dto.getStock());
-if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
+        if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         if (dto.getStatus() != null) artwork.setStatus(dto.getStatus());
         if (dto.getWeight() != null) artwork.setWeight(dto.getWeight());
         if (dto.getOwnershipType() != null) artwork.setOwnershipType(dto.getOwnershipType());
@@ -362,6 +422,11 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         if (dto.getDistributionEnabled() != null) artwork.setDistributionEnabled(dto.getDistributionEnabled());
         if (dto.getCommissionRate() != null) artwork.setCommissionRate(dto.getCommissionRate());
         artwork.setUpdateTime(LocalDateTime.now());
+        
+        // 打印设置后的 artwork.price 值
+        System.out.println("【DEBUG】updateArtwork 设置后的 artwork.price=" + artwork.getPrice() 
+            + ", artwork.originalPrice=" + artwork.getOriginalPrice());
+        
         artworkMapper.updateById(artwork);
     }
 
@@ -409,9 +474,9 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         vo.setId(artwork.getId());
         vo.setTitle(artwork.getTitle());
         vo.setAuthorId(artwork.getAuthorId());
-        // 设置格式化ID（4位数显示）
-        vo.setDisplayArtworkId(String.format("%04d", artwork.getId()));
-        vo.setDisplayAuthorId(String.format("%04d", artwork.getAuthorId()));
+        // 设置作者UID
+        vo.setAuthorUid(artwork.getAuthorUid());
+        vo.setDisplayAuthorId(artwork.getAuthorUid() != null ? artwork.getAuthorUid() : String.format("%04d", artwork.getAuthorId()));
         vo.setCategoryId(artwork.getCategoryId());
         vo.setArtType(artwork.getArtType());
         vo.setSize(artwork.getSize());
@@ -521,8 +586,9 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
             vo.setAuthorBio(artistInfo.getBio() != null ? artistInfo.getBio() : artwork.getAuthorBio());
             vo.setAuthorPhone(artistInfo.getPhone() != null ? artistInfo.getPhone() : artwork.getAuthorPhone());
             vo.setAuthorIdentity(artistInfo.getIdentityType() != null ? artistInfo.getIdentityType() : getAuthorIdentity(artwork.getAuthorBadge()));
-            // 设置艺术家UID
-            vo.setAuthorUid(artistInfo.getUid());
+            // 设置艺术家UID，优先使用artistCode，否则使用uid
+            String artistUid = artistInfo.getArtistCode() != null ? artistInfo.getArtistCode() : artistInfo.getUid();
+            vo.setAuthorUid(artistUid);
         } else {
             // 回退到作品表中的冗余信息
             vo.setAuthorName(artwork.getAuthorName());
@@ -531,6 +597,10 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
             vo.setAuthorBio(artwork.getAuthorBio());
             vo.setAuthorPhone(artwork.getAuthorPhone());
             vo.setAuthorIdentity(getAuthorIdentity(artwork.getAuthorBadge()));
+            // 回退时生成一个基于authorId的UID格式
+            if (artwork.getAuthorId() != null) {
+                vo.setAuthorUid("USR" + String.format("%012d", artwork.getAuthorId()));
+            }
         }
 
         // 检查是否已关注艺术家（需要关注表，这里简化处理）
@@ -677,6 +747,7 @@ if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
         ArtistInfoVO vo = new ArtistInfoVO();
         vo.setUserId(data.get("userId") != null ? ((Number) data.get("userId")).longValue() : null);
         vo.setUid((String) data.get("uid"));
+        vo.setArtistCode((String) data.get("artistCode"));
         vo.setNickname((String) data.get("nickname"));
         vo.setRealName((String) data.get("realName"));
         vo.setAvatar((String) data.get("avatar"));

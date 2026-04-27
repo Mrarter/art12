@@ -12,23 +12,33 @@ function realFetchUserCenter() {
   return new Promise((resolve, reject) => {
     const token = wx.getStorageSync('token');
     wx.request({
-      url: `${config.apiBase}/user/info`,
+      url: `${config.apiBase}/user/center`,
       method: 'GET',
       header: token ? { Authorization: `Bearer ${token}` } : {},
       success: (res) => {
         if (res.statusCode === 200) {
-          const user = res.data?.data || {};
+          const data = res.data?.data || {};
           resolve({
             userInfo: {
-              avatarUrl: user.avatar,
-              nickName: user.nickname,
-              phoneNumber: user.phone,
+              avatarUrl: data.avatar || '',
+              nickName: data.nickname || '用户',
+              phoneNumber: '',
             },
-            // 统计数据需要从其他接口获取
-            infoList: [
-              { title: '我的收藏', tip: '0', url: '/pages/user/favorites/index' },
-              { title: '我的关注', tip: '0', url: '/pages/user/following/index' },
-            ]
+            countsData: [
+              { type: 'address', num: data.addressCount || 0 },
+              { type: 'coupon', num: data.couponCount || 0 },
+              { type: 'point', num: data.points || 0 },
+            ],
+            orderTagInfos: [
+              { title: '待付款', iconName: 'wallet', orderNum: data.pendingPayCount || 0, tabType: 5, status: 1 },
+              { title: '待发货', iconName: 'deliver', orderNum: data.pendingShipCount || 0, tabType: 10, status: 1 },
+              { title: '待收货', iconName: 'package', orderNum: data.pendingReceiveCount || 0, tabType: 40, status: 1 },
+              { title: '待评价', iconName: 'comment', orderNum: data.pendingReviewCount || 0, tabType: 60, status: 1 },
+              { title: '退款/售后', iconName: 'exchang', orderNum: data.refundCount || 0, tabType: 0, status: 1 },
+            ],
+            customerServiceInfo: {
+              servicePhone: '400-888-8888'
+            }
           });
         } else {
           reject(res);

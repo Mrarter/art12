@@ -104,21 +104,24 @@
           {{ row.createTime || row.createdAt || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <!-- 待审核状态 -->
           <template v-if="row.status === 0 || row.status === 'pending'">
             <el-button type="success" link @click="handleApprove(row)">通过</el-button>
             <el-button type="danger" link @click="handleReject(row)">拒绝</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
           <!-- 已认证状态 -->
           <template v-else-if="row.status === 1 || row.status === 'approved'">
             <el-button type="warning" link @click="showBadgeDialog(row)">设置等级</el-button>
             <el-button type="danger" link @click="handleRevoke(row)">取消认证</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
           <!-- 已拒绝状态 -->
           <template v-else>
             <el-button type="primary" link @click="handleReapply(row)">重新认证</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </template>
       </el-table-column>
@@ -156,7 +159,7 @@
             <h3>{{ profileForm.nickname || currentUser.nickname || currentUser.userNickname || '未知用户' }}
               <el-tag v-if="currentUser.isVip" type="warning" size="small">VIP</el-tag>
             </h3>
-            <p class="user-id">ID: {{ currentUser.userId || currentUser.id }}</p>
+            <p class="user-id">ID: {{ currentUser.displayId || currentUser.userId || currentUser.id }}</p>
             <div class="identity-tags">
               <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
               <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
@@ -249,6 +252,29 @@
               </div>
             </el-col>
           </el-row>
+          
+          <el-divider content-position="left">艺术家作品 ({{ userArtworks.total || 0 }})</el-divider>
+          <div v-loading="artworksLoading" class="artworks-section">
+            <div v-if="userArtworks.list && userArtworks.list.length > 0" class="artwork-grid">
+              <div v-for="artwork in userArtworks.list" :key="artwork.id" class="artwork-item">
+                <el-image :src="getFullImageUrl(artwork.cover)" :alt="artwork.title" fit="cover" class="artwork-cover" />
+                <div class="artwork-info">
+                  <p class="artwork-title">{{ artwork.title }}</p>
+                  <p class="artwork-price">¥{{ artwork.price || 0 }}</p>
+                </div>
+              </div>
+            </div>
+            <el-empty v-else description="暂无作品" :image-size="60" />
+          </div>
+          <div v-if="userArtworks.total > userArtworks.list?.length" class="load-more">
+            <el-button link type="primary" @click="loadMoreArtworks">加载更多</el-button>
+          </div>
+          <div class="add-artwork-btn">
+            <el-button type="primary" size="small" @click="openArtworkDialog">
+              <el-icon><Plus /></el-icon>
+              添加作品
+            </el-button>
+          </div>
         </el-form>
       </div>
       <template #footer>
@@ -403,14 +429,133 @@
         <el-button type="primary" @click="confirmBadge">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 添加作品弹窗 -->
+    <el-dialog v-model="artworkDialogVisible" title="添加作品" width="700px" destroy-on-close>
+      <el-tabs v-model="artworkTab" class="artwork-tabs">
+        <el-tab-pane label="选择已有作品" name="select">
+          <div class="existing-works">
+            <div class="works-filter">
+              <el-input v-model="artworkKeyword" placeholder="搜索作品标题" clearable style="width: 200px" @change="searchExistingWorks" />
+              <el-button type="primary" size="small" @click="searchExistingWorks">搜索</el-button>
+              <el-button size="small" @click="loadExistingWorks">刷新</el-button>
+            </div>
+            <div v-loading="existingWorksLoading" class="works-grid">
+              <div v-for="work in existingWorks" :key="work.id" 
+                   class="work-card" 
+                   :class="{ selected: selectedExistingId === work.id }"
+                   @click="selectExistingWork(work)">
+                <el-image :src="getFullImageUrl(work.cover)" fit="cover" class="work-cover" />
+                <div class="work-info">
+                  <p class="work-title">{{ work.title }}</p>
+                  <p class="work-author">{{ work.authorName }}</p>
+                  <p class="work-price">¥{{ work.price }}</p>
+                </div>
+                <div v-if="selectedExistingId === work.id" class="selected-badge">
+                  <el-icon><Check /></el-icon>
+                </div>
+              </div>
+              <el-empty v-if="existingWorks.length === 0 && !existingWorksLoading" description="暂无作品" :image-size="60" />
+            </div>
+            <div v-if="existingWorksTotal > existingWorks.length" class="load-more-works">
+              <el-button link type="primary" @click="loadMoreExistingWorks">加载更多</el-button>
+            </div>
+            <div class="select-action">
+              <el-button type="primary" :disabled="!selectedExistingId" :loading="artworkLoading" @click="confirmSelectExisting">
+                确认选择 ({{ selectedExistingTitle || '' }})
+              </el-button>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="创建新作品" name="create">
+          <el-form ref="artworkFormRef" :model="artworkForm" label-width="100px">
+        <el-form-item label="作品标题" prop="title">
+          <el-input v-model="artworkForm.title" placeholder="请输入作品标题" />
+        </el-form-item>
+        <el-form-item label="作品作者" prop="authorName">
+          <el-input v-model="artworkForm.authorName" placeholder="请输入作者姓名" />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="作品分类">
+              <el-select v-model="artworkForm.categoryId" placeholder="请选择分类" clearable>
+                <el-option v-for="cat in artworkCategories" :key="cat.id" :label="cat.name" :value="cat.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="作品类型">
+              <el-select v-model="artworkForm.ownershipType" placeholder="请选择">
+                <el-option label="原创" :value="1" />
+                <el-option label="收藏" :value="2" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="售价(元)" prop="price">
+              <el-input-number v-model="artworkForm.price" :min="0" :precision="2" placeholder="请输入售价" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="市场价(元)">
+              <el-input-number v-model="artworkForm.originalPrice" :min="0" :precision="2" placeholder="请输入原价" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="画种">
+              <el-input v-model="artworkForm.artType" placeholder="如：油画、水墨画" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="创作年份">
+              <el-input-number v-model="artworkForm.year" :min="1900" :max="2099" placeholder="年份" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="作品尺寸">
+          <el-input v-model="artworkForm.size" placeholder="如：100x80cm" />
+        </el-form-item>
+        <el-form-item label="库存">
+          <el-input-number v-model="artworkForm.stock" :min="1" :max="9999" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="作品封面">
+          <div class="cover-uploader">
+            <el-image v-if="artworkForm.cover" :src="getFullImageUrl(artworkForm.cover)" fit="cover" class="cover-preview" />
+            <el-upload
+              class="cover-upload"
+              :show-file-list="false"
+              :http-request="handleArtworkCoverUpload"
+              accept="image/*"
+            >
+              <el-button v-if="!artworkForm.cover" type="primary" size="small">上传封面</el-button>
+              <el-button v-else type="warning" size="small">更换封面</el-button>
+            </el-upload>
+          </div>
+        </el-form-item>
+        <el-form-item label="作品描述">
+          <el-input v-model="artworkForm.description" type="textarea" :rows="3" placeholder="请输入作品描述" />
+        </el-form-item>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
+      <template #footer>
+        <el-button @click="artworkDialogVisible = false">取消</el-button>
+        <el-button v-if="artworkTab === 'create'" type="primary" :loading="artworkLoading" @click="submitArtwork">确认添加</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Check } from '@element-plus/icons-vue'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
+import { requestApi } from '@/api/request'
 import { copyId } from '@/utils/id'
 
 const loading = ref(false)
@@ -424,6 +569,10 @@ const editLoading = ref(false)
 const currentRecord = ref({})
 const currentUser = ref({})
 const profileFormRef = ref()
+const artworksLoading = ref(false)
+const userArtworks = ref({ list: [], total: 0 })
+const artworksPage = ref(1)
+const artworksSize = 8
 const rejectReason = ref('')
 const selectedBadge = ref('')
 const activeTab = ref('pending')
@@ -432,6 +581,34 @@ const approvedCount = ref(0)
 const rejectedCount = ref(0)
 const tableData = ref([])
 const addFormRef = ref()
+const artworkDialogVisible = ref(false)
+const artworkFormRef = ref()
+const artworkLoading = ref(false)
+const artworkCategories = ref([])
+const artworkTab = ref('select')
+const existingWorks = ref([])
+const existingWorksLoading = ref(false)
+const existingWorksPage = ref(1)
+const existingWorksTotal = ref(0)
+const existingWorksSize = 12
+const artworkKeyword = ref('')
+const selectedExistingId = ref(null)
+const selectedExistingTitle = ref('')
+
+const artworkForm = reactive({
+  title: '',
+  authorName: '',
+  categoryId: '',
+  cover: '',
+  price: null,
+  originalPrice: null,
+  stock: 1,
+  description: '',
+  ownershipType: 1,
+  artType: '',
+  size: '',
+  year: null
+})
 
 const profileForm = reactive({
   nickname: '',
@@ -497,11 +674,12 @@ const handleCopyId = (id) => {
 
 // 打开用户资料弹窗
 const openUserProfile = async (row) => {
-  // 从行数据获取用户信息
+  // 从行数据获取用户信息，保留displayId用于显示
   const userId = row.userId || row.id
   currentUser.value = { 
     ...row,
     userId,
+    displayId: row.displayId || String(userId).padStart(4, '0'),
     isArtist: row.certified || row.status === 1,
     isPromoter: false
   }
@@ -510,7 +688,11 @@ const openUserProfile = async (row) => {
   try {
     const detail = await request.get(`/user/${userId}`)
     if (detail) {
+      // 确保保留displayId
+      const savedDisplayId = currentUser.value.displayId
       currentUser.value = { ...currentUser.value, ...detail }
+      currentUser.value.displayId = savedDisplayId
+      currentUser.value.userId = userId
     }
   } catch (e) {
     // 使用行数据
@@ -527,7 +709,40 @@ const openUserProfile = async (row) => {
     idCard: row.idCard || '',
     resume: row.resume || row.bio || ''
   })
+
+  // 加载艺术家作品
+  artworksPage.value = 1
+  userArtworks.value = { list: [], total: 0 }
+  await loadUserArtworks(userId)
+
   detailVisible.value = true
+}
+
+// 加载用户作品
+const loadUserArtworks = async (userId) => {
+  artworksLoading.value = true
+  try {
+    const res = await request.get(`/user/${userId}/artworks`, {
+      params: { page: artworksPage.value, size: artworksSize }
+    })
+    if (artworksPage.value === 1) {
+      userArtworks.value = { list: res.list || [], total: res.total || 0 }
+    } else {
+      userArtworks.value.list = [...userArtworks.value.list, ...(res.list || [])]
+    }
+  } catch (e) {
+    console.error('加载作品失败', e)
+  } finally {
+    artworksLoading.value = false
+  }
+}
+
+// 加载更多作品
+const loadMoreArtworks = () => {
+  const userId = currentUser.value.userId
+  if (!userId) return
+  artworksPage.value++
+  loadUserArtworks(userId)
 }
 
 // 上传头像
@@ -665,6 +880,24 @@ const handleReapply = async (row) => {
   } catch (e) {}
 }
 
+// 删除艺术家认证
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除艺术家"${row.realName || row.nickname || row.userNickname}"的认证记录吗？`, '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await request.delete(`/user/artist/${row.id}`)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
 // 添加艺术家
 const showAddDialog = () => {
   Object.assign(addForm, { phone: '', nickname: '', avatar: '', realName: '', idCard: '', badge: '', resume: '' })
@@ -704,8 +937,10 @@ const confirmAdd = async () => {
 
   try {
     const result = await request.post('/user/artist/add', addForm)
-    const msg = result.message || (result.isNewUser ? `新用户已创建，用户ID：${result.userId}` : `用户ID：${result.userId}`)
-    ElMessage.success({ message: '添加成功！' + msg, duration: 5000 })
+    // 显示完整信息包括 UID
+    const uidInfo = result.userUid ? `，UID：${result.userUid}` : ''
+    const msg = result.message || (result.isNewUser ? `新用户已创建，用户ID：${result.userId}${uidInfo}` : `用户ID：${result.userId}${uidInfo}`)
+    ElMessage.success({ message: '添加成功！' + msg, duration: 8000 })
     addVisible.value = false
     await loadData()
   } catch (e) {}
@@ -728,6 +963,187 @@ const confirmBadge = async () => {
     badgeVisible.value = false
     await loadData()
   } catch (e) {}
+}
+
+// 打开添加作品弹窗
+const openArtworkDialog = () => {
+  artworkTab.value = 'select'
+  existingWorks.value = []
+  existingWorksPage.value = 1
+  existingWorksTotal.value = 0
+  artworkKeyword.value = ''
+  selectedExistingId.value = null
+  selectedExistingTitle.value = ''
+  artworkForm.title = ''
+  artworkForm.authorName = profileForm.realName || profileForm.nickname || ''
+  artworkForm.categoryId = ''
+  artworkForm.cover = ''
+  artworkForm.price = null
+  artworkForm.originalPrice = null
+  artworkForm.stock = 1
+  artworkForm.description = ''
+  artworkForm.ownershipType = 1
+  artworkForm.artType = ''
+  artworkForm.size = ''
+  artworkForm.year = null
+  loadCategories()
+  loadExistingWorks()
+  artworkDialogVisible.value = true
+}
+
+// 加载分类
+const loadCategories = async () => {
+  if (artworkCategories.value.length > 0) return
+  try {
+    const res = await requestApi.get('/product/categories')
+    artworkCategories.value = res || []
+  } catch (e) {
+    artworkCategories.value = []
+  }
+}
+
+// 加载已有作品
+const loadExistingWorks = async () => {
+  existingWorksLoading.value = true
+  try {
+    const res = await requestApi.get('/product/list', {
+      params: {
+        page: existingWorksPage.value,
+        pageSize: existingWorksSize,
+        title: artworkKeyword.value || undefined
+      }
+    })
+    if (existingWorksPage.value === 1) {
+      existingWorks.value = res.records || res.list || []
+    } else {
+      existingWorks.value = [...existingWorks.value, ...(res.records || res.list || [])]
+    }
+    existingWorksTotal.value = res.total || existingWorks.value.length
+  } catch (e) {
+    console.error('加载作品失败', e)
+    existingWorks.value = []
+  } finally {
+    existingWorksLoading.value = false
+  }
+}
+
+// 搜索已有作品
+const searchExistingWorks = () => {
+  existingWorksPage.value = 1
+  loadExistingWorks()
+}
+
+// 加载更多已有作品
+const loadMoreExistingWorks = () => {
+  existingWorksPage.value++
+  loadExistingWorks()
+}
+
+// 选择已有作品
+const selectExistingWork = (work) => {
+  selectedExistingId.value = work.id
+  selectedExistingTitle.value = work.title
+}
+
+// 确认选择已有作品
+const confirmSelectExisting = async () => {
+  if (!selectedExistingId.value) {
+    ElMessage.warning('请选择一个作品')
+    return
+  }
+  
+  try {
+    artworkLoading.value = true
+    await requestApi.post('/product/create', {
+      authorId: currentUser.value.userId || currentUser.value.id,
+      title: selectedExistingTitle.value,
+      cover: existingWorks.value.find(w => w.id === selectedExistingId.value)?.coverImage || '',
+      price: existingWorks.value.find(w => w.id === selectedExistingId.value)?.price || 0,
+      originalPrice: existingWorks.value.find(w => w.id === selectedExistingId.value)?.originalPrice || 0,
+      authorName: existingWorks.value.find(w => w.id === selectedExistingId.value)?.authorName || '',
+      categoryId: existingWorks.value.find(w => w.id === selectedExistingId.value)?.categoryId || undefined,
+      artType: existingWorks.value.find(w => w.id === selectedExistingId.value)?.artType || '',
+      size: existingWorks.value.find(w => w.id === selectedExistingId.value)?.size || '',
+      year: existingWorks.value.find(w => w.id === selectedExistingId.value)?.year || undefined,
+      ownershipType: existingWorks.value.find(w => w.id === selectedExistingId.value)?.ownershipType || 1,
+      stock: 1,
+      description: existingWorks.value.find(w => w.id === selectedExistingId.value)?.description || ''
+    })
+    ElMessage.success('作品添加成功')
+    artworkDialogVisible.value = false
+    // 刷新作品列表
+    artworksPage.value = 1
+    await loadUserArtworks(currentUser.value.userId || currentUser.value.id)
+  } catch (e) {
+    ElMessage.error('添加失败：' + (e.message || '未知错误'))
+  } finally {
+    artworkLoading.value = false
+  }
+}
+
+// 上传作品封面
+const handleArtworkCoverUpload = async (options) => {
+  const { file, onSuccess, onError } = options
+  
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    onError(new Error('请选择图片文件'))
+    return
+  }
+  
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 10MB')
+    onError(new Error('图片大小不能超过 10MB'))
+    return
+  }
+
+  try {
+    const result = await uploadFile(file)
+    artworkForm.cover = result?.url || result || ''
+    ElMessage.success('封面上传成功')
+    onSuccess()
+  } catch (e) {
+    ElMessage.error(e.message || '封面上传失败')
+    onError(e)
+  }
+}
+
+// 提交作品
+const submitArtwork = async () => {
+  if (!artworkForm.title) {
+    ElMessage.warning('请输入作品标题')
+    return
+  }
+  if (!artworkForm.price) {
+    ElMessage.warning('请输入售价')
+    return
+  }
+  if (!artworkForm.cover) {
+    ElMessage.warning('请上传作品封面')
+    return
+  }
+  
+  // 如果原价为空，则原价=价格
+  if (!artworkForm.originalPrice) {
+    artworkForm.originalPrice = artworkForm.price
+  }
+  
+  try {
+    artworkLoading.value = true
+    await requestApi.post('/product/create', {
+      authorId: currentUser.value.userId || currentUser.value.id,
+      ...artworkForm
+    })
+    ElMessage.success('作品添加成功')
+    artworkDialogVisible.value = false
+    // 刷新作品列表
+    artworksPage.value = 1
+    await loadUserArtworks(currentUser.value.userId || currentUser.value.id)
+  } catch (e) {
+    ElMessage.error('添加失败：' + (e.message || '未知错误'))
+  } finally {
+    artworkLoading.value = false
+  }
 }
 
 onMounted(() => {
@@ -900,6 +1316,176 @@ onMounted(() => {
   
   &:hover {
     text-decoration: underline;
+  }
+}
+
+.artworks-section {
+  min-height: 100px;
+  padding: 10px 0;
+}
+
+.artwork-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.artwork-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+  
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .artwork-cover {
+    width: 100%;
+    height: 100px;
+    display: block;
+  }
+  
+  .artwork-info {
+    padding: 8px;
+    
+    .artwork-title {
+      margin: 0 0 4px 0;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .artwork-price {
+      margin: 0;
+      font-size: 12px;
+      color: #f56c6c;
+      font-weight: bold;
+    }
+  }
+}
+
+.load-more {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.add-artwork-btn {
+  text-align: center;
+  padding: 12px 0;
+  border-top: 1px dashed #eee;
+  margin-top: 10px;
+}
+
+.cover-uploader {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.cover-preview {
+  width: 120px;
+  height: 80px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+}
+
+/* 作品弹窗Tab样式 */
+.artwork-tabs {
+  margin-bottom: 10px;
+}
+
+.existing-works {
+  .works-filter {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+  }
+
+  .works-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 5px;
+  }
+
+  .work-card {
+    border: 2px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    &.selected {
+      border-color: #409eff;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+    }
+
+    .work-cover {
+      width: 100%;
+      height: 100px;
+      display: block;
+    }
+
+    .work-info {
+      padding: 8px;
+
+      .work-title {
+        margin: 0 0 4px 0;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .work-author {
+        margin: 0 0 4px 0;
+        font-size: 11px;
+        color: #999;
+      }
+
+      .work-price {
+        margin: 0;
+        font-size: 12px;
+        color: #f56c6c;
+        font-weight: bold;
+      }
+    }
+
+    .selected-badge {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 24px;
+      height: 24px;
+      background: #409eff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+  }
+
+  .load-more-works {
+    text-align: center;
+    padding: 10px 0;
+  }
+
+  .select-action {
+    text-align: center;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    margin-top: 15px;
   }
 }
 </style>

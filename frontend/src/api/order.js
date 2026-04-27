@@ -18,6 +18,14 @@ export const createOrderFromCart = (data) => {
 }
 
 /**
+ * 获取订单各状态数量统计
+ * GET /order/orders/counts
+ */
+export const getOrderCounts = () => {
+  return request.get('/order/orders/counts')
+}
+
+/**
  * 直接购买
  * POST /order/orders/direct
  * @param {Object} data

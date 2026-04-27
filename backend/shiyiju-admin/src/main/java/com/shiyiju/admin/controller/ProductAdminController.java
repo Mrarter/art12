@@ -64,4 +64,14 @@ public class ProductAdminController {
         productAdminPersistenceService.rejectArtwork(artworkId, String.valueOf(params.get("reason")));
         return Result.success();
     }
+
+    /**
+     * 创建作品（支持自动创建艺术家）
+     * 如果填入的艺术家不在数据库中，会自动创建新艺术家
+     */
+    @PostMapping("/artworks")
+    public Result<Long> createArtwork(@RequestBody Map<String, Object> params) {
+        Long artworkId = productAdminPersistenceService.createArtwork(params);
+        return Result.success(artworkId);
+    }
 }

@@ -1,0 +1,1 @@
+<view class="coming-soon-page data-v-8a5e86e6"><view class="icon-wrap data-v-8a5e86e6"><text class="icon data-v-8a5e86e6">敬</text></view><text class="title data-v-8a5e86e6">{{a}}</text><text class="desc data-v-8a5e86e6">{{b}}</text><button class="back-btn data-v-8a5e86e6" bindtap="{{c}}">返回上一页</button></view>

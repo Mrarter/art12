@@ -3,6 +3,9 @@
  */
 import request from './request'
 
+// API 地址
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8080/api'
+
 /**
  * 上传文件
  * @param {string} filePath - 文件临时路径
@@ -14,7 +17,7 @@ export const uploadFile = (filePath, type = 'image') => {
     const token = uni.getStorageSync('token')
     
     uni.uploadFile({
-      url: 'http://localhost:8080/api/file/upload',
+      url: BASE_URL + '/file/upload',
       filePath: filePath,
       name: 'file',
       header: {

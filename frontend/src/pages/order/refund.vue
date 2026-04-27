@@ -208,7 +208,11 @@ export default {
 
     formatPrice(price) {
       if (!price) return '0.00'
-      return Number(price).toFixed(2)
+      const yuan = price / 100  // 分转元
+      if (yuan >= 10000) {
+        return (yuan / 10000).toFixed(2) + '万'
+      }
+      return yuan.toFixed(2)
     }
   }
 }

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shiyiju.common.constant.UserConstant;
 import com.shiyiju.common.exception.BusinessException;
 import com.shiyiju.common.result.ResultCode;
+import com.shiyiju.user.util.UserIdUtil;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.shiyiju.common.util.JwtUtil;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.dto.ArtistCertDTO;
@@ -17,6 +19,7 @@ import com.shiyiju.user.mapper.UserMapper;
 import com.shiyiju.user.vo.LoginVO;
 import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
+import com.shiyiju.user.util.PinyinUtil;
 import com.shiyiju.common.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +62,7 @@ public class UserService {
         if (user == null) {
             // 创建新用户
             user = new User();
+            user.setUid(UserIdUtil.generateUid()); // 生成用户UID
             user.setOpenid(openid);
             user.setNickname(dto.getNickname() != null ? dto.getNickname() : "用户" + System.currentTimeMillis() % 10000);
             user.setAvatar(dto.getAvatar());
@@ -115,6 +119,7 @@ public class UserService {
 
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
+        vo.setUid(user.getUid());
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setPhone(user.getPhone());
@@ -461,6 +466,7 @@ public class UserService {
 
         Map<String, Object> data = new HashMap<>();
         data.put("userId", artist.getId());
+        data.put("uid", artist.getUid());
         data.put("nickname", artist.getNickname());
         data.put("realName", null); // 真实姓名需要关联认证表
         data.put("avatar", artist.getAvatar());
@@ -502,6 +508,8 @@ public class UserService {
             data.put("exhibits", cert.getExhibits() != null ?
                     Arrays.asList(cert.getExhibits().split(",")).stream().filter(s -> !s.isEmpty()).toList() : List.of());
             data.put("badge", determineBadge(cert.getRealName(), identityList));
+            // 添加艺术家认证编号
+            data.put("artistCode", cert.getArtistCode());
         } else {
             data.put("certStatus", null);
             data.put("badge", determineBadge(artist.getNickname(), identityList));
@@ -621,36 +629,69 @@ public class UserService {
 
     /**
      * 搜索艺术家
-     * 根据名称模糊搜索已认证的艺术家
+     * 根据名称模糊搜索已认证的艺术家，支持中文和拼音首字母搜索
      */
     public List<Map<String, Object>> searchArtists(String keyword, int limit) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return List.of();
         }
 
+        String trimmedKeyword = keyword.trim();
+        
+        // 查询所有用户进行筛选（因为需要支持拼音搜索）
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(User::getNickname, keyword.trim())
-               .eq(User::getDeleted, 0)
+        wrapper.eq(User::getDeleted, 0)
                .orderByDesc(User::getCreateTime)
-               .last("LIMIT " + limit);
+               .last("LIMIT " + limit * 2); // 多查一些用于过滤
 
         List<User> users = userMapper.selectList(wrapper);
 
-        return users.stream().map(user -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", user.getId());
-            map.put("name", user.getNickname());
-            map.put("avatar", user.getAvatar());
-            map.put("bio", user.getBio());
-            // 检查认证状态
-            LambdaQueryWrapper<ArtistCertification> certWrapper = new LambdaQueryWrapper<>();
-            certWrapper.eq(ArtistCertification::getUserId, user.getId())
-                       .eq(ArtistCertification::getStatus, 1); // 已认证
-            ArtistCertification cert = artistCertMapper.selectOne(certWrapper);
-            map.put("certified", cert != null);
-            map.put("badge", cert != null ? cert.getRealName() : null); // 使用真实姓名作为徽章
-            return map;
-        }).toList();
+        // 过滤匹配的结果（中文匹配或拼音首字母匹配）
+        boolean isPinyinSearch = isPinyinSearch(trimmedKeyword);
+        
+        return users.stream()
+            .filter(user -> {
+                String name = user.getNickname();
+                if (name == null) return false;
+                
+                if (isPinyinSearch) {
+                    // 拼音首字母匹配
+                    return PinyinUtil.matchesPinyinHead(name, trimmedKeyword);
+                } else {
+                    // 中文模糊匹配
+                    return name.contains(trimmedKeyword);
+                }
+            })
+            .limit(limit)
+            .map(user -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", user.getId());
+                map.put("name", user.getNickname());
+                map.put("avatar", user.getAvatar());
+                map.put("bio", user.getBio());
+                map.put("uid", user.getUid());
+                // 检查认证状态
+                LambdaQueryWrapper<ArtistCertification> certWrapper = new LambdaQueryWrapper<>();
+                certWrapper.eq(ArtistCertification::getUserId, user.getId())
+                           .eq(ArtistCertification::getStatus, 1); // 已认证
+                ArtistCertification cert = artistCertMapper.selectOne(certWrapper);
+                map.put("certified", cert != null);
+                map.put("badge", cert != null ? cert.getRealName() : null); // 使用真实姓名作为徽章
+                // 添加艺术家认证编号
+                map.put("artistCode", cert != null ? cert.getArtistCode() : null);
+                return map;
+            }).toList();
+    }
+
+    /**
+     * 判断是否为拼音搜索（输入的是英文字母）
+     */
+    private boolean isPinyinSearch(String keyword) {
+        if (keyword == null || keyword.isEmpty()) {
+            return false;
+        }
+        // 如果全是英文字母，则认为是拼音搜索
+        return keyword.matches("^[a-zA-Z]+$");
     }
 
     /**
@@ -713,5 +754,43 @@ public class UserService {
         result.put("message", "艺术家不存在，已创建待审核艺术家");
 
         return result;
+    }
+    
+    /**
+     * 批量更新用户UID（用于初始化和迁移）
+     * @param userIds 用户ID列表
+     * @param uids 新的UID列表
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchUpdateUids(List<Long> userIds, List<String> uids) {
+        if (userIds == null || uids == null || userIds.size() != uids.size()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "用户ID和UID列表不匹配");
+        }
+        
+        for (int i = 0; i < userIds.size(); i++) {
+            User user = userMapper.selectById(userIds.get(i));
+            if (user != null) {
+                user.setUid(uids.get(i));
+                user.setUpdateTime(LocalDateTime.now());
+                userMapper.updateById(user);
+            }
+        }
+        log.info("批量更新了 {} 个用户的UID", userIds.size());
+    }
+    
+    /**
+     * 更新单个用户UID
+     * @param userId 用户ID
+     * @param uid 新的UID
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateUid(Long userId, String uid) {
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            user.setUid(uid);
+            user.setUpdateTime(LocalDateTime.now());
+            userMapper.updateById(user);
+            log.info("更新用户 {} 的UID为 {}", userId, uid);
+        }
     }
 }

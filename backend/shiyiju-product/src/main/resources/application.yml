@@ -29,11 +29,15 @@ mybatis-plus:
 logging:
   level:
     com.shiyiju: DEBUG
+  file:
+    name: /Users/master/CodeBuddy/art12/logs/product.log
+    max-size: 10MB
+    max-history: 30
 
 # 本地文件存储配置（替代七牛云）
 upload:
   local:
-    path: /tmp/shiyiju-uploads
+    path: /Users/master/CodeBuddy/art12/uploads
   cdn-url: http://localhost:8087
 
 # 七牛云配置（已弃用，保留占位符避免编译错误）

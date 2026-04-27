@@ -60,25 +60,11 @@ public class SystemConfigDTO implements Serializable {
         private BigDecimal popularBadgeRate = new BigDecimal("2.0");   // 人气
         private BigDecimal masterBadgeRate = new BigDecimal("3.0");    // 大师
         
-        // 浏览量阈值
-        private Integer viewThreshold1 = 100;
-        private BigDecimal viewRate1 = new BigDecimal("1.1");
-        private Integer viewThreshold2 = 500;
-        private BigDecimal viewRate2 = new BigDecimal("1.2");
-        private Integer viewThreshold3 = 1000;
-        private BigDecimal viewRate3 = new BigDecimal("1.3");
-        private Integer viewThreshold4 = 5000;
-        private BigDecimal viewRate4 = new BigDecimal("1.5");
-        
-        // 收藏量阈值
-        private Integer favoriteThreshold1 = 5;
-        private BigDecimal favoriteRate1 = new BigDecimal("1.1");
-        private Integer favoriteThreshold2 = 20;
-        private BigDecimal favoriteRate2 = new BigDecimal("1.2");
-        private Integer favoriteThreshold3 = 50;
-        private BigDecimal favoriteRate3 = new BigDecimal("1.3");
-        private Integer favoriteThreshold4 = 100;
-        private BigDecimal favoriteRate4 = new BigDecimal("1.5");
+        // 热度系数
+        private Integer viewThreshold = 100;              // 浏览量阈值
+        private BigDecimal viewRate = new BigDecimal("1.1");  // 浏览量加成系数
+        private Integer favoriteThreshold = 5;            // 收藏量阈值
+        private BigDecimal favoriteRate = new BigDecimal("1.1");  // 收藏量加成系数
         
         // 销售加成
         private BigDecimal saleRate = new BigDecimal("0.05");     // 单次销售加成

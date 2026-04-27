@@ -19,6 +19,11 @@ public class Artwork implements Serializable {
     
     private String title;
     private Long authorId;
+    
+    /** 作者用户UID */
+    @TableField("author_uid")
+    private String authorUid;
+    
     private String authorName;
     private String authorBadge;
     private String authorAvatar;

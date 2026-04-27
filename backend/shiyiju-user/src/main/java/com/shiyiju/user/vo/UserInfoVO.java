@@ -15,6 +15,9 @@ public class UserInfoVO implements Serializable {
 
     /** 用户ID */
     private Long id;
+    
+    /** 用户UID */
+    private String uid;
 
     /** 昵称 */
     private String nickname;

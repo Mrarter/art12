@@ -18,6 +18,10 @@
               </view>
             </view>
             <text class="artist-signature">{{ artistInfo.signature || '暂无签名' }}</text>
+            <!-- 艺术家ID显示 -->
+            <view class="artist-id-badge" v-if="formatToFourDigits(artistId)">
+              ID: {{ formatToFourDigits(artistId) }}
+            </view>
           </view>
         </view>
         <view class="artist-stats">
@@ -406,10 +410,17 @@ export default {
 
     formatPrice(price) {
       if (!price) return '0'
-      if (price >= 10000) {
-        return (price / 10000).toFixed(1) + '万'
+      const yuan = price / 100  // 分转元
+      if (yuan >= 10000) {
+        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
       }
-      return price.toLocaleString()
+      return yuan.toLocaleString()
+    },
+
+    // 格式化ID为4位数
+    formatToFourDigits(id) {
+      if (!id) return ''
+      return String(id).padStart(4, '0')
     },
 
     async onFollow() {
@@ -512,17 +523,28 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+// 深色艺术主题色
+$bg-primary: #0d0d0d;
+$bg-card: #1a1a1a;
+$bg-elevated: #242424;
+$text-primary: #ffffff;
+$text-secondary: #a0a0a0;
+$text-muted: #666666;
+$accent-gold: #c9a227;
+$accent-gold-light: #e6c65c;
+
 .artist-home {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: $bg-primary;
   padding-bottom: 40rpx;
 }
 
 .card {
   margin: 20rpx;
-  background: #fff;
+  background: $bg-card;
   border-radius: 16rpx;
   padding: 24rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
 }
 
 .artist-header {
@@ -536,10 +558,11 @@ export default {
 
 .header-content {
   position: relative;
-  background: #fff;
+  background: $bg-card;
   padding: 0 30rpx 30rpx;
   margin-top: -80rpx;
   border-radius: 24rpx 24rpx 0 0;
+  border: 1rpx solid rgba(255, 255, 255, 0.04);
 }
 
 .artist-info {
@@ -552,9 +575,10 @@ export default {
   width: 140rpx;
   height: 140rpx;
   border-radius: 50%;
-  border: 6rpx solid #fff;
+  border: 6rpx solid $bg-card;
   margin-right: 24rpx;
   margin-top: -70rpx;
+  background: $bg-elevated;
 }
 
 .artist-detail {
@@ -565,7 +589,7 @@ export default {
   display: flex;
   align-items: center;
   font-size: 36rpx;
-  color: #333;
+  color: $text-primary;
   font-weight: 600;
   margin-bottom: 10rpx;
   flex-wrap: wrap;
@@ -574,13 +598,13 @@ export default {
 
 .identity-tag {
   font-size: 20rpx;
-  color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: $bg-primary;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
   padding: 4rpx 16rpx;
   border-radius: 6rpx;
   
   &.tag-artist {
-    background: linear-gradient(135deg, #e6be8a 0%, #d4a574 100%);
+    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
   }
 }
 
@@ -588,7 +612,7 @@ export default {
   display: flex;
   align-items: center;
   font-size: 20rpx;
-  color: #50c878;
+  color: $accent-gold;
   
   .iconfont {
     margin-right: 4rpx;
@@ -597,7 +621,22 @@ export default {
 
 .artist-signature {
   font-size: 26rpx;
-  color: #999;
+  color: $text-secondary;
+}
+
+// 艺术家ID徽章样式
+.artist-id-badge {
+  display: inline-block;
+  margin-top: 8rpx;
+  padding: 4rpx 12rpx;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
+  border: 1rpx solid rgba(201, 162, 39, 0.3);
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  font-family: 'Courier New', monospace;
+  color: #c9a227;
+  font-weight: 600;
+  letter-spacing: 2rpx;
 }
 
 .artist-stats {
@@ -613,14 +652,14 @@ export default {
 .stat-value {
   display: block;
   font-size: 36rpx;
-  color: #333;
+  color: $text-primary;
   font-weight: 600;
   margin-bottom: 6rpx;
 }
 
 .stat-label {
   font-size: 24rpx;
-  color: #999;
+  color: $text-secondary;
 }
 
 .artist-actions {
@@ -638,13 +677,14 @@ export default {
 }
 
 .btn-follow {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
+  color: $bg-primary;
 }
 
 .btn-followed {
-  background: #f5f5f5;
-  color: #999;
+  background: $bg-elevated;
+  color: $text-secondary;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-message {
@@ -652,8 +692,9 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  background: #f5f5f5;
-  color: #666;
+  background: $bg-elevated;
+  color: $text-secondary;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
 }
 
 // 私密数据看板
@@ -670,7 +711,7 @@ export default {
     align-items: center;
     font-size: 30rpx;
     font-weight: 600;
-    color: #333;
+    color: $text-primary;
     
     .iconfont {
       margin-right: 8rpx;
@@ -679,8 +720,8 @@ export default {
   
   .dashboard-tip {
     font-size: 20rpx;
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    color: $accent-gold;
+    background: rgba($accent-gold, 0.1);
     padding: 6rpx 16rpx;
     border-radius: 20rpx;
   }
@@ -695,7 +736,8 @@ export default {
 .dashboard-item {
   flex: 1;
   text-align: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, rgba($accent-gold, 0.2) 0%, rgba($accent-gold, 0.1) 100%);
+  border: 1rpx solid rgba($accent-gold, 0.3);
   border-radius: 16rpx;
   padding: 24rpx 16rpx;
   
@@ -703,13 +745,13 @@ export default {
     display: block;
     font-size: 32rpx;
     font-weight: 600;
-    color: #fff;
+    color: $accent-gold;
     margin-bottom: 8rpx;
   }
   
   .dashboard-label {
     font-size: 22rpx;
-    color: rgba(255, 255, 255, 0.8);
+    color: $text-secondary;
   }
 }
 
@@ -723,7 +765,7 @@ export default {
   
   .trend-title {
     font-size: 26rpx;
-    color: #333;
+    color: $text-primary;
     font-weight: 500;
   }
   
@@ -734,14 +776,14 @@ export default {
   
   .period-btn {
     font-size: 22rpx;
-    color: #999;
+    color: $text-secondary;
     padding: 6rpx 16rpx;
     border-radius: 16rpx;
-    background: #f5f5f5;
+    background: $bg-elevated;
     
     &.active {
-      background: #667eea;
-      color: #fff;
+      background: $accent-gold;
+      color: $bg-primary;
     }
   }
 }
@@ -765,7 +807,7 @@ export default {
   
   .bar {
     width: 36rpx;
-    background: linear-gradient(180deg, #667eea 0%, #a78bfa 100%);
+    background: linear-gradient(180deg, $accent-gold 0%, rgba($accent-gold, 0.5) 100%);
     border-radius: 6rpx 6rpx 0 0;
     margin-bottom: 10rpx;
     min-height: 10rpx;
@@ -773,7 +815,7 @@ export default {
   
   .bar-label {
     font-size: 20rpx;
-    color: #999;
+    color: $text-muted;
   }
 }
 
@@ -791,7 +833,7 @@ export default {
     align-items: center;
     font-size: 30rpx;
     font-weight: 600;
-    color: #333;
+    color: $text-primary;
     
     .iconfont {
       margin-right: 8rpx;
@@ -802,7 +844,7 @@ export default {
     display: flex;
     align-items: center;
     font-size: 24rpx;
-    color: #999;
+    color: $text-muted;
     
     text {
       margin-right: 6rpx;
@@ -815,7 +857,7 @@ export default {
     display: flex;
     align-items: center;
     padding: 16rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
     
     &:last-child {
       border-bottom: none;
@@ -827,6 +869,7 @@ export default {
     height: 80rpx;
     border-radius: 8rpx;
     margin-right: 16rpx;
+    background: $bg-elevated;
   }
   
   .price-info {
@@ -835,7 +878,7 @@ export default {
     .price-title {
       display: block;
       font-size: 26rpx;
-      color: #333;
+      color: $text-primary;
       margin-bottom: 8rpx;
     }
     
@@ -845,12 +888,12 @@ export default {
       font-size: 24rpx;
       
       .old-price {
-        color: #999;
+        color: $text-muted;
         text-decoration: line-through;
       }
       
       .new-price {
-        color: #333;
+        color: $text-primary;
         margin-left: 8rpx;
       }
       
@@ -861,13 +904,13 @@ export default {
         font-size: 20rpx;
         
         &.up {
-          background: rgba(231, 76, 60, 0.1);
-          color: #e74c3c;
+          background: rgba(255, 107, 107, 0.15);
+          color: #ff6b6b;
         }
         
         &.down {
-          background: rgba(80, 200, 120, 0.1);
-          color: #50c878;
+          background: rgba(76, 175, 80, 0.15);
+          color: #4CAF50;
         }
       }
     }
@@ -890,20 +933,20 @@ export default {
     .cert-title {
       display: block;
       font-size: 28rpx;
-      color: #333;
+      color: $text-primary;
       font-weight: 500;
       margin-bottom: 6rpx;
     }
     
     .cert-desc {
       font-size: 22rpx;
-      color: #999;
+      color: $text-secondary;
     }
   }
   
   &.certified {
     .cert-title {
-      color: #50c878;
+      color: $accent-gold;
     }
   }
 }
@@ -917,13 +960,13 @@ export default {
   .section-title {
     font-size: 30rpx;
     font-weight: 600;
-    color: #333;
+    color: $text-primary;
   }
 }
 
 .intro-content {
   font-size: 28rpx;
-  color: #666;
+  color: $text-secondary;
   line-height: 1.8;
   
   &.collapsed {
@@ -938,7 +981,7 @@ export default {
   justify-content: center;
   padding-top: 20rpx;
   font-size: 26rpx;
-  color: #667eea;
+  color: $accent-gold;
 }
 
 // 作品列表
@@ -953,18 +996,18 @@ export default {
   .section-title {
     font-size: 30rpx;
     font-weight: 600;
-    color: #333;
+    color: $text-primary;
   }
   
   .works-count {
     font-size: 24rpx;
-    color: #999;
+    color: $text-muted;
   }
 }
 
 .works-tabs {
   display: flex;
-  background: #f5f5f5;
+  background: $bg-elevated;
   border-radius: 12rpx;
   padding: 6rpx;
   margin-bottom: 30rpx;
@@ -975,12 +1018,12 @@ export default {
   text-align: center;
   padding: 16rpx 0;
   font-size: 26rpx;
-  color: #666;
+  color: $text-secondary;
   border-radius: 8rpx;
   
   &.active {
-    background: #fff;
-    color: #333;
+    background: $accent-gold;
+    color: $bg-primary;
     font-weight: 500;
   }
 }
@@ -1005,6 +1048,7 @@ export default {
   height: 300rpx;
   border-radius: 12rpx;
   margin-bottom: 16rpx;
+  background: $bg-elevated;
 }
 
 .work-status {
@@ -1026,7 +1070,7 @@ export default {
 
 .work-title {
   font-size: 26rpx;
-  color: #333;
+  color: $text-primary;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1041,13 +1085,13 @@ export default {
 
 .work-price {
   font-size: 26rpx;
-  color: #e74c3c;
+  color: $accent-gold;
   font-weight: 600;
 }
 
 .work-sales {
   font-size: 20rpx;
-  color: #999;
+  color: $text-muted;
 }
 
 .works-gallery {
@@ -1064,6 +1108,7 @@ export default {
   width: 100%;
   height: 400rpx;
   border-radius: 12rpx;
+  background: $bg-elevated;
 }
 
 .gallery-overlay {
@@ -1093,13 +1138,13 @@ export default {
   text-align: center;
   padding: 30rpx;
   font-size: 26rpx;
-  color: #999;
+  color: $text-muted;
 }
 
 .empty-works {
   text-align: center;
   padding: 60rpx;
-  color: #ccc;
+  color: $text-muted;
   font-size: 28rpx;
 }
 </style>

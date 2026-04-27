@@ -28,7 +28,10 @@
 
       <!-- 艺术家搜索 -->
       <view class="form-item artist-form-item">
-        <text class="form-label">作者</text>
+        <view class="artist-label-row">
+          <text class="form-label">作者</text>
+          <text class="artist-id-display" v-if="formData.authorId">ID: {{ formData.authorId }}</text>
+        </view>
         <view class="artist-input-wrapper">
           <input 
             class="form-input artist-input" 
@@ -464,8 +467,10 @@ export default {
 
         const submitData = {
           ...this.formData,
-          author: this.formData.authorName || this.artistKeyword,
-          size: `${this.formData.width}×${this.formData.height}cm`
+          authorName: this.formData.authorName || this.artistKeyword,
+          size: `${this.formData.width}×${this.formData.height}cm`,
+          // 确保价格是数字类型
+          price: this.formData.price ? Number(this.formData.price) : null
         }
 
         if (this.isEdit) {
@@ -570,6 +575,23 @@ export default {
   font-size: 28rpx;
   color: #333;
   width: 160rpx;
+}
+
+.artist-label-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.artist-id-display {
+  font-size: 24rpx;
+  color: #667eea;
+  font-weight: 500;
+  padding: 4rpx 12rpx;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8rpx;
 }
 
 .form-input {

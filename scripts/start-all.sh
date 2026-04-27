@@ -119,6 +119,12 @@ nohup java -jar shiyiju-order/target/shiyiju-order-1.0.0-SNAPSHOT.jar > logs/ord
 echo "  PID: $!"
 sleep 2
 
+# 启动文件服务
+echo -e "${YELLOW}→${NC} 启动 文件服务 (端口 8087)..."
+nohup java -jar shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar > logs/file.log 2>&1 &
+echo "  PID: $!"
+sleep 2
+
 echo ""
 echo "🎨 ========================================"
 echo ""

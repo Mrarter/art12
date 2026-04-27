@@ -9,9 +9,9 @@ spring:
         enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/shiyiju_auction?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: root123456
+    password: root
   data:
     redis:
       host: 127.0.0.1
@@ -22,6 +22,9 @@ mybatis-plus:
   type-aliases-package: com.shiyiju.auction.entity
   configuration:
     map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
 logging:
   level:
     com.shiyiju: DEBUG

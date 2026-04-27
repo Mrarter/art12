@@ -594,10 +594,15 @@ $accent-gold-light: #e6c65c;
 // 商品列表
 .product-list {
   flex: 1;
-  height: calc(100vh - 100rpx);
+  /* 使用固定高度而非 calc(100vh)，避免移动端视口变化导致的跳动 */
+  height: 0; /* 配合 flex: 1 让 flex 布局自动计算 */
+  min-height: calc(100vh - 180rpx);
   padding: 16rpx;
   padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
   background: $bg-primary;
+  /* 防止点击时触发移动端默认行为导致页面抖动 */
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
 }
 
 // 下拉刷新样式
@@ -624,7 +629,9 @@ $accent-gold-light: #e6c65c;
   margin-bottom: 16rpx;
   overflow: hidden;
   border: 1rpx solid rgba(255, 255, 255, 0.04);
-  transition: all 0.3s;
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+  /* 防止点击时的默认高亮效果导致布局抖动 */
+  -webkit-tap-highlight-color: transparent;
   
   &:active {
     transform: scale(0.98);

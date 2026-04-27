@@ -48,6 +48,12 @@ public class ArtistInfoVO implements Serializable {
     /** 艺术家身份类型：artist/master/collector/gallery */
     private String identityType;
 
+    /** 标准化用户UID (如: USR202604250001X5K3) */
+    private String uid;
+
+    /** 艺术家认证编号 (如: ART202604200001K9M3) */
+    private String artistCode;
+
     /** 粉丝数 */
     private Integer followerCount;
 

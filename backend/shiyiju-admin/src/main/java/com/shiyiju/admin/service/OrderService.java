@@ -53,11 +53,13 @@ public class OrderService {
         
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
-            SELECT id, order_no, buyer_user_id, order_type, order_status, payment_status,
-                   goods_amount, freight_amount, discount_amount, pay_amount,
-                   paid_at, cancelled_at, completed_at, created_at
-            FROM trade_order
-            """ + where + " ORDER BY created_at DESC LIMIT ?, ?",
+            SELECT o.id, o.order_no, o.buyer_user_id, o.order_type, o.order_status, o.payment_status,
+                   o.goods_amount, o.freight_amount, o.discount_amount, o.pay_amount,
+                   o.paid_at, o.cancelled_at, o.completed_at, o.created_at,
+                   u.nickname as buyer_name, u.uid as buyer_uid
+            FROM trade_order o
+            LEFT JOIN user_account u ON o.buyer_user_id = u.id
+            """ + where + " ORDER BY o.created_at DESC LIMIT ?, ?",
             queryArgs.toArray()
         );
 
@@ -67,6 +69,8 @@ public class OrderService {
             item.put("id", row.get("id"));
             item.put("orderNo", row.get("order_no"));
             item.put("userId", row.get("buyer_user_id"));
+            item.put("buyerName", row.get("buyer_name") != null ? row.get("buyer_name") : "用户" + row.get("buyer_user_id"));
+            item.put("buyerUid", row.get("buyer_uid"));
             item.put("orderType", row.get("order_type"));
             item.put("status", row.get("order_status"));
             item.put("statusText", getOrderStatusText((String) row.get("order_status")));
@@ -75,6 +79,14 @@ public class OrderService {
             item.put("payAmount", row.get("pay_amount"));
             item.put("paidAt", row.get("paid_at"));
             item.put("createTime", row.get("created_at"));
+            // 获取第一个商品信息
+            Long orderId = ((Number) row.get("id")).longValue();
+            List<Map<String, Object>> items = jdbcTemplate.queryForList(
+                "SELECT cover_url, item_title FROM trade_order_item WHERE order_id = ? LIMIT 1", orderId);
+            if (!items.isEmpty()) {
+                item.put("cover", items.get(0).get("cover_url"));
+                item.put("artworkTitle", items.get(0).get("item_title"));
+            }
             records.add(item);
         }
 
@@ -89,6 +101,32 @@ public class OrderService {
             "SELECT * FROM trade_order WHERE id = ? AND deleted = 0", id);
         if (rows.isEmpty()) return null;
         return convertOrder(rows.get(0));
+    }
+    
+    public Map<String, Object> getOrderByNo(String orderNo) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+            SELECT o.*, u.nickname as buyer_nickname, u.uid as buyer_uid
+            FROM trade_order o
+            LEFT JOIN user_account u ON o.buyer_user_id = u.id
+            WHERE o.order_no = ? AND o.deleted = 0
+            """, orderNo);
+        if (rows.isEmpty()) return null;
+        Map<String, Object> order = convertOrder(rows.get(0));
+        // 添加买家信息
+        order.put("buyerNickname", rows.get(0).get("buyer_nickname"));
+        order.put("buyerUid", rows.get(0).get("buyer_uid"));
+        // 获取订单商品信息
+        List<Map<String, Object>> items = jdbcTemplate.queryForList(
+            """
+            SELECT toi.item_title, toi.cover_url, toi.unit_price, toi.quantity, toi.subtotal_amount,
+                   a.title as artwork_title, a.cover_image 
+            FROM trade_order_item toi
+            LEFT JOIN artwork a ON toi.artwork_id = a.id
+            WHERE toi.order_id = ?
+            """, order.get("id"));
+        order.put("items", items);
+        return order;
     }
 
     @Transactional
@@ -193,13 +231,9 @@ public class OrderService {
             """
             SELECT o.id, o.order_no, o.buyer_user_id, o.order_type, o.order_status, o.payment_status,
                    o.goods_amount, o.pay_amount, o.paid_at, o.created_at,
-                   a.title AS artwork_title, a.cover_image,
-                   u.nickname AS buyer_name
+                   u.nickname AS buyer_name, u.uid AS buyer_uid
             FROM trade_order o
-            LEFT JOIN artwork a ON EXISTS (
-                SELECT 1 FROM trade_order_item ti WHERE ti.order_id = o.id LIMIT 1
-            )
-            LEFT JOIN users u ON o.buyer_user_id = u.id
+            LEFT JOIN user_account u ON o.buyer_user_id = u.id
             """ + where + " ORDER BY o.created_at DESC LIMIT ?, ?",
             queryArgs.toArray()
         );
@@ -217,12 +251,9 @@ public class OrderService {
             item.put("amount", row.get("pay_amount"));  // 兼容前端字段名
             item.put("applyTime", row.get("paid_at"));
             item.put("createTime", row.get("created_at"));
-            // 作品信息
-            item.put("artworkTitle", row.get("artwork_title"));
-            item.put("coverImage", row.get("cover_image"));
-            item.put("cover", row.get("cover_image"));  // 兼容前端字段名
             // 买家信息
             item.put("buyerName", row.get("buyer_name"));
+            item.put("buyerUid", row.get("buyer_uid"));
             records.add(item);
         }
 

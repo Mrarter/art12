@@ -319,7 +319,12 @@ const auctionResults = ref([
 
 // 格式化价格
 const formatPrice = (price) => {
-  return price.toLocaleString()
+  if (!price) return '0'
+  const yuan = price / 100  // 分转元
+  if (yuan >= 10000) {
+    return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
+  }
+  return yuan.toLocaleString()
 }
 
 // 返回

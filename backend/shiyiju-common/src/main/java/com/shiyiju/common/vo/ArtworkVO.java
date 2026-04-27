@@ -94,10 +94,28 @@ public class ArtworkVO implements Serializable {
     /** 持有时长（天） */
     private Integer holdDuration;
     
+    /** 格式化后的作品ID（4位数，如 0001） */
+    private String displayArtworkId;
+    
+    /** 格式化后的艺术家ID（4位数，如 0009） */
+    private String displayAuthorId;
+    
+    /** 艺术家标准化UID (如: USR202604250001X5K3) */
+    private String authorUid;
+    
     // 分销相关
     private Boolean distributionEnabled;
     private Integer commissionRate;
     private Integer distributionOrders;
     private Long distributionEarnings;
     private Integer distributionUsers;
+    
+    // 单个作品价格增长配置
+    private Boolean customPriceGrowthEnabled;
+    private BigDecimal customBaseDailyRate;
+    private BigDecimal customMatureDailyRate;
+    private Integer customMatureDays;
+    private BigDecimal customViewRate;
+    private BigDecimal customFavoriteRate;
+    private BigDecimal customMaxGrowthMultiple;
 }

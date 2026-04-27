@@ -79,6 +79,11 @@ export const useUserStore = defineStore('user', {
       this.identities = []
       uni.removeStorageSync('token')
       uni.removeStorageSync('userInfo')
+    },
+    
+    // 初始化用户信息（兼容小程序端调用）
+    initUserInfo() {
+      return this.fetchUserInfo()
     }
   }
 })

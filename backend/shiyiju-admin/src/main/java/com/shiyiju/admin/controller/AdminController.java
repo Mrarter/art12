@@ -21,7 +21,7 @@ public class AdminController {
     private AdminAccountService adminAccountService;
 
     @Autowired
-    private com.shiyiju.admin.mapper.sysUserMapper userMapper;
+    private com.shiyiju.admin.mapper.SysUserMapper userMapper;
 
     @Autowired
     private com.shiyiju.admin.mapper.ArtworkMapper artworkMapper;

@@ -78,7 +78,12 @@ export default defineConfig({
         target: 'http://localhost:8087',
         changeOrigin: true
       },
-      // 静态文件代理 -> 8087 (用于 /uploads/xxx 图片访问)
+      // 静态文件代理 -> 8087 (用于 /upload/xxx 图片访问)
+      '/upload': {
+        target: 'http://localhost:8087',
+        changeOrigin: true
+      },
+      // 兼容旧路径 /uploads
       '/uploads': {
         target: 'http://localhost:8087',
         changeOrigin: true

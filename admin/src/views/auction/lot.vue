@@ -35,7 +35,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="作品信息" min-width="250">
+      <el-table-column label="作品信息" min-width="250" class-name="artwork-header">
         <template #default="{ row }">
           <div class="artwork-info">
             <el-image :src="row.cover" style="width: 60px; height: 60px" fit="cover" />
@@ -400,6 +400,17 @@ onMounted(() => {
   
   &:hover .copy-icon {
     opacity: 1;
+  }
+}
+
+/* 作品信息列头样式 */
+:deep(.artwork-header) {
+  .cell {
+    width: 116px;
+    height: 23px;
+    padding-left: 12px;
+    padding-right: 12px;
+    line-height: 23px;
   }
 }
 </style>

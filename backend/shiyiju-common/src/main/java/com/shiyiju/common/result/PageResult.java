@@ -33,8 +33,14 @@ public class PageResult<T> implements Serializable {
     private List<T> records;
 
     public static <T> PageResult<T> of(Long total, Integer page, Integer pageSize, List<T> records) {
-        int totalPages = (int) Math.ceil((double) total / pageSize);
-        return new PageResult<>(total, page, pageSize, totalPages, records);
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) total / pageSize) : 0;
+        PageResult<T> result = new PageResult<>();
+        result.setTotal(total);
+        result.setPage(page);
+        result.setPageSize(pageSize);
+        result.setTotalPages(totalPages);
+        result.setRecords(records);
+        return result;
     }
 
     public static <T> PageResult<T> empty(Integer page, Integer pageSize) {
