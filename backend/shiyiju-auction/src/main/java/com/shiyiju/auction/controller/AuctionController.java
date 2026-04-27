@@ -37,7 +37,7 @@ public class AuctionController {
      * 获取拍卖专场列表 (GET /auction/sessions)
      */
     @GetMapping("/sessions")
-    public Result<PageResult<AuctionSession>> getSessions(
+    public Result<PageResult<Map<String, Object>>> getSessions(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer status
@@ -55,18 +55,32 @@ public class AuctionController {
         Page<AuctionSession> result = sessionMapper.selectPage(pageResult, wrapper);
         log.info("Query auction sessions: total={}, records={}", result.getTotal(), result.getRecords().size());
         
-        PageResult<AuctionSession> pageResultData = new PageResult<>();
+        // 转换为兼容前端的格式
+        List<Map<String, Object>> records = result.getRecords().stream().map(session -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", session.getId());
+            map.put("name", session.getTitle());
+            map.put("coverImage", session.getCoverImage());
+            map.put("description", session.getDescription());
+            map.put("startTime", session.getStartTime());
+            map.put("endTime", session.getEndTime());
+            map.put("status", session.getStatus());
+            map.put("lotCount", session.getTotalLots());
+            return map;
+        }).collect(Collectors.toList());
+        
+        PageResult<Map<String, Object>> pageResultData = new PageResult<>();
         pageResultData.setTotal(result.getTotal());
         pageResultData.setPage(page);
         pageResultData.setPageSize(pageSize);
         pageResultData.setTotalPages((int) Math.ceil((double) result.getTotal() / pageSize));
-        pageResultData.setRecords(result.getRecords());
+        pageResultData.setRecords(records);
         
         return Result.success(pageResultData);
     }
 
     /**
-     * 获取专场详情及拍品 (GET /auction/sessions/{session_id})
+     * 获取专场详情及拍品 (GET /auction/sessions/{sessionId})
      */
     @GetMapping("/sessions/{sessionId}")
     public Result<Map<String, Object>> getSessionDetail(@PathVariable Long sessionId) {
@@ -82,47 +96,94 @@ public class AuctionController {
                         .orderByAsc(AuctionLot::getLotNo)
         );
         
+        // 转换专场数据
+        Map<String, Object> sessionMap = new HashMap<>();
+        sessionMap.put("id", session.getId());
+        sessionMap.put("name", session.getTitle());
+        sessionMap.put("coverImage", session.getCoverImage());
+        sessionMap.put("description", session.getDescription());
+        sessionMap.put("startTime", session.getStartTime());
+        sessionMap.put("endTime", session.getEndTime());
+        sessionMap.put("status", session.getStatus());
+        sessionMap.put("lotCount", session.getTotalLots());
+        
+        // 转换拍品数据
+        List<Map<String, Object>> lotMaps = lots.stream().map(lot -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", lot.getId());
+            map.put("sessionId", lot.getSessionId());
+            map.put("lotNo", lot.getLotNo());
+            map.put("title", lot.getTitle());
+            map.put("coverImage", lot.getCoverImage());
+            map.put("artistName", lot.getArtistName());
+            map.put("startPrice", lot.getStartPrice());
+            map.put("currentPrice", lot.getCurrentPrice());
+            map.put("bidCount", lot.getBidCount());
+            map.put("status", lot.getStatus());
+            return map;
+        }).collect(Collectors.toList());
+        
         Map<String, Object> result = new HashMap<>();
-        result.put("session", session);
-        result.put("lots", lots);
+        result.put("session", sessionMap);
+        result.put("lots", lotMaps);
         
         return Result.success(result);
     }
 
     /**
-     * 获取专场下的拍品 (GET /auction/sessions/{session_id}/lots)
+     * 获取专场下的拍品 (GET /auction/sessions/{sessionId}/lots)
      */
     @GetMapping("/sessions/{sessionId}/lots")
-    public Result<List<AuctionLot>> getSessionLots(@PathVariable Long sessionId) {
-        return Result.success(lotMapper.selectList(
+    public Result<List<Map<String, Object>>> getSessionLots(@PathVariable Long sessionId) {
+        List<AuctionLot> lots = lotMapper.selectList(
                 new LambdaQueryWrapper<AuctionLot>()
                         .eq(AuctionLot::getSessionId, sessionId)
                         .orderByAsc(AuctionLot::getLotNo)
-        ));
+        );
+        
+        List<Map<String, Object>> lotMaps = lots.stream().map(lot -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", lot.getId());
+            map.put("sessionId", lot.getSessionId());
+            map.put("lotNo", lot.getLotNo());
+            map.put("title", lot.getTitle());
+            map.put("coverImage", lot.getCoverImage());
+            map.put("artistName", lot.getArtistName());
+            map.put("startPrice", lot.getStartPrice());
+            map.put("currentPrice", lot.getCurrentPrice());
+            map.put("bidCount", lot.getBidCount());
+            map.put("status", lot.getStatus());
+            return map;
+        }).collect(Collectors.toList());
+        
+        return Result.success(lotMaps);
     }
 
     /**
-     * 获取拍品详情 (GET /auction/lots/{lot_id})
+     * 获取拍品详情 (GET /auction/lots/{lotId})
      */
     @GetMapping("/lots/{lotId}")
-    public Result<AuctionLotVO> getLotDetail(@PathVariable Long lotId) {
+    public Result<Map<String, Object>> getLotDetail(@PathVariable Long lotId) {
         AuctionLot lot = lotMapper.selectById(lotId);
         if (lot == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
         
-        AuctionLotVO vo = new AuctionLotVO();
-        vo.setId(lot.getId());
-        vo.setSessionId(lot.getSessionId());
-        vo.setLotNo(lot.getLotNo());
-        vo.setStartPrice(lot.getStartPrice());
-        vo.setCurrentPrice(lot.getCurrentPrice());
-        vo.setBidIncrement(lot.getBidIncrement());
-        vo.setBidCount(lot.getBidCount());
-        vo.setDepositAmount(lot.getDepositAmount());
-        vo.setStatus(lot.getStatus());
-        vo.setStartTime(lot.getStartTime() != null ? lot.getStartTime().toString() : null);
-        vo.setEndTime(lot.getEndTime() != null ? lot.getEndTime().toString() : null);
+        Map<String, Object> vo = new HashMap<>();
+        vo.put("id", lot.getId());
+        vo.put("sessionId", lot.getSessionId());
+        vo.put("lotNo", lot.getLotNo());
+        vo.put("title", lot.getTitle());
+        vo.put("coverImage", lot.getCoverImage());
+        vo.put("artistName", lot.getArtistName());
+        vo.put("startPrice", lot.getStartPrice());
+        vo.put("currentPrice", lot.getCurrentPrice());
+        vo.put("bidIncrement", lot.getIncrement());
+        vo.put("bidCount", lot.getBidCount());
+        vo.put("depositAmount", lot.getDepositAmount());
+        vo.put("status", lot.getStatus());
+        vo.put("startTime", lot.getStartTime() != null ? lot.getStartTime().toString() : null);
+        vo.put("endTime", lot.getEndTime() != null ? lot.getEndTime().toString() : null);
         
         // 获取出价记录
         List<AuctionBid> bids = bidMapper.selectList(
@@ -131,13 +192,13 @@ public class AuctionController {
                         .orderByDesc(AuctionBid::getBidTime)
                         .last("LIMIT 10")
         );
-        vo.setRecentBids(bids);
+        vo.put("recentBids", bids);
         
         return Result.success(vo);
     }
 
     /**
-     * 缴纳保证金 (POST /auction/sessions/{session_id}/deposit)
+     * 缴纳保证金 (POST /auction/sessions/{sessionId}/deposit)
      */
     @Transactional
     @PostMapping("/sessions/{sessionId}/deposit")
@@ -163,7 +224,7 @@ public class AuctionController {
                             .eq(AuctionDeposit::getLotId, lot.getId())
                             .eq(AuctionDeposit::getUserId, userId)
             );
-            if (existing != null && existing.getStatus() == AuctionConstant.DEPOSIT_PAID) {
+            if (existing != null && existing.getPayStatus() == AuctionConstant.DEPOSIT_PAID) {
                 continue;
             }
 
@@ -173,7 +234,7 @@ public class AuctionController {
             deposit.setLotId(lot.getId());
             deposit.setUserId(userId);
             deposit.setAmount(lot.getDepositAmount());
-            deposit.setStatus(AuctionConstant.DEPOSIT_PAID);
+            deposit.setPayStatus(AuctionConstant.DEPOSIT_PAID);
             deposit.setPayTime(LocalDateTime.now());
             deposit.setCreateTime(LocalDateTime.now());
             
@@ -189,7 +250,7 @@ public class AuctionController {
     }
 
     /**
-     * 出价 (POST /auction/lots/{lot_id}/bid)
+     * 出价 (POST /auction/lots/{lotId}/bid)
      */
     @Transactional
     @PostMapping("/lots/{lotId}/bid")
@@ -209,7 +270,7 @@ public class AuctionController {
                 new LambdaQueryWrapper<AuctionDeposit>()
                         .eq(AuctionDeposit::getLotId, lotId)
                         .eq(AuctionDeposit::getUserId, userId)
-                        .eq(AuctionDeposit::getStatus, AuctionConstant.DEPOSIT_PAID)
+                        .eq(AuctionDeposit::getPayStatus, AuctionConstant.DEPOSIT_PAID)
         );
         if (deposit == null) {
             throw new BusinessException(ResultCode.AUCTION_DEPOSIT_REQUIRED);
@@ -224,7 +285,7 @@ public class AuctionController {
         }
         
         // 验证出价
-        long minBid = lot.getCurrentPrice() + lot.getBidIncrement();
+        long minBid = lot.getCurrentPrice().longValue() + lot.getIncrement().longValue();
         if (bidPrice < minBid) {
             throw new BusinessException(ResultCode.AUCTION_BID_TOO_LOW);
         }
@@ -233,10 +294,10 @@ public class AuctionController {
         List<AuctionBid> previousBids = bidMapper.selectList(
                 new LambdaQueryWrapper<AuctionBid>()
                         .eq(AuctionBid::getLotId, lotId)
-                        .eq(AuctionBid::getIsWinning, 1)
+                        .eq(AuctionBid::getStatus, 1)
         );
         for (AuctionBid prevBid : previousBids) {
-            prevBid.setIsWinning(0);
+            prevBid.setStatus(0);
             bidMapper.updateById(prevBid);
         }
 
@@ -244,15 +305,15 @@ public class AuctionController {
         AuctionBid bid = new AuctionBid();
         bid.setLotId(lotId);
         bid.setUserId(userId);
-        bid.setBidPrice(bidPrice);
+        bid.setBidPrice(new java.math.BigDecimal(bidPrice));
         bid.setBidTime(LocalDateTime.now());
-        bid.setIsWinning(1);
+        bid.setStatus(1);
         bidMapper.insert(bid);
 
         // 更新拍品
-        lot.setCurrentPrice(bidPrice);
+        lot.setCurrentPrice(new java.math.BigDecimal(bidPrice));
         lot.setBidCount(lot.getBidCount() + 1);
-        lot.setHighestBidderId(userId);
+        lot.setBuyerId(userId);
         lot.setUpdateTime(LocalDateTime.now());
         lotMapper.updateById(lot);
 
@@ -305,7 +366,7 @@ public class AuctionController {
         Page<AuctionDeposit> deposits = depositMapper.selectPage(pageResult,
                 new LambdaQueryWrapper<AuctionDeposit>()
                         .eq(AuctionDeposit::getUserId, userId)
-                        .eq(AuctionDeposit::getStatus, AuctionConstant.DEPOSIT_PAID)
+                        .eq(AuctionDeposit::getPayStatus, AuctionConstant.DEPOSIT_PAID)
                         .orderByDesc(AuctionDeposit::getCreateTime));
         
         List<Long> lotIds = deposits.getRecords().stream()
@@ -321,46 +382,5 @@ public class AuctionController {
         result.put("pageSize", pageSize);
         
         return Result.success(result);
-    }
-
-    // === 内部类 ===
-    static class AuctionLotVO {
-        public Long id;
-        public Long sessionId;
-        public String lotNo;
-        public Long startPrice;
-        public Long currentPrice;
-        public Long bidIncrement;
-        public Integer bidCount;
-        public Long depositAmount;
-        public Integer status;
-        public String startTime;
-        public String endTime;
-        public List<AuctionBid> recentBids;
-
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public Long getSessionId() { return sessionId; }
-        public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
-        public String getLotNo() { return lotNo; }
-        public void setLotNo(String lotNo) { this.lotNo = lotNo; }
-        public Long getStartPrice() { return startPrice; }
-        public void setStartPrice(Long startPrice) { this.startPrice = startPrice; }
-        public Long getCurrentPrice() { return currentPrice; }
-        public void setCurrentPrice(Long currentPrice) { this.currentPrice = currentPrice; }
-        public Long getBidIncrement() { return bidIncrement; }
-        public void setBidIncrement(Long bidIncrement) { this.bidIncrement = bidIncrement; }
-        public Integer getBidCount() { return bidCount; }
-        public void setBidCount(Integer bidCount) { this.bidCount = bidCount; }
-        public Long getDepositAmount() { return depositAmount; }
-        public void setDepositAmount(Long depositAmount) { this.depositAmount = depositAmount; }
-        public Integer getStatus() { return status; }
-        public void setStatus(Integer status) { this.status = status; }
-        public String getStartTime() { return startTime; }
-        public void setStartTime(String startTime) { this.startTime = startTime; }
-        public String getEndTime() { return endTime; }
-        public void setEndTime(String endTime) { this.endTime = endTime; }
-        public List<AuctionBid> getRecentBids() { return recentBids; }
-        public void setRecentBids(List<AuctionBid> recentBids) { this.recentBids = recentBids; }
     }
 }
