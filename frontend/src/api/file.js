@@ -3,8 +3,8 @@
  */
 import request from './request'
 
-// API 地址
-const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8080/api'
+// API 地址 - 使用环境变量或默认值
+const BASE_URL = 'http://192.168.1.176:8080/api'
 
 /**
  * 上传文件

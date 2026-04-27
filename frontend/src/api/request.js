@@ -1,5 +1,5 @@
-// 根据环境变量设置 API 地址，默认使用开发环境地址
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL) || 'http://localhost:8080/api'
+// API 地址 - 使用固定地址
+const BASE_URL = 'http://192.168.1.176:8080/api'
 
 // 增加超时时间到 30 秒
 const TIMEOUT = 30000
