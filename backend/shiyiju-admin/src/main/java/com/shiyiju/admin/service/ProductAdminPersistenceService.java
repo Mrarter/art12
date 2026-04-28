@@ -651,4 +651,86 @@ public class ProductAdminPersistenceService {
     private String identityColumn(String userTable) {
         return schemaInspector.firstExistingColumn(userTable, "identity", "identity_json");
     }
+
+    /**
+     * 作品列表查询
+     */
+    public Map<String, Object> listProducts(String keyword, Long categoryId, String status, int page, int size) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND (a.title LIKE ? OR a.author_name LIKE ?)");
+            args.add("%" + keyword + "%");
+            args.add("%" + keyword + "%");
+        }
+        
+        if (categoryId != null) {
+            where.append(" AND a.category_id = ?");
+            args.add(categoryId);
+        }
+        
+        if (status != null && !status.isBlank()) {
+            where.append(" AND a.status = ?");
+            args.add(mapProductStatus(status));
+        }
+        
+        // 获取总数
+        Long total = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM artwork a" + where,
+            Long.class,
+            args.toArray()
+        );
+        
+        // 分页查询
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+        
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+            SELECT a.id, a.title, a.author_name, a.cover_image, a.price, a.status,
+                   a.create_time, c.name AS category_name
+            FROM artwork a
+            LEFT JOIN %s c ON a.category_id = c.id
+            """.formatted(categoryTable()) + where + " ORDER BY a.create_time DESC, a.id DESC LIMIT ?, ?",
+            queryArgs.toArray()
+        );
+        
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row.get("id"));
+            item.put("title", row.get("title"));
+            item.put("artistName", row.get("author_name"));
+            item.put("cover", row.get("cover_image"));
+            item.put("price", row.get("price"));
+            item.put("categoryName", row.get("category_name"));
+            item.put("status", toInt(row.get("status"), 0));
+            item.put("createTime", formatDateTime(row.get("create_time")));
+            list.add(item);
+        }
+        
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", list);
+        result.put("total", total != null ? total : 0);
+        result.put("page", page);
+        result.put("size", size);
+        return result;
+    }
+    
+    private int mapProductStatus(String status) {
+        return switch (status) {
+            case "active", "approved" -> 1;
+            case "inactive", "rejected" -> 0;
+            default -> 0;
+        };
+    }
+    
+    private String mapProductStatusText(int status) {
+        return switch (status) {
+            case 1 -> "active";
+            default -> "inactive";
+        };
+    }
 }
