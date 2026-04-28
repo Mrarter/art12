@@ -136,9 +136,14 @@
         <el-form-item label="艺术家">
           <el-input v-model="searchForm.artistName" placeholder="请输入艺术家" clearable />
         </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="searchForm.categoryId" placeholder="全部" clearable>
-            <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+        <el-form-item label="分类/画种">
+          <el-select v-model="searchForm.categoryId" placeholder="全部" clearable filterable>
+            <el-option-group label="作品分类">
+              <el-option v-for="cat in categories" :key="'cat_'+cat.id" :label="cat.name" :value="'cat_'+cat.id" />
+            </el-option-group>
+            <el-option-group label="画种">
+              <el-option v-for="type in artTypes" :key="'type_'+type" :label="type" :value="'type_'+type" />
+            </el-option-group>
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -187,7 +192,10 @@
                 {{ row.artistName }}
                 <span v-if="row.authorUid" class="artist-id-inline">ID: {{ row.authorUid }}</span>
               </p>
-              <p class="category">{{ row.categoryName }}</p>
+              <p class="category">
+                <el-tag v-if="row.categoryName" size="small" type="info">{{ row.categoryName }}</el-tag>
+                <el-tag v-if="row.artType" size="small" type="warning">{{ row.artType }}</el-tag>
+              </p>
             </div>
           </div>
         </template>
@@ -201,10 +209,9 @@
           </p>
         </template>
       </el-table-column>
-      <el-table-column label="画种/尺寸/年份" min-width="180">
+      <el-table-column label="尺寸/年份" min-width="120">
         <template #default="{ row }">
           <div class="art-info">
-            <span v-if="row.artType" class="art-type">{{ row.artType }}</span>
             <span v-if="row.size" class="art-size">{{ row.size }}</span>
             <span v-if="row.year" class="art-year">{{ row.year }}年</span>
           </div>
@@ -233,6 +240,7 @@
             :max="9999" 
             size="small" 
             controls 
+            class="weight-input"
             @change="handleWeightChange(row)"
           />
         </template>
@@ -391,13 +399,15 @@
             <span v-if="editForm.authorUid" class="artist-id-tag">ID: {{ editForm.authorUid }}</span>
           </div>
         </el-form-item>
-        <el-form-item label="分类" prop="categoryId">
-          <el-select v-model="editForm.categoryId" placeholder="请选择分类" style="width: 100%">
-            <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+        <el-form-item label="画种" prop="artType">
+          <el-select v-model="editForm.artType" placeholder="请选择画种" style="width: 100%" clearable filterable>
+            <el-option-group label="作品分类">
+              <el-option v-for="cat in categories" :key="'cat_'+cat.id" :label="cat.name" :value="'分类:' + cat.name" />
+            </el-option-group>
+            <el-option-group label="画种">
+              <el-option v-for="type in artTypes" :key="'type_'+type" :label="type" :value="type" />
+            </el-option-group>
           </el-select>
-        </el-form-item>
-        <el-form-item label="画种">
-          <el-input v-model="editForm.artType" placeholder="如：国画、油画、水彩" />
         </el-form-item>
         <el-form-item label="尺寸">
           <el-input v-model="editForm.size" placeholder="如：100x80cm、四尺整张" />
@@ -549,6 +559,7 @@ const savePriceConfig = async () => {
 const saveLoading = ref(false)
 const tableData = ref([])
 const categories = ref([])
+const artTypes = ref(['国画', '油画', '水彩', '版画', '雕塑', '书法', '摄影', '数字艺术', '其他'])
 const editVisible = ref(false)
 const formRef = ref()
 const distFormRef = ref()
@@ -576,7 +587,6 @@ const editForm = reactive({
   authorUid: '',
   title: '',
   artistName: '',
-  categoryId: '',
   artType: '',
   size: '',
   year: null,
@@ -645,7 +655,6 @@ const distForm = reactive({
 const rules = {
   title: [{ required: true, message: '请输入作品名称', trigger: 'blur' }],
   artistName: [{ required: true, message: '请输入艺术家名称', trigger: 'blur' }],
-  categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
   price: [{ required: true, message: '请输入价格', trigger: 'blur' }]
 }
 
@@ -656,9 +665,16 @@ const loadData = async () => {
     if (searchForm.artworkId) params.id = searchForm.artworkId
     if (searchForm.title) params.title = searchForm.title
     if (searchForm.artistName) params.authorName = searchForm.artistName
-    if (searchForm.categoryId) params.categoryId = searchForm.categoryId
+    // 支持分类和画种搜索
+    if (searchForm.categoryId) {
+      if (searchForm.categoryId.startsWith('cat_')) {
+        params.categoryId = searchForm.categoryId.replace('cat_', '')
+      } else if (searchForm.categoryId.startsWith('type_')) {
+        params.artType = searchForm.categoryId.replace('type_', '')
+      }
+    }
     if (searchForm.status) params.status = searchForm.status
-    const data = await requestApi.get('/product/list', { params })
+    const data = await request.get('/product/list', { params })
     // 映射后端数据格式到前端
     tableData.value = (data.records || data.list || []).map(item => ({
       artworkId: item.id,
@@ -727,14 +743,18 @@ const resetSearch = () => {
 
 const handleEdit = async (row) => {
   console.log('【DEBUG】handleEdit row.price:', row.price, 'row.originalPrice:', row.originalPrice)
+  // 合并画种和分类显示
+  let artTypeValue = row.artType || ''
+  if (row.categoryName && !artTypeValue) {
+    artTypeValue = '分类:' + row.categoryName
+  }
   Object.assign(editForm, {
     artworkId: row.artworkId,
     authorId: row.authorId || null,
     authorUid: row.authorUid || '',
     title: row.title,
     artistName: row.artistName,
-    categoryId: row.categoryId,
-    artType: row.artType || '',
+    artType: artTypeValue,
     size: row.size || '',
     year: row.year || null,
     cover: row.cover || '',
@@ -781,7 +801,6 @@ const handleAdd = () => {
     artworkId: '',
     title: '',
     artistName: '',
-    categoryId: '',
     artType: '',
     size: '',
     year: null,
@@ -839,7 +858,6 @@ const handleSave = async () => {
       title: editForm.title,
       authorId: editForm.authorId,
       authorName: editForm.artistName,
-      categoryId: editForm.categoryId ? Number(editForm.categoryId) : null,
       artType: editForm.artType || null,
       size: editForm.size || null,
       year: editForm.year || null,
@@ -1320,6 +1338,55 @@ onMounted(() => {
     color: #909399;
     font-size: 12px;
     font-family: 'Consolas', 'Monaco', monospace;
+  }
+}
+
+/* 权重输入框样式 */
+.weight-input {
+  width: 58px;
+  
+  :deep(.el-input__wrapper) {
+    width: 58px;
+    height: 22px;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+    
+    .el-input__inner {
+      width: 58px;
+      height: 22px;
+      padding-left: 0;
+      padding-right: 0;
+      font-size: 12px;
+      line-height: 12px;
+      color: #606266;
+      text-align: center;
+    }
+  }
+  
+  :deep(.el-input-number__decrease),
+  :deep(.el-input-number__increase) {
+    width: 16px;
+    height: 22px;
+    line-height: 10px;
+    
+    [class*=el-icon] {
+      font-size: 10px;
+    }
+  }
+}
+
+/* 表格表头样式 */
+:deep(.el-table__header-wrapper) {
+  .el-table__header {
+    tr {
+      width: 1541px;
+      
+      th {
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+    }
   }
 }
 </style>

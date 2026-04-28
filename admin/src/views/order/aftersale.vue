@@ -129,7 +129,7 @@ const loadData = async () => {
     // 状态映射：前端 pending->待处理, approved->已通过, rejected->已拒绝
     // 后端参数：null=全部, 1=退款中, 2=已退款
     const statusMap = { pending: 1, approved: 2, rejected: null }
-    const data = await request.get('/admin/order/aftersale/list', { 
+    const data = await request.get('/order/aftersale/list', { 
       params: { page: pagination.page, size: pagination.size, status: statusMap[status.value] } 
     })
     
@@ -159,7 +159,7 @@ const handleApprove = async (row) => {
   try {
     await ElMessageBox.confirm('确定通过该售后申请吗？', '提示', { type: 'success' })
     // 调用后端API保存
-    await request.post('/admin/order/aftersale/handle', {
+    await request.post('/order/aftersale/handle', {
       id: row.id,
       status: 1,  // 1=已通过
       remark: '管理员通过'
@@ -178,7 +178,7 @@ const handleReject = async (row) => {
   try {
     await ElMessageBox.confirm('确定拒绝该售后申请吗？', '提示', { type: 'warning' })
     // 调用后端API保存
-    await request.post('/admin/order/aftersale/handle', {
+    await request.post('/order/aftersale/handle', {
       id: row.id,
       status: 2,  // 2=已拒绝
       remark: '管理员拒绝'

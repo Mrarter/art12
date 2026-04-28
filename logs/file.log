@@ -1,4 +1,4 @@
-2026-04-25T22:10:53.601+08:00  WARN 20567 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-04-27T22:38:22.920+08:00  WARN 90580 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -8,25 +8,39 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.1.5)
 
-2026-04-25T22:10:53.651+08:00  WARN 20567 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
-2026-04-25T22:10:53.665+08:00  INFO 20567 --- [           main] com.shiyiju.file.FileApplication         : Starting FileApplication using Java 17.0.19 with PID 20567 (/Users/master/CodeBuddy/art12/backend/shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12/backend)
-2026-04-25T22:10:53.665+08:00 DEBUG 20567 --- [           main] com.shiyiju.file.FileApplication         : Running with Spring Boot v3.1.5, Spring v6.0.13
-2026-04-25T22:10:53.665+08:00  INFO 20567 --- [           main] com.shiyiju.file.FileApplication         : The following 1 profile is active: "local"
-2026-04-25T22:10:54.116+08:00  INFO 20567 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-04-25T22:10:54.117+08:00  INFO 20567 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-04-25T22:10:54.127+08:00  INFO 20567 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 3 ms. Found 0 Redis repository interfaces.
-2026-04-25T22:10:54.228+08:00  INFO 20567 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=38397fa9-1309-3aaf-ba99-3352cfe2527d
-2026-04-25T22:10:54.509+08:00  INFO 20567 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8087 (http)
-2026-04-25T22:10:54.514+08:00  INFO 20567 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-25T22:10:54.515+08:00  INFO 20567 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
-2026-04-25T22:10:54.560+08:00  INFO 20567 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-25T22:10:54.561+08:00  INFO 20567 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 856 ms
+2026-04-27T22:38:23.249+08:00  WARN 90580 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-04-27T22:38:23.261+08:00  INFO 90580 --- [           main] com.shiyiju.file.FileApplication         : Starting FileApplication using Java 17.0.19 with PID 90580 (/Users/master/CodeBuddy/art12/backend/shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
+2026-04-27T22:38:23.261+08:00 DEBUG 90580 --- [           main] com.shiyiju.file.FileApplication         : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-04-27T22:38:23.262+08:00  INFO 90580 --- [           main] com.shiyiju.file.FileApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-04-27T22:38:24.590+08:00  INFO 90580 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-27T22:38:24.591+08:00  INFO 90580 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-27T22:38:24.603+08:00  INFO 90580 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 3 ms. Found 0 Redis repository interfaces.
+2026-04-27T22:38:25.087+08:00  INFO 90580 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=b1f2679f-71aa-3489-b24f-df5cae9e25ef
+2026-04-27T22:38:25.788+08:00  INFO 90580 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8087 (http)
+2026-04-27T22:38:25.797+08:00  INFO 90580 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-27T22:38:25.797+08:00  INFO 90580 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-04-27T22:38:25.948+08:00  INFO 90580 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-27T22:38:25.949+08:00  INFO 90580 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2637 ms
  _ _   |_  _ _|_. ___ _ |    _ 
 | | |\/|_)(_| | |_\  |_)||_|_\ 
      /               |         
                         3.5.8 
-2026-04-25T22:10:55.295+08:00  INFO 20567 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8087 (http) with context path ''
-2026-04-25T22:10:55.304+08:00  INFO 20567 --- [           main] com.shiyiju.file.FileApplication         : Started FileApplication in 1.931 seconds (process running for 2.269)
-2026-04-25T22:11:11.827+08:00  INFO 20567 --- [nio-8087-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-04-25T22:11:11.827+08:00  INFO 20567 --- [nio-8087-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-04-25T22:11:11.828+08:00  INFO 20567 --- [nio-8087-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-04-27T22:38:27.435+08:00  WARN 90580 --- [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-04-27T22:38:27.452+08:00  INFO 90580 --- [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-27T22:38:27.467+08:00  INFO 90580 --- [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-27T22:38:27.481+08:00 ERROR 90580 --- [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8087 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8087 or configure this application to listen on another port.
+

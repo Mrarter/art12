@@ -39,10 +39,10 @@
           <el-image :src="row.cover" style="width: 80px; height: 60px" fit="cover" />
         </template>
       </el-table-column>
-      <el-table-column label="时间" width="300">
+      <el-table-column label="时间" width="180">
         <template #default="{ row }">
-          <p>预展: {{ row.previewStart }} ~ {{ row.previewEnd }}</p>
-          <p>拍卖: {{ row.auctionStart }} ~ {{ row.auctionEnd }}</p>
+          <p>{{ row.auctionStart || row.startTime }}</p>
+          <p>至 {{ row.auctionEnd || row.endTime }}</p>
         </template>
       </el-table-column>
       <el-table-column label="状态" width="100">
@@ -246,11 +246,21 @@ const pagination = reactive({
 })
 
 const getStatusType = (status) => {
+  // 支持数值和字符串状态
+  if (typeof status === 'number') {
+    const map = { 1: 'primary', 2: 'success', 3: 'info' }
+    return map[status] || 'info'
+  }
   const map = { preview: 'primary', ongoing: 'success', ended: 'info' }
   return map[status] || 'info'
 }
 
 const getStatusText = (status) => {
+  // 支持数值和字符串状态
+  if (typeof status === 'number') {
+    const map = { 1: '预展中', 2: '拍卖中', 3: '已结束' }
+    return map[status] || status
+  }
   const map = { preview: '预展中', ongoing: '进行中', ended: '已结束' }
   return map[status] || status
 }
@@ -273,8 +283,22 @@ const loadData = async () => {
     const params = { page: pagination.page, size: pagination.size }
     if (searchForm.name) params.name = searchForm.name
     if (searchForm.status) params.status = searchForm.status
-    const data = await request.get('/auction/session/list', { params })
-    tableData.value = data.records || data.list || []
+    const data = await request.get('/auction/sessions', { params })
+    
+    // 映射API字段到前端期望的字段
+    tableData.value = (data.records || data.list || []).map(item => ({
+      sessionId: item.id,
+      sessionCode: item.sessionCode || `SES${String(item.id).padStart(10, '0')}`,
+      name: item.title || item.name,
+      cover: item.cover || item.coverImage,
+      previewStart: item.previewStart || item.startTime,
+      previewEnd: item.previewEnd || item.endTime,
+      auctionStart: item.auctionStart || item.startTime,
+      auctionEnd: item.auctionEnd || item.endTime,
+      status: item.statusText?.toLowerCase() || (item.status === 1 ? 'preview' : item.status === 2 ? 'ongoing' : 'ended'),
+      totalAmount: item.totalAmount || 0,
+      totalLots: item.totalLots || item.lotCount || 0
+    }))
     pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [

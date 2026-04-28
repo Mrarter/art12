@@ -74,4 +74,18 @@ public class ProductAdminController {
         Long artworkId = productAdminPersistenceService.createArtwork(params);
         return Result.success(artworkId);
     }
+
+    /**
+     * 作品列表 - /admin/product/list
+     */
+    @GetMapping("/list")
+    public Result<Map<String, Object>> getList(
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) Long categoryId,
+        @RequestParam(required = false) String status,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        return Result.success(productAdminPersistenceService.listProducts(keyword, categoryId, status, page, size));
+    }
 }

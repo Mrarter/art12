@@ -1,0 +1,31 @@
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+2026-04-27T22:38:22.545+08:00  WARN 90579 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.5)
+
+2026-04-27T22:38:22.695+08:00  WARN 90579 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-04-27T22:38:22.704+08:00  INFO 90579 --- [           main] c.s.community.CommunityApplication       : Starting CommunityApplication using Java 17.0.19 with PID 90579 (/Users/master/CodeBuddy/art12/backend/shiyiju-community/target/shiyiju-community-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
+2026-04-27T22:38:22.746+08:00 DEBUG 90579 --- [           main] c.s.community.CommunityApplication       : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-04-27T22:38:22.759+08:00  INFO 90579 --- [           main] c.s.community.CommunityApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-04-27T22:38:24.201+08:00  INFO 90579 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-27T22:38:24.205+08:00  INFO 90579 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-27T22:38:24.229+08:00  INFO 90579 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 10 ms. Found 0 Redis repository interfaces.
+2026-04-27T22:38:24.646+08:00  INFO 90579 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=1e0861da-a567-30dc-823f-4314f763987b
+2026-04-27T22:38:25.264+08:00  INFO 90579 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8086 (http)
+2026-04-27T22:38:25.270+08:00  INFO 90579 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-27T22:38:25.270+08:00  INFO 90579 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-04-27T22:38:25.351+08:00  INFO 90579 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-27T22:38:25.352+08:00  INFO 90579 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2512 ms
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        3.5.8 
+2026-04-27T22:38:27.298+08:00  INFO 90579 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8086 (http) with context path ''
+2026-04-27T22:38:27.311+08:00  INFO 90579 --- [           main] c.s.community.CommunityApplication       : Started CommunityApplication in 5.567 seconds (process running for 6.298)

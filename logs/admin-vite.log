@@ -1,0 +1,44 @@
+
+> shiyiju-admin@1.0.0 dev
+> vite --host 0.0.0.0 --port 5174
+
+
+  VITE v4.5.14  ready in 293 ms
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: http://192.168.1.176:5174/
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+(node:94007) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+8:13:34 AM [vite] hmr update /src/views/product/list.vue
+8:13:34 AM [vite] ✨ new dependencies optimized: element-plus/es/components/option-group/style/css
+8:13:34 AM [vite] ✨ optimized dependencies changed. reloading
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+8:13:42 AM [vite] hmr update /src/views/product/list.vue
+8:13:50 AM [vite] hmr update /src/views/product/list.vue
+8:13:59 AM [vite] hmr update /src/views/product/list.vue
+8:14:05 AM [vite] hmr update /src/views/product/list.vue
+8:52:56 PM [vite] hmr update /src/views/product/list.vue
+8:53:19 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+8:55:10 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+9:03:45 PM [vite] hmr update /src/views/product/list.vue
+9:04:05 PM [vite] hmr update /src/views/product/list.vue
+9:04:53 PM [vite] hmr update /src/views/product/list.vue
+9:05:07 PM [vite] hmr update /src/views/product/list.vue
+9:05:17 PM [vite] hmr update /src/views/product/list.vue
+9:05:27 PM [vite] hmr update /src/views/product/list.vue
+9:14:43 PM [vite] page reload dist/index.html

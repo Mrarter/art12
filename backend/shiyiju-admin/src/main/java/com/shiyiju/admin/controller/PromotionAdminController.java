@@ -94,4 +94,59 @@ public class PromotionAdminController {
         List<Map<String, Object>> teams = promotionService.getTopTeams(limit);
         return Result.success(teams);
     }
+
+    /**
+     * 提现申请列表
+     */
+    @GetMapping("/withdraw/list")
+    public Result<Map<String, Object>> getWithdrawList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer status) {
+        com.shiyiju.common.result.PageResult<Map<String, Object>> result = promotionService.getWithdraws(page, size, status);
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("list", result.getRecords());
+        response.put("total", result.getTotal());
+        response.put("page", page);
+        response.put("size", size);
+        return Result.success(response);
+    }
+
+    /**
+     * 处理提现申请
+     */
+    @PostMapping("/withdraw/approve")
+    public Result<Void> approveWithdraw(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        promotionService.handleWithdraw(id, 1, "管理员通过", 1L, "admin");
+        return Result.success();
+    }
+
+    /**
+     * 拒绝提现申请
+     */
+    @PostMapping("/withdraw/reject")
+    public Result<Void> rejectWithdraw(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        String reason = params.get("reason") != null ? params.get("reason").toString() : "管理员拒绝";
+        promotionService.handleWithdraw(id, 2, reason, 1L, "admin");
+        return Result.success();
+    }
+
+    /**
+     * 佣金记录列表
+     */
+    @GetMapping("/commission/list")
+    public Result<Map<String, Object>> getCommissionList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long userId) {
+        com.shiyiju.common.result.PageResult<Map<String, Object>> result = promotionService.getCommissions(page, size, userId);
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("list", result.getRecords());
+        response.put("total", result.getTotal());
+        response.put("page", page);
+        response.put("size", size);
+        return Result.success(response);
+    }
 }

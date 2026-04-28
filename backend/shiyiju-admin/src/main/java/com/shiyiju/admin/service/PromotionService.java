@@ -21,6 +21,18 @@ public class PromotionService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * 检查表是否存在
+     */
+    private boolean tableExists(String tableName) {
+        try {
+            jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + tableName + " LIMIT 1", Long.class);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // ==================== 分销配置 ====================
 
     public Map<String, Object> getConfig() {
@@ -121,19 +133,38 @@ public class PromotionService {
     // ==================== 佣金管理 ====================
 
     public PageResult<Map<String, Object>> getCommissions(int page, int size) {
-        Long total = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM commission_log", Long.class);
+        return getCommissions(page, size, null);
+    }
+
+    public PageResult<Map<String, Object>> getCommissions(int page, int size, Long userId) {
+        // 检查表是否存在
+        if (!tableExists("commission_log")) {
+            PageResult<Map<String, Object>> result = new PageResult<>();
+            result.setRecords(new ArrayList<>());
+            result.setTotal(0L);
+            return result;
+        }
 
         List<Object> args = new ArrayList<>();
-        args.add((page - 1) * size);
-        args.add(size);
-        
+        StringBuilder where = new StringBuilder();
+        if (userId != null) {
+            where.append(" WHERE promoter_id = ?");
+            args.add(userId);
+        }
+
+        Long total = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM commission_log" + where, Long.class, args.toArray());
+
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
             SELECT id, promoter_id, order_id, order_no, commission_amount, level,
                    status, settle_time, create_time
-            FROM commission_log ORDER BY create_time DESC LIMIT ?, ?
-            """, args.toArray()
+            FROM commission_log""" + where + " ORDER BY create_time DESC LIMIT ?, ?",
+            queryArgs.toArray()
         );
 
         List<Map<String, Object>> records = new ArrayList<>();
@@ -166,9 +197,17 @@ public class PromotionService {
     // ==================== 提现管理 ====================
 
     public PageResult<Map<String, Object>> getWithdraws(int page, int size, Integer status) {
+        // 检查表是否存在
+        if (!tableExists("withdraw_record")) {
+            PageResult<Map<String, Object>> result = new PageResult<>();
+            result.setRecords(new ArrayList<>());
+            result.setTotal(0L);
+            return result;
+        }
+
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         List<Object> args = new ArrayList<>();
-        
+
         if (status != null) {
             where.append(" AND status = ?");
             args.add(status);

@@ -56,6 +56,11 @@
         <text class="arrow-up">↑</text>
         <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
       </view>
+      
+      <view class="price-forecast" v-if="expectedRise > 0">
+        <text class="forecast-label">预计明日:</text>
+        <text class="forecast-value">+{{ (expectedRise * 100).toFixed(2) }}%</text>
+      </view>
     </view>
     
     <!-- 基本信息 -->

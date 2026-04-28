@@ -1,0 +1,305 @@
+# Mac Mini 本地部署 - Docker Compose
+# 简化版，专为本地开发/测试优化
+
+version: '3.8'
+
+services:
+  # ==================== 基础设施 ====================
+  
+  mysql:
+    image: mysql:8.0
+    container_name: shiyiju-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: shiyiju
+      MYSQL_USER: shiyiju
+      MYSQL_PASSWORD: shiyiju123
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --max-connections=500
+      - --innodb-buffer-pool-size=256M
+    networks:
+      - shiyiju-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: shiyiju-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - shiyiju-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ==================== 后端微服务 ====================
+
+  gateway:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  user:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-user
+    restart: unless-stopped
+    expose:
+      - "8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  product:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-product
+    restart: unless-stopped
+    expose:
+      - "8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  order:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-order
+    restart: unless-stopped
+    expose:
+      - "8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  auction:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-auction
+    restart: unless-stopped
+    expose:
+      - "8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  promotion:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-promotion
+    restart: unless-stopped
+    expose:
+      - "8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  community:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-community
+    restart: unless-stopped
+    expose:
+      - "8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  file:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-file
+    restart: unless-stopped
+    expose:
+      - "8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  message:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-message
+    restart: unless-stopped
+    expose:
+      - "8088"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  admin:
+    build:
+      context: ../../backend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-admin
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: shiyiju
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - shiyiju-net
+
+  # ==================== 前端服务 ====================
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    networks:
+      - shiyiju-net
+
+  admin-frontend:
+    build:
+      context: ../../admin
+      dockerfile: deploy/docker/Dockerfile
+    container_name: shiyiju-admin-frontend
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+    networks:
+      - shiyiju-net
+
+# ==================== 网络与存储 ====================
+
+networks:
+  shiyiju-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:

@@ -10,7 +10,7 @@ import java.util.*;
  * 管理员 - 系统配置控制器
  */
 @RestController
-@RequestMapping("/admin/config")
+@RequestMapping({"/admin/config", "/api/admin/config"})
 public class SystemConfigController {
 
     private final SystemConfigPersistenceService systemConfigPersistenceService;
