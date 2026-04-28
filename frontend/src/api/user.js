@@ -1,9 +1,9 @@
 import request from './request'
 
-// 用户登录
+// 用户登录 (使用微信登录接口)
 export const login = (data) => {
   return request({
-    url: '/user/login',
+    url: '/user/auth/wx-login',
     method: 'POST',
     data
   })

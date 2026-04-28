@@ -122,6 +122,71 @@ public class UserAdminPersistenceService {
         return PageResult.of(total == null ? 0L : total, page, size, records);
     }
 
+    /**
+     * 获取艺术家用户列表（users表 - 作品作者）
+     */
+    public PageResult<Map<String, Object>> listArtistUsers(int page, int size, String keyword, String status) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        
+        // 关联作品表查询作品数量
+        String artworkJoin = "";
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND (u.nickname LIKE ? OR u.uid LIKE ?)");
+            args.add("%" + keyword.trim() + "%");
+            args.add("%" + keyword.trim() + "%");
+        }
+        
+        // 统计
+        String countSql = "SELECT COUNT(*) FROM users u" + where;
+        Long total = jdbcTemplate.queryForObject(countSql, Long.class, args.toArray());
+        
+        // 分页查询
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+        
+        String sql = """
+            SELECT u.id, u.uid, u.nickname, u.phone, u.avatar, 
+                   COALESCE(art.artwork_count, 0) AS artwork_count,
+                   COALESCE(art.total_views, 0) AS total_views,
+                   COALESCE(art.total_favorites, 0) AS total_favorites,
+                   COALESCE(u.register_time, u.create_time) AS register_time
+            FROM users u
+            LEFT JOIN (
+                SELECT author_id, 
+                       COUNT(*) AS artwork_count,
+                       COALESCE(SUM(view_count), 0) AS total_views,
+                       COALESCE(SUM(favorite_count), 0) AS total_favorites
+                FROM artwork
+                GROUP BY author_id
+            ) art ON u.id = art.author_id
+            """ + where + " ORDER BY u.id DESC LIMIT ?, ?";
+        
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, queryArgs.toArray());
+        
+        List<Map<String, Object>> records = rows.stream().map(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("userId", row.get("id"));
+            record.put("uid", row.get("uid"));
+            record.put("nickname", row.get("nickname"));
+            record.put("phone", row.get("phone"));
+            record.put("avatar", row.get("avatar"));
+            record.put("artworkCount", row.get("artwork_count"));
+            record.put("totalViews", row.get("total_views"));
+            record.put("totalFavorites", row.get("total_favorites"));
+            // 优先使用 register_time，没有则使用 create_time
+            Object regTime = row.get("register_time");
+            if (regTime == null) {
+                regTime = row.get("create_time");
+            }
+            record.put("registerTime", regTime);
+            return record;
+        }).collect(Collectors.toList());
+        
+        return PageResult.of(total == null ? 0L : total, page, size, records);
+    }
+
     public Map<String, Object> getUserStats() {
         String userTable = userTable();
         String identityColumn = identityColumn(userTable);

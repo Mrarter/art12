@@ -7,34 +7,32 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.1.5)
 
-2026-04-27T16:26:52.875+08:00  INFO 40732 --- [           main] com.shiyiju.admin.AdminApplication       : Starting AdminApplication using Java 17.0.19 with PID 40732 (/Users/master/CodeBuddy/art12/backend/shiyiju-admin/target/shiyiju-admin-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
-2026-04-27T16:26:52.876+08:00  INFO 40732 --- [           main] com.shiyiju.admin.AdminApplication       : No active profile set, falling back to 1 default profile: "default"
-2026-04-27T16:26:53.170+08:00  INFO 40732 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-04-27T16:26:53.171+08:00  INFO 40732 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-04-27T16:26:53.181+08:00  INFO 40732 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
-2026-04-27T16:26:53.418+08:00  INFO 40732 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8090 (http)
-2026-04-27T16:26:53.423+08:00  INFO 40732 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-27T16:26:53.423+08:00  INFO 40732 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
-2026-04-27T16:26:53.459+08:00  INFO 40732 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-27T16:26:53.459+08:00  INFO 40732 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 564 ms
+2026-04-29T07:03:46.462+08:00  INFO 88046 --- [           main] com.shiyiju.admin.AdminApplication       : Starting AdminApplication using Java 17.0.19 with PID 88046 (/Users/master/CodeBuddy/art12/backend/deploy-admin/shiyiju-admin/shiyiju-admin-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12/backend/deploy-admin/shiyiju-admin)
+2026-04-29T07:03:46.463+08:00  INFO 88046 --- [           main] com.shiyiju.admin.AdminApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-04-29T07:03:46.733+08:00  INFO 88046 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-29T07:03:46.734+08:00  INFO 88046 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-29T07:03:46.745+08:00  INFO 88046 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 6 ms. Found 0 Redis repository interfaces.
+2026-04-29T07:03:46.992+08:00  INFO 88046 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8090 (http)
+2026-04-29T07:03:46.996+08:00  INFO 88046 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-29T07:03:46.996+08:00  INFO 88046 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-04-29T07:03:47.025+08:00  INFO 88046 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-29T07:03:47.025+08:00  INFO 88046 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 544 ms
 Logging initialized using 'class org.apache.ibatis.logging.stdout.StdOutImpl' adapter.
 Get /192.168.1.176 network interface 
 Get network interface info: name:en1 (en1)
-Initialization Sequence datacenterId:13 workerId:24
+Initialization Sequence datacenterId:13 workerId:16
  _ _   |_  _ _|_. ___ _ |    _ 
 | | |\/|_)(_| | |_\  |_)||_|_\ 
      /               |         
                         3.5.8 
-2026-04-27T16:26:53.666+08:00  INFO 40732 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-04-27T16:26:53.735+08:00  INFO 40732 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@2f6bbeb0
-2026-04-27T16:26:53.736+08:00  INFO 40732 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-04-27T16:26:54.159+08:00 ERROR 40732 --- [           main] c.b.m.core.MybatisConfiguration          : mapper[com.shiyiju.admin.mapper.PromoterRecordMapper.countByLevel] is ignored, because it exists, maybe from xml file
-2026-04-27T16:26:54.234+08:00  INFO 40732 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8090 (http) with context path ''
-2026-04-27T16:26:54.238+08:00  INFO 40732 --- [           main] com.shiyiju.admin.AdminApplication       : Started AdminApplication in 1.506 seconds (process running for 1.684)
-2026-04-27T16:27:04.598+08:00  INFO 40732 --- [nio-8090-exec-3] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-04-27T16:27:04.599+08:00  INFO 40732 --- [nio-8090-exec-3] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-04-27T16:27:04.599+08:00  INFO 40732 --- [nio-8090-exec-3] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
-2026-04-27T16:27:04.612+08:00  WARN 40732 --- [nio-8090-exec-3] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.AuctionAdminController
-2026-04-27T16:27:11.673+08:00  INFO 40732 --- [nio-8090-exec-2] c.s.a.controller.AuctionAdminController  : 创建专场成功: 测试专场
-2026-04-27T16:33:37.092+08:00  INFO 40732 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-04-27T16:33:37.096+08:00  INFO 40732 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-29T07:03:47.224+08:00  INFO 88046 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-29T07:03:47.286+08:00  INFO 88046 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@73386d72
+2026-04-29T07:03:47.287+08:00  INFO 88046 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-29T07:03:47.485+08:00  INFO 88046 --- [           main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
+2026-04-29T07:03:47.624+08:00 ERROR 88046 --- [           main] c.b.m.core.MybatisConfiguration          : mapper[com.shiyiju.admin.mapper.PromoterRecordMapper.countByLevel] is ignored, because it exists, maybe from xml file
+2026-04-29T07:03:47.680+08:00  INFO 88046 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8090 (http) with context path ''
+2026-04-29T07:03:47.684+08:00  INFO 88046 --- [           main] com.shiyiju.admin.AdminApplication       : Started AdminApplication in 1.374 seconds (process running for 1.565)
+2026-04-29T07:03:52.163+08:00  INFO 88046 --- [nio-8090-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-29T07:03:52.163+08:00  INFO 88046 --- [nio-8090-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-29T07:03:52.164+08:00  INFO 88046 --- [nio-8090-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-04-29T07:03:52.176+08:00  WARN 88046 --- [nio-8090-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.UserManagementController

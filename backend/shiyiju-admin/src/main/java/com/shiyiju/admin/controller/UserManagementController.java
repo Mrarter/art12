@@ -44,6 +44,19 @@ public class UserManagementController {
         ));
     }
 
+    /**
+     * 获取艺术家用户列表（users表 - 作品作者）
+     */
+    @GetMapping("/artistUsers")
+    public Result<PageResult<Map<String, Object>>> getArtistUsersList(
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) String status
+    ) {
+        return Result.success(userAdminPersistenceService.listArtistUsers(page, size, keyword, status));
+    }
+
     @GetMapping("/stats")
     public Result<Map<String, Object>> getUserStats() {
         return Result.success(userAdminPersistenceService.getUserStats());

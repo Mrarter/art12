@@ -14,8 +14,20 @@
       </div>
     </div>
 
+    <!-- 用户类型切换 -->
+    <div class="user-type-tabs">
+      <el-radio-group v-model="userType" @change="handleUserTypeChange">
+        <el-radio-button label="miniapp">
+          小程序用户
+        </el-radio-button>
+        <el-radio-button label="artist">
+          艺术家用户
+        </el-radio-button>
+      </el-radio-group>
+    </div>
+
     <!-- 筛选表单 -->
-    <div class="search-form">
+    <div class="search-form" v-if="userType === 'miniapp'">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="用户ID">
           <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
@@ -46,6 +58,19 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <!-- 艺术家用户筛选表单 -->
+    <div class="search-form" v-else>
+      <el-form :inline="true" :model="artistSearchForm">
+        <el-form-item label="关键词">
+          <el-input v-model="artistSearchForm.keyword" placeholder="昵称/UID" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleArtistSearch">搜索</el-button>
+          <el-button @click="resetArtistSearch">重置</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -105,7 +130,7 @@
           </p>
         </template>
       </el-table-column>
-      <el-table-column label="身份" width="140">
+      <el-table-column label="身份" width="140" v-if="userType === 'miniapp'">
         <template #default="{ row }">
           <div class="identity-tags">
             <el-tag v-if="row.isArtist" type="success" size="small">艺术家</el-tag>
@@ -114,13 +139,26 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="资产" width="140">
+      <!-- 艺术家用户模式：显示作品统计 -->
+      <el-table-column label="作品统计" width="150" v-if="userType === 'artist'">
+        <template #default="{ row }">
+          <p class="artwork-stat">
+            <el-icon><Collection /></el-icon>
+            作品 {{ row.artworkCount || 0 }}
+          </p>
+          <p class="view-stat">
+            <el-icon><View /></el-icon>
+            浏览 {{ row.totalViews || 0 }}
+          </p>
+        </template>
+      </el-table-column>
+      <el-table-column label="资产" width="140" v-if="userType === 'miniapp'">
         <template #default="{ row }">
           <p class="balance">¥{{ row.balance || 0 }}</p>
           <p class="coupon" v-if="row.couponCount">优惠券 {{ row.couponCount }} 张</p>
         </template>
       </el-table-column>
-      <el-table-column label="消费" width="120">
+      <el-table-column label="消费" width="120" v-if="userType === 'miniapp'">
         <template #default="{ row }">
           <p class="consume">¥{{ row.totalConsume || 0 }}</p>
           <p class="order-count">{{ row.orderCount || 0 }} 笔订单</p>
@@ -466,7 +504,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Plus, Phone, Message, DocumentCopy, Check } from '@element-plus/icons-vue'
+import { Download, Plus, Phone, Message, DocumentCopy, Check, Collection, View } from '@element-plus/icons-vue'
 import request, { getFullImageUrl as getUrl, uploadFile } from '@/api/request'
 import { requestApi } from '@/api/request'
 import { copyId } from '@/utils/id'
@@ -572,6 +610,13 @@ const pagination = reactive({
   total: 0
 })
 
+// 用户类型切换：miniapp=小程序用户，artist=艺术家用户
+const userType = ref('miniapp')
+
+const artistSearchForm = reactive({
+  keyword: ''
+})
+
 const getSourceText = (source) => {
   const map = { wechat: '微信', app: 'APP', web: '网页', other: '其他' }
   return map[source] || source
@@ -655,6 +700,58 @@ const handleSearch = () => {
 const resetSearch = () => {
   Object.assign(searchForm, { userId: '', nickname: '', phone: '', identity: '', dateRange: [] })
   handleSearch()
+}
+
+// 用户类型切换
+const handleUserTypeChange = (type) => {
+  pagination.page = 1
+  if (type === 'miniapp') {
+    loadData()
+  } else {
+    loadArtistUsers()
+  }
+}
+
+// 加载艺术家用户
+const loadArtistUsers = async () => {
+  loading.value = true
+  try {
+    const params = {
+      page: pagination.page,
+      size: pagination.size,
+      keyword: artistSearchForm.keyword || undefined
+    }
+    const res = await request.get('/user/artistUsers', { params })
+    tableData.value = (res.records || []).map(item => ({
+      userId: item.userId,
+      uid: item.uid,
+      nickname: decodeURIComponent(item.nickname || ''),
+      phone: item.phone,
+      avatar: item.avatar,
+      artworkCount: item.artworkCount || 0,
+      totalViews: item.totalViews || 0,
+      totalFavorites: item.totalFavorites || 0,
+      registerTime: item.registerTime
+    }))
+    pagination.total = res.total || 0
+    stats.total = res.total || 0
+  } catch (e) {
+    console.error('加载艺术家用户失败:', e)
+    ElMessage.error('加载艺术家用户失败')
+    tableData.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleArtistSearch = () => {
+  pagination.page = 1
+  loadArtistUsers()
+}
+
+const resetArtistSearch = () => {
+  artistSearchForm.keyword = ''
+  handleArtistSearch()
 }
 
 const exportData = () => {
