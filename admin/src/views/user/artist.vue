@@ -1557,7 +1557,7 @@ const handleBatchDelete = async () => {
     
     batchLoading.value = true
     const ids = selectedRows.value.map(row => row.id)
-    await request.post('/artist/batchDelete', {
+    await request.post('/user/artist/batchDelete', {
       ids
     })
     ElMessage.success('批量删除成功')
