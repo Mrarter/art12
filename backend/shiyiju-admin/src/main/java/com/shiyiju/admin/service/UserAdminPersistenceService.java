@@ -717,15 +717,44 @@ public class UserAdminPersistenceService {
         String artistTable = artistTable();
         String userTable = userTable();
         Long userId = jdbcTemplate.queryForObject("SELECT user_id FROM " + artistTable + " WHERE id = ?", Long.class, id);
-        jdbcTemplate.update(
-            "UPDATE " + artistTable + " SET " + artistStatusColumn(artistTable) + " = 1, " +
-                rejectReasonAssignment(artistTable) + ", " + reviewTimeAssignment(artistTable) + ", " +
-                updateTimeAssignment(artistTable) + " WHERE id = ?",
-            null,
-            LocalDateTime.now(),
-            LocalDateTime.now(),
-            id
-        );
+        
+        // 构建SET子句，只包含实际存在的列
+        List<String> setClauses = new ArrayList<>();
+        List<Object> params = new ArrayList<>();
+        
+        // 设置认证状态为已通过
+        String statusCol = artistStatusColumn(artistTable);
+        if (!"NULL".equals(statusCol)) {
+            setClauses.add(statusCol + " = 1");
+        }
+        
+        // 拒绝原因（清空）
+        String rejectCol = rejectReasonAssignment(artistTable);
+        if (!rejectCol.isEmpty()) {
+            setClauses.add(rejectCol);
+            params.add(null);
+        }
+        
+        // 审核时间
+        String reviewCol = reviewTimeAssignment(artistTable);
+        if (!reviewCol.isEmpty()) {
+            setClauses.add(reviewCol);
+            params.add(LocalDateTime.now());
+        }
+        
+        // 更新时间
+        String updateCol = updateTimeAssignment(artistTable);
+        if (!updateCol.isEmpty()) {
+            setClauses.add(updateCol);
+            params.add(LocalDateTime.now());
+        }
+        
+        if (!setClauses.isEmpty()) {
+            String sql = "UPDATE " + artistTable + " SET " + String.join(", ", setClauses) + " WHERE id = ?";
+            params.add(id);
+            jdbcTemplate.update(sql, params.toArray());
+        }
+        
         appendIdentity(userId, "artist");
         if (schemaInspector.hasColumn(userTable, "artist_level")) {
             jdbcTemplate.update(
@@ -2479,11 +2508,12 @@ public class UserAdminPersistenceService {
 
     private String rejectReasonAssignment(String tableName) {
         String column = rejectReasonColumn(tableName);
-        return column + " = ?";
+        return "NULL".equals(column) ? "" : column + " = ?";
     }
 
     private String reviewTimeAssignment(String tableName) {
-        return reviewTimeColumn(tableName) + " = ?";
+        String column = reviewTimeColumn(tableName);
+        return "NULL".equals(column) ? "" : column + " = ?";
     }
 
     private String updateTimeAssignment(String tableName) {
