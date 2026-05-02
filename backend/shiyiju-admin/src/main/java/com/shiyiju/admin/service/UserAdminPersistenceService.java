@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -589,20 +590,19 @@ public class UserAdminPersistenceService {
             args.add(endDate.trim() + " 23:59:59");
         }
 
-        Long total = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + artistTable + " a" + where,
-            Long.class,
-            args.toArray()
-        );
+        // user_uid 关联 user_account.uid，user_id (数字) 关联 user_account.id（需要提前定义供COUNT查询使用）
+        String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
+            ? "((a.user_uid IS NOT NULL AND a.user_uid = u.uid) OR (a.user_uid IS NULL AND a.user_id = u.id))"
+            : "a.user_id = u.id";
+        
+        // COUNT查询需要同样的表连接
+        String countSql = "SELECT COUNT(*) FROM " + artistTable + " a LEFT JOIN " + userTable + " u ON " + userJoinCondition + where;
+        Long total = jdbcTemplate.queryForObject(countSql, Long.class, args.toArray());
 
         List<Object> queryArgs = new ArrayList<>(args);
         queryArgs.add((page - 1) * size);
         queryArgs.add(size);
         
-        // user_uid 关联 user_account.uid，user_id (数字) 关联 user_account.id
-        String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
-            ? "((a.user_uid IS NOT NULL AND a.user_uid = u.uid) OR (a.user_uid IS NULL AND a.user_id = u.id))"
-            : "a.user_id = u.id";
         // 显示字段：优先用 user_uid (字符串格式)，否则用 user_account.uid/user_uid/id 兜底
         String userIdField = schemaInspector.hasColumn(artistTable, "user_uid") 
             ? "COALESCE(a.user_uid, u.uid, u.user_uid, CAST(u.id AS CHAR))" : "u.uid";
@@ -2001,7 +2001,8 @@ public class UserAdminPersistenceService {
         } else if ("user_account".equals(userTable)) {
             // user_account 表：生成 user_uid 和 user_no，nickname 限制100字符
             String userUid = generateUserUid();
-            String userNo = "U" + System.currentTimeMillis();
+            // 添加4位随机后缀避免时间戳冲突
+            String userNo = "U" + System.currentTimeMillis() + String.format("%04d", new Random().nextInt(10000));
             String avatarColumn = avatarColumn(userTable);
             String safeNickname = nickname.length() > 100 ? nickname.substring(0, 100) : nickname;
             jdbcTemplate.update("""
