@@ -657,12 +657,18 @@ public class UserAdminPersistenceService {
 
         // 动态排序
         String orderBy = buildArtistOrderBy(sortField, sortOrder, timeCol);
-        queryArgs.add((page - 1) * size);
-        queryArgs.add(size);
+        
+        // 构建最终SQL（where条件已经在sql中）
+        String finalSql = sql + orderBy + " LIMIT ?, ?";
+        
+        // 添加分页参数
+        List<Object> finalArgs = new ArrayList<>(args);
+        finalArgs.add((page - 1) * size);
+        finalArgs.add(size);
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            sql + orderBy + " LIMIT ?, ?",
-            queryArgs.toArray()
+            finalSql,
+            finalArgs.toArray()
         );
 
         Long pendingCount = countArtistByStatus(0);
@@ -1126,12 +1132,16 @@ public class UserAdminPersistenceService {
 
         // 动态排序
         String promoterOrderBy = buildPromoterOrderBy(sortField, sortOrder, signTimeCol);
-        queryArgs.add((page - 1) * size);
-        queryArgs.add(size);
+        
+        // 构建最终SQL和参数（避免重复添加分页参数）
+        String finalSql = sql + promoterOrderBy + " LIMIT ?, ?";
+        List<Object> finalArgs = new ArrayList<>(args);
+        finalArgs.add((page - 1) * size);
+        finalArgs.add(size);
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            sql + promoterOrderBy + " LIMIT ?, ?",
-            queryArgs.toArray()
+            finalSql,
+            finalArgs.toArray()
         );
 
         List<Map<String, Object>> list = rows.stream()

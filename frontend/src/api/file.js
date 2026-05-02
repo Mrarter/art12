@@ -3,15 +3,60 @@
  */
 import request from './request'
 
-// API 地址 - 使用环境变量或默认值
-const BASE_URL = 'http://127.0.0.1:8080/api'
+const DEV_LAN_HOST = '192.168.1.109'
+const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
+  ? `http://${DEV_LAN_HOST}:8080`
+  : 'http://127.0.0.1:8080'
+const BASE_URL = API_ORIGIN + '/api'
 const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
-const FILE_BASE_URL = 'http://127.0.0.1:8087'
+const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
+  ? `http://${DEV_LAN_HOST}:8087`
+  : 'http://127.0.0.1:8087'
 
 const normalizeFileUrl = (url) => {
   return typeof url === 'string' && url.startsWith(LOCAL_FILE_ORIGIN)
     ? FILE_BASE_URL + url.slice(LOCAL_FILE_ORIGIN.length)
     : url
+}
+
+const parseUploadResponse = (responseText) => {
+  const data = typeof responseText === 'string' ? JSON.parse(responseText) : responseText
+  if (data.code === 200 && data.data) {
+    return normalizeFileUrl(data.data.url || data.data)
+  }
+  throw new Error(data.message || '上传失败')
+}
+
+const uploadFileByXHR = async (filePath, type, token) => {
+  const blob = await fetch(filePath).then(res => {
+    if (!res.ok) throw new Error('读取图片失败')
+    return res.blob()
+  })
+  const filename = `artwork-${Date.now()}.${(blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')}`
+  const formData = new FormData()
+  formData.append('file', blob, filename)
+  formData.append('type', type)
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', BASE_URL + '/product/upload')
+    if (token) {
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+    }
+    xhr.onload = () => {
+      try {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(parseUploadResponse(xhr.responseText))
+        } else {
+          reject(new Error(`上传失败: HTTP ${xhr.status}`))
+        }
+      } catch (e) {
+        reject(e)
+      }
+    }
+    xhr.onerror = () => reject(new Error('上传失败: 网络错误'))
+    xhr.send(formData)
+  })
 }
 
 /**
@@ -23,9 +68,21 @@ const normalizeFileUrl = (url) => {
 export const uploadFile = (filePath, type = 'image') => {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token')
+
+    // H5 选择图片得到的是 blob: 临时地址，uni.uploadFile 在该环境下容易直接 fail。
+    if (process.env.UNI_PLATFORM === 'h5') {
+      uploadFileByXHR(filePath, type, token)
+        .then(resolve)
+        .catch((err) => {
+          console.error('上传失败:', err)
+          uni.showToast({ title: err.message || '上传失败', icon: 'none' })
+          reject(err)
+        })
+      return
+    }
     
     uni.uploadFile({
-      url: BASE_URL + '/file/upload',
+      url: BASE_URL + '/product/upload',
       filePath: filePath,
       name: 'file',
       header: {
@@ -36,14 +93,9 @@ export const uploadFile = (filePath, type = 'image') => {
       },
       success: (res) => {
         try {
-          const data = JSON.parse(res.data)
-          if (data.code === 200 && data.data) {
-            resolve(normalizeFileUrl(data.data))
-          } else {
-            uni.showToast({ title: '上传失败', icon: 'none' })
-            reject(new Error('上传失败'))
-          }
+          resolve(parseUploadResponse(res.data))
         } catch (e) {
+          uni.showToast({ title: e.message || '上传失败', icon: 'none' })
           reject(e)
         }
       },

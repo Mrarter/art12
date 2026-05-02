@@ -38,7 +38,7 @@ logging:
 upload:
   local:
     path: /Users/master/CodeBuddy/art12/uploads
-  cdn-url: http://localhost:8087
+  cdn-url: http://192.168.1.109:8087
 
 # 七牛云配置（已弃用，保留占位符避免编译错误）
 qiniu:

@@ -201,8 +201,9 @@
 </template>
 
 <script>
-import { publishArtwork, updateArtwork } from '@/api/product.js'
+import { getArtworkDetail, getCategories, publishArtwork, updateArtwork } from '@/api/product.js'
 import { searchArtists, findOrCreateArtist } from '@/api/user.js'
+import { uploadFile } from '@/api/file.js'
 
 export default {
   data() {
@@ -214,6 +215,7 @@ export default {
         title: '',
         authorId: null,
         authorName: '',
+        categoryId: null,
         year: '',
         width: '',
         height: '',
@@ -240,17 +242,8 @@ export default {
         { label: '1980年代', value: 1980 },
         { label: '更早', value: 1900 }
       ],
-      materialRange: ['国画', '油画', '版画', '雕塑', '书法', '水彩', '丙烯', '综合材料', '摄影', '其他'],
-      categoryRange: [
-        { label: '山水', value: 'landscape' },
-        { label: '人物', value: 'figure' },
-        { label: '花鸟', value: 'flower' },
-        { label: '静物', value: 'still' },
-        { label: '抽象', value: 'abstract' },
-        { label: '写实', value: 'realistic' },
-        { label: '风景', value: 'scenery' },
-        { label: '其他', value: 'other' }
-      ]
+      materialRange: ['布面油画', '纸本水墨', '宣纸', '绢本', '木板', '铜版', '石版', '青铜', '陶瓷', '综合材料', '其他'],
+      categoryRange: []
     }
   },
 
@@ -266,6 +259,7 @@ export default {
   },
 
   onLoad(options) {
+    this.loadCategories()
     if (options.id) {
       this.isEdit = true
       this.artworkId = Number(options.id)
@@ -284,11 +278,12 @@ export default {
             title: res.title || '',
             authorId: res.authorId || null,
             authorName: res.authorName || '',
+            categoryId: res.categoryId || null,
             year: res.year || '',
             width: res.width || '',
             height: res.height || '',
-            material: res.material || '',
-            category: res.category || '',
+            material: res.material || res.medium || '',
+            category: res.category || res.categoryName || '',
             price: res.price || '',
             allowAuction: res.allowAuction || false,
             stock: res.stock || 1,
@@ -305,6 +300,29 @@ export default {
         console.error('加载作品失败', e)
       } finally {
         uni.hideLoading()
+      }
+    },
+
+    async loadCategories() {
+      try {
+        const list = await getCategories()
+        this.categoryRange = (list || [])
+          .filter(item => item && item.status !== 0)
+          .map(item => ({
+            label: item.name,
+            value: item.id,
+            id: item.id,
+            name: item.name
+          }))
+      } catch (e) {
+        console.error('加载作品分类失败', e)
+        this.categoryRange = [
+          { label: '国画', value: 1, id: 1, name: '国画' },
+          { label: '油画', value: 2, id: 2, name: '油画' },
+          { label: '书法', value: 3, id: 3, name: '书法' },
+          { label: '版画', value: 4, id: 4, name: '版画' },
+          { label: '雕塑', value: 5, id: 5, name: '雕塑' }
+        ]
       }
     },
 
@@ -333,19 +351,27 @@ export default {
     // 搜索艺术家
     async searchArtist() {
       try {
-        const res = await searchArtists(this.artistKeyword)
-        this.artistList = res || []
+        const keyword = this.artistKeyword.trim()
+        const res = await searchArtists(keyword)
+        this.artistList = (res || []).map(this.normalizeArtist)
         
         if (this.artistList.length === 0) {
           this.artistStatus = 'notfound'
+          this.formData.authorId = null
+          this.formData.authorName = keyword
         } else {
           // 检查是否有完全匹配的
           const exactMatch = this.artistList.find(a => 
-            a.name === this.artistKeyword
+            a.name === keyword
           )
           if (exactMatch) {
+            this.artistId = exactMatch.id
+            this.formData.authorId = exactMatch.id
+            this.formData.authorName = exactMatch.name
             this.artistStatus = 'exists'
           } else {
+            this.formData.authorId = null
+            this.formData.authorName = keyword
             this.artistStatus = 'notfound'
           }
         }
@@ -353,6 +379,17 @@ export default {
         console.error('搜索艺术家失败', e)
         this.artistList = []
         this.artistStatus = 'notfound'
+      }
+    },
+
+    normalizeArtist(artist = {}) {
+      const name = artist.name || artist.nickname || artist.realName || artist.artistName || artist.username || ''
+      return {
+        ...artist,
+        id: artist.id || artist.userId || artist.artistId,
+        name,
+        avatar: artist.avatar || artist.avatarUrl || '',
+        certified: Boolean(artist.certified || artist.artistCode || artist.badge)
       }
     },
 
@@ -412,7 +449,8 @@ export default {
 
     onCategoryChange(e) {
       const selected = this.categoryRange[e.detail.value]
-      this.formData.category = selected.value
+      this.formData.categoryId = selected.id || selected.value
+      this.formData.category = selected.name || selected.label
     },
 
     validate() {
@@ -436,6 +474,10 @@ export default {
         uni.showToast({ title: '价格必须大于0', icon: 'none' })
         return false
       }
+      if (!this.formData.categoryId) {
+        uni.showToast({ title: '请选择艺术门类', icon: 'none' })
+        return false
+      }
       return true
     },
 
@@ -449,6 +491,12 @@ export default {
       uni.showLoading({ title: '提交中...' })
 
       try {
+        const coverUrl = await this.ensureUploaded(this.formData.cover)
+        const imageUrls = []
+        for (const image of this.formData.images) {
+          imageUrls.push(await this.ensureUploaded(image))
+        }
+
         // 如果艺术家名称已输入但未选择，需要查找或创建
         if (this.artistKeyword.trim() && !this.formData.authorId) {
           try {
@@ -466,11 +514,21 @@ export default {
         }
 
         const submitData = {
-          ...this.formData,
+          title: this.formData.title.trim(),
+          authorId: this.formData.authorId,
           authorName: this.formData.authorName || this.artistKeyword,
+          categoryId: this.formData.categoryId,
+          cover: coverUrl,
+          images: imageUrls.join(','),
+          artType: this.formData.category,
+          medium: this.formData.material,
+          year: this.formData.year ? Number(this.formData.year) : null,
           size: `${this.formData.width}×${this.formData.height}cm`,
-          // 确保价格是数字类型
-          price: this.formData.price ? Number(this.formData.price) : null
+          price: this.formData.price ? Number(this.formData.price) : null,
+          stock: this.formData.stock ? Number(this.formData.stock) : 1,
+          description: this.formData.description,
+          status: 1,
+          ownershipType: 1
         }
 
         if (this.isEdit) {
@@ -482,15 +540,19 @@ export default {
         }
 
         setTimeout(() => {
-          uni.navigateBack()
+          uni.switchTab({ url: '/pages/index/index' })
         }, 1500)
       } catch (e) {
+        console.error('发布作品失败', e)
         uni.hideLoading()
-        uni.showToast({ title: '提交成功（模拟）', icon: 'success' })
-        setTimeout(() => {
-          uni.navigateBack()
-        }, 1500)
+        uni.showToast({ title: e.message || '发布失败，请重试', icon: 'none' })
       }
+    },
+
+    async ensureUploaded(path) {
+      if (!path) return ''
+      if (/^https?:\/\//.test(path)) return path
+      return uploadFile(path)
     }
   }
 }

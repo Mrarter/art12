@@ -90,7 +90,7 @@
     </scroll-view>
     
     <!-- 自定义TabBar -->
-    <CustomTabBar :currentIndex="2" />
+    <CustomTabBar :currentIndex="1" />
   </view>
 </template>
 

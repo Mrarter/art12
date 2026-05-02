@@ -467,16 +467,16 @@
         "selectedIconPath": "static/tabbar/home-luxury-active.png"
       },
       {
-        "pagePath": "pages/gallery/index",
-        "text": "画廊",
-        "iconPath": "static/tabbar/gallery-luxury.png",
-        "selectedIconPath": "static/tabbar/gallery-luxury-active.png"
-      },
-      {
         "pagePath": "pages/auction/index",
         "text": "拍卖",
         "iconPath": "static/tabbar/auction-luxury.png",
         "selectedIconPath": "static/tabbar/auction-luxury-active.png"
+      },
+      {
+        "pagePath": "pages/gallery/index",
+        "text": "画廊",
+        "iconPath": "static/tabbar/gallery-luxury.png",
+        "selectedIconPath": "static/tabbar/gallery-luxury-active.png"
       },
       {
         "pagePath": "pages/cart/index",

@@ -637,32 +637,48 @@ public class UserService {
         }
 
         String trimmedKeyword = keyword.trim();
-        
-        // 查询所有用户进行筛选（因为需要支持拼音搜索）
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getDeleted, 0)
-               .orderByDesc(User::getCreateTime)
-               .last("LIMIT " + limit * 2); // 多查一些用于过滤
-
-        List<User> users = userMapper.selectList(wrapper);
-
-        // 过滤匹配的结果（中文匹配或拼音首字母匹配）
         boolean isPinyinSearch = isPinyinSearch(trimmedKeyword);
-        
-        return users.stream()
-            .filter(user -> {
-                String name = user.getNickname();
-                if (name == null) return false;
-                
-                if (isPinyinSearch) {
-                    // 拼音首字母匹配
-                    return PinyinUtil.matchesPinyinHead(name, trimmedKeyword);
-                } else {
-                    // 中文模糊匹配
-                    return name.contains(trimmedKeyword);
+
+        List<User> users;
+        if (isPinyinSearch) {
+            users = userMapper.selectList(new LambdaQueryWrapper<User>()
+                    .eq(User::getDeleted, 0)
+                    .orderByDesc(User::getCreateTime)
+                    .last("LIMIT 200"))
+                .stream()
+                .filter(user -> user.getNickname() != null && PinyinUtil.matchesPinyinHead(user.getNickname(), trimmedKeyword))
+                .limit(limit)
+                .toList();
+        } else {
+            LinkedHashMap<Long, User> matchedUsers = new LinkedHashMap<>();
+            userMapper.selectList(new LambdaQueryWrapper<User>()
+                    .eq(User::getDeleted, 0)
+                    .like(User::getNickname, trimmedKeyword)
+                    .orderByDesc(User::getCreateTime)
+                    .last("LIMIT " + limit))
+                .forEach(user -> matchedUsers.put(user.getId(), user));
+
+            List<ArtistCertification> certs = artistCertMapper.selectList(new LambdaQueryWrapper<ArtistCertification>()
+                    .like(ArtistCertification::getRealName, trimmedKeyword)
+                    .orderByDesc(ArtistCertification::getUpdateTime)
+                    .last("LIMIT " + limit));
+            if (!certs.isEmpty()) {
+                List<Long> userIds = certs.stream()
+                    .map(ArtistCertification::getUserId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+                if (!userIds.isEmpty()) {
+                    userMapper.selectList(new LambdaQueryWrapper<User>()
+                            .eq(User::getDeleted, 0)
+                            .in(User::getId, userIds))
+                        .forEach(user -> matchedUsers.putIfAbsent(user.getId(), user));
                 }
-            })
-            .limit(limit)
+            }
+            users = matchedUsers.values().stream().limit(limit).toList();
+        }
+
+        return users.stream()
             .map(user -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("id", user.getId());

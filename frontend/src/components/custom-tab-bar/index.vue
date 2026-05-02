@@ -37,8 +37,8 @@ export default {
       selectedColor: '#D4AF37',
       tabList: [
         { pagePath: '/pages/index/index', text: '首页', icon: '/static/tabbar/home-luxury.png', selectedIcon: '/static/tabbar/home-luxury-active.png', badge: 0 },
-        { pagePath: '/pages/gallery/index', text: '画廊', icon: '/static/tabbar/gallery-luxury.png', selectedIcon: '/static/tabbar/gallery-luxury-active.png', badge: 0 },
         { pagePath: '/pages/auction/index', text: '拍卖', icon: '/static/tabbar/auction-luxury.png', selectedIcon: '/static/tabbar/auction-luxury-active.png', badge: 0 },
+        { pagePath: '/pages/artist/publish', text: '发布', icon: '/static/tabbar/gallery-luxury.png', selectedIcon: '/static/tabbar/gallery-luxury-active.png', badge: 0, navigateType: 'navigateTo' },
         { pagePath: '/pages/cart/index', text: '购物车', icon: '/static/tabbar/cart-luxury.png', selectedIcon: '/static/tabbar/cart-luxury-active.png', badge: 0 },
         { pagePath: '/pages/user/index', text: '我的', icon: '/static/tabbar/user-luxury.png', selectedIcon: '/static/tabbar/user-luxury-active.png', badge: 0 }
       ]
@@ -46,6 +46,11 @@ export default {
   },
   methods: {
     switchTab(item, index) {
+      if (item.navigateType === 'navigateTo') {
+        uni.navigateTo({ url: item.pagePath })
+        return
+      }
+
       if (this.currentIndex !== index) {
         uni.switchTab({ url: item.pagePath })
       }

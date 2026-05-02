@@ -115,7 +115,9 @@ public class ProductService {
         vo.setAuthorId(artwork.getAuthorId());
         vo.setAuthorName(artwork.getAuthorName());
         vo.setCategoryId(artwork.getCategoryId());
+        vo.setCategoryName(artwork.getArtType());
         vo.setArtType(artwork.getArtType());
+        vo.setMaterial(artwork.getMedium());
         vo.setSize(artwork.getSize());
         vo.setDescription(artwork.getDescription());
         vo.setCoverImage(artwork.getCoverImage());
@@ -315,6 +317,7 @@ public class ProductService {
         artwork.setAuthorName(authorName);
         artwork.setCategoryId(dto.getCategoryId());
         artwork.setCoverImage(dto.getCover() != null ? dto.getCover() : "https://picsum.photos/400/400");
+        artwork.setImages(dto.getImages());
         artwork.setPrice(dto.getPrice() != null ? dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue() : 0L);
         artwork.setOriginalPrice(dto.getOriginalPrice() != null ? dto.getOriginalPrice().multiply(BigDecimal.valueOf(100)).longValue() : null);
         artwork.setStock(dto.getStock() != null ? dto.getStock() : 0);
@@ -323,6 +326,7 @@ public class ProductService {
         artwork.setWeight(dto.getWeight() != null ? dto.getWeight() : 0);
         artwork.setOwnershipType(dto.getOwnershipType() != null ? dto.getOwnershipType() : 1); // 默认原创
         artwork.setArtType(dto.getArtType());
+        artwork.setMedium(dto.getMedium());
         artwork.setSize(dto.getSize());
         artwork.setYear(dto.getYear());
         artwork.setDailyViewCount(dto.getDailyViewCount() != null ? dto.getDailyViewCount() : 0);
@@ -408,6 +412,7 @@ public class ProductService {
         }
         if (dto.getCategoryId() != null) artwork.setCategoryId(dto.getCategoryId());
         if (dto.getCover() != null) artwork.setCoverImage(dto.getCover());
+        if (dto.getImages() != null) artwork.setImages(dto.getImages());
         // 价格单位是分，转换 BigDecimal -> Long (分)
         if (dto.getPrice() != null) {
             Long priceInFen = dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue();
@@ -425,6 +430,7 @@ public class ProductService {
         if (dto.getWeight() != null) artwork.setWeight(dto.getWeight());
         if (dto.getOwnershipType() != null) artwork.setOwnershipType(dto.getOwnershipType());
         if (dto.getArtType() != null) artwork.setArtType(dto.getArtType());
+        if (dto.getMedium() != null) artwork.setMedium(dto.getMedium());
         if (dto.getSize() != null) artwork.setSize(dto.getSize());
         if (dto.getYear() != null) artwork.setYear(dto.getYear());
         if (dto.getDailyViewCount() != null) artwork.setDailyViewCount(Math.max(dto.getDailyViewCount(), 0));
@@ -490,7 +496,9 @@ public class ProductService {
         vo.setAuthorUid(artwork.getAuthorUid());
         vo.setDisplayAuthorId(artwork.getAuthorUid() != null ? artwork.getAuthorUid() : String.format("%04d", artwork.getAuthorId()));
         vo.setCategoryId(artwork.getCategoryId());
+        vo.setCategoryName(artwork.getArtType());
         vo.setArtType(artwork.getArtType());
+        vo.setMaterial(artwork.getMedium());
         vo.setSize(artwork.getSize());
         vo.setYear(artwork.getYear());
         vo.setEdition(artwork.getEdition());

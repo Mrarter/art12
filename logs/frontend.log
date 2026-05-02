@@ -780,3 +780,63 @@ More info and automated migrator: https://sass-lang.com/d/import
   ╵
     src/pages/about/index.vue 2:9  root stylesheet
 
+1:38:47 PM [vite] hmr update /src/components/custom-tab-bar/index.vue
+1:38:47 PM [vite] hmr update /src/pages/auction/index.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/components/custom-tab-bar/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/auction/index.vue 2:9  root stylesheet
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/artist/publish.vue 2:9  root stylesheet
+
+1:47:39 PM [vite] hmr update /src/pages/artist/publish.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import '@/styles/common.scss';
+  │         ^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src/pages/artist/publish.vue 2:9  root stylesheet
+
+3:51:38 PM [vite] hmr update /src/pages/artist/publish.vue

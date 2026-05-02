@@ -243,3 +243,45 @@ AggregateError [ECONNREFUSED]:
     at internalConnectMultiple (node:net:1193:18)
     at afterConnectMultiple (node:net:1783:7)
 11:47:35 AM [vite] page reload dist/index.html
+11:58:29 AM [vite] hmr update /src/views/user/list.vue
+11:58:39 AM [vite] hmr update /src/views/user/list.vue
+11:59:09 AM [vite] hmr update /src/views/user/list.vue
+11:59:18 AM [vite] hmr update /src/views/user/list.vue
+11:59:24 AM [vite] hmr update /src/views/user/list.vue?vue&type=style&index=0&scoped=40a217ae&lang.css
+12:01:20 PM [vite] hmr update /src/views/user/artist.vue
+12:01:26 PM [vite] hmr update /src/views/user/artist.vue
+12:01:38 PM [vite] hmr update /src/views/user/artist.vue
+12:02:04 PM [vite] hmr update /src/views/user/artist.vue
+12:02:16 PM [vite] hmr update /src/views/user/artist.vue
+12:02:31 PM [vite] hmr update /src/views/user/artist.vue
+12:04:07 PM [vite] hmr update /src/views/user/artist.vue?vue&type=style&index=0&scoped=b2e14e46&lang.css
+1:36:08 PM [vite] hmr update /src/views/user/artist.vue
+1:36:09 PM [vite] ✨ new dependencies optimized: element-plus/es/components/card/style/css
+1:36:09 PM [vite] ✨ optimized dependencies changed. reloading
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+1:36:47 PM [vite] hmr update /src/views/user/artist.vue
+1:37:24 PM [vite] hmr update /src/views/user/artist.vue
+1:37:41 PM [vite] hmr update /src/views/user/artist.vue
+1:37:50 PM [vite] hmr update /src/views/user/artist.vue
+1:38:10 PM [vite] hmr update /src/views/user/artist.vue
+1:39:31 PM [vite] hmr update /src/views/user/artist.vue
+1:40:37 PM [vite] hmr update /src/views/user/promoter.vue
+1:41:14 PM [vite] hmr update /src/views/user/promoter.vue
+1:42:03 PM [vite] hmr update /src/views/user/promoter.vue
+1:42:43 PM [vite] hmr update /src/views/user/promoter.vue
+1:43:25 PM [vite] hmr update /src/views/user/promoter.vue
+1:44:02 PM [vite] hmr update /src/views/user/promoter.vue
+1:44:48 PM [vite] hmr update /src/views/user/promoter.vue
+1:45:27 PM [vite] hmr update /src/views/user/promoter.vue
+1:47:05 PM [vite] hmr update /src/views/user/promoter.vue
+1:48:18 PM [vite] hmr update /src/views/user/promoter.vue
+1:49:14 PM [vite] hmr update /src/views/user/promoter.vue
+1:49:59 PM [vite] hmr update /src/views/user/promoter.vue
+1:52:56 PM [vite] hmr update /src/views/user/promoter.vue
