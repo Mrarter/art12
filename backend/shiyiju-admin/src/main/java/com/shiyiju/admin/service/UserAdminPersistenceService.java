@@ -434,6 +434,94 @@ public class UserAdminPersistenceService {
         );
     }
 
+    /**
+     * 批量更新用户状态
+     * @param userIds 用户ID列表
+     * @param status 目标状态（0=禁用，1=正常）
+     */
+    @Transactional
+    public void batchUpdateUserStatus(List<Long> userIds, int status) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        String userTable = userTable();
+        String updateTimeCol = updateTimeAssignment(userTable);
+        String sql = "UPDATE " + userTable + " SET status = ?, " + updateTimeCol + " WHERE id IN (";
+        String placeholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        sql += placeholders + ")";
+        
+        List<Object> args = new ArrayList<>();
+        args.add(status);
+        args.add(LocalDateTime.now()); // updateTimeAssignment 的 ? 占位符
+        args.addAll(userIds);
+        jdbcTemplate.update(sql, args.toArray());
+        log.info("批量更新用户状态：{} 个用户 -> status={}", userIds.size(), status);
+    }
+
+    /**
+     * 批量删除用户（逻辑删除）
+     * @param userIds 用户ID列表
+     */
+    @Transactional
+    public void batchDeleteUsers(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        String userTable = userTable();
+        String placeholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        
+        if (schemaInspector.hasColumn(userTable, "deleted")) {
+            // 逻辑删除
+            String sql = "UPDATE " + userTable + " SET deleted = 1, " + updateTimeAssignment(userTable) + " WHERE id IN (" + placeholders + ")";
+            List<Object> args = new ArrayList<>();
+            args.add(LocalDateTime.now()); // updateTimeAssignment 的 ? 占位符
+            args.addAll(userIds);
+            jdbcTemplate.update(sql, args.toArray());
+        } else {
+            // 物理删除
+            String sql = "DELETE FROM " + userTable + " WHERE id IN (" + placeholders + ")";
+            jdbcTemplate.update(sql, userIds.toArray());
+        }
+        log.info("批量删除用户：{} 个", userIds.size());
+    }
+
+    /**
+     * 批量分配用户身份
+     * @param userIds 用户ID列表
+     * @param identities 要设置的身份列表（如 ["artist", "promoter"]）
+     */
+    @Transactional
+    public void batchAssignIdentities(List<Long> userIds, List<String> identities) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        String userTable = userTable();
+        
+        // 获取实际的身份列名
+        String identityCol = identityColumn(userTable);
+        if ("NULL".equals(identityCol)) {
+            log.warn("用户表 {} 没有身份列，跳过批量分配身份", userTable);
+            return;
+        }
+        
+        // 确保至少有 collector 身份
+        List<String> newIdentities = new ArrayList<>(identities);
+        if (!newIdentities.contains("collector")) {
+            newIdentities.add("collector");
+        }
+        
+        String identitiesStr = String.join(",", newIdentities);
+        String placeholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        String sql = "UPDATE " + userTable + " SET " + identityCol + " = ?, " + updateTimeAssignment(userTable) + " WHERE id IN (" + placeholders + ")";
+        
+        List<Object> args = new ArrayList<>();
+        args.add(identitiesStr);
+        args.add(LocalDateTime.now()); // updateTimeAssignment 的 ? 占位符
+        args.addAll(userIds);
+        jdbcTemplate.update(sql, args.toArray());
+        log.info("批量分配用户身份：{} 个用户 -> identities={}", userIds.size(), identitiesStr);
+    }
+
     public Map<String, Object> getUserDetail(Long userId) {
         PageResult<Map<String, Object>> pageResult = listUsers(1, 1, String.valueOf(userId), null, null, null, null, null);
         return pageResult.getRecords().isEmpty() ? null : pageResult.getRecords().get(0);
@@ -572,6 +660,65 @@ public class UserAdminPersistenceService {
         }
     }
 
+    /**
+     * 批量审核艺术家 - 通过
+     * @param ids 艺术家记录ID列表
+     * @param badge 认证等级（可选）
+     */
+    @Transactional
+    public void batchApproveArtist(List<Long> ids, String badge) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        String artistTable = artistTable();
+        String userTable = userTable();
+        
+        // 获取这些艺术家记录对应的用户ID
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        List<Long> userIds = jdbcTemplate.queryForList(
+            "SELECT user_id FROM " + artistTable + " WHERE id IN (" + placeholders + ")",
+            Long.class,
+            ids.toArray()
+        );
+        
+        // 构建更新SQL，只更新实际存在的列
+        List<String> setClauses = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        
+        // 状态列
+        setClauses.add(artistStatusColumn(artistTable) + " = ?");
+        args.add(1); // 已认证
+        
+        // 更新时间（如果列存在）
+        String updateTimeCol = updateTimeAssignment(artistTable);
+        if (!"NULL".equals(updateTimeCol)) {
+            setClauses.add(updateTimeCol);
+            args.add(LocalDateTime.now());
+        }
+        
+        String updateSql = "UPDATE " + artistTable + " SET " + String.join(", ", setClauses) + " WHERE id IN (" + placeholders + ")";
+        args.addAll(ids);
+        jdbcTemplate.update(updateSql, args.toArray());
+        
+        // 为用户添加 artist 身份
+        for (Long userId : userIds) {
+            appendIdentity(userId, "artist");
+        }
+        
+        // 更新用户表的 artist_level
+        if (schemaInspector.hasColumn(userTable, "artist_level")) {
+            String userPlaceholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+            jdbcTemplate.update(
+                "UPDATE " + userTable + " SET artist_level = ?, " + updateTimeAssignment(userTable) + " WHERE id IN (" + userPlaceholders + ")",
+                nullableText(badge),
+                LocalDateTime.now(),
+                userIds.toArray()
+            );
+        }
+        
+        log.info("批量通过艺术家认证：{} 个", ids.size());
+    }
+
     @Transactional
     public void rejectArtist(Long id, String reason) {
         String artistTable = artistTable();
@@ -584,6 +731,48 @@ public class UserAdminPersistenceService {
             LocalDateTime.now(),
             id
         );
+    }
+
+    /**
+     * 批量审核艺术家 - 拒绝
+     * @param ids 艺术家记录ID列表
+     * @param reason 拒绝原因
+     */
+    @Transactional
+    public void batchRejectArtist(List<Long> ids, String reason) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        String artistTable = artistTable();
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        
+        // 构建更新SQL，只更新实际存在的列
+        List<String> setClauses = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        
+        // 状态列
+        setClauses.add(artistStatusColumn(artistTable) + " = ?");
+        args.add(2); // 已拒绝
+        
+        // 拒绝原因（如果列存在）
+        String rejectCol = rejectReasonColumn(artistTable);
+        if (!"NULL".equals(rejectCol)) {
+            setClauses.add(rejectCol + " = ?");
+            args.add(reason);
+        }
+        
+        // 更新时间（如果列存在）
+        String updateTimeCol = updateTimeAssignment(artistTable);
+        if (!"NULL".equals(updateTimeCol)) {
+            setClauses.add(updateTimeCol);
+            args.add(LocalDateTime.now());
+        }
+        
+        String updateSql = "UPDATE " + artistTable + " SET " + String.join(", ", setClauses) + " WHERE id IN (" + placeholders + ")";
+        args.addAll(ids);
+        jdbcTemplate.update(updateSql, args.toArray());
+        
+        log.info("批量拒绝艺术家认证：{} 个", ids.size());
     }
 
     @Transactional
@@ -619,6 +808,29 @@ public class UserAdminPersistenceService {
             LocalDateTime.now(),
             id
         );
+    }
+
+    /**
+     * 批量隐藏艺术家
+     * @param ids 艺术家记录ID列表
+     */
+    @Transactional
+    public void batchHideArtist(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        String artistTable = artistTable();
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        
+        String updateSql = "UPDATE " + artistTable + " SET " + artistStatusColumn(artistTable) + " = 3, " +
+            updateTimeAssignment(artistTable) + " WHERE id IN (" + placeholders + ")";
+        
+        List<Object> args = new ArrayList<>();
+        args.add(LocalDateTime.now());
+        args.addAll(ids);
+        jdbcTemplate.update(updateSql, args.toArray());
+        
+        log.info("批量隐藏艺术家：{} 个", ids.size());
     }
 
     @Transactional
@@ -2219,6 +2431,58 @@ public class UserAdminPersistenceService {
         if (userId != null) {
             removeIdentity(userId, "artist");
         }
+    }
+
+    /**
+     * 批量删除艺术家
+     * @param ids 艺术家记录ID列表
+     */
+    @Transactional
+    public void batchDeleteArtist(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        String artistTable = artistTable();
+        
+        // 获取这些艺术家记录对应的用户ID
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "SELECT id, " + 
+            (schemaInspector.hasColumn(artistTable, "user_id") ? "user_id" : "NULL") + " AS user_id, " +
+            (schemaInspector.hasColumn(artistTable, "user_uid") ? "user_uid" : "NULL") + " AS user_uid, " +
+            (schemaInspector.hasColumn(artistTable, "real_name") ? "real_name" : 
+                (schemaInspector.hasColumn(artistTable, "realName") ? "realName" : 
+                    (schemaInspector.hasColumn(artistTable, "artist_name") ? "artist_name" : 
+                        (schemaInspector.hasColumn(artistTable, "name") ? "name" : "NULL")))) + " AS real_name " +
+            "FROM " + artistTable + " WHERE id IN (" + placeholders + ")",
+            ids.toArray()
+        );
+        
+        // 检查每个艺术家是否有作品
+        for (Map<String, Object> row : rows) {
+            Long artistRecordId = toLong(row.get("id"));
+            Long userId = row.get("user_id") == null ? null : toLong(row.get("user_id"));
+            String userUid = Objects.toString(row.get("user_uid"), "").trim();
+            String realName = Objects.toString(row.get("real_name"), "").trim();
+            
+            long artworkCount = countArtistArtworks(artistRecordId, userId, userUid, realName);
+            if (artworkCount > 0) {
+                throw new IllegalStateException("艺术家 " + realName + " 名下还有 " + artworkCount + " 件作品，请先删除艺术家名下的作品");
+            }
+        }
+        
+        // 批量删除艺术家认证记录
+        jdbcTemplate.update("DELETE FROM " + artistTable + " WHERE id IN (" + placeholders + ")", ids.toArray());
+        
+        // 从用户身份中移除 artist
+        for (Map<String, Object> row : rows) {
+            Long userId = row.get("user_id") == null ? null : toLong(row.get("user_id"));
+            if (userId != null) {
+                removeIdentity(userId, "artist");
+            }
+        }
+        
+        log.info("批量删除艺术家：{} 个", ids.size());
     }
 
     private long countArtistArtworks(Long artistRecordId, Long userId, String userUid, String realName) {

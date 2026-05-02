@@ -29,7 +29,27 @@
       </el-radio-group>
     </div>
     
-    <el-table :data="tableData" v-loading="loading" border stripe>
+    <!-- 批量操作栏 -->
+    <div v-if="selectedRows.length > 0" class="batch-actions">
+      <span class="selected-count">已选择 {{ selectedRows.length }} 个艺术家</span>
+      <el-button type="primary" link @click="clearSelection">取消选择</el-button>
+      <el-divider direction="vertical" />
+      <el-button type="success" @click="handleBatchApprove" :loading="batchLoading">
+        批量通过
+      </el-button>
+      <el-button type="danger" @click="showBatchRejectDialog" :loading="batchLoading">
+        批量拒绝
+      </el-button>
+      <el-button type="warning" @click="handleBatchHide" :loading="batchLoading">
+        批量隐藏
+      </el-button>
+      <el-button type="danger" @click="handleBatchDelete" :loading="batchLoading">
+        批量删除
+      </el-button>
+    </div>
+    
+    <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" />
       <el-table-column label="ID" width="80">
         <template #default="{ row }">
           <span class="id-display" @click="handleCopyId(row.displayId || row.id)">{{ row.displayId || row.id }}</span>
@@ -360,6 +380,25 @@
       </template>
     </el-dialog>
 
+    <!-- 批量拒绝原因弹窗 -->
+    <el-dialog v-model="batchRejectDialogVisible" title="批量拒绝原因" width="500px">
+      <el-form>
+        <p style="margin-bottom: 15px; color: #666;">将为选中的 <strong>{{ selectedRows.length }}</strong> 个艺术家拒绝认证</p>
+        <el-form-item label="拒绝原因">
+          <el-input 
+            v-model="batchRejectReason" 
+            type="textarea" 
+            :rows="4" 
+            placeholder="请输入拒绝原因"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchRejectDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchLoading" @click="confirmBatchReject">确定拒绝</el-button>
+      </template>
+    </el-dialog>
+    
     <!-- 添加艺术家弹窗 -->
     <el-dialog v-model="addVisible" title="添加艺术家" width="600px" destroy-on-close>
       <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="90px">
@@ -617,6 +656,12 @@ const existingWorksSize = 12
 const artworkKeyword = ref('')
 const selectedExistingId = ref(null)
 const selectedExistingTitle = ref('')
+
+// 批量操作相关变量
+const selectedRows = ref([])
+const batchLoading = ref(false)
+const batchRejectDialogVisible = ref(false)
+const batchRejectReason = ref('')
 
 const artworkForm = reactive({
   title: '',
@@ -1264,6 +1309,151 @@ const submitArtwork = async () => {
   }
 }
 
+// ==================== 批量操作方法 ====================
+
+// 处理表格选择变化
+const handleSelectionChange = (selection) => {
+  selectedRows.value = selection
+}
+
+// 清除选择
+const clearSelection = () => {
+  selectedRows.value = []
+}
+
+// 批量通过
+const handleBatchApprove = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择艺术家')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要通过选中的 ${selectedRows.value.length} 个艺术家认证吗？`, 
+      '批量通过确认', 
+      { type: 'success' }
+    )
+    
+    batchLoading.value = true
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/artist/batchApprove', {
+      ids
+    })
+    ElMessage.success('批量通过成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量通过失败：' + (e.message || '未知错误'))
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 显示批量拒绝对话框
+const showBatchRejectDialog = () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择艺术家')
+    return
+  }
+  
+  batchRejectReason.value = ''
+  batchRejectDialogVisible.value = true
+}
+
+// 确认批量拒绝
+const confirmBatchReject = async () => {
+  if (!batchRejectReason.value.trim()) {
+    ElMessage.warning('请输入拒绝原因')
+    return
+  }
+  
+  try {
+    batchLoading.value = true
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/artist/batchReject', {
+      ids,
+      reason: batchRejectReason.value
+    })
+    ElMessage.success('批量拒绝成功')
+    batchRejectDialogVisible.value = false
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    ElMessage.error('批量拒绝失败：' + (e.message || '未知错误'))
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 批量隐藏
+const handleBatchHide = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择艺术家')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要隐藏选中的 ${selectedRows.value.length} 个艺术家吗？`, 
+      '批量隐藏确认', 
+      { type: 'warning' }
+    )
+    
+    batchLoading.value = true
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/artist/batchHide', {
+      ids
+    })
+    ElMessage.success('批量隐藏成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量隐藏失败：' + (e.message || '未知错误'))
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 批量删除
+const handleBatchDelete = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择艺术家')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedRows.value.length} 个艺术家吗？此操作不可恢复！`, 
+      '批量删除确认', 
+      { 
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning' 
+      }
+    )
+    
+    batchLoading.value = true
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/artist/batchDelete', {
+      ids
+    })
+    ElMessage.success('批量删除成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量删除失败：' + (e.message || '未知错误'))
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadData()
   await nextTick()
@@ -1272,6 +1462,24 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 批量操作栏样式 */
+.batch-actions {
+  margin-bottom: 15px;
+  padding: 12px 18px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.selected-count {
+  font-weight: bold;
+  color: #409eff;
+  margin-right: 5px;
+}
+
 .page-container {
   padding: 20px;
 }

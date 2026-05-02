@@ -95,8 +95,28 @@
       </div>
     </div>
 
+    <!-- 批量操作栏 -->
+    <div v-if="selectedRows.length > 0" class="batch-actions">
+      <span class="selected-count">已选择 {{ selectedRows.length }} 个用户</span>
+      <el-button type="primary" link @click="clearSelection">取消选择</el-button>
+      <el-divider direction="vertical" />
+      <el-button type="warning" @click="handleBatchDisable" :loading="batchLoading">
+        批量禁用
+      </el-button>
+      <el-button type="success" @click="handleBatchEnable" :loading="batchLoading">
+        批量启用
+      </el-button>
+      <el-button type="danger" @click="handleBatchDelete" :loading="batchLoading">
+        批量删除
+      </el-button>
+      <el-button type="primary" @click="showBatchIdentityDialog" :loading="batchLoading">
+        批量分配身份
+      </el-button>
+    </div>
+
     <!-- 用户列表 -->
-    <el-table :data="tableData" v-loading="loading" border stripe>
+    <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" />
       <el-table-column prop="uid" label="用户UID" width="200">
         <template #default="{ row }">
           <div class="id-cell" @click="handleCopyId(row.uid)">
@@ -362,6 +382,24 @@
       </template>
     </el-dialog>
 
+    <!-- 批量分配身份弹窗 -->
+    <el-dialog v-model="batchIdentityDialogVisible" title="批量分配身份" width="450px">
+      <el-form ref="batchIdentityFormRef" :model="batchIdentityForm" label-width="100px">
+        <p style="margin-bottom: 15px; color: #666;">将为选中的 <strong>{{ selectedRows.length }}</strong> 个用户分配以下身份：</p>
+        <el-form-item label="身份">
+          <el-checkbox-group v-model="batchIdentityForm.identities">
+            <el-checkbox label="artist">艺术家</el-checkbox>
+            <el-checkbox label="promoter">艺荐官</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <p style="margin-top: 10px; color: #999; font-size: 12px;">注意：分配后用户将拥有选定的所有身份（默认保留"收藏者"身份）</p>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchIdentityDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchLoading" @click="confirmBatchIdentity">确认分配</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 添加用户弹窗 -->
     <el-dialog v-model="addVisible" title="添加用户" width="450px" destroy-on-close>
       <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="90px">
@@ -542,6 +580,15 @@ const existingWorksSize = 12
 const artworkKeyword = ref('')
 const selectedExistingId = ref(null)
 const selectedExistingTitle = ref('')
+
+// 批量操作相关变量
+const selectedRows = ref([])
+const batchLoading = ref(false)
+const batchIdentityDialogVisible = ref(false)
+const batchIdentityForm = reactive({
+  identities: []
+})
+const batchIdentityFormRef = ref()
 
 const artworkForm = reactive({
   id: null,
@@ -1189,12 +1236,177 @@ const handleDelete = async (row) => {
   }
 }
 
+// ==================== 批量操作方法 ====================
+
+// 处理表格选择变化
+const handleSelectionChange = (selection) => {
+  selectedRows.value = selection
+}
+
+// 清除选择
+const clearSelection = () => {
+  selectedRows.value = []
+}
+
+// 批量禁用
+const handleBatchDisable = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择用户')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要禁用选中的 ${selectedRows.value.length} 个用户吗？`, 
+      '批量禁用确认', 
+      { type: 'warning' }
+    )
+    
+    batchLoading.value = true
+    const userIds = selectedRows.value.map(row => row.userId || row.id)
+    await request.post('/user/batchUpdateStatus', {
+      userIds,
+      status: 0  // 0=禁用
+    })
+    ElMessage.success('批量禁用成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量禁用失败：' + (e.message || '未知错误'))
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 批量启用
+const handleBatchEnable = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择用户')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要启用选中的 ${selectedRows.value.length} 个用户吗？`, 
+      '批量启用确认', 
+      { type: 'warning' }
+    )
+    
+    batchLoading.value = true
+    const userIds = selectedRows.value.map(row => row.userId || row.id)
+    await request.post('/user/batchUpdateStatus', {
+      userIds,
+      status: 1  // 1=正常/启用
+    })
+    ElMessage.success('批量启用成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量启用失败：' + (e.message || '未知错误'))
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 批量删除
+const handleBatchDelete = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择用户')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedRows.value.length} 个用户吗？此操作不可恢复！`, 
+      '批量删除确认', 
+      { 
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning' 
+      }
+    )
+    
+    batchLoading.value = true
+    const userIds = selectedRows.value.map(row => row.userId || row.id)
+    await request.post('/user/batchDelete', {
+      userIds
+    })
+    ElMessage.success('批量删除成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量删除失败：' + (e.message || '未知错误'))
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 显示批量分配身份对话框
+const showBatchIdentityDialog = () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择用户')
+    return
+  }
+  
+  batchIdentityForm.identities = []
+  batchIdentityDialogVisible.value = true
+}
+
+// 确认批量分配身份
+const confirmBatchIdentity = async () => {
+  if (batchIdentityForm.identities.length === 0) {
+    ElMessage.warning('请至少选择一个身份')
+    return
+  }
+  
+  try {
+    batchLoading.value = true
+    const userIds = selectedRows.value.map(row => row.userId || row.id)
+    await request.post('/user/batchAssignIdentities', {
+      userIds,
+      identities: batchIdentityForm.identities
+    })
+    ElMessage.success('批量分配身份成功')
+    batchIdentityDialogVisible.value = false
+    clearSelection()
+    await loadData()
+  } catch (e) {
+    ElMessage.error('批量分配身份失败：' + (e.message || '未知错误'))
+  } finally {
+    batchLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadData()
 })
 </script>
 
 <style scoped>
+/* 批量操作栏样式 */
+.batch-actions {
+  margin-bottom: 15px;
+  padding: 12px 18px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.selected-count {
+  font-weight: bold;
+  color: #409eff;
+  margin-right: 5px;
+}
+
 .page-container {
   padding: 20px;
 }

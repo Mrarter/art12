@@ -116,6 +116,58 @@ public class UserManagementController {
         return Result.success();
     }
 
+    /**
+     * 批量更新用户状态
+     * @param params 包含 userIds（用户ID列表）和 status（目标状态）
+     */
+    @PostMapping("/batchUpdateStatus")
+    public Result<Void> batchUpdateStatus(@RequestBody Map<String, Object> params) {
+        List<Long> userIds = ((List<Number>) params.get("userIds")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        int status = params.get("status") instanceof Number number ? number.intValue() : Integer.parseInt(String.valueOf(params.get("status")));
+        if (userIds.isEmpty()) {
+            return Result.fail(400, "用户ID列表不能为空");
+        }
+        userAdminPersistenceService.batchUpdateUserStatus(userIds, status);
+        return Result.success();
+    }
+
+    /**
+     * 批量删除用户
+     * @param params 包含 userIds（用户ID列表）
+     */
+    @PostMapping("/batchDelete")
+    public Result<Void> batchDelete(@RequestBody Map<String, Object> params) {
+        List<Long> userIds = ((List<Number>) params.get("userIds")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        if (userIds.isEmpty()) {
+            return Result.fail(400, "用户ID列表不能为空");
+        }
+        userAdminPersistenceService.batchDeleteUsers(userIds);
+        return Result.success();
+    }
+
+    /**
+     * 批量分配用户身份
+     * @param params 包含 userIds（用户ID列表）和 identities（身份列表）
+     */
+    @PostMapping("/batchAssignIdentities")
+    public Result<Void> batchAssignIdentities(@RequestBody Map<String, Object> params) {
+        List<Long> userIds = ((List<Number>) params.get("userIds")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        List<String> identities = ((List<?>) params.get("identities")).stream()
+            .map(Object::toString)
+            .collect(java.util.stream.Collectors.toList());
+        if (userIds.isEmpty()) {
+            return Result.fail(400, "用户ID列表不能为空");
+        }
+        userAdminPersistenceService.batchAssignIdentities(userIds, identities);
+        return Result.success();
+    }
+
     @GetMapping("/artist/list")
     public Result<Map<String, Object>> getArtistList(
         @RequestParam(defaultValue = "1") int page,
@@ -359,6 +411,78 @@ public class UserManagementController {
             return Result.fail(403, "需要管理员权限");
         }
         userAdminPersistenceService.deleteArtist(id);
+        return Result.success();
+    }
+
+    /**
+     * 批量审核艺术家 - 通过
+     * @param params 包含 ids（艺术家记录ID列表）和 badge（认证等级，可选）
+     */
+    @PostMapping("/artist/batchApprove")
+    public Result<Void> batchApproveArtist(@RequestBody Map<String, Object> params) {
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        String badge = Objects.toString(params.get("badge"), "");
+        if (ids.isEmpty()) {
+            return Result.fail(400, "艺术家ID列表不能为空");
+        }
+        userAdminPersistenceService.batchApproveArtist(ids, badge);
+        return Result.success();
+    }
+
+    /**
+     * 批量审核艺术家 - 拒绝
+     * @param params 包含 ids（艺术家记录ID列表）和 reason（拒绝原因）
+     */
+    @PostMapping("/artist/batchReject")
+    public Result<Void> batchRejectArtist(@RequestBody Map<String, Object> params) {
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        String reason = Objects.toString(params.get("reason"), "");
+        if (ids.isEmpty()) {
+            return Result.fail(400, "艺术家ID列表不能为空");
+        }
+        userAdminPersistenceService.batchRejectArtist(ids, reason);
+        return Result.success();
+    }
+
+    /**
+     * 批量隐藏艺术家
+     * @param params 包含 ids（艺术家记录ID列表）
+     */
+    @PostMapping("/artist/batchHide")
+    public Result<Void> batchHideArtist(@RequestBody Map<String, Object> params) {
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        if (ids.isEmpty()) {
+            return Result.fail(400, "艺术家ID列表不能为空");
+        }
+        userAdminPersistenceService.batchHideArtist(ids);
+        return Result.success();
+    }
+
+    /**
+     * 批量删除艺术家
+     * @param params 包含 ids（艺术家记录ID列表）
+     */
+    @PostMapping("/artist/batchDelete")
+    public Result<Void> batchDeleteArtist(
+        @RequestBody Map<String, Object> params,
+        @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        if (!isAdmin(authorization)) {
+            return Result.fail(403, "需要管理员权限");
+        }
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        if (ids.isEmpty()) {
+            return Result.fail(400, "艺术家ID列表不能为空");
+        }
+        userAdminPersistenceService.batchDeleteArtist(ids);
         return Result.success();
     }
 
