@@ -527,7 +527,9 @@ public class UserAdminPersistenceService {
         return pageResult.getRecords().isEmpty() ? null : pageResult.getRecords().get(0);
     }
 
-    public Map<String, Object> listArtists(int page, int size, String status) {
+    public Map<String, Object> listArtists(int page, int size, String status,
+                                            String keyword, String phone, String userId, String badge,
+                                            String startDate, String endDate, String sortField, String sortOrder) {
         syncArtworkArtists();
 
         String artistTable = artistTable();
@@ -543,6 +545,48 @@ public class UserAdminPersistenceService {
         if (status != null && !status.isBlank() && !"all".equals(status)) {
             where.append(" AND a.").append(artistStatusColumn).append(" = ?");
             args.add(mapArtistStatus(status));
+        }
+        // 关键词搜索（昵称/真实姓名）
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND (u.nickname LIKE ? OR " + artistColumnOrNull("real_name") + " LIKE ?)");
+            String kw = "%" + keyword.trim() + "%";
+            args.add(kw);
+            args.add(kw);
+        }
+        // 手机号精确匹配
+        if (phone != null && !phone.isBlank()) {
+            String phoneCol = schemaInspector.firstExistingColumn(userTable, "mobile", "phone");
+            where.append(" AND u.").append(phoneCol).append(" = ?");
+            args.add(phone.trim());
+        }
+        // 用户ID/UID
+        if (userId != null && !userId.isBlank()) {
+            if (schemaInspector.hasColumn(artistTable, "user_uid")) {
+                where.append(" AND (a.user_uid = ? OR a.user_id = ?)");
+                args.add(userId.trim());
+                try { args.add(Long.parseLong(userId.trim())); } catch (Exception e) { args.add(-1L); }
+            } else {
+                where.append(" AND a.user_id = ?");
+                try { args.add(Long.parseLong(userId.trim())); } catch (Exception e) { args.add(-1L); }
+            }
+        }
+        // 认证等级
+        if (badge != null && !badge.isBlank()) {
+            String badgeCol = userColumnOrNull("artist_level");
+            if (!"NULL".equals(badgeCol)) {
+                where.append(" AND " + badgeCol + " = ?");
+                args.add(badge);
+            }
+        }
+        // 时间范围
+        String timeCol = schemaInspector.firstExistingColumn(artistTable, "created_at", "create_time", "register_time");
+        if (startDate != null && !startDate.isBlank()) {
+            where.append(" AND a.").append(timeCol).append(" >= ?");
+            args.add(startDate.trim() + " 00:00:00");
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            where.append(" AND a.").append(timeCol).append(" <= ?");
+            args.add(endDate.trim() + " 23:59:59");
         }
 
         Long total = jdbcTemplate.queryForObject(
@@ -580,8 +624,7 @@ public class UserAdminPersistenceService {
             ? " LEFT JOIN (SELECT author_id, COUNT(*) AS artwork_count FROM " + artworkTable + " GROUP BY author_id) art ON a.user_id = art.author_id"
             : "";
         
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            """
+        String sql = """
             SELECT a.id, %s AS user_id, %s AS user_uid, %s AS real_name, %s AS id_card, %s AS artist_resume,
                    %s AS artist_works, %s AS artist_exhibits,
                    %s AS artist_status, %s AS review_time,
@@ -610,7 +653,15 @@ public class UserAdminPersistenceService {
                 artistTable,
                 userTable,
                 userJoinCondition
-            ) + artworkCountJoin + where + " ORDER BY a.id DESC LIMIT ?, ?",
+            ) + artworkCountJoin + where;
+
+        // 动态排序
+        String orderBy = buildArtistOrderBy(sortField, sortOrder, timeCol);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            sql + orderBy + " LIMIT ?, ?",
             queryArgs.toArray()
         );
 
@@ -633,6 +684,25 @@ public class UserAdminPersistenceService {
         result.put("rejectedCount", rejectedCount == null ? 0 : rejectedCount);
         result.put("hiddenCount", hiddenCount == null ? 0 : hiddenCount);
         return result;
+    }
+
+    /**
+     * 构建艺术家列表的动态排序子句
+     */
+    private String buildArtistOrderBy(String sortField, String sortOrder, String defaultTimeCol) {
+        // 白名单：允许的排序字段
+        Set<String> allowedFields = Set.of("id", "create_time", "artist_level");
+        String field = (sortField != null && allowedFields.contains(sortField)) ? sortField : "id";
+        String order = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
+        
+        return switch (field) {
+            case "create_time" -> " ORDER BY a." + defaultTimeCol + " " + order;
+            case "artist_level" -> {
+                String col = userColumnOrNull("artist_level");
+                yield " ORDER BY " + ("NULL".equals(col) ? "1" : col) + " " + order;
+            }
+            default -> " ORDER BY a.id " + order;
+        };
     }
 
     @Transactional
@@ -950,7 +1020,9 @@ public class UserAdminPersistenceService {
         return result;
     }
 
-    public List<Map<String, Object>> listPromoters(int page, int size, String userId, String level, String status) {
+    public Map<String, Object> listPromoters(int page, int size, String userId, String level, String status,
+                                                String keyword, String phone,
+                                                String startDate, String endDate, String sortField, String sortOrder) {
         String userTable = userTable();
         String promoterTable = promoterTable();
         
@@ -973,6 +1045,27 @@ public class UserAdminPersistenceService {
             int statusValue = mapPromoterStatus(status);
             where.append(" AND p.").append(statusCol).append(" = ?");
             args.add(statusValue);
+        }
+        // 关键词搜索（昵称）
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND u.nickname LIKE ?");
+            args.add("%" + keyword.trim() + "%");
+        }
+        // 手机号精确匹配
+        if (phone != null && !phone.isBlank()) {
+            String phoneCol = schemaInspector.firstExistingColumn(userTable, "mobile", "phone");
+            where.append(" AND u.").append(phoneCol).append(" = ?");
+            args.add(phone.trim());
+        }
+        // 时间范围
+        String signTimeCol = schemaInspector.firstExistingColumn(promoterTable, "sign_time", "agreement_time", "created_at", "create_time");
+        if (startDate != null && !startDate.isBlank()) {
+            where.append(" AND p.").append(signTimeCol).append(" >= ?");
+            args.add(startDate.trim() + " 00:00:00");
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            where.append(" AND p.").append(signTimeCol).append(" <= ?");
+            args.add(endDate.trim() + " 23:59:59");
         }
 
         List<Object> countArgs = new ArrayList<>(args);
@@ -1000,7 +1093,6 @@ public class UserAdminPersistenceService {
         
         // 动态构建 SELECT 语句
         String statusSelect = hasStatusCol ? ", p." + statusCol + " AS status" : "";
-        String signTimeCol = schemaInspector.firstExistingColumn(promoterTable, "sign_time", "agreement_time", "created_at", "create_time");
         boolean hasSignTimeCol = schemaInspector.hasColumn(promoterTable, signTimeCol);
         String signTimeSelect = hasSignTimeCol ? ", p." + signTimeCol + " AS sign_time" : "";
         String sql = """
@@ -1030,9 +1122,17 @@ public class UserAdminPersistenceService {
                     ? "parent.user_uid = p.inviter_uid"
                     : "1 = 0"
             )
-            + where + " ORDER BY p.id DESC LIMIT ?, ?";
-        
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, queryArgs.toArray());
+            + where;
+
+        // 动态排序
+        String promoterOrderBy = buildPromoterOrderBy(sortField, sortOrder, signTimeCol);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            sql + promoterOrderBy + " LIMIT ?, ?",
+            queryArgs.toArray()
+        );
 
         List<Map<String, Object>> list = rows.stream()
             .map(this::mapPromoterRow)
@@ -1043,16 +1143,32 @@ public class UserAdminPersistenceService {
         Long approvedCountVal = countPromoterByStatus(1);
         Long rejectedCountVal = countPromoterByStatus(-1);
 
-        return List.of(
-            Map.of(
-                "list", list,
-                "records", list,
-                "total", total == null ? 0 : total,
-                "pendingCount", pendingCountVal == null ? 0 : pendingCountVal,
-                "approvedCount", approvedCountVal == null ? 0 : approvedCountVal,
-                "rejectedCount", rejectedCountVal == null ? 0 : rejectedCountVal
-            )
-        );
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", list);
+        result.put("records", list);
+        result.put("total", total == null ? 0 : total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("pendingCount", pendingCountVal == null ? 0 : pendingCountVal);
+        result.put("approvedCount", approvedCountVal == null ? 0 : approvedCountVal);
+        result.put("rejectedCount", rejectedCountVal == null ? 0 : rejectedCountVal);
+        return result;
+    }
+
+    /**
+     * 构建艺荐官列表的动态排序子句
+     */
+    private String buildPromoterOrderBy(String sortField, String sortOrder, String signTimeCol) {
+        Set<String> allowedFields = Set.of("id", "sign_time", "total_commission", "team_size");
+        String field = (sortField != null && allowedFields.contains(sortField)) ? sortField : "id";
+        String order = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
+
+        return switch (field) {
+            case "sign_time" -> " ORDER BY p." + signTimeCol + " " + order;
+            case "total_commission" -> " ORDER BY p.total_commission " + order;
+            case "team_size" -> " ORDER BY p.subordinate_count " + order;
+            default -> " ORDER BY p.id " + order;
+        };
     }
 
     private int mapPromoterStatus(String status) {
@@ -1146,6 +1262,50 @@ public class UserAdminPersistenceService {
                 jdbcTemplate.update("UPDATE " + userTable + " SET promoter_level = ? WHERE id = ?", "level_" + level, userId);
             }
         }
+    }
+
+    // ==================== 艺荐官批量操作 ====================
+
+    @Transactional
+    public void batchApprovePromoters(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        String promoterTable = promoterTable();
+        String statusCol = schemaInspector.firstExistingColumn(promoterTable, "status", "agreement_status");
+        if (!schemaInspector.hasColumn(promoterTable, statusCol)) return;
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        String sql = "UPDATE " + promoterTable + " SET " + statusCol + " = 1, " +
+            updateTimeAssignment(promoterTable) + " WHERE id IN (" + placeholders + ")";
+        jdbcTemplate.update(sql, LocalDateTime.now().format(DATE_TIME_FORMATTER), ids.toArray());
+    }
+
+    @Transactional
+    public void batchRejectPromoters(List<Long> ids, String reason) {
+        if (ids == null || ids.isEmpty()) return;
+        String promoterTable = promoterTable();
+        String statusCol = schemaInspector.firstExistingColumn(promoterTable, "status", "agreement_status");
+        String rejectReasonCol = schemaInspector.firstExistingColumn(promoterTable, "reject_reason", "reason", "remark");
+        if (!schemaInspector.hasColumn(promoterTable, statusCol)) return;
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        List<String> setClauses = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        setClauses.add(statusCol + " = -1");
+        if (schemaInspector.hasColumn(promoterTable, rejectReasonCol)) {
+            setClauses.add(rejectReasonCol + " = ?");
+            args.add(reason);
+        }
+        setClauses.add(updateTimeAssignment(promoterTable));
+        args.add(LocalDateTime.now().format(DATE_TIME_FORMATTER));
+        args.addAll(ids);
+        String sql = "UPDATE " + promoterTable + " SET " + String.join(", ", setClauses) + " WHERE id IN (" + placeholders + ")";
+        jdbcTemplate.update(sql, args.toArray());
+    }
+
+    @Transactional
+    public void batchDeletePromoters(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        String promoterTable = promoterTable();
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        jdbcTemplate.update("DELETE FROM " + promoterTable + " WHERE id IN (" + placeholders + ")", ids.toArray());
     }
 
     @Transactional
@@ -1493,7 +1653,7 @@ public class UserAdminPersistenceService {
 
     private List<Map<String, Object>> promoterListRows(int page, int size, String userId, String level) {
         @SuppressWarnings("unchecked")
-        Map<String, Object> payload = listPromoters(page, size, userId, level, null).get(0);
+        Map<String, Object> payload = listPromoters(page, size, userId, level, null, null, null, null, null, null, null);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> list = (List<Map<String, Object>>) payload.get("list");
         return list;

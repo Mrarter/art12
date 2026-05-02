@@ -4,10 +4,13 @@
       <span class="title">艺术家认证管理</span>
       <el-button type="primary" @click="showAddDialog">
         <el-icon><Plus /></el-icon>
-        添加艺术家
+      添加艺术家
+      </el-button>
+      <el-button type="success" link @click="handleExport" :loading="exportLoading">
+        导出CSV
       </el-button>
     </div>
-
+    
     <!-- 状态 Tab 切换 -->
     <div class="status-tabs">
       <el-radio-group v-model="activeTab" @change="handleTabChange">
@@ -28,6 +31,44 @@
         </el-radio-button>
       </el-radio-group>
     </div>
+    
+    <!-- 搜索筛选 -->
+    <el-card class="search-card" shadow="never">
+      <el-form :model="searchForm" inline>
+        <el-form-item label="昵称/姓名">
+          <el-input v-model="searchForm.keyword" placeholder="请输入昵称或姓名" clearable style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable style="width: 150px" />
+        </el-form-item>
+        <el-form-item label="ID/UID">
+          <el-input v-model="searchForm.userId" placeholder="请输入ID或UID" clearable style="width: 150px" />
+        </el-form-item>
+        <el-form-item label="认证等级">
+          <el-select v-model="searchForm.badge" placeholder="全部" clearable style="width: 130px">
+            <el-option label="全部" value="" />
+            <el-option label="普通认证" value="verified" />
+            <el-option label="认证艺术家" value="verified_plus" />
+            <el-option label="人气艺术家" value="popular" />
+            <el-option label="大师级" value="master" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="daterange"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
     
     <!-- 批量操作栏 -->
     <div v-if="selectedRows.length > 0" class="batch-actions">
@@ -612,7 +653,7 @@
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Check } from '@element-plus/icons-vue'
+import { Plus, Check, Download } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
 import { requestApi } from '@/api/request'
@@ -637,6 +678,13 @@ const artworksSize = 8
 const rejectReason = ref('')
 const selectedBadge = ref('')
 const activeTab = ref('pending')
+const searchForm = reactive({
+  keyword: '',
+  phone: '',
+  userId: '',
+  badge: '',
+  dateRange: []
+})
 const pendingCount = ref(0)
 const approvedCount = ref(0)
 const rejectedCount = ref(0)
@@ -656,6 +704,8 @@ const existingWorksSize = 12
 const artworkKeyword = ref('')
 const selectedExistingId = ref(null)
 const selectedExistingTitle = ref('')
+
+const exportLoading = ref(false)
 
 // 批量操作相关变量
 const selectedRows = ref([])
@@ -891,15 +941,38 @@ const saveProfile = async () => {
   }
 }
 
+const handleSearch = () => {
+  pagination.page = 1
+  loadData()
+}
+
+const handleReset = () => {
+  Object.assign(searchForm, {
+    keyword: '',
+    phone: '',
+    userId: '',
+    badge: '',
+    dateRange: []
+  })
+  pagination.page = 1
+  loadData()
+}
+
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { 
-      page: pagination.page, 
-      size: pagination.size,
-      status: activeTab.value === 'all' ? undefined : activeTab.value
-    }
-    const data = await request.get('/user/artist/list', { params })
+  const params = { 
+    page: pagination.page, 
+    size: pagination.size,
+    status: activeTab.value === 'all' ? undefined : activeTab.value,
+    keyword: searchForm.keyword || undefined,
+    phone: searchForm.phone || undefined,
+    userId: searchForm.userId || undefined,
+    badge: searchForm.badge || undefined,
+    startDate: searchForm.dateRange && searchForm.dateRange[0] || undefined,
+    endDate: searchForm.dateRange && searchForm.dateRange[1] || undefined
+  }
+  const data = await request.get('/user/artist/list', { params })
     tableData.value = data.records || data.list || []
     pagination.total = data.total || 0
     pendingCount.value = data.pendingCount || 0
@@ -921,6 +994,51 @@ const loadData = async () => {
 const handleTabChange = () => {
   pagination.page = 1
   loadData()
+}
+
+const handleExport = async () => {
+  exportLoading.value = true
+  try {
+    const params = { 
+      page: 1, size: 10000,
+      status: activeTab.value === 'all' ? undefined : activeTab.value,
+      keyword: searchForm.keyword || undefined,
+      phone: searchForm.phone || undefined,
+      userId: searchForm.userId || undefined,
+      badge: searchForm.badge || undefined,
+      startDate: searchForm.dateRange && searchForm.dateRange[0] || undefined,
+      endDate: searchForm.dateRange && searchForm.dateRange[1] || undefined
+    }
+    const data = await request.get('/user/artist/list', { params })
+    const list = data.records || data.list || []
+    if (list.length === 0) { ElMessage.warning('没有数据可以导出'); return }
+    
+    const headers = ['ID', '昵称', '真实姓名', '手机号', '认证等级', '认证状态', '注册时间']
+    const rows = list.map(item => [
+      item.displayId || item.id || '',
+      item.nickname || item.userNickname || '',
+      item.realName || '',
+      item.phone || item.userPhone || '',
+      item.badge || '',
+      item.status === 1 ? '已认证' : item.status === 0 ? '待审核' : item.status === 2 ? '未通过' : '已隐藏',
+      item.createTime || item.registerTime || ''
+    ])
+    
+    let csvContent = headers.join(',') + '\n'
+    rows.forEach(row => { csvContent += row.map(cell => `"${cell}"`).join(',') + '\n' })
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `艺术家列表_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    ElMessage.success(`成功导出 ${list.length} 条数据`)
+  } catch (e) {
+    ElMessage.error('导出失败：' + (e.message || '未知错误'))
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 const viewMaterials = (row) => {

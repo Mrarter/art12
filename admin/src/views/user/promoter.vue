@@ -6,8 +6,11 @@
         <el-icon><Plus /></el-icon>
         添加艺荐官
       </el-button>
+      <el-button type="success" link @click="handleExport" :loading="exportLoading">
+        导出CSV
+      </el-button>
     </div>
-
+    
     <!-- 状态 Tab 切换 -->
     <div class="status-tabs">
       <el-radio-group v-model="activeTab" @change="handleTabChange">
@@ -26,7 +29,55 @@
       </el-radio-group>
     </div>
     
-    <el-table :data="tableData" v-loading="loading" border stripe>
+    <!-- 搜索筛选 -->
+    <el-card class="search-card" shadow="never">
+      <el-form :model="searchForm" inline>
+        <el-form-item label="昵称">
+          <el-input v-model="searchForm.keyword" placeholder="请输入昵称" clearable style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable style="width: 150px" />
+        </el-form-item>
+        <el-form-item label="ID/UID">
+          <el-input v-model="searchForm.userId" placeholder="请输入ID或UID" clearable style="width: 150px" />
+        </el-form-item>
+        <el-form-item label="等级">
+          <el-select v-model="searchForm.level" placeholder="全部" clearable style="width: 130px">
+            <el-option label="全部" value="" />
+            <el-option label="普通艺荐官" value="1" />
+            <el-option label="高级艺荐官" value="2" />
+            <el-option label="金牌艺荐官" value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="daterange"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+    
+    <!-- 批量操作栏 -->
+    <div v-if="selectedRows.length > 0" class="batch-actions">
+      <span class="selected-count">已选择 {{ selectedRows.length }} 个艺荐官</span>
+      <el-button type="primary" link @click="clearSelection">取消选择</el-button>
+      <el-divider direction="vertical" />
+      <el-button type="success" @click="handleBatchApprove" :loading="batchLoading">批量通过</el-button>
+      <el-button type="danger" @click="showBatchRejectDialog" :loading="batchLoading">批量拒绝</el-button>
+      <el-button type="danger" @click="handleBatchDelete" :loading="batchLoading">批量删除</el-button>
+    </div>
+
+    <el-table ref="tblRef" :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" />
       <el-table-column label="ID" width="80">
         <template #default="{ row }">
           <span class="id-display" @click="handleCopyId(row.displayId || row.id)">{{ row.displayId || row.id }}</span>
@@ -93,6 +144,19 @@
         </template>
       </el-table-column>
     </el-table>
+    
+    <!-- 批量拒绝原因弹窗 -->
+    <el-dialog v-model="batchRejectDialogVisible" title="批量拒绝" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="拒绝原因">
+          <el-input v-model="batchRejectReason" type="textarea" :rows="3" placeholder="请输入拒绝原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchRejectDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="batchLoading" @click="confirmBatchReject">确定拒绝</el-button>
+      </template>
+    </el-dialog>
     
     <div class="pagination">
       <el-pagination
@@ -385,6 +449,7 @@ import request, { getFullImageUrl, uploadFile } from '@/api/request'
 import { copyId } from '@/utils/id'
 
 const loading = ref(false)
+const exportLoading = ref(false)
 const rejectVisible = ref(false)
 const addVisible = ref(false)
 const addLoading = ref(false)
@@ -395,8 +460,24 @@ const currentRecord = ref({})
 const currentUser = ref({})
 const profileFormRef = ref()
 const rejectReason = ref('')
+
+// 批量操作相关变量
+const selectedRows = ref([])
+const batchLoading = ref(false)
+const batchRejectDialogVisible = ref(false)
+const batchRejectReason = ref('')
+
+const tblRef = ref()
+
 const selectedLevel = ref(1)
 const activeTab = ref('pending')
+const searchForm = reactive({
+  keyword: '',
+  phone: '',
+  userId: '',
+  level: '',
+  dateRange: []
+})
 const pendingCount = ref(0)
 const approvedCount = ref(0)
 const rejectedCount = ref(0)
@@ -639,15 +720,85 @@ const saveProfile = async () => {
   }
 }
 
+const handleSearch = () => {
+  pagination.page = 1
+  loadData()
+}
+
+const handleReset = () => {
+  Object.assign(searchForm, {
+    keyword: '',
+    phone: '',
+    userId: '',
+    level: '',
+    dateRange: []
+  })
+  pagination.page = 1
+  loadData()
+}
+
+const handleExport = async () => {
+  exportLoading.value = true
+  try {
+    const params = { 
+      page: 1, size: 10000,
+      status: activeTab.value === 'all' ? undefined : activeTab.value,
+      keyword: searchForm.keyword || undefined,
+      phone: searchForm.phone || undefined,
+      userId: searchForm.userId || undefined,
+      level: searchForm.level || undefined,
+      startDate: searchForm.dateRange && searchForm.dateRange[0] || undefined,
+      endDate: searchForm.dateRange && searchForm.dateRange[1] || undefined
+    }
+    const data = await request.get('/user/promoter/list', { params })
+    const list = data.records || data.list || []
+    if (list.length === 0) { ElMessage.warning('没有数据可以导出'); return }
+    
+    const headers = ['ID', '昵称', '手机号', '等级', '团队人数', '直接推荐', '累计佣金', '认证状态', '成为时间']
+    const rows = list.map(item => [
+      item.displayId || item.id || '',
+      item.nickname || item.userNickname || '',
+      item.phone || item.userPhone || '',
+      item.level === 3 ? '金牌艺荐官' : item.level === 2 ? '高级艺荐官' : '普通艺荐官',
+      item.teamCount || 0,
+      item.directCount || 0,
+      item.totalCommission || 0,
+      item.status === 1 ? '已认证' : item.status === 0 ? '待审核' : item.status === -1 ? '已拒绝' : '未知',
+      item.becomeTime || item.createTime || item.createdAt || ''
+    ])
+    
+    let csvContent = headers.join(',') + '\n'
+    rows.forEach(row => { csvContent += row.map(cell => `"${cell}"`).join(',') + '\n' })
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `艺荐官列表_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    ElMessage.success(`成功导出 ${list.length} 条数据`)
+  } catch (e) {
+    ElMessage.error('导出失败：' + (e.message || '未知错误'))
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { 
+  const params = { 
       page: pagination.page, 
       size: pagination.size,
-      status: activeTab.value === 'all' ? undefined : activeTab.value
+      status: activeTab.value === 'all' ? undefined : activeTab.value,
+      keyword: searchForm.keyword || undefined,
+      phone: searchForm.phone || undefined,
+      userId: searchForm.userId || undefined,
+      level: searchForm.level || undefined,
+      startDate: searchForm.dateRange && searchForm.dateRange[0] || undefined,
+      endDate: searchForm.dateRange && searchForm.dateRange[1] || undefined
     }
-    const data = await request.get('/user/promoter/list', { params })
+  const data = await request.get('/user/promoter/list', { params })
     tableData.value = data.records || data.list || []
     pagination.total = data.total || 0
     pendingCount.value = data.pendingCount || 0
@@ -693,6 +844,57 @@ const confirmReject = async () => {
     await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
     ElMessage.success('已拒绝')
     rejectVisible.value = false
+    await loadData()
+  }
+}
+
+// 批量操作相关方法
+const handleSelectionChange = (rows) => {
+  selectedRows.value = rows
+}
+
+const clearSelection = () => {
+  tblRef.value?.clearSelection()
+}
+
+const handleBatchApprove = async () => {
+  try {
+    await ElMessageBox.confirm(`确定批量通过 ${selectedRows.value.length} 个艺荐官吗？`, '提示', { type: 'success' })
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/user/promoter/batchApprove', { ids })
+    ElMessage.success('批量通过成功')
+    clearSelection()
+    await loadData()
+  } catch (e) {}
+}
+
+const showBatchRejectDialog = () => {
+  batchRejectReason.value = ''
+  batchRejectDialogVisible.value = true
+}
+
+const confirmBatchReject = async () => {
+  if (!batchRejectReason.value.trim()) {
+    ElMessage.warning('请输入拒绝原因')
+    return
+  }
+  try {
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/user/promoter/batchReject', { ids, reason: batchRejectReason.value })
+    ElMessage.success('批量拒绝成功')
+    batchRejectDialogVisible.value = false
+    clearSelection()
+    await loadData()
+  } catch (e) {}
+}
+
+const handleBatchDelete = async () => {
+  try {
+    await ElMessageBox.confirm(`确定批量删除 ${selectedRows.value.length} 个艺荐官吗？`, '删除确认', { type: 'warning' })
+    const ids = selectedRows.value.map(row => row.id)
+    await request.post('/user/promoter/batchDelete', { ids })
+    ElMessage.success('批量删除成功')
+    clearSelection()
     await loadData()
   } catch (e) {}
 }

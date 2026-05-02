@@ -172,9 +172,17 @@ public class UserManagementController {
     public Result<Map<String, Object>> getArtistList(
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size,
-        @RequestParam(required = false) String status
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) String phone,
+        @RequestParam(required = false) String userId,
+        @RequestParam(required = false) String badge,
+        @RequestParam(required = false) String startDate,
+        @RequestParam(required = false) String endDate,
+        @RequestParam(required = false) String sortField,
+        @RequestParam(required = false) String sortOrder
     ) {
-        return Result.success(userAdminPersistenceService.listArtists(page, size, status));
+        return Result.success(userAdminPersistenceService.listArtists(page, size, status, keyword, phone, userId, badge, startDate, endDate, sortField, sortOrder));
     }
 
     @PostMapping("/artist/approve")
@@ -237,10 +245,15 @@ public class UserManagementController {
         @RequestParam(defaultValue = "10") int size,
         @RequestParam(required = false) String userId,
         @RequestParam(required = false) String level,
-        @RequestParam(required = false) String status
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) String phone,
+        @RequestParam(required = false) String startDate,
+        @RequestParam(required = false) String endDate,
+        @RequestParam(required = false) String sortField,
+        @RequestParam(required = false) String sortOrder
     ) {
-        Map<String, Object> payload = userAdminPersistenceService.listPromoters(page, size, userId, level, status).get(0);
-        return Result.success(payload);
+        return Result.success(userAdminPersistenceService.listPromoters(page, size, userId, level, status, keyword, phone, startDate, endDate, sortField, sortOrder));
     }
 
     @PostMapping("/promoter/add")
@@ -254,6 +267,48 @@ public class UserManagementController {
         Long userId = Long.parseLong(String.valueOf(params.get("userId")));
         int status = params.get("status") instanceof Number number ? number.intValue() : Integer.parseInt(String.valueOf(params.get("status")));
         userAdminPersistenceService.updatePromoterStatus(userId, status);
+        return Result.success();
+    }
+
+    // ==================== 艺荐官批量操作 ====================
+
+    @PostMapping("/promoter/batchApprove")
+    public Result<Void> batchApprovePromoter(@RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        if (ids.isEmpty()) {
+            return Result.fail(400, "请选择要操作的艺荐官");
+        }
+        userAdminPersistenceService.batchApprovePromoters(ids);
+        return Result.success();
+    }
+
+    @PostMapping("/promoter/batchReject")
+    public Result<Void> batchRejectPromoter(@RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        String reason = Objects.toString(params.get("reason"), "不符合条件");
+        if (ids.isEmpty()) {
+            return Result.fail(400, "请选择要操作的艺荐官");
+        }
+        userAdminPersistenceService.batchRejectPromoters(ids, reason);
+        return Result.success();
+    }
+
+    @PostMapping("/promoter/batchDelete")
+    public Result<Void> batchDeletePromoter(@RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Long> ids = ((List<Number>) params.get("ids")).stream()
+            .map(Number::longValue)
+            .collect(java.util.stream.Collectors.toList());
+        if (ids.isEmpty()) {
+            return Result.fail(400, "请选择要删除的艺荐官");
+        }
+        userAdminPersistenceService.batchDeletePromoters(ids);
         return Result.success();
     }
 
