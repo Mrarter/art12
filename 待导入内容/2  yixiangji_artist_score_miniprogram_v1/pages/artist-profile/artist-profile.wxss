@@ -1,0 +1,70 @@
+.page {
+  min-height: 100vh;
+  padding: 32rpx;
+  background: #f7f3eb;
+}
+
+.artist-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28rpx;
+}
+
+.avatar {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 50%;
+  background: #ddd;
+  margin-right: 24rpx;
+}
+
+.name {
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+
+.desc {
+  margin-top: 8rpx;
+  color: #777;
+  font-size: 26rpx;
+}
+
+.section {
+  margin-top: 32rpx;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  background: #fff;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 20rpx;
+}
+
+.progress-box {
+  display: flex;
+  align-items: center;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 18rpx;
+  background: #eee;
+  border-radius: 99rpx;
+  overflow: hidden;
+  margin-right: 20rpx;
+}
+
+.progress-inner {
+  height: 100%;
+  background: #111;
+}
+
+.primary-btn {
+  margin-top: 40rpx;
+  background: #111;
+  color: #fff;
+  border-radius: 999rpx;
+}

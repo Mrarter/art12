@@ -94,9 +94,11 @@ public class ProductController {
             @RequestParam(required = false) Integer size,
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(required = false) Long id,
+            @RequestParam(required = false) String artworkCode,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String authorName,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String artType,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Long minPrice,
             @RequestParam(required = false) Long maxPrice,
@@ -111,9 +113,11 @@ public class ProductController {
         query.setPage(page);
         query.setPageSize(size != null ? size : pageSize);
         query.setId(id);
+        query.setArtworkCode(artworkCode);
         query.setTitle(title);
         query.setAuthorName(authorName);
         query.setCategoryId(categoryId);
+        query.setArtType(artType);
         query.setSort(sort);
         query.setMinPrice(minPrice);
         query.setMaxPrice(maxPrice);

@@ -1,0 +1,33 @@
+.level-badge {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  border-radius: 20rpx;
+  background: #111;
+  color: #fff;
+}
+
+.level-main {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #d6a84f;
+  color: #111;
+  font-size: 34rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+}
+
+.level-text {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.score-text {
+  margin-left: auto;
+  font-size: 26rpx;
+  opacity: 0.85;
+}

@@ -24,6 +24,9 @@ public class ArtworkUpdateDTO {
     private String artType;
     private String size;
     private Integer year;
+    // 每日展示热度配置
+    private Integer dailyViewCount;
+    private Integer dailyLikeCount;
     // 分销相关
     private Boolean distributionEnabled;
     private Integer commissionRate;

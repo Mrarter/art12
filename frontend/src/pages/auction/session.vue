@@ -106,7 +106,7 @@
     </view>
 
     <!-- 底部保证金按钮 -->
-    <view class="bottom-bar" v-if="session.status === 1 && !hasDeposit">
+    <view class="bottom-bar" v-if="session.status === 1 && !hasDeposit && minDeposit > 0">
       <view class="deposit-info">
         <text>需缴纳保证金 ¥{{ minDeposit }}</text>
       </view>
@@ -116,7 +116,7 @@
 </template>
 
 <script>
-import { getSessionDetail, payDeposit } from '@/api/auction'
+import { getAuctionSessions, getSessionDetail, payDeposit } from '@/api/auction'
 
 export default {
   data() {
@@ -142,17 +142,39 @@ export default {
       this.loading = true
       try {
         const res = await getSessionDetail(this.sessionId)
-        if (res.code === 200) {
-          this.session = res.data.session || {}
-          this.lots = res.data.lots || []
-          this.minDeposit = Math.min(...this.lots.map(l => l.depositAmount || 0))
-          this.calculateRemainTime()
-        }
+        this.applySessionData(res)
       } catch (e) {
-        console.error('加载专场详情失败', e)
-        uni.showToast({ title: '加载失败', icon: 'none' })
+        console.error('加载专场详情失败，尝试从列表恢复', e)
+        try {
+          await this.loadSessionFallback()
+        } catch (fallbackError) {
+          uni.showToast({ title: '加载失败', icon: 'none' })
+        }
       } finally {
         this.loading = false
+      }
+    },
+
+    applySessionData(res) {
+      const data = res?.data || res || {}
+      this.session = data.session || data || {}
+      this.lots = data.lots || data.records || []
+      this.minDeposit = this.lots.length ? Math.min(...this.lots.map(l => l.depositAmount || 0)) : 0
+      this.calculateRemainTime()
+    },
+
+    async loadSessionFallback() {
+      const statuses = [1, 0, 2]
+      for (const status of statuses) {
+        const res = await getAuctionSessions({ page: 1, pageSize: 50, status })
+        const list = res?.records || res?.list || (Array.isArray(res) ? res : [])
+        const found = list.find(item => Number(item.id) === Number(this.sessionId))
+        if (found) {
+          this.session = found
+          this.lots = []
+          this.minDeposit = 0
+          return
+        }
       }
     },
 
@@ -181,11 +203,9 @@ export default {
     async handleDeposit(lot) {
       try {
         uni.showLoading({ title: '处理中...' })
-        const res = await payDeposit(this.sessionId)
-        if (res.code === 200) {
-          this.hasDeposit = true
-          uni.showToast({ title: '缴纳成功' })
-        }
+        await payDeposit(this.sessionId)
+        this.hasDeposit = true
+        uni.showToast({ title: '缴纳成功' })
       } catch (e) {
         uni.showToast({ title: '缴纳失败', icon: 'none' })
       } finally {
@@ -250,7 +270,7 @@ export default {
 <style lang="scss" scoped>
 .session-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0d0d0d;
   padding-bottom: 120rpx;
 }
 
@@ -262,7 +282,7 @@ export default {
 .header-bg {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #2c3e50, #34495e);
+  background: linear-gradient(135deg, #2b2414, #0d0d0d);
 }
 
 .header-overlay {
@@ -326,15 +346,16 @@ export default {
 }
 
 .rules-section {
-  background: #fff;
+  background: #1a1a1a;
   margin: 20rpx;
   border-radius: 16rpx;
   padding: 30rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .section-title {
   font-size: 30rpx;
-  color: #333;
+  color: #f5f5f5;
   font-weight: 600;
   margin-bottom: 20rpx;
 }
@@ -347,13 +368,13 @@ export default {
   display: flex;
   margin-bottom: 12rpx;
   font-size: 26rpx;
-  color: #666;
+  color: #b3b3b3;
   line-height: 1.5;
 }
 
 .rule-index {
   margin-right: 8rpx;
-  color: #999;
+  color: #d4af37;
 }
 
 .lots-section {
@@ -369,14 +390,15 @@ export default {
 
 .lot-count {
   font-size: 24rpx;
-  color: #999;
+  color: #a0a0a0;
 }
 
 .lot-card {
-  background: #fff;
+  background: #1a1a1a;
   border-radius: 16rpx;
   margin-bottom: 24rpx;
   overflow: hidden;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .lot-header {
@@ -384,12 +406,12 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 20rpx 24rpx;
-  background: #fafafa;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .lot-no {
   font-size: 26rpx;
-  color: #666;
+  color: #d4af37;
   font-weight: 500;
 }
 
@@ -426,21 +448,21 @@ export default {
 
 .lot-name {
   font-size: 32rpx;
-  color: #333;
+  color: #f5f5f5;
   font-weight: 600;
   margin-bottom: 8rpx;
 }
 
 .lot-author {
   font-size: 26rpx;
-  color: #999;
+  color: #a0a0a0;
   margin-bottom: 12rpx;
 }
 
 .lot-meta {
   display: flex;
   font-size: 24rpx;
-  color: #999;
+  color: #888;
 }
 
 .lot-size {
@@ -459,19 +481,19 @@ export default {
 .price-label {
   display: block;
   font-size: 22rpx;
-  color: #999;
+  color: #888;
   margin-bottom: 4rpx;
 }
 
 .current-price {
   font-size: 36rpx;
-  color: #e74c3c;
+  color: #d4af37;
   font-weight: 600;
 }
 
 .start-price {
   font-size: 28rpx;
-  color: #666;
+  color: #b3b3b3;
 }
 
 .lot-footer {
@@ -479,7 +501,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 20rpx 24rpx;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .bid-info {
@@ -489,7 +511,7 @@ export default {
 
 .bid-count {
   font-size: 24rpx;
-  color: #999;
+  color: #888;
 }
 
 .remain-time {

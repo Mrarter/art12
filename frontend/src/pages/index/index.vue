@@ -86,21 +86,23 @@
               <view class="artwork-tag new-tag" v-if="item.isNew">新</view>
             </view>
             <view class="artwork-card-info">
-              <text class="artwork-title">{{ item.title }}</text>
-              <view class="artwork-author">
-                <text class="author-name">{{ item.artistName || item.authorName }}</text>
-                <view class="identity-tag" v-if="item.authorIdentity">
-                  <text>{{ getIdentityText(item.authorIdentity) }}</text>
-                </view>
+              <view class="artwork-title-row">
+                <text class="artwork-artist-name">{{ getCardArtist(item) }}</text>
+                <text class="artwork-title-separator">/</text>
+                <text class="artwork-title">{{ getArtworkTitle(item) }}</text>
               </view>
+              <view class="artwork-author">
+                <text class="author-name">{{ getCardMeta(item) }}</text>
+              </view>
+              <view class="holder-line" v-if="getHolderName(item)">作品发布人/持有者：{{ getHolderName(item) }}</view>
               <view class="artwork-footer">
                 <view class="price-info">
-                  <text class="price-symbol">¥</text>
                   <text class="price-value">{{ formatPrice(item.price) }}</text>
                   <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
                   <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
               </view>
+              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
             </view>
           </view>
         </view>
@@ -122,21 +124,23 @@
               <view class="artwork-tag new-tag" v-if="item.isNew">新</view>
             </view>
             <view class="artwork-card-info">
-              <text class="artwork-title">{{ item.title }}</text>
-              <view class="artwork-author">
-                <text class="author-name">{{ item.artistName || item.authorName }}</text>
-                <view class="identity-tag" v-if="item.authorIdentity">
-                  <text>{{ getIdentityText(item.authorIdentity) }}</text>
-                </view>
+              <view class="artwork-title-row">
+                <text class="artwork-artist-name">{{ getCardArtist(item) }}</text>
+                <text class="artwork-title-separator">/</text>
+                <text class="artwork-title">{{ getArtworkTitle(item) }}</text>
               </view>
+              <view class="artwork-author">
+                <text class="author-name">{{ getCardMeta(item) }}</text>
+              </view>
+              <view class="holder-line" v-if="getHolderName(item)">作品发布人/持有者：{{ getHolderName(item) }}</view>
               <view class="artwork-footer">
                 <view class="price-info">
-                  <text class="price-symbol">¥</text>
                   <text class="price-value">{{ formatPrice(item.price) }}</text>
                   <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
                   <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
               </view>
+              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
             </view>
           </view>
         </view>
@@ -167,7 +171,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
-import { getBanners, getRecommend, getFollowingWorks } from '@/api/product'
+import { getBanners, getRecommend, getFollowingWorks, getProductList } from '@/api/product'
 import { useUserStore } from '@/store/modules/user'
 
 const userStore = useUserStore()
@@ -201,7 +205,7 @@ const pageSize = 10
 // 金刚区配置 - 深色主题
 const navItems = [
   { id: 1, text: '画廊', icon: '/static/icons/nav-gallery.svg', path: '/pages/gallery/index' },
-  { id: 2, text: '艺术家', icon: '/static/icons/nav-artist.svg', path: '/pages/artist/home' },
+  { id: 2, text: '艺术家', icon: '/static/icons/nav-artist.svg', path: '/pages/artist/list' },
   { id: 3, text: '购物车', icon: '/static/icons/nav-cart.svg', path: '/pages/cart/index' },
   { id: 4, text: '鉴赏', icon: '/static/icons/nav-appreciate.svg', path: '/pages/common/coming-soon?title=鉴赏专区&desc=鉴赏频道正在整理中，后续会接入专题内容与策展推荐。' }
 ]
@@ -244,9 +248,17 @@ const fetchProductList = async (reset = false) => {
       const result = await getRecommend(params)
       // 处理 PageResult 格式：{ records: [], total: xxx, page: xxx }
       list = result?.records || result || []
+      if (!list.length) {
+        const fallback = await getProductList(params)
+        list = fallback?.records || fallback || []
+      }
     } else {
       const result = await getFollowingWorks(params)
       list = result?.records || result || []
+      if (!list.length) {
+        const fallback = await getProductList(params)
+        list = fallback?.records || fallback || []
+      }
     }
 
     // 分页处理
@@ -360,6 +372,37 @@ const formatPrice = (price) => {
     return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
   }
   return yuan.toLocaleString()
+}
+
+const getCardTitle = (item) => {
+  const artist = item.artistName || item.authorName || '未知艺术家'
+  const title = item.title || item.name || '未命名作品'
+  return `${artist} / ${title}`
+}
+
+const getCardArtist = (item) => {
+  return item.artistName || item.authorName || '未知艺术家'
+}
+
+const getArtworkTitle = (item) => {
+  return item.title || item.name || '未命名作品'
+}
+
+const getCardMeta = (item) => {
+  return [item.artType || item.category || item.categoryName || item.material, item.size, item.year || item.createYear]
+    .filter(Boolean)
+    .join(' / ')
+}
+
+const getHolderName = (item) => {
+  const holder = item.holderName || item.publisherName || item.ownerName || item.userNickname
+  const artist = item.artistName || item.authorName
+  if (!holder || holder === artist) return ''
+  return holder
+}
+
+const showRiseTip = (item) => {
+  return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
 }
 
 // 计算左右列数据
@@ -660,15 +703,40 @@ $price-down: #4CAF50;
     padding: 20rpx;
   }
   
-  .artwork-title {
-    display: block;
-    font-size: 28rpx;
-    color: $text-primary;
-    font-weight: 500;
+  .artwork-title-row {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
     margin-bottom: 12rpx;
     overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .artwork-artist-name {
+    flex: 0 1 auto;
+    max-width: 42%;
+    font-size: 22rpx;
+    color: $text-secondary;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .artwork-title-separator {
+    flex: 0 0 auto;
+    padding: 0 8rpx;
+    font-size: 22rpx;
+    color: $text-muted;
+  }
+
+  .artwork-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 30rpx;
+    color: $text-primary;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .artwork-author {
@@ -704,16 +772,16 @@ $price-down: #4CAF50;
     display: flex;
     align-items: baseline;
     
-    .price-symbol {
-      font-size: 24rpx;
-      color: $accent-gold;
-      margin-right: 4rpx;
-    }
-    
     .price-value {
       font-size: 32rpx;
       color: $accent-gold;
       font-weight: 600;
+
+      &::before {
+        content: '¥';
+        font-size: 22rpx;
+        margin-right: 2rpx;
+      }
     }
     
     .price-change {
@@ -729,6 +797,22 @@ $price-down: #4CAF50;
       }
     }
   }
+}
+
+.holder-line {
+  font-size: 20rpx;
+  color: $text-muted;
+  line-height: 1.4;
+  margin: -4rpx 0 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rise-tip {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: rgba(212, 175, 55, 0.88);
 }
 
 .empty-state {

@@ -66,6 +66,7 @@
       "path": "pages/gallery/detail",
       "style": {
         "navigationBarTitleText": "作品详情",
+        "navigationStyle": "custom",
         "navigationBarBackgroundColor": "#0D0D0D"
       }
     },
@@ -347,6 +348,12 @@
       "path": "pages/artist/home",
       "style": {
         "navigationBarTitleText": "艺术家主页"
+      }
+    },
+    {
+      "path": "pages/artist/list",
+      "style": {
+        "navigationBarTitleText": "艺术家"
       }
     },
     {

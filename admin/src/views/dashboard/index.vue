@@ -164,18 +164,19 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
+import request from '@/api/request'
 
 const router = useRouter()
 
 const stats = reactive({
-  userCount: 12580,
-  userGrowth: 12.5,
-  productCount: 8560,
-  productGrowth: 8.3,
-  orderCount: 3240,
-  orderGrowth: 15.2,
-  amount: 2568000,
-  amountGrowth: 18.7
+  userCount: 0,
+  userGrowth: 0,
+  productCount: 0,
+  productGrowth: 0,
+  orderCount: 0,
+  orderGrowth: 0,
+  amount: 0,
+  amountGrowth: 0
 })
 
 const chartPeriod = ref('week')
@@ -184,29 +185,23 @@ const trendChartRef = ref()
 const pieChartRef = ref()
 
 const todoList = reactive({
-  pendingArtist: 3,
-  pendingProduct: 5,
-  pendingLot: 2
+  pendingArtist: 0,
+  pendingProduct: 0,
+  pendingLot: 0
 })
 
-const activeAuctions = ref([
-  { id: 1, name: '2024春季艺术品拍卖会', endTime: '02-06 18:00', bidCount: 156 },
-  { id: 2, name: '当代艺术专场', endTime: '03-06 20:00', bidCount: 89 },
-  { id: 3, name: '书画精品专场', endTime: '03-21 18:00', bidCount: 42 }
-])
+const activeAuctions = ref([])
 
-const recentOrders = ref([
-  { orderNo: 'SYJ20240120001', amount: 58000, status: 'completed' },
-  { orderNo: 'SYJ20240120002', amount: 32200, status: 'shipped' },
-  { orderNo: 'SYJ20240120003', amount: 15000, status: 'paid' },
-  { orderNo: 'SYJ20240120004', amount: 8800, status: 'pending' }
-])
+const recentOrders = ref([])
+const orderStatusData = ref([])
+const trendData = ref([])
 
 const formatNumber = (num) => {
-  if (num >= 10000) {
-    return (num / 10000).toFixed(1) + '万'
+  const value = Number(num || 0)
+  if (value >= 10000) {
+    return (value / 10000).toFixed(1) + '万'
   }
-  return num.toLocaleString()
+  return value.toLocaleString()
 }
 
 const getOrderStatusType = (status) => {
@@ -221,6 +216,24 @@ const getOrderStatusText = (status) => {
 
 const goPage = (path) => {
   router.push(path)
+}
+
+const loadDashboard = async () => {
+  const data = await request.get('/dashboard/stats')
+  Object.assign(stats, {
+    userCount: data.userCount || 0,
+    productCount: data.productCount || data.artworkCount || 0,
+    orderCount: data.orderCount || 0,
+    amount: data.amount || data.totalSales || 0,
+    userGrowth: data.userGrowth || 0,
+    productGrowth: data.productGrowth || 0,
+    orderGrowth: data.orderGrowth || 0,
+    amountGrowth: data.amountGrowth || 0
+  })
+  Object.assign(todoList, data.todo || {})
+  recentOrders.value = data.recentOrders || []
+  orderStatusData.value = data.orderStatus || []
+  trendData.value = data.trend || []
 }
 
 const initTrendChart = () => {
@@ -245,7 +258,7 @@ const initTrendChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: ['01-15', '01-16', '01-17', '01-18', '01-19', '01-20', '01-21']
+      data: trendData.value.map(item => String(item.date).slice(5))
     },
     yAxis: [
       {
@@ -268,7 +281,7 @@ const initTrendChart = () => {
         name: '订单数',
         type: 'line',
         smooth: true,
-        data: [120, 132, 101, 134, 90, 230, 210],
+        data: trendData.value.map(item => Number(item.orderCount || 0)),
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(102, 126, 234, 0.5)' },
@@ -283,7 +296,7 @@ const initTrendChart = () => {
         type: 'line',
         smooth: true,
         yAxisIndex: 1,
-        data: [8.5, 9.2, 7.8, 10.2, 6.5, 15.8, 14.2],
+        data: trendData.value.map(item => Number(item.amount || 0) / 10000),
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(118, 75, 162, 0.5)' },
@@ -335,20 +348,15 @@ const initPieChart = () => {
             fontWeight: 'bold'
           }
         },
-        data: [
-          { value: 580, name: '已完成', itemStyle: { color: '#67c23a' } },
-          { value: 320, name: '已发货', itemStyle: { color: '#409eff' } },
-          { value: 280, name: '已付款', itemStyle: { color: '#e6a23c' } },
-          { value: 120, name: '待付款', itemStyle: { color: '#f56c6c' } },
-          { value: 40, name: '已取消', itemStyle: { color: '#909399' } }
-        ]
+        data: (orderStatusData.value.length ? orderStatusData.value : [{ value: 0, name: '暂无订单' }])
       }
     ]
   }
   chart.setOption(option)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadDashboard().catch(() => {})
   nextTick(() => {
     initTrendChart()
     initPieChart()

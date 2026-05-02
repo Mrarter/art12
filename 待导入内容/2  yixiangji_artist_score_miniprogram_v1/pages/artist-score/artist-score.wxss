@@ -1,0 +1,43 @@
+.page {
+  min-height: 100vh;
+  padding: 32rpx;
+  background: #f7f3eb;
+}
+
+.score-list {
+  margin-top: 32rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 28rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.score-name {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.score-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #888;
+}
+
+.score-value {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #111;
+}
+
+.notice {
+  margin-top: 28rpx;
+  color: #777;
+  font-size: 24rpx;
+  line-height: 1.6;
+}

@@ -87,20 +87,22 @@ export default {
 <style lang="scss" scoped>
 .about-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0d0d0d;
 }
 
 .logo-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  padding: 80rpx 0;
+  background: linear-gradient(135deg, #2b2414 0%, #181818 58%, #0d0d0d 100%);
+  color: #f7f2e7;
+  padding: 96rpx 0 78rpx;
   text-align: center;
+  border-bottom: 1rpx solid rgba(212, 175, 55, 0.18);
 }
 
 .app-logo {
   width: 160rpx;
   height: 160rpx;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(212, 175, 55, 0.12);
+  border: 1rpx solid rgba(212, 175, 55, 0.25);
   border-radius: 32rpx;
 }
 
@@ -119,10 +121,11 @@ export default {
 }
 
 .menu-section {
-  background: #fff;
+  background: #1a1a1a;
   margin: 24rpx;
-  border-radius: 16rpx;
+  border-radius: 18rpx;
   overflow: hidden;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .menu-item {
@@ -130,7 +133,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 30rpx 24rpx;
-  border-bottom: 2rpx solid #f5f5f5;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .menu-item:last-child {
@@ -139,7 +142,7 @@ export default {
 
 .menu-name {
   font-size: 28rpx;
-  color: #333;
+  color: #f5f5f5;
 }
 
 .menu-right {
@@ -150,25 +153,26 @@ export default {
 
 .version-text {
   font-size: 24rpx;
-  color: #999;
+  color: #a0a0a0;
 }
 
 .arrow {
-  color: #ccc;
+  color: #d4af37;
   font-size: 28rpx;
 }
 
 .contact-section {
-  background: #fff;
+  background: #1a1a1a;
   margin: 24rpx;
   border-radius: 16rpx;
   padding: 30rpx 24rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .section-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #333;
+  color: #d4af37;
   display: block;
   margin-bottom: 20rpx;
 }
@@ -183,13 +187,13 @@ export default {
 .contact-icon {
   width: 40rpx;
   height: 40rpx;
-  background: #f5f5f5;
+  background: rgba(212, 175, 55, 0.12);
   border-radius: 8rpx;
 }
 
 .contact-text {
   font-size: 28rpx;
-  color: #666;
+  color: #b3b3b3;
 }
 
 .footer-section {
@@ -199,7 +203,7 @@ export default {
 
 .copyright {
   font-size: 24rpx;
-  color: #999;
+  color: #777;
   display: block;
 }
 

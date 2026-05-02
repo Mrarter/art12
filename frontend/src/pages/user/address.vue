@@ -170,7 +170,7 @@ export default {
 <style lang="scss" scoped>
 .address-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0d0d0d;
   padding-bottom: 120rpx;
 }
 
@@ -181,10 +181,12 @@ export default {
 .address-item {
   display: flex;
   align-items: center;
-  background: #fff;
-  border-radius: 16rpx;
+  background: #1a1a1a;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 18rpx;
   padding: 30rpx;
   margin-bottom: 20rpx;
+  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.18);
 }
 
 .item-info {
@@ -198,20 +200,20 @@ export default {
     .name {
       font-size: 30rpx;
       font-weight: 600;
-      color: #333;
+      color: #f7f2e7;
       margin-right: 16rpx;
     }
     
     .phone {
       font-size: 28rpx;
-      color: #666;
+      color: #b3b3b3;
     }
     
     .default-tag {
       margin-left: 16rpx;
       font-size: 20rpx;
-      color: #667eea;
-      background: rgba(102, 126, 234, 0.1);
+      color: #d4af37;
+      background: rgba(212, 175, 55, 0.12);
       padding: 4rpx 12rpx;
       border-radius: 8rpx;
     }
@@ -219,7 +221,7 @@ export default {
   
   .address-text {
     font-size: 26rpx;
-    color: #999;
+    color: #8f8f8f;
     line-height: 1.4;
   }
 }
@@ -274,7 +276,8 @@ export default {
   right: 0;
   padding: 20rpx 30rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background: #fff;
+  background: rgba(13, 13, 13, 0.92);
+  backdrop-filter: blur(20rpx);
 }
 
 .add-btn {
@@ -282,13 +285,13 @@ export default {
   align-items: center;
   justify-content: center;
   height: 88rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #d4af37 0%, #8f6f1c 100%);
   border-radius: 44rpx;
   
   text {
     margin-left: 12rpx;
     font-size: 30rpx;
-    color: #fff;
+    color: #0d0d0d;
     font-weight: 500;
   }
 }

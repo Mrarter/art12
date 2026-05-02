@@ -31,13 +31,19 @@ public class OrderAdminController {
     public Result<PageResult<Map<String, Object>>> getOrderList(
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String buyerName,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
-            @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) Integer pageNum,
+            @RequestParam(required = false) Integer pageSize) {
 
-        PageResult<Map<String, Object>> result = orderService.getOrders(orderNo, userName, status, startDate, endDate, pageNum, pageSize);
+        int actualPage = pageNum != null ? pageNum : (page != null ? page : 1);
+        int actualSize = pageSize != null ? pageSize : (size != null ? size : 10);
+        String actualUserName = userName != null ? userName : buyerName;
+        PageResult<Map<String, Object>> result = orderService.getOrders(orderNo, actualUserName, status, startDate, endDate, actualPage, actualSize);
         return Result.success(result);
     }
 
@@ -107,7 +113,7 @@ public class OrderAdminController {
      */
     @GetMapping("/aftersale/list")
     public Result<PageResult<Map<String, Object>>> getAftersaleList(
-            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
 
@@ -121,7 +127,7 @@ public class OrderAdminController {
     @PostMapping("/aftersale/handle")
     public Result<Void> handleAftersale(@RequestBody Map<String, Object> params) {
         Long id = Long.parseLong(params.get("id").toString());
-        Integer status = Integer.parseInt(params.get("status").toString());
+        Integer status = parseAftersaleStatus(params.get("status"));
         String remark = params.get("remark") != null ? params.get("remark").toString() : "";
 
         try {
@@ -132,5 +138,17 @@ public class OrderAdminController {
             log.error("处理售后失败", e);
             return Result.fail("操作失败: " + e.getMessage());
         }
+    }
+
+    private Integer parseAftersaleStatus(Object status) {
+        if (status == null) {
+            return 0;
+        }
+        String value = status.toString().trim().toLowerCase(Locale.ROOT);
+        return switch (value) {
+            case "1", "approved", "refunded", "pass", "passed" -> 1;
+            case "2", "rejected", "reject" -> 2;
+            default -> 0;
+        };
     }
 }

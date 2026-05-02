@@ -1,0 +1,28 @@
+<view class="page">
+  <view class="artist-header">
+    <image class="avatar" src="{{artist.avatar}}" mode="aspectFill" />
+    <view class="artist-info">
+      <view class="name">{{artist.name}}</view>
+      <view class="desc">{{artist.summary}}</view>
+    </view>
+  </view>
+
+  <artist-level-badge level="{{score.level}}" score="{{score.totalScore}}" />
+
+  <view class="section">
+    <view class="section-title">认证资质</view>
+    <artist-cert-tags tags="{{certTags}}" />
+  </view>
+
+  <view class="section">
+    <view class="section-title">艺术家成长指数</view>
+    <view class="progress-box">
+      <view class="progress-bar">
+        <view class="progress-inner" style="width: {{growthPercent}}%;"></view>
+      </view>
+      <text>{{growthPercent}}%</text>
+    </view>
+  </view>
+
+  <button class="primary-btn" bindtap="goScoreDetail">查看评分详情</button>
+</view>

@@ -1,6 +1,7 @@
 package com.shiyiju.admin.controller;
 
 import com.shiyiju.admin.service.UserAdminPersistenceService;
+import com.shiyiju.admin.service.AdminAccountService;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
 import org.springframework.web.bind.annotation.*;
@@ -18,9 +19,11 @@ import java.util.Objects;
 public class UserManagementController {
 
     private final UserAdminPersistenceService userAdminPersistenceService;
+    private final AdminAccountService adminAccountService;
 
-    public UserManagementController(UserAdminPersistenceService userAdminPersistenceService) {
+    public UserManagementController(UserAdminPersistenceService userAdminPersistenceService, AdminAccountService adminAccountService) {
         this.userAdminPersistenceService = userAdminPersistenceService;
+        this.adminAccountService = adminAccountService;
     }
 
     @GetMapping("/list")
@@ -137,9 +140,22 @@ public class UserManagementController {
     }
 
     @PostMapping("/artist/revoke")
-    public Result<Void> revokeArtist(@RequestBody Map<String, Object> params) {
+    public Result<Void> revokeArtist(
+        @RequestBody Map<String, Object> params,
+        @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        if (!isAdmin(authorization)) {
+            return Result.fail(403, "需要管理员权限");
+        }
         Long id = ((Number) params.get("id")).longValue();
         userAdminPersistenceService.revokeArtist(id);
+        return Result.success();
+    }
+
+    @PostMapping("/artist/hide")
+    public Result<Void> hideArtist(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        userAdminPersistenceService.hideArtist(id);
         return Result.success();
     }
 
@@ -257,6 +273,13 @@ public class UserManagementController {
         return Result.success();
     }
 
+    @PutMapping("/promoter/{userId}/relation")
+    public Result<Void> updatePromoterRelation(@PathVariable String userId, @RequestBody Map<String, Object> params) {
+        Long numericId = parseUserId(userId);
+        userAdminPersistenceService.updatePromoterRelation(numericId, params);
+        return Result.success();
+    }
+
     @GetMapping("/{userId}/artworks")
     public Result<Map<String, Object>> getUserArtworks(
         @PathVariable String userId,
@@ -328,7 +351,13 @@ public class UserManagementController {
     }
 
     @DeleteMapping("/artist/{id}")
-    public Result<Void> deleteArtist(@PathVariable Long id) {
+    public Result<Void> deleteArtist(
+        @PathVariable Long id,
+        @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        if (!isAdmin(authorization)) {
+            return Result.fail(403, "需要管理员权限");
+        }
         userAdminPersistenceService.deleteArtist(id);
         return Result.success();
     }
@@ -354,5 +383,13 @@ public class UserManagementController {
         }
         // 如果是字符串UID，查询对应的数字ID
         return userAdminPersistenceService.getUserIdByUid(userIdStr);
+    }
+
+    private boolean isAdmin(String authorization) {
+        if (authorization == null || !authorization.replace("Bearer ", "").startsWith("admin:")) {
+            return false;
+        }
+        Map<String, Object> admin = adminAccountService.getAdminInfo(authorization);
+        return Objects.equals(admin.get("role"), "super") || Objects.equals(admin.get("role"), "admin");
     }
 }

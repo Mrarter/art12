@@ -126,15 +126,15 @@
     </el-dialog>
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="作品ID">
-          <el-input v-model="searchForm.artworkId" placeholder="请输入作品ID" clearable />
+      <el-form :inline="true" :model="searchForm" @submit.prevent="handleSearch">
+        <el-form-item label="作品uid">
+          <el-input v-model="searchForm.artworkId" placeholder="请输入作品uid" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="作品名称">
-          <el-input v-model="searchForm.title" placeholder="请输入作品名称" clearable />
+          <el-input v-model="searchForm.title" placeholder="请输入作品名称" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="艺术家">
-          <el-input v-model="searchForm.artistName" placeholder="请输入艺术家" clearable />
+          <el-input v-model="searchForm.artistName" placeholder="请输入艺术家" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="分类/画种">
           <el-select v-model="searchForm.categoryId" placeholder="全部" clearable filterable>
@@ -153,16 +153,16 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button type="primary" native-type="submit">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column label="作品ID" width="120">
+      <el-table-column label="作品uid" width="150">
         <template #default="{ row }">
-          <span class="artwork-code">{{ row.artworkCode || row.displayArtworkId || row.artworkId }}</span>
+          <span class="artwork-code">{{ getArtworkUid(row) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="作品信息" min-width="280">
@@ -188,9 +188,9 @@
             </div>
             <div class="detail">
               <p class="title" @click="handleEdit(row)">{{ row.title }}</p>
-              <p class="artist" @click="handleEdit(row)">
+              <p class="artist artist-link" @click.stop="openArtistEditor(row)">
                 {{ row.artistName }}
-                <span v-if="row.authorUid" class="artist-id-inline">ID: {{ row.authorUid }}</span>
+                <span class="artist-id-inline">UID: {{ getAuthorUid(row) }}</span>
               </p>
               <p class="category">
                 <el-tag v-if="row.categoryName" size="small" type="info">{{ row.categoryName }}</el-tag>
@@ -203,18 +203,11 @@
       <el-table-column label="价格" width="150">
         <template #default="{ row }">
           <p>¥{{ row.price }}</p>
+          <p class="size-year" v-if="formatSizeYear(row)">{{ formatSizeYear(row) }}</p>
           <p class="original" v-if="row.originalPrice">原价: ¥{{ row.originalPrice }}</p>
           <p class="price-rise" v-if="row.priceRise > 0" style="color: #ff4d4f; font-size: 12px;">
             涨幅 +{{ (row.priceRise * 100).toFixed(1) }}%
           </p>
-        </template>
-      </el-table-column>
-      <el-table-column label="尺寸/年份" min-width="120">
-        <template #default="{ row }">
-          <div class="art-info">
-            <span v-if="row.size" class="art-size">{{ row.size }}</span>
-            <span v-if="row.year" class="art-year">{{ row.year }}年</span>
-          </div>
         </template>
       </el-table-column>
       <el-table-column label="类型" width="80">
@@ -225,6 +218,14 @@
         </template>
       </el-table-column>
       <el-table-column prop="favoriteCount" label="收藏数" width="80" />
+      <el-table-column label="每日热度" width="120">
+        <template #default="{ row }">
+          <div class="daily-heat-cell">
+            <span>浏览 {{ row.dailyViewCount || 0 }}</span>
+            <span>点赞 {{ row.dailyLikeCount || 0 }}</span>
+          </div>
+        </template>
+      </el-table-column>
 <el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.status === 1 ? 'success' : 'info'">
@@ -232,7 +233,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="权重" width="100">
+      <el-table-column label="权重" width="130">
         <template #default="{ row }">
           <el-input-number 
             v-model="row.weight" 
@@ -247,12 +248,14 @@
       </el-table-column>
       <el-table-column label="分销" width="120">
         <template #default="{ row }">
-          <el-tag :type="row.distributionEnabled ? 'success' : 'info'" size="small">
-            {{ row.distributionEnabled ? '已开启' : '未开启' }}
-          </el-tag>
-          <span class="commission-text" v-if="row.distributionEnabled">
-            佣金 {{ row.commissionRate || 10 }}%
-          </span>
+          <div class="distribution-cell">
+            <el-tag :type="row.distributionEnabled ? 'success' : 'info'" size="small">
+              {{ row.distributionEnabled ? '已开启' : '未开启' }}
+            </el-tag>
+            <span class="commission-text" v-if="row.distributionEnabled">
+              {{ row.commissionRate || 10 }}%
+            </span>
+          </div>
         </template>
       </el-table-column>
       <el-table-column prop="createTime" label="发布时间" width="180" />
@@ -366,7 +369,7 @@
     </el-dialog>
 
     <!-- 编辑作品弹窗 -->
-    <el-dialog v-model="editVisible" title="编辑作品" width="800px" destroy-on-close>
+    <el-dialog v-model="editVisible" :title="editDialogTitle" width="800px" destroy-on-close>
       <el-form ref="formRef" :model="editForm" :rules="rules" label-width="100px">
         <el-form-item label="作品名称" prop="title">
           <el-input v-model="editForm.title" placeholder="请输入作品名称" />
@@ -390,14 +393,21 @@
                   <el-avatar v-if="item.avatar" :src="item.avatar" size="small" />
                   <el-avatar v-else size="small">{{ item.name?.charAt(0) }}</el-avatar>
                   <span class="artist-name">{{ item.name }}</span>
-                  <span v-if="item.artistCode" class="artist-code">ID: {{ item.artistCode }}</span>
-                  <span v-else-if="item.uid" class="artist-code">ID: {{ item.uid }}</span>
+                  <span v-if="getArtistUid(item)" class="artist-code">UID: {{ getArtistUid(item) }}</span>
                   <el-tag v-if="item.certified" type="success" size="small">已认证</el-tag>
                 </div>
               </template>
             </el-autocomplete>
-            <span v-if="editForm.authorUid" class="artist-id-tag">ID: {{ editForm.authorUid }}</span>
+            <span v-if="editForm.authorUid" class="artist-id-tag">UID: {{ editForm.authorUid }}</span>
           </div>
+          <el-alert
+            v-if="showArtistCreateTip"
+            class="artist-create-tip"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="数据库中未找到该艺术家，保存时将自动创建新艺术家并生成前端 UID"
+          />
         </el-form-item>
         <el-form-item label="画种" prop="artType">
           <el-select v-model="editForm.artType" placeholder="请选择画种" style="width: 100%" clearable filterable>
@@ -451,6 +461,28 @@
             <el-radio :value="0">下架</el-radio>
           </el-radio-group>
         </el-form-item>
+
+      <el-divider content-position="left">每日热度配置</el-divider>
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="每日浏览量">
+            <div class="range-inputs">
+              <el-input-number v-model="editForm.dailyViewMin" :min="0" :max="999999" :precision="0" controls-position="right" />
+              <span class="range-separator">至</span>
+              <el-input-number v-model="editForm.dailyViewMax" :min="0" :max="999999" :precision="0" controls-position="right" />
+            </div>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="每日点赞量">
+            <div class="range-inputs">
+              <el-input-number v-model="editForm.dailyLikeMin" :min="0" :max="999999" :precision="0" controls-position="right" />
+              <span class="range-separator">至</span>
+              <el-input-number v-model="editForm.dailyLikeMax" :min="0" :max="999999" :precision="0" controls-position="right" />
+            </div>
+          </el-form-item>
+        </el-col>
+      </el-row>
         
         <!-- 单个作品价格增长配置 -->
         <el-divider content-position="left">价格增长配置</el-divider>
@@ -463,34 +495,58 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="基础日增长率">
-                  <el-input-number v-model="editForm.customBaseDailyRate" :min="0" :precision="4" :step="0.0001" />
+                  <div class="range-inputs">
+                    <el-input-number v-model="editForm.customBaseDailyRateMin" :min="0" :precision="4" :step="0.0001" />
+                    <span class="range-separator">至</span>
+                    <el-input-number v-model="editForm.customBaseDailyRateMax" :min="0" :precision="4" :step="0.0001" />
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="成熟期天数">
-                  <el-input-number v-model="editForm.customMatureDays" :min="0" :max="365" />
+                  <div class="range-inputs">
+                    <el-input-number v-model="editForm.customMatureDaysMin" :min="0" :max="365" :precision="0" />
+                    <span class="range-separator">至</span>
+                    <el-input-number v-model="editForm.customMatureDaysMax" :min="0" :max="365" :precision="0" />
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="成熟期日增长率">
-                  <el-input-number v-model="editForm.customMatureDailyRate" :min="0" :precision="4" :step="0.0001" />
+                  <div class="range-inputs">
+                    <el-input-number v-model="editForm.customMatureDailyRateMin" :min="0" :precision="4" :step="0.0001" />
+                    <span class="range-separator">至</span>
+                    <el-input-number v-model="editForm.customMatureDailyRateMax" :min="0" :precision="4" :step="0.0001" />
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="浏览量加成">
-                  <el-input-number v-model="editForm.customViewRate" :min="1" :max="10" :precision="2" />
+                  <div class="range-inputs">
+                    <el-input-number v-model="editForm.customViewRateMin" :min="1" :max="10" :precision="2" />
+                    <span class="range-separator">至</span>
+                    <el-input-number v-model="editForm.customViewRateMax" :min="1" :max="10" :precision="2" />
+                  </div>
                   <span class="unit">倍</span>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="收藏量加成">
-                  <el-input-number v-model="editForm.customFavoriteRate" :min="1" :max="10" :precision="2" />
+                  <div class="range-inputs">
+                    <el-input-number v-model="editForm.customFavoriteRateMin" :min="1" :max="10" :precision="2" />
+                    <span class="range-separator">至</span>
+                    <el-input-number v-model="editForm.customFavoriteRateMax" :min="1" :max="10" :precision="2" />
+                  </div>
                   <span class="unit">倍</span>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="最大涨幅倍数">
-                  <el-input-number v-model="editForm.customMaxGrowthMultiple" :min="1" :max="100" :precision="1" />
+                  <div class="range-inputs">
+                    <el-input-number v-model="editForm.customMaxGrowthMultipleMin" :min="1" :max="100" :precision="1" />
+                    <span class="range-separator">至</span>
+                    <el-input-number v-model="editForm.customMaxGrowthMultipleMax" :min="1" :max="100" :precision="1" />
+                  </div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -506,12 +562,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Picture, Edit, Setting } from '@element-plus/icons-vue'
+import { Plus, Picture, Edit, Setting, Search } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
 
+const router = useRouter()
 const loading = ref(false)
 const priceConfigVisible = ref(false)
 const priceConfigLoading = ref(false)
@@ -583,6 +641,8 @@ const pagination = reactive({
 
 const editForm = reactive({
   artworkId: '',
+  artworkUid: '',
+  artworkCode: '',
   authorId: null,
   authorUid: '',
   title: '',
@@ -596,24 +656,125 @@ const editForm = reactive({
   ownershipType: 1,  // 默认原创
   description: '',
   status: 1,
+  dailyViewCount: 0,
+  dailyLikeCount: 0,
+  dailyViewMin: 0,
+  dailyViewMax: 0,
+  dailyLikeMin: 0,
+  dailyLikeMax: 0,
   // 单个作品价格增长配置
   customPriceGrowthEnabled: false,
   customBaseDailyRate: 0.0002,
+  customBaseDailyRateMin: 0.0002,
+  customBaseDailyRateMax: 0.0002,
   customMatureDailyRate: 0.0003,
+  customMatureDailyRateMin: 0.0003,
+  customMatureDailyRateMax: 0.0003,
   customMatureDays: 30,
+  customMatureDaysMin: 30,
+  customMatureDaysMax: 30,
   customViewRate: 1.1,
+  customViewRateMin: 1.1,
+  customViewRateMax: 1.1,
   customFavoriteRate: 1.1,
-  customMaxGrowthMultiple: 5.0
+  customFavoriteRateMin: 1.1,
+  customFavoriteRateMax: 1.1,
+  customMaxGrowthMultiple: 5.0,
+  customMaxGrowthMultipleMin: 5.0,
+  customMaxGrowthMultipleMax: 5.0
 })
 
 // 艺术家搜索相关
 const artistSearchResults = ref([])
 const artistSearchLoading = ref(false)
 const artistSearchVisible = ref(false)
+const artistExactMatched = ref(false)
+
+const editDialogTitle = computed(() => {
+  const uid = editForm.artworkUid || editForm.artworkCode || editForm.artworkId
+  return editForm.artworkId ? `编辑作品（作品UID：${uid || '-'}）` : '添加作品'
+})
+
+const showArtistCreateTip = computed(() => {
+  return Boolean(editForm.artistName?.trim()) && !artistExactMatched.value && !editForm.authorId
+})
+
+const normalizeRange = (minValue, maxValue) => {
+  const min = Math.max(Number(minValue || 0), 0)
+  const max = Math.max(Number(maxValue || 0), 0)
+  return min <= max ? [min, max] : [max, min]
+}
+
+const randomIntInRange = (minValue, maxValue) => {
+  const [min, max] = normalizeRange(minValue, maxValue)
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+const normalizeNumberRange = (minValue, maxValue, minLimit = 0) => {
+  const min = Math.max(Number(minValue || 0), minLimit)
+  const max = Math.max(Number(maxValue || 0), minLimit)
+  return min <= max ? [min, max] : [max, min]
+}
+
+const randomNumberInRange = (minValue, maxValue, precision = 2, minLimit = 0) => {
+  const [min, max] = normalizeNumberRange(minValue, maxValue, minLimit)
+  const value = min + Math.random() * (max - min)
+  return Number(value.toFixed(precision))
+}
+
+const setDailyHeatRange = (viewCount = 0, likeCount = 0) => {
+  const view = Math.max(Number(viewCount || 0), 0)
+  const like = Math.max(Number(likeCount || 0), 0)
+  editForm.dailyViewCount = view
+  editForm.dailyLikeCount = like
+  editForm.dailyViewMin = view
+  editForm.dailyViewMax = view
+  editForm.dailyLikeMin = like
+  editForm.dailyLikeMax = like
+}
+
+const setPriceGrowthRanges = (config = {}) => {
+  const baseDailyRate = Number(config.customBaseDailyRate ?? 0.0002)
+  const matureDailyRate = Number(config.customMatureDailyRate ?? 0.0003)
+  const matureDays = Number(config.customMatureDays ?? 30)
+  const viewRate = Number(config.customViewRate ?? 1.1)
+  const favoriteRate = Number(config.customFavoriteRate ?? 1.1)
+  const maxGrowthMultiple = Number(config.customMaxGrowthMultiple ?? 5.0)
+
+  Object.assign(editForm, {
+    customBaseDailyRate: baseDailyRate,
+    customBaseDailyRateMin: baseDailyRate,
+    customBaseDailyRateMax: baseDailyRate,
+    customMatureDailyRate: matureDailyRate,
+    customMatureDailyRateMin: matureDailyRate,
+    customMatureDailyRateMax: matureDailyRate,
+    customMatureDays: matureDays,
+    customMatureDaysMin: matureDays,
+    customMatureDaysMax: matureDays,
+    customViewRate: viewRate,
+    customViewRateMin: viewRate,
+    customViewRateMax: viewRate,
+    customFavoriteRate: favoriteRate,
+    customFavoriteRateMin: favoriteRate,
+    customFavoriteRateMax: favoriteRate,
+    customMaxGrowthMultiple: maxGrowthMultiple,
+    customMaxGrowthMultipleMin: maxGrowthMultiple,
+    customMaxGrowthMultipleMax: maxGrowthMultiple
+  })
+}
+
+const getArtistUid = (artist = {}) => artist.uid || artist.userUid || artist.artistUid || artist.artistCode || artist.code || ''
+
+const normalizeArtistOption = (artist = {}) => ({
+  ...artist,
+  name: artist.name || artist.nickname || artist.realName || artist.artistName || '',
+  uid: getArtistUid(artist)
+})
 
 // el-autocomplete 期望的搜索函数格式
 const searchArtists = (keyword, callback) => {
   if (!keyword || keyword.length < 1) {
+    artistExactMatched.value = false
     callback([])
     return
   }
@@ -621,11 +782,18 @@ const searchArtists = (keyword, callback) => {
   requestApi.get('/user/artist/search', { 
     params: { keyword, limit: 10 } 
   }).then(res => {
-    artistSearchResults.value = res || []
+    artistSearchResults.value = (res || []).map(normalizeArtistOption)
+    const trimmed = keyword.trim()
+    artistExactMatched.value = artistSearchResults.value.some(item => item.name === trimmed)
+    if (!artistExactMatched.value && editForm.artistName === keyword) {
+      editForm.authorId = null
+      editForm.authorUid = ''
+    }
     callback(artistSearchResults.value)
   }).catch(e => {
     console.error('搜索艺术家失败', e)
     artistSearchResults.value = []
+    artistExactMatched.value = false
     callback([])
   }).finally(() => {
     artistSearchLoading.value = false
@@ -634,8 +802,9 @@ const searchArtists = (keyword, callback) => {
 
 const selectArtist = (artist) => {
   editForm.authorId = artist.id
-  editForm.authorUid = artist.artistCode || artist.uid || `ID${artist.id}`
+  editForm.authorUid = getArtistUid(artist)
   editForm.artistName = artist.name
+  artistExactMatched.value = true
   artistSearchVisible.value = false
   artistSearchResults.value = []
 }
@@ -658,11 +827,29 @@ const rules = {
   price: [{ required: true, message: '请输入价格', trigger: 'blur' }]
 }
 
+const getArtworkUid = (row) => row.artworkUid || row.artworkCode || row.displayArtworkId || row.artworkId || '-'
+
+const getAuthorUid = (row) => row.authorUid || row.displayAuthorId || '-'
+
+const formatSizeYear = (row) => {
+  const info = []
+  if (row.size) info.push(row.size)
+  if (row.year) info.push(`${row.year}年`)
+  return info.join(' / ')
+}
+
 const loadData = async () => {
   loading.value = true
   try {
     const params = { page: pagination.page, size: pagination.size }
-    if (searchForm.artworkId) params.id = searchForm.artworkId
+    if (searchForm.artworkId) {
+      const keyword = String(searchForm.artworkId).trim()
+      if (/^\d+$/.test(keyword)) {
+        params.id = keyword
+      } else {
+        params.artworkCode = keyword
+      }
+    }
     if (searchForm.title) params.title = searchForm.title
     if (searchForm.artistName) params.authorName = searchForm.artistName
     // 支持分类和画种搜索
@@ -678,6 +865,7 @@ const loadData = async () => {
     // 映射后端数据格式到前端
     tableData.value = (data.records || data.list || []).map(item => ({
       artworkId: item.id,
+      artworkUid: item.artworkUid || item.artworkCode,
       authorId: item.authorId,
       displayArtworkId: item.displayArtworkId,
       displayAuthorId: item.displayAuthorId,
@@ -693,12 +881,16 @@ const loadData = async () => {
       price: item.price ? item.price / 100 : 0,  // 分转元
       originalPrice: item.originalPrice ? item.originalPrice / 100 : 0,
       ownershipType: item.ownershipType || 1,
-      artworkCode: item.artworkCode,
+      artworkCode: item.artworkCode || item.artworkUid,
       status: item.status,
       weight: item.weight || 0,
       description: item.description,
       salesCount: item.salesCount || 0,
       favoriteCount: item.favoriteCount || 0,
+      dailyViewCount: item.dailyViewCount || 0,
+      dailyLikeCount: item.dailyLikeCount || 0,
+      displayViewCount: item.displayViewCount || item.viewCount || 0,
+      displayLikeCount: item.displayLikeCount || item.favoriteCount || 0,
       priceRise: item.priceRise || 0, // 价格增长率
       createTime: item.createTime,
       distributionEnabled: item.distributionEnabled || false,
@@ -741,6 +933,22 @@ const resetSearch = () => {
   handleSearch()
 }
 
+const openArtistEditor = (row) => {
+  if (!row.authorId) {
+    ElMessage.warning('该作品未关联艺术家')
+    return
+  }
+  router.push({
+    path: '/user/artist',
+    query: {
+      userId: row.authorId,
+      artistName: row.artistName || '',
+      authorUid: getAuthorUid(row),
+      open: 'profile'
+    }
+  })
+}
+
 const handleEdit = async (row) => {
   console.log('【DEBUG】handleEdit row.price:', row.price, 'row.originalPrice:', row.originalPrice)
   // 合并画种和分类显示
@@ -750,8 +958,10 @@ const handleEdit = async (row) => {
   }
   Object.assign(editForm, {
     artworkId: row.artworkId,
+    artworkUid: getArtworkUid(row),
+    artworkCode: row.artworkCode || '',
     authorId: row.authorId || null,
-    authorUid: row.authorUid || '',
+    authorUid: getAuthorUid(row) !== '-' ? getAuthorUid(row) : '',
     title: row.title,
     artistName: row.artistName,
     artType: artTypeValue,
@@ -764,32 +974,24 @@ const handleEdit = async (row) => {
     description: row.description || '',
     status: row.status
   })
+  setDailyHeatRange(row.dailyViewCount || 0, row.dailyLikeCount || 0)
+  artistExactMatched.value = Boolean(editForm.authorId)
   console.log('【DEBUG】handleEdit editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
   
   // 加载单个作品的价格增长配置
   try {
     const data = await requestApi.get(`/product/${row.artworkId}/priceGrowth`)
     Object.assign(editForm, {
-      customPriceGrowthEnabled: data.customPriceGrowthEnabled || false,
-      customBaseDailyRate: data.customBaseDailyRate || 0.0002,
-      customMatureDailyRate: data.customMatureDailyRate || 0.0003,
-      customMatureDays: data.customMatureDays || 30,
-      customViewRate: data.customViewRate || 1.1,
-      customFavoriteRate: data.customFavoriteRate || 1.1,
-      customMaxGrowthMultiple: data.customMaxGrowthMultiple || 5.0
+      customPriceGrowthEnabled: data.customPriceGrowthEnabled || false
     })
+    setPriceGrowthRanges(data)
   } catch (e) {
     console.error('加载价格增长配置失败', e)
     // 使用默认值
     Object.assign(editForm, {
-      customPriceGrowthEnabled: false,
-      customBaseDailyRate: 0.0002,
-      customMatureDailyRate: 0.0003,
-      customMatureDays: 30,
-      customViewRate: 1.1,
-      customFavoriteRate: 1.1,
-      customMaxGrowthMultiple: 5.0
+      customPriceGrowthEnabled: false
     })
+    setPriceGrowthRanges()
   }
   
   editVisible.value = true
@@ -799,6 +1001,10 @@ const handleAdd = () => {
   // 重置表单
   Object.assign(editForm, {
     artworkId: '',
+    artworkUid: '',
+    artworkCode: '',
+    authorId: null,
+    authorUid: '',
     title: '',
     artistName: '',
     artType: '',
@@ -811,6 +1017,9 @@ const handleAdd = () => {
     description: '',
     status: 1
   })
+  setDailyHeatRange(0, 0)
+  setPriceGrowthRanges()
+  artistExactMatched.value = false
   editVisible.value = true
 }
 
@@ -851,8 +1060,28 @@ const handleSave = async () => {
   
   saveLoading.value = true
   try {
+    if (showArtistCreateTip.value) {
+      await ElMessageBox.confirm(
+        `艺术家“${editForm.artistName.trim()}”不存在，保存后将自动创建艺术家并生成 UID。是否继续？`,
+        '创建新艺术家',
+        { type: 'warning', confirmButtonText: '继续保存', cancelButtonText: '取消' }
+      )
+    }
     // 调试：打印编辑表单中的价格值
     console.log('【DEBUG】editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
+    const dailyViewCount = randomIntInRange(editForm.dailyViewMin, editForm.dailyViewMax)
+    const dailyLikeCount = randomIntInRange(editForm.dailyLikeMin, editForm.dailyLikeMax)
+    editForm.dailyViewCount = dailyViewCount
+    editForm.dailyLikeCount = dailyLikeCount
+    const priceGrowthValues = {
+      customBaseDailyRate: randomNumberInRange(editForm.customBaseDailyRateMin, editForm.customBaseDailyRateMax, 4),
+      customMatureDailyRate: randomNumberInRange(editForm.customMatureDailyRateMin, editForm.customMatureDailyRateMax, 4),
+      customMatureDays: randomIntInRange(editForm.customMatureDaysMin, editForm.customMatureDaysMax),
+      customViewRate: randomNumberInRange(editForm.customViewRateMin, editForm.customViewRateMax, 2, 1),
+      customFavoriteRate: randomNumberInRange(editForm.customFavoriteRateMin, editForm.customFavoriteRateMax, 2, 1),
+      customMaxGrowthMultiple: randomNumberInRange(editForm.customMaxGrowthMultipleMin, editForm.customMaxGrowthMultipleMax, 1, 1)
+    }
+    Object.assign(editForm, priceGrowthValues)
     
     const params = {
       title: editForm.title,
@@ -866,7 +1095,9 @@ const handleSave = async () => {
       originalPrice: editForm.originalPrice != null ? Number(editForm.originalPrice) : null,
       ownershipType: editForm.ownershipType || 1,
       description: editForm.description,
-      status: editForm.status
+      status: editForm.status,
+      dailyViewCount,
+      dailyLikeCount
     }
     console.log('【DEBUG】保存参数 params.price:', params.price, 'params.originalPrice:', params.originalPrice)
     console.log('保存参数:', params)
@@ -879,12 +1110,7 @@ const handleSave = async () => {
       // 保存单个作品的价格增长配置
       const priceGrowthParams = {
         customPriceGrowthEnabled: editForm.customPriceGrowthEnabled,
-        customBaseDailyRate: editForm.customBaseDailyRate,
-        customMatureDailyRate: editForm.customMatureDailyRate,
-        customMatureDays: editForm.customMatureDays,
-        customViewRate: editForm.customViewRate,
-        customFavoriteRate: editForm.customFavoriteRate,
-        customMaxGrowthMultiple: editForm.customMaxGrowthMultiple
+        ...priceGrowthValues
       }
       await requestApi.put(`/product/${editForm.artworkId}/priceGrowth`, priceGrowthParams)
       
@@ -1075,13 +1301,12 @@ onMounted(() => {
         color: #409eff;
       }
       .artist-id-inline {
-        margin-left: 6px;
-        padding: 1px 5px;
-        background: #ecf5ff;
-        color: #409eff;
-        border-radius: 3px;
-        font-size: 11px;
-        font-weight: 500;
+        display: block;
+        margin-top: 3px;
+        color: #909399;
+        font-size: 12px;
+        line-height: 1.35;
+        word-break: break-all;
       }
     }
     .category {
@@ -1178,10 +1403,43 @@ onMounted(() => {
 
 /* 分销样式 */
 .commission-text {
-  display: block;
+  display: inline-block;
   font-size: 12px;
   color: #67c23a;
-  margin-top: 2px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.distribution-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 96px;
+}
+
+.daily-heat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.size-year {
+  margin-top: 4px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.artist-id-inline {
+  display: block;
+  margin-top: 3px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
 }
 
 .dist-stats {
@@ -1289,6 +1547,23 @@ onMounted(() => {
   }
 }
 
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+
+  .el-input-number {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.range-separator {
+  color: #909399;
+  white-space: nowrap;
+}
+
 .artist-id-tag {
   display: inline-block;
   padding: 4px 10px;
@@ -1298,6 +1573,10 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 500;
   font-family: 'Courier New', monospace;
+}
+
+.artist-create-tip {
+  margin-top: 8px;
 }
 
 /* 4位数ID显示样式 */
@@ -1343,20 +1622,20 @@ onMounted(() => {
 
 /* 权重输入框样式 */
 .weight-input {
-  width: 58px;
+  width: 96px;
   
   :deep(.el-input__wrapper) {
-    width: 58px;
+    width: 96px;
     height: 22px;
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 18px;
+    padding-right: 18px;
     box-sizing: border-box;
     
     .el-input__inner {
-      width: 58px;
+      width: 60px;
       height: 22px;
-      padding-left: 0;
-      padding-right: 0;
+      padding-left: 2px;
+      padding-right: 2px;
       font-size: 12px;
       line-height: 12px;
       color: #606266;
@@ -1366,7 +1645,7 @@ onMounted(() => {
   
   :deep(.el-input-number__decrease),
   :deep(.el-input-number__increase) {
-    width: 16px;
+    width: 24px;
     height: 22px;
     line-height: 10px;
     

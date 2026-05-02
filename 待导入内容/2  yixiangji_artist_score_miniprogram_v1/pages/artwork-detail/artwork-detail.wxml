@@ -1,0 +1,20 @@
+<view class="page">
+  <image class="artwork-img" src="{{artwork.cover}}" mode="aspectFill" />
+
+  <view class="info-card">
+    <view class="title">{{artwork.title}}</view>
+    <view class="artist-name">{{artwork.artistName}}</view>
+  </view>
+
+  <price-growth-card
+    price="{{artwork.currentPrice}}"
+    growthRate="{{artwork.growthRate}}"
+    collectCount="{{artwork.collectCount}}"
+    nextCondition="{{artwork.nextCondition}}"
+  />
+
+  <view class="action-bar">
+    <button class="collect-btn" bindtap="handleCollect">收藏</button>
+    <button class="buy-btn" bindtap="handleBuy">立即购买</button>
+  </view>
+</view>

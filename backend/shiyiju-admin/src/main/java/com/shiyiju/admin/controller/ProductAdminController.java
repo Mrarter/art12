@@ -81,11 +81,18 @@ public class ProductAdminController {
     @GetMapping("/list")
     public Result<Map<String, Object>> getList(
         @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) String id,
+        @RequestParam(required = false) String artworkCode,
+        @RequestParam(required = false) String title,
+        @RequestParam(required = false) String authorName,
         @RequestParam(required = false) Long categoryId,
+        @RequestParam(required = false) String artType,
         @RequestParam(required = false) String status,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
-        return Result.success(productAdminPersistenceService.listProducts(keyword, categoryId, status, page, size));
+        return Result.success(productAdminPersistenceService.listProducts(
+            keyword, id, artworkCode, title, authorName, categoryId, artType, status, page, size
+        ));
     }
 }

@@ -638,6 +638,8 @@ $accent-orange: #E8A838;
 .btn-submit {
   width: 260rpx;
   height: 88rpx;
+  margin-left: auto;
+  margin-right: 0;
   background: linear-gradient(135deg, $accent-gold 0%, $accent-orange 100%);
   color: $bg-primary;
   font-size: 32rpx;

@@ -48,3 +48,198 @@ More info: https://sass-lang.com/d/legacy-js-api
 7:00:59 AM [vite] hmr update /src/views/user/list.vue
 7:01:08 AM [vite] hmr update /src/views/user/list.vue
 7:01:20 AM [vite] page reload dist/index.html
+7:05:33 PM [vite] hmr update /src/views/product/list.vue
+7:05:44 PM [vite] hmr update /src/views/product/list.vue
+7:06:00 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+7:06:33 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+7:07:08 PM [vite] hmr update /src/views/product/list.vue
+7:07:41 PM [vite] page reload dist/index.html
+7:11:11 PM [vite] page reload dist/index.html
+7:12:13 PM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=approved:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:11:59 PM [vite] http proxy error at /admin/user/promoter/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:12:41 PM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:12:45 PM [vite] http proxy error at /admin/product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:12:45 PM [vite] http proxy error at /admin/product/categories:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:12:46 PM [vite] http proxy error at /admin/product/categories:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:24:20 PM [vite] hmr update /src/views/product/list.vue
+9:24:42 PM [vite] hmr update /src/views/user/artist.vue
+9:25:56 PM [vite] hmr update /src/views/product/list.vue
+9:26:20 PM [vite] page reload dist/index.html
+9:35:36 PM [vite] hmr update /src/views/product/list.vue
+9:36:04 PM [vite] hmr update /src/views/user/artist.vue
+9:36:23 PM [vite] page reload dist/index.html
+9:42:55 PM [vite] page reload dist/index.html
+9:46:01 PM [vite] http proxy error at /admin/product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:46:01 PM [vite] http proxy error at /admin/product/categories:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:52:02 PM [vite] hmr update /src/views/product/list.vue
+9:52:22 PM [vite] page reload dist/index.html
+10:01:04 PM [vite] hmr update /src/views/user/promoter.vue
+10:03:45 PM [vite] hmr update /src/views/user/list.vue
+10:04:53 PM [vite] hmr update /src/views/dashboard/index.vue
+10:05:51 PM [vite] hmr update /src/views/dashboard/index.vue
+10:06:45 PM [vite] hmr update /src/views/user/promoter.vue
+10:07:09 PM [vite] page reload dist/index.html
+10:10:34 PM [vite] page reload dist/index.html
+7:11:46 AM [vite] hmr update /src/views/product/list.vue
+7:12:19 AM [vite] hmr update /src/views/product/list.vue
+7:13:19 AM [vite] hmr update /src/views/product/list.vue
+7:13:53 AM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+7:19:09 AM [vite] hmr update /src/views/order/list.vue
+7:20:13 AM [vite] hmr update /src/views/order/aftersale.vue
+7:25:17 AM [vite] page reload dist/index.html
+7:33:39 AM [vite] http proxy error at /admin/user/USR2026042720032B4F:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+7:33:51 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+7:35:47 AM [vite] http proxy error at /admin/dashboard/stats:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+7:35:55 AM [vite] http proxy error at /admin/product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+7:35:55 AM [vite] http proxy error at /admin/product/categories:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+7:44:29 AM [vite] page reload dist/index.html
+8:14:45 AM [vite] hmr update /src/views/user/artist.vue
+8:15:07 AM [vite] page reload dist/index.html
+8:50:35 AM [vite] hmr update /src/views/order/aftersale.vue
+8:51:13 AM [vite] hmr update /src/views/order/list.vue, /src/views/order/list.vue?vue&type=style&index=0&scoped=db568ccc&lang.css
+8:52:07 AM [vite] page reload dist/index.html
+9:44:50 AM [vite] http proxy error at /admin/user/2056:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:44:50 AM [vite] http proxy error at /admin/user/2056/sales?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:44:50 AM [vite] http proxy error at /admin/user/2056/sharing?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:44:52 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:44:54 AM [vite] http proxy error at /admin/user/promoter/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+10:24:35 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+10:24:37 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+11:44:30 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+11:44:32 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+11:47:48 AM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+5:55:09 PM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+5:55:11 PM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+5:55:14 PM [vite] http proxy error at /admin/user/artist/list?page=1&size=10&status=pending:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+9:37:51 PM [vite] page reload dist/index.html
+7:07:48 AM [vite] http proxy error at /product/20:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+12:34:27 PM [vite] hmr update /src/views/product/list.vue
+12:37:10 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+1:32:43 PM [vite] page reload dist/index.html
+2:24:20 PM [vite] hmr update /src/views/user/artist.vue
+2:26:55 PM [vite] hmr update /src/views/user/artist.vue
+2:30:05 PM [vite] hmr update /src/views/user/artist.vue
+2:35:37 PM [vite] hmr update /src/views/user/artist.vue?vue&type=style&index=0&scoped=b2e14e46&lang.css
+2:55:04 PM [vite] hmr update /src/views/user/artist.vue
+2:58:00 PM [vite] hmr update /src/views/user/artist.vue
+3:36:49 PM [vite] hmr update /src/views/product/list.vue
+3:39:40 PM [vite] hmr update /src/views/product/list.vue
+3:46:37 PM [vite] hmr update /src/views/product/list.vue
+3:49:28 PM [vite] hmr update /src/views/product/list.vue
+3:52:48 PM [vite] hmr update /src/views/product/list.vue
+3:59:13 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+4:02:10 PM [vite] page reload dist/index.html
+4:35:25 PM [vite] http proxy error at /admin/product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+4:35:48 PM [vite] http proxy error at /admin/product/categories:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+4:35:49 PM [vite] http proxy error at /admin/product/list?page=1&size=10:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+4:35:49 PM [vite] http proxy error at /admin/product/categories:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+5:15:46 PM [vite] hmr update /src/views/product/list.vue
+5:21:59 PM [vite] hmr update /src/views/product/list.vue
+5:27:39 PM [vite] hmr update /src/views/product/list.vue
+5:36:37 PM [vite] page reload dist/index.html
+10:11:44 PM [vite] http proxy error at /product/20/priceGrowth:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+11:24:29 PM [vite] http proxy error at /product/38/priceGrowth:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+11:27:02 PM [vite] http proxy error at /product/upload:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+11:47:35 AM [vite] page reload dist/index.html

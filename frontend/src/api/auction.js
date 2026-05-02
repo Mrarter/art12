@@ -3,6 +3,28 @@
  */
 import request from './request'
 
+const decodeMaybeMojibake = (value) => {
+  if (typeof value !== 'string') return value
+  if (!/[ÃÂåäæçèéêëìíîïðñòóôõöøùúûüýÿ]/.test(value)) return value
+  try {
+    return decodeURIComponent(escape(value))
+  } catch (e) {
+    return value
+  }
+}
+
+const normalizeText = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeText)
+  if (value && typeof value === 'object') {
+    const result = {}
+    Object.keys(value).forEach(key => {
+      result[key] = normalizeText(value[key])
+    })
+    return result
+  }
+  return decodeMaybeMojibake(value)
+}
+
 /**
  * 获取拍卖专场列表
  * @param {Object} params - 查询参数
@@ -15,7 +37,7 @@ export function getAuctionSessions(params) {
     url: '/auction/sessions',
     method: 'GET',
     data: params
-  })
+  }).then(normalizeText)
 }
 
 /**
@@ -26,7 +48,7 @@ export function getSessionDetail(sessionId) {
   return request({
     url: `/auction/sessions/${sessionId}`,
     method: 'GET'
-  })
+  }).then(normalizeText)
 }
 
 /**
@@ -37,7 +59,7 @@ export function getSessionLots(sessionId) {
   return request({
     url: `/auction/sessions/${sessionId}/lots`,
     method: 'GET'
-  })
+  }).then(normalizeText)
 }
 
 /**

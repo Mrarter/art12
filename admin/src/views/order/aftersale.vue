@@ -15,7 +15,7 @@
       <el-table-column label="作品信息" min-width="200">
         <template #default="{ row }">
           <div class="artwork-info">
-            <el-image :src="row.cover" style="width: 50px; height: 50px" fit="cover" />
+            <el-image :src="getFullImageUrl(row.cover)" style="width: 50px; height: 50px" fit="cover" />
             <span>{{ row.artworkTitle }}</span>
           </div>
         </template>
@@ -72,6 +72,7 @@
           <el-descriptions-item label="订单号">{{ currentRecord.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="作品名称">{{ currentRecord.artworkTitle }}</el-descriptions-item>
           <el-descriptions-item label="买家">{{ currentRecord.buyerName }}</el-descriptions-item>
+          <el-descriptions-item label="买家UID">{{ currentRecord.buyerUid || '-' }}</el-descriptions-item>
           <el-descriptions-item label="售后类型">
             <el-tag :type="currentRecord.type === 'refund' ? 'warning' : 'primary'" size="small">
               {{ currentRecord.type === 'refund' ? '退款' : '退货退款' }}
@@ -81,6 +82,7 @@
             <span class="amount">¥{{ currentRecord.amount }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="申请原因">{{ currentRecord.reason }}</el-descriptions-item>
+          <el-descriptions-item v-if="currentRecord.remark" label="处理备注">{{ currentRecord.remark }}</el-descriptions-item>
           <el-descriptions-item label="申请时间">{{ currentRecord.createTime }}</el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="getStatusType(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</el-tag>
@@ -99,7 +101,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
+import request, { getFullImageUrl as getUrl } from '@/api/request'
+
+const getFullImageUrl = getUrl
 
 const loading = ref(false)
 const status = ref('pending')
@@ -126,25 +130,26 @@ const getStatusText = (status) => {
 const loadData = async () => {
   loading.value = true
   try {
-    // 状态映射：前端 pending->待处理, approved->已通过, rejected->已拒绝
-    // 后端参数：null=全部, 1=退款中, 2=已退款
-    const statusMap = { pending: 1, approved: 2, rejected: null }
     const data = await request.get('/order/aftersale/list', { 
-      params: { page: pagination.page, size: pagination.size, status: statusMap[status.value] } 
+      params: { page: pagination.page, size: pagination.size, status: status.value } 
     })
     
     // 处理返回数据，适配前端字段名
     tableData.value = (data.records || []).map(item => ({
       id: item.id,
       orderNo: item.orderNo,
-      cover: item.coverImage || '',
+      cover: item.cover || item.coverImage || '',
       artworkTitle: item.artworkTitle || item.goodsTitle || '',
       buyerName: item.buyerName || item.buyerNickname || '',
+      buyerUid: item.buyerUid || '',
       type: item.type || 'refund',
       amount: item.amount || item.payAmount || 0,
       reason: item.reason || item.refundReason || '',
-      status: item.status === 'REFUNDING' ? 'pending' : item.status === 'REFUNDED' ? 'approved' : 'rejected',
-      createTime: item.createTime || item.applyTime || ''
+      status: item.status || 'pending',
+      remark: item.remark || '',
+      createTime: item.createTime || item.applyTime || '',
+      handleTime: item.handleTime || '',
+      completeTime: item.completeTime || ''
     }))
     pagination.total = data.total || 0
   } catch (e) {
@@ -161,10 +166,11 @@ const handleApprove = async (row) => {
     // 调用后端API保存
     await request.post('/order/aftersale/handle', {
       id: row.id,
-      status: 1,  // 1=已通过
+      status: 'approved',
       remark: '管理员通过'
     })
     ElMessage.success('已通过')
+    detailVisible.value = false
     // 刷新列表
     loadData()
   } catch (e) {
@@ -180,7 +186,7 @@ const handleReject = async (row) => {
     // 调用后端API保存
     await request.post('/order/aftersale/handle', {
       id: row.id,
-      status: 2,  // 2=已拒绝
+      status: 'rejected',
       remark: '管理员拒绝'
     })
     ElMessage.success('已拒绝')

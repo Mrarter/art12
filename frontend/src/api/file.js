@@ -4,7 +4,15 @@
 import request from './request'
 
 // API 地址 - 使用环境变量或默认值
-const BASE_URL = 'http://192.168.1.176:8080/api'
+const BASE_URL = 'http://127.0.0.1:8080/api'
+const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
+const FILE_BASE_URL = 'http://127.0.0.1:8087'
+
+const normalizeFileUrl = (url) => {
+  return typeof url === 'string' && url.startsWith(LOCAL_FILE_ORIGIN)
+    ? FILE_BASE_URL + url.slice(LOCAL_FILE_ORIGIN.length)
+    : url
+}
 
 /**
  * 上传文件
@@ -30,7 +38,7 @@ export const uploadFile = (filePath, type = 'image') => {
         try {
           const data = JSON.parse(res.data)
           if (data.code === 200 && data.data) {
-            resolve(data.data)
+            resolve(normalizeFileUrl(data.data))
           } else {
             uni.showToast({ title: '上传失败', icon: 'none' })
             reject(new Error('上传失败'))

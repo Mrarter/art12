@@ -198,7 +198,7 @@
           <view class="work-card" v-for="work in worksList" :key="work.id" @click="goWorkDetail(work.id)">
             <view class="work-image-wrap">
               <image class="work-image" :src="work.cover || work.coverImage" mode="aspectFill"></image>
-              <view class="work-status" v-if="work.status !== 'online'">
+              <view class="work-status" v-if="work.status !== 'online' && work.status !== 1">
                 {{ getStatusText(work.status) }}
               </view>
             </view>
@@ -239,6 +239,7 @@
 
 <script>
 import { getArtistInfo, followArtist, unfollowArtist } from '@/api/user.js'
+import { getProductList, getRecommend } from '@/api/product.js'
 import { getEarningsTrend } from '@/api/promoter.js'
 import { useUserStore } from '@/store/modules/user.js'
 
@@ -285,9 +286,11 @@ export default {
   },
 
   onLoad(options) {
-    if (options.id) {
-      this.artistId = options.id
+    this.artistId = options.id || options.userId || ''
+    if (this.artistId) {
       this.loadArtistInfo()
+    } else {
+      this.loadDefaultArtist()
     }
   },
 
@@ -302,10 +305,17 @@ export default {
     async loadArtistInfo() {
       try {
         uni.showLoading({ title: '加载中...' })
-        const res = await getArtistInfo(this.artistId)
-        this.artistInfo = res
-        this.worksList = res.works || []
-        this.hasMore = res.hasMore || false
+        let profile = {}
+        try {
+          profile = await getArtistInfo(this.artistId)
+        } catch (e) {
+          console.warn('艺术家详情接口不可用，使用作品公开数据组装主页', e)
+        }
+
+        const works = await this.loadArtistWorks(profile)
+        this.artistInfo = this.normalizeArtistInfo(profile, works)
+        this.worksList = works
+        this.hasMore = false
         
         // 如果是本人，加载私密数据
         if (this.isOwnProfile) {
@@ -315,8 +325,67 @@ export default {
         uni.hideLoading()
       } catch (e) {
         uni.hideLoading()
-        // 使用模拟数据
-        this.loadMockData()
+        console.error('加载艺术家主页失败', e)
+        this.artistInfo = this.normalizeArtistInfo({}, [])
+        this.worksList = []
+      }
+    },
+
+    async loadDefaultArtist() {
+      try {
+        uni.showLoading({ title: '加载中...' })
+        const res = await getRecommend({ page: 1, pageSize: 50 })
+        const list = res?.records || res || []
+        const first = list.find(item => item.authorId || item.artistId)
+        if (first) {
+          this.artistId = String(first.authorId || first.artistId)
+          const works = list.filter(item => String(item.authorId || item.artistId) === this.artistId)
+          this.artistInfo = this.normalizeArtistInfo({}, works)
+          this.worksList = works
+        }
+      } catch (e) {
+        console.error('加载默认艺术家失败', e)
+      } finally {
+        uni.hideLoading()
+      }
+    },
+
+    async loadArtistWorks(profile = {}) {
+      const artistName = profile.realName || profile.nickname || profile.name
+      let works = []
+      if (artistName) {
+        const res = await getProductList({ page: 1, pageSize: 50, authorName: artistName })
+        works = res?.records || res || []
+      }
+      if (!works.length) {
+        const res = await getProductList({ page: 1, pageSize: 80 })
+        const allWorks = res?.records || res || []
+        works = allWorks.filter(item => String(item.authorId || item.artistId) === String(this.artistId))
+      }
+      return works
+    },
+
+    normalizeArtistInfo(profile = {}, works = []) {
+      const firstWork = works[0] || {}
+      const id = profile.userId || profile.id || firstWork.authorId || firstWork.artistId || this.artistId
+      const name = profile.realName || profile.nickname || profile.name || firstWork.authorName || firstWork.artistName || '艺术家'
+      const intro = profile.resume || profile.intro || profile.bio || firstWork.authorBio || ''
+      return {
+        id,
+        userId: id,
+        name,
+        nickname: name,
+        avatar: profile.avatar || firstWork.authorAvatar || firstWork.cover || firstWork.coverImage || '',
+        signature: intro || '以作品建立个人线索，持续更新创作档案',
+        intro,
+        region: profile.region || '',
+        identityType: profile.identityType || 'artist',
+        certStatus: profile.certStatus || (profile.artistStatus === '已认证' ? 'certified' : ''),
+        badge: profile.badge || profile.artistStatus || '艺术家',
+        worksCount: works.length || profile.worksCount || profile.artworkCount || 0,
+        fansCount: profile.fansCount || profile.followerCount || 0,
+        followCount: profile.followCount || profile.followingCount || 0,
+        isFollowed: Boolean(profile.isFollowed)
       }
     },
 
@@ -393,7 +462,10 @@ export default {
 
     getStatusText(status) {
       const map = {
+        1: '上架中',
+        0: '已下架',
         pending: '审核中',
+        online: '上架中',
         offline: '已下架',
         sold: '已售罄'
       }

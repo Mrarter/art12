@@ -29,26 +29,24 @@
               </view>
             </view>
             <view class="product-info">
-              <view class="product-title">{{ item.title }}</view>
+              <view class="product-title">{{ getCardTitle(item) }}</view>
               <view class="product-meta">
-                <text class="artist-name">{{ item.artistName }}</text>
-                <text class="meta-sep">|</text>
-                <text class="category-name">{{ item.category }}</text>
+                <text>{{ getCardMeta(item) }}</text>
               </view>
-              <view class="product-size">
-                <text>🖼</text>
-                <text>{{ item.size }}</text>
+              <view class="holder-line" v-if="getHolderName(item)">
+                作品发布人/持有者：{{ getHolderName(item) }}
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">¥{{ formatPrice(item.price) }}</text>
-                  <text class="original-price" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
+                  <text class="current-price">{{ formatPrice(item.price) }}</text>
+                  <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   
                   <text>{{ item.priceChange }}%</text>
                 </view>
               </view>
+              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
             </view>
           </view>
         </view>
@@ -62,26 +60,24 @@
               </view>
             </view>
             <view class="product-info">
-              <view class="product-title">{{ item.title }}</view>
+              <view class="product-title">{{ getCardTitle(item) }}</view>
               <view class="product-meta">
-                <text class="artist-name">{{ item.artistName }}</text>
-                <text class="meta-sep">|</text>
-                <text class="category-name">{{ item.category }}</text>
+                <text>{{ getCardMeta(item) }}</text>
               </view>
-              <view class="product-size">
-                <text>🖼</text>
-                <text>{{ item.size }}</text>
+              <view class="holder-line" v-if="getHolderName(item)">
+                作品发布人/持有者：{{ getHolderName(item) }}
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">¥{{ formatPrice(item.price) }}</text>
-                  <text class="original-price" v-if="item.originalPrice">¥{{ formatPrice(item.originalPrice) }}</text>
+                  <text class="current-price">{{ formatPrice(item.price) }}</text>
+                  <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   
                   <text>{{ item.priceChange }}%</text>
                 </view>
               </view>
+              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
             </view>
           </view>
         </view>
@@ -113,7 +109,7 @@
 
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
-import { getGalleryList, getCategories } from '@/api/product.js'
+import { getGalleryList, getCategories, getRecommend } from '@/api/product.js'
 
 export default {
   components: {
@@ -297,6 +293,13 @@ export default {
         
         // 处理 PageResult 格式：{ records: [], total: xxx }
         let list = res?.records || res?.list || res || []
+        if (!list.length && this.page === 1 && !this.currentCategory && !this.hasActiveFilters) {
+          const fallback = await getRecommend({
+            page: this.page,
+            pageSize: this.pageSize
+          })
+          list = fallback?.records || fallback || []
+        }
         
         // 加权随机排序（权重高的出现靠前，每次翻页随机顺序不同）
         if (list && list.length > 0) {
@@ -357,6 +360,29 @@ export default {
         return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
       }
       return yuan.toLocaleString()
+    },
+
+    getCardTitle(item) {
+      const artist = item.artistName || item.authorName || '未知艺术家'
+      const title = item.title || item.name || '未命名作品'
+      return `${artist} / ${title}`
+    },
+
+    getCardMeta(item) {
+      return [item.artType || item.category || item.categoryName || item.material, item.size, item.year || item.createYear]
+        .filter(Boolean)
+        .join(' / ')
+    },
+
+    getHolderName(item) {
+      const holder = item.holderName || item.publisherName || item.ownerName || item.userNickname
+      const artist = item.artistName || item.authorName
+      if (!holder || holder === artist) return ''
+      return holder
+    },
+
+    showRiseTip(item) {
+      return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
     },
     
     selectCategory(id) {
@@ -683,6 +709,7 @@ $accent-gold-light: #e6c65c;
   font-size: 22rpx;
   color: $text-muted;
   margin-bottom: 8rpx;
+  line-height: 1.4;
   
   .artist-name {
     color: $text-secondary;
@@ -698,6 +725,16 @@ $accent-gold-light: #e6c65c;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.holder-line {
+  font-size: 20rpx;
+  color: $text-muted;
+  line-height: 1.4;
+  margin-bottom: 10rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .meta-sep {
@@ -718,6 +755,12 @@ $accent-gold-light: #e6c65c;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.rise-tip {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: rgba(230, 198, 92, 0.88);
 }
 
 .price-info {

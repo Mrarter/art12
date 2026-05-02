@@ -4,6 +4,21 @@
  */
 import request from './request'
 
+const normalizeArtwork = (item = {}) => ({
+  ...item,
+  cover: item.coverImage || item.cover,
+  artistName: item.artistName || item.authorName,
+  artistId: item.artistId || item.authorId,
+  artistUid: item.artistUid || item.authorUid || item.displayAuthorId
+})
+
+const normalizeArtworkPage = (data) => {
+  if (!data) return data
+  const list = Array.isArray(data) ? data : (data.records || data.list || [])
+  const records = list.map(normalizeArtwork)
+  return Array.isArray(data) ? records : { ...data, records }
+}
+
 /**
  * 获取作品列表
  * GET /product/list
@@ -20,21 +35,17 @@ import request from './request'
  * @param {number} params.pageSize - 每页数量
  */
 export const getProductList = (params) => {
-  return request.get('/product/list', params)
+  return request.get('/product/list', params).then(normalizeArtworkPage)
 }
 
 // 获取画廊列表（别名）
 export const getGalleryList = (params) => {
-  return getProductList(params).then(data => {
-    if (data && data.records) {
-      // 字段映射：coverImage -> cover
-      data.records = data.records.map(item => ({
-        ...item,
-        cover: item.coverImage || item.cover
-      }))
-    }
-    return data
-  })
+  const query = { ...params }
+  if (query.category && !query.categoryId) {
+    query.categoryId = query.category
+  }
+  delete query.category
+  return getProductList(query)
 }
 
 /**
@@ -84,7 +95,7 @@ export const getCategories = () => {
  * @param {number} artworkId - 作品ID
  */
 export const addFavorite = (artworkId) => {
-  return request.post('/product/favorite', { artworkId })
+  return request.post('/product/favorite', artworkId)
 }
 
 /**
@@ -117,16 +128,7 @@ export const getFavorites = (params) => {
  * GET /product/recommend
  */
 export const getRecommend = (params) => {
-  return request.get('/product/recommend', params).then(data => {
-    if (data) {
-      const list = Array.isArray(data) ? data : (data.records || [])
-      // 字段映射：coverImage -> cover
-      return Array.isArray(data) 
-        ? list.map(item => ({ ...item, cover: item.coverImage || item.cover }))
-        : { ...data, records: list.map(item => ({ ...item, cover: item.coverImage || item.cover })) }
-    }
-    return data
-  })
+  return request.get('/product/recommend', params).then(normalizeArtworkPage)
 }
 
 /**

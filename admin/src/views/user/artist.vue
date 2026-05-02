@@ -20,6 +20,9 @@
         <el-radio-button label="rejected">
           未通过 <el-badge :value="rejectedCount" :hidden="rejectedCount === 0" type="danger" />
         </el-radio-button>
+        <el-radio-button label="hidden">
+          已隐藏 <el-badge :value="hiddenCount" :hidden="hiddenCount === 0" type="info" />
+        </el-radio-button>
         <el-radio-button label="all">
           全部
         </el-radio-button>
@@ -115,7 +118,11 @@
           <!-- 已认证状态 -->
           <template v-else-if="row.status === 1 || row.status === 'approved'">
             <el-button type="warning" link @click="showBadgeDialog(row)">设置等级</el-button>
-            <el-button type="danger" link @click="handleRevoke(row)">取消认证</el-button>
+            <el-button type="danger" link @click="handleHide(row)">隐藏艺术家</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+          </template>
+          <template v-else-if="row.status === 3 || row.status === 'hidden'">
+            <el-button type="primary" link @click="handleUnhide(row)">重新显示</el-button>
             <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
           <!-- 已拒绝状态 -->
@@ -278,8 +285,21 @@
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="detailVisible = false">取消</el-button>
-        <el-button type="primary" :loading="editLoading" @click="saveProfile">保存修改</el-button>
+        <div class="dialog-footer-between">
+          <el-button
+            v-if="currentRecord?.certified || currentRecord?.status === 1"
+            type="danger"
+            plain
+            @click="handleRevokeFromDetail"
+          >
+            取消认证
+          </el-button>
+          <span v-else></span>
+          <span>
+            <el-button @click="detailVisible = false">取消</el-button>
+            <el-button type="primary" :loading="editLoading" @click="saveProfile">保存修改</el-button>
+          </span>
+        </div>
       </template>
     </el-dialog>
     
@@ -551,13 +571,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Check } from '@element-plus/icons-vue'
+import { useRoute } from 'vue-router'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
 import { requestApi } from '@/api/request'
 import { copyId } from '@/utils/id'
 
+const route = useRoute()
 const loading = ref(false)
 const materialsVisible = ref(false)
 const rejectVisible = ref(false)
@@ -579,6 +601,7 @@ const activeTab = ref('pending')
 const pendingCount = ref(0)
 const approvedCount = ref(0)
 const rejectedCount = ref(0)
+const hiddenCount = ref(0)
 const tableData = ref([])
 const addFormRef = ref()
 const artworkDialogVisible = ref(false)
@@ -645,6 +668,7 @@ const getStatusType = (status) => {
   if (status === 1 || status === 'approved') return 'success'
   if (status === 0 || status === 'pending') return 'warning'
   if (status === 2 || status === 'rejected') return 'danger'
+  if (status === 3 || status === 'hidden') return 'info'
   return 'info'
 }
 
@@ -652,6 +676,7 @@ const getStatusText = (status) => {
   if (status === 1 || status === 'approved') return '已认证'
   if (status === 0 || status === 'pending') return '待审核'
   if (status === 2 || status === 'rejected') return '已拒绝'
+  if (status === 3 || status === 'hidden') return '已隐藏'
   return status
 }
 
@@ -674,6 +699,7 @@ const handleCopyId = (id) => {
 
 // 打开用户资料弹窗
 const openUserProfile = async (row) => {
+  currentRecord.value = row
   // 从行数据获取用户信息，保留displayId用于显示
   const userId = row.userId || row.id
   currentUser.value = { 
@@ -716,6 +742,29 @@ const openUserProfile = async (row) => {
   await loadUserArtworks(userId)
 
   detailVisible.value = true
+}
+
+const openUserProfileFromRoute = async () => {
+  const userId = route.query.userId
+  if (!userId) return
+
+  const idText = String(userId)
+  activeTab.value = 'all'
+  await loadData()
+
+  const matched = tableData.value.find(item => {
+    return String(item.userId || item.id) === idText ||
+      String(item.displayId || '') === idText ||
+      String(item.uid || '') === idText
+  })
+
+  await openUserProfile(matched || {
+    id: Number(idText),
+    userId: Number(idText),
+    displayId: route.query.authorUid && route.query.authorUid !== '-' ? String(route.query.authorUid) : idText,
+    realName: route.query.artistName || '',
+    nickname: route.query.artistName || ''
+  })
 }
 
 // 加载用户作品
@@ -811,12 +860,14 @@ const loadData = async () => {
     pendingCount.value = data.pendingCount || 0
     approvedCount.value = data.approvedCount || 0
     rejectedCount.value = data.rejectedCount || 0
+    hiddenCount.value = data.hiddenCount || 0
   } catch (e) {
     tableData.value = []
     pagination.total = 0
     pendingCount.value = 0
     approvedCount.value = 0
     rejectedCount.value = 0
+    hiddenCount.value = 0
   } finally {
     loading.value = false
   }
@@ -860,14 +911,74 @@ const confirmReject = async () => {
   } catch (e) {}
 }
 
+const assertAdminPermission = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('admin_info') || '{}')
+    if (info?.role === 'admin' || info?.role === 'super') return true
+  } catch (e) {}
+  ElMessage.error('需要管理员权限')
+  return false
+}
+
+// 隐藏艺术家
+const handleHide = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定隐藏艺术家"${row.realName || row.nickname || row.userNickname || '-'}"吗？隐藏后前端艺术家入口不展示，但认证资料仍保留。`,
+      '隐藏艺术家',
+      {
+        confirmButtonText: '确认隐藏',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await request.post('/user/artist/hide', { id: row.id })
+    ElMessage.success('已隐藏艺术家')
+    await loadData()
+  } catch (e) {}
+}
+
+const handleUnhide = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定重新显示艺术家"${row.realName || row.nickname || row.userNickname || '-'}"吗？`,
+      '重新显示',
+      {
+        confirmButtonText: '确认显示',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+    await request.post('/user/artist/approve', { id: row.id, badge: row.badge || '' })
+    ElMessage.success('已重新显示')
+    await loadData()
+  } catch (e) {}
+}
+
 // 取消认证
 const handleRevoke = async (row) => {
+  if (!assertAdminPermission()) return
   try {
-    await ElMessageBox.confirm('确定取消该艺术家认证吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `确定取消艺术家"${row.realName || row.nickname || row.userNickname || '-'}"的认证吗？该操作会移除用户艺术家身份。`,
+      '取消认证二次确认',
+      {
+        confirmButtonText: '确认取消认证',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
     await request.post('/user/artist/revoke', { id: row.id })
     ElMessage.success('已取消认证')
     await loadData()
   } catch (e) {}
+}
+
+const handleRevokeFromDetail = async () => {
+  const row = currentRecord.value
+  if (!row?.id) return
+  await handleRevoke(row)
+  detailVisible.value = false
 }
 
 // 重新认证
@@ -882,8 +993,15 @@ const handleReapply = async (row) => {
 
 // 删除艺术家认证
 const handleDelete = async (row) => {
+  if (!assertAdminPermission()) return
   try {
-    await ElMessageBox.confirm(`确定要删除艺术家"${row.realName || row.nickname || row.userNickname}"的认证记录吗？`, '删除确认', {
+    const artworkCount = Number(row.artworkCount || 0)
+    if (artworkCount > 0) {
+      ElMessage.warning(`该艺术家名下还有 ${artworkCount} 件作品，请先删除艺术家名下的作品`)
+      return
+    }
+
+    await ElMessageBox.confirm(`确定要删除艺术家"${row.realName || row.nickname || row.userNickname}"的认证记录吗？删除前请确认已删除该艺术家名下所有作品。`, '删除艺术家二次确认', {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning'
@@ -893,7 +1011,7 @@ const handleDelete = async (row) => {
     loadData()
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error('删除失败')
+      ElMessage.error(e?.message || e?.response?.data?.message || '删除失败')
     }
   }
 }
@@ -1146,8 +1264,10 @@ const submitArtwork = async () => {
   }
 }
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
+  await nextTick()
+  await openUserProfileFromRoute()
 })
 </script>
 
@@ -1389,6 +1509,13 @@ onMounted(() => {
   height: 80px;
   border-radius: 4px;
   border: 1px solid #eee;
+}
+
+.dialog-footer-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 /* 作品弹窗Tab样式 */

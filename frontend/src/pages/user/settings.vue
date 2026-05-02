@@ -124,7 +124,7 @@
 
     <!-- 关于弹窗 -->
     <!-- 弹窗开始 -->
-      <view class="about-popup">
+      <view class="about-popup" v-if="showAboutPopup">
         <image class="app-logo" src="/static/logo.png" mode="aspectFit"></image>
         <text class="app-name">拾艺局</text>
         <text class="app-desc">让艺术走进生活</text>
@@ -313,15 +313,16 @@ export default {
 <style lang="scss" scoped>
 .settings-page {
   min-height: 100vh;
-  background: #f5f6f7;
-  padding-bottom: 40rpx;
+  background: #0d0d0d;
+  padding: 24rpx 0 48rpx;
 }
 
 .user-card {
   margin: 20rpx;
-  padding: 30rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
+  padding: 34rpx;
+  background: linear-gradient(135deg, #252018 0%, #1a1a1a 58%, #2b2414 100%);
+  border: 1rpx solid rgba(212, 175, 55, 0.24);
+  border-radius: 18rpx;
 
   .user-info {
     display: flex;
@@ -348,7 +349,7 @@ export default {
         display: block;
         margin-top: 8rpx;
         font-size: 24rpx;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.62);
       }
     }
   }
@@ -357,13 +358,17 @@ export default {
 .section {
   margin: 20rpx;
   padding: 0;
+  background: #1a1a1a;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 18rpx;
+  overflow: hidden;
 
   .section-title {
     padding: 24rpx 30rpx;
     font-size: 28rpx;
     font-weight: 600;
-    color: #333;
-    border-bottom: 1rpx solid #f0f0f0;
+    color: #d4af37;
+    border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
   }
 
   .menu-list {
@@ -374,7 +379,7 @@ export default {
     display: flex;
     align-items: center;
     padding: 28rpx 0;
-    border-bottom: 1rpx solid #f5f5f5;
+    border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 
     &:last-child {
       border-bottom: none;
@@ -384,16 +389,17 @@ export default {
       flex: 1;
       margin-left: 20rpx;
       font-size: 30rpx;
-      color: #333;
+      color: #f5f5f5;
     }
 
     .menu-value {
       font-size: 26rpx;
-      color: #999;
+      color: #a0a0a0;
       margin-right: 10rpx;
 
       &.version {
         color: #667eea;
+        color: #d4af37;
       }
 
       &.status-certified {
@@ -408,8 +414,9 @@ export default {
   padding: 30rpx;
   text-align: center;
   font-size: 32rpx;
-  color: #ff4d4f;
-  background: #fff;
+  color: #ff6b6b;
+  background: #1a1a1a;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
   border-radius: 16rpx;
 }
 

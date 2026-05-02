@@ -50,9 +50,16 @@ public class UserAdminPersistenceService {
         String createTimeColumn = createTimeColumn(userTable);
         String avatarCol = schemaInspector.firstExistingColumn(userTable, "avatar", "avatar_url");
         String phoneCol = schemaInspector.firstExistingColumn(userTable, "phone", "mobile");
-        String uidCol = schemaInspector.hasColumn(userTable, "uid") ? "uid" : "user_no";
-        String uidSelect = schemaInspector.hasColumn(userTable, "uid") ? "uid" : 
-                          (schemaInspector.hasColumn(userTable, "user_no") ? "user_no" : "CAST(id AS CHAR)");
+        String uidSelect = "CAST(id AS CHAR)";
+        if (schemaInspector.hasColumn(userTable, "uid")) {
+            uidSelect = "uid";
+        }
+        if (schemaInspector.hasColumn(userTable, "user_uid")) {
+            uidSelect = "COALESCE(" + uidSelect + ", user_uid)";
+        }
+        if (schemaInspector.hasColumn(userTable, "user_no")) {
+            uidSelect = "COALESCE(" + uidSelect + ", user_no)";
+        }
 
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
@@ -131,8 +138,10 @@ public class UserAdminPersistenceService {
         
         // 关联作品表查询作品数量
         String artworkJoin = "";
+        String artistUidSelect = "COALESCE(u.uid, u.user_code, CONCAT('USR', DATE_FORMAT(COALESCE(u.register_time, u.create_time), '%Y%m%d'), LPAD(u.id, 4, '0')))";
+
         if (keyword != null && !keyword.isBlank()) {
-            where.append(" AND (u.nickname LIKE ? OR u.uid LIKE ?)");
+            where.append(" AND (u.nickname LIKE ? OR ").append(artistUidSelect).append(" LIKE ?)");
             args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
         }
@@ -147,7 +156,7 @@ public class UserAdminPersistenceService {
         queryArgs.add(size);
         
         String sql = """
-            SELECT u.id, u.uid, u.nickname, u.phone, u.avatar, 
+            SELECT u.id, %s AS uid, u.nickname, u.phone, u.avatar, 
                    COALESCE(art.artwork_count, 0) AS artwork_count,
                    COALESCE(art.total_views, 0) AS total_views,
                    COALESCE(art.total_favorites, 0) AS total_favorites,
@@ -161,7 +170,7 @@ public class UserAdminPersistenceService {
                 FROM artwork
                 GROUP BY author_id
             ) art ON u.id = art.author_id
-            """ + where + " ORDER BY u.id DESC LIMIT ?, ?";
+            """.formatted(artistUidSelect) + where + " ORDER BY u.id DESC LIMIT ?, ?";
         
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, queryArgs.toArray());
         
@@ -275,8 +284,9 @@ public class UserAdminPersistenceService {
 
         // phone
         String phone = Objects.toString(params.get("phone"), "");
-        if (schemaInspector.hasColumn(userTable, "phone")) {
-            setClauses.add("phone = ?");
+        String phoneColumn = schemaInspector.firstExistingColumn(userTable, "phone", "mobile");
+        if (schemaInspector.hasColumn(userTable, phoneColumn)) {
+            setClauses.add(phoneColumn + " = ?");
             args.add(phone);
         }
 
@@ -430,6 +440,8 @@ public class UserAdminPersistenceService {
     }
 
     public Map<String, Object> listArtists(int page, int size, String status) {
+        syncArtworkArtists();
+
         String artistTable = artistTable();
         String userTable = userTable();
         String artistStatusColumn = artistStatusColumn(artistTable);
@@ -459,23 +471,42 @@ public class UserAdminPersistenceService {
         String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
             ? "((a.user_uid IS NOT NULL AND a.user_uid = u.uid) OR (a.user_uid IS NULL AND a.user_id = u.id))"
             : "a.user_id = u.id";
-        // 显示字段：优先用 user_uid (字符串格式)，否则用 user_account.uid
+        // 显示字段：优先用 user_uid (字符串格式)，否则用 user_account.uid/user_uid/id 兜底
         String userIdField = schemaInspector.hasColumn(artistTable, "user_uid") 
-            ? "COALESCE(a.user_uid, u.uid)" : "u.uid";
+            ? "COALESCE(a.user_uid, u.uid, u.user_uid, CAST(u.id AS CHAR))" : "u.uid";
+        String realNameSelect = artistColumnOrNull("real_name");
+        if ("NULL".equals(realNameSelect)) {
+            realNameSelect = artistColumnOrNull("artist_name");
+        }
+        if ("NULL".equals(realNameSelect)) {
+            realNameSelect = artistColumnOrNull("name");
+        }
+        String idCardSelect = artistColumnOrNull("id_card");
+        String artistCodeSelect = artistColumnOrNull("artist_code");
+        String artworkTable = schemaInspector.resolveTable("artist_count_artwork", "artwork", "artworks", "products", "product");
+        boolean canJoinArtworkCount = artworkTable != null
+            && schemaInspector.hasColumn(artistTable, "user_id")
+            && schemaInspector.hasColumn(artworkTable, "author_id");
+        String artworkCountSelect = canJoinArtworkCount ? ", COALESCE(art.artwork_count, 0) AS artwork_count" : ", 0 AS artwork_count";
+        String artworkCountJoin = canJoinArtworkCount
+            ? " LEFT JOIN (SELECT author_id, COUNT(*) AS artwork_count FROM " + artworkTable + " GROUP BY author_id) art ON a.user_id = art.author_id"
+            : "";
         
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
-            SELECT a.id, %s AS user_id, %s AS user_uid, a.real_name, a.id_card, %s AS artist_resume,
+            SELECT a.id, %s AS user_id, %s AS user_uid, %s AS real_name, %s AS id_card, %s AS artist_resume,
                    %s AS artist_works, %s AS artist_exhibits,
                    %s AS artist_status, %s AS review_time,
                    %s AS reject_reason,
                    u.nickname, %s AS phone, %s AS avatar, %s AS artist_level_value,
-                   a.%s AS create_time, a.artist_code
+                   a.%s AS create_time, %s AS artist_code%s
             FROM %s a
             LEFT JOIN %s u ON %s
             """.formatted(
                 userIdField,
                 artistColumnOrNull("user_uid"),
+                realNameSelect,
+                idCardSelect,
                 artistResumeColumn(artistTable),
                 artistWorksColumn(artistTable),
                 artistExhibitsColumn(artistTable),
@@ -486,16 +517,19 @@ public class UserAdminPersistenceService {
                 "u." + schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar"),
                 userColumnOrNull("artist_level"),
                 schemaInspector.firstExistingColumn(artistTable, "created_at", "create_time", "register_time"),
+                artistCodeSelect,
+                artworkCountSelect,
                 artistTable,
                 userTable,
                 userJoinCondition
-            ) + where + " ORDER BY a.id DESC LIMIT ?, ?",
+            ) + artworkCountJoin + where + " ORDER BY a.id DESC LIMIT ?, ?",
             queryArgs.toArray()
         );
 
         Long pendingCount = countArtistByStatus(0);
         Long approvedCount = countArtistByStatus(1);
         Long rejectedCount = countArtistByStatus(2);
+        Long hiddenCount = countArtistByStatus(3);
 
         List<Map<String, Object>> list = rows.stream()
             .map(this::mapArtistRow)
@@ -509,6 +543,7 @@ public class UserAdminPersistenceService {
         result.put("pendingCount", pendingCount == null ? 0 : pendingCount);
         result.put("approvedCount", approvedCount == null ? 0 : approvedCount);
         result.put("rejectedCount", rejectedCount == null ? 0 : rejectedCount);
+        result.put("hiddenCount", hiddenCount == null ? 0 : hiddenCount);
         return result;
     }
 
@@ -573,6 +608,17 @@ public class UserAdminPersistenceService {
                 userId
             );
         }
+    }
+
+    @Transactional
+    public void hideArtist(Long id) {
+        String artistTable = artistTable();
+        jdbcTemplate.update(
+            "UPDATE " + artistTable + " SET " + artistStatusColumn(artistTable) + " = 3, " +
+                updateTimeAssignment(artistTable) + " WHERE id = ?",
+            LocalDateTime.now(),
+            id
+        );
     }
 
     @Transactional
@@ -728,36 +774,49 @@ public class UserAdminPersistenceService {
         queryArgs.add((page - 1) * size);
         queryArgs.add(size);
         
-        // 优先使用 user_uid 关联 user_account.user_no，如果 user_uid 为 NULL 则用 user_id 关联 user_account.id
+        // 优先使用用户UID关联；历史数据 user_uid 为空时使用数字 user_id 兜底。
         boolean hasUserUid = schemaInspector.hasColumn(promoterTable, "user_uid");
-        String userJoinCondition = hasUserUid 
-            ? "(p.user_uid IS NOT NULL AND p.user_uid = u.user_no OR p.user_uid IS NULL AND p.user_id = u.id)"
+        String uidExpr = userUidExpression("u", "p", hasUserUid);
+        String userJoinCondition = hasUserUid
+            ? "(p.user_id = u.id OR p.user_uid = u.uid OR p.user_uid = u.user_uid OR p.user_uid = u.user_no)"
             : "p.user_id = u.id";
-        String userIdField = hasUserUid ? "COALESCE(p.user_uid, CAST(p.user_id AS CHAR))" : "CAST(p.user_id AS CHAR)";
+        String userIdField = "CAST(p.user_id AS CHAR)";
+        String inviterSelect = schemaInspector.hasColumn(promoterTable, "inviter_uid") ? ", p.inviter_uid AS inviter_uid" : "";
+        String directCountCondition = schemaInspector.hasColumn(promoterTable, "inviter_uid")
+            ? "child.inviter_uid = " + uidExpr
+            : (schemaInspector.hasColumn(promoterTable, "inviter_id") ? "child.inviter_id = p.user_id" : "1 = 0");
         
         // 动态构建 SELECT 语句
         String statusSelect = hasStatusCol ? ", p." + statusCol + " AS status" : "";
-        String signTimeCol = schemaInspector.firstExistingColumn(promoterTable, "sign_time", "agreement_time");
+        String signTimeCol = schemaInspector.firstExistingColumn(promoterTable, "sign_time", "agreement_time", "created_at", "create_time");
         boolean hasSignTimeCol = schemaInspector.hasColumn(promoterTable, signTimeCol);
         String signTimeSelect = hasSignTimeCol ? ", p." + signTimeCol + " AS sign_time" : "";
         String sql = """
-            SELECT p.id, %s AS user_id, p.user_uid, p.%s AS level, p.subordinate_count AS team_size%s%s,
+            SELECT p.id, %s AS user_id, %s AS uid_value, p.%s AS level, p.subordinate_count AS team_size%s%s%s,
                    u.nickname, u.%s AS phone, u.%s AS avatar, p.promoter_code,
                    %s AS promoter_level_value,
                    p.total_commission AS total_commission_value,
                    p.withdrawable_commission AS available_commission_value,
+                   parent.display_name AS parent_name,
+                   parent.user_uid AS parent_uid,
                    (SELECT COUNT(*) FROM %s child WHERE %s) AS direct_count
             FROM %s p
             LEFT JOIN %s u ON %s
+            LEFT JOIN %s parent ON %s
             """.formatted(
                 userIdField,
-                levelCol, statusSelect, signTimeSelect, 
+                uidExpr,
+                levelCol, statusSelect, signTimeSelect, inviterSelect,
                 schemaInspector.firstExistingColumn(userTable, "mobile", "phone"),
                 schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar"),
                 columnOrNull(userTable, "promoter_level"), 
                 promoterTable,
-                hasUserUid ? "child.inviter_uid = p.user_uid" : "child.inviter_id = p.user_id",
-                promoterTable, userTable, userJoinCondition
+                directCountCondition,
+                promoterTable, userTable, userJoinCondition,
+                promoterTable,
+                schemaInspector.hasColumn(promoterTable, "inviter_uid")
+                    ? "parent.user_uid = p.inviter_uid"
+                    : "1 = 0"
             )
             + where + " ORDER BY p.id DESC LIMIT ?, ?";
         
@@ -770,7 +829,7 @@ public class UserAdminPersistenceService {
         // 统计各状态数量
         Long pendingCountVal = countPromoterByStatus(0);
         Long approvedCountVal = countPromoterByStatus(1);
-        Long rejectedCountVal = countPromoterByStatus(2);
+        Long rejectedCountVal = countPromoterByStatus(-1);
 
         return List.of(
             Map.of(
@@ -875,6 +934,39 @@ public class UserAdminPersistenceService {
                 jdbcTemplate.update("UPDATE " + userTable + " SET promoter_level = ? WHERE id = ?", "level_" + level, userId);
             }
         }
+    }
+
+    @Transactional
+    public void updatePromoterRelation(Long userId, Map<String, Object> params) {
+        String promoterTable = promoterTable();
+        List<String> setClauses = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+
+        if (schemaInspector.hasColumn(promoterTable, "inviter_uid") && params.containsKey("inviterUid")) {
+            String inviterUid = Objects.toString(params.get("inviterUid"), "").trim();
+            setClauses.add("inviter_uid = ?");
+            args.add(inviterUid.isEmpty() ? null : inviterUid);
+        }
+        if (schemaInspector.hasColumn(promoterTable, "subordinate_count") && params.containsKey("teamCount")) {
+            setClauses.add("subordinate_count = ?");
+            args.add(toInt(params.get("teamCount"), 0));
+        }
+        String realNameCol = schemaInspector.firstExistingColumn(promoterTable, "real_name", "display_name", "name");
+        if (schemaInspector.hasColumn(promoterTable, realNameCol) && params.containsKey("realName")) {
+            String realName = Objects.toString(params.get("realName"), "").trim();
+            setClauses.add(realNameCol + " = ?");
+            args.add(realName.isEmpty() ? null : realName);
+        }
+        if (setClauses.isEmpty()) {
+            return;
+        }
+        setClauses.add(updateTimeAssignment(promoterTable));
+        args.add(LocalDateTime.now().format(DATE_TIME_FORMATTER));
+        args.add(userId);
+        jdbcTemplate.update(
+            "UPDATE " + promoterTable + " SET " + String.join(", ", setClauses) + " WHERE user_id = ?",
+            args.toArray()
+        );
     }
 
     @Transactional
@@ -1278,10 +1370,12 @@ public class UserAdminPersistenceService {
         item.put("images", normalizeAttachmentField(row.get("artist_works")));
         item.put("artworks", normalizeAttachmentField(row.get("artist_works")));
         item.put("exhibits", normalizeAttachmentField(row.get("artist_exhibits")));
+        item.put("artworkCount", toInt(row.get("artwork_count"), 0));
         item.put("rejectReason", row.get("reject_reason"));
         item.put("createTime", formatDateTime(row.get("create_time")));
         item.put("createdAt", formatDateTime(row.get("create_time")));
         item.put("certified", status == 1);
+        item.put("hidden", status == 3);
         return item;
     }
 
@@ -1294,9 +1388,9 @@ public class UserAdminPersistenceService {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", toLong(row.get("id")));
         item.put("userId", userIdStr);
-        item.put("uid", userIdStr);
+        item.put("uid", row.get("uid_value"));
         // 显示 user_uid（用户UID）
-        item.put("displayId", userIdStr);
+        item.put("displayId", row.get("uid_value") != null ? row.get("uid_value") : userIdStr);
         item.put("userNickname", row.get("nickname"));
         item.put("nickname", row.get("nickname"));
         // 支持 phone 或 mobile 列名
@@ -1308,6 +1402,9 @@ public class UserAdminPersistenceService {
         item.put("level", toInt(row.get("level"), 1));
         item.put("teamCount", toInt(row.get("team_size"), 0));
         item.put("directCount", toInt(row.get("direct_count"), 0));
+        item.put("inviterUid", row.get("inviter_uid"));
+        item.put("parentUid", row.get("parent_uid") != null ? row.get("parent_uid") : row.get("inviter_uid"));
+        item.put("parentName", row.get("parent_name"));
         item.put("totalCommission", row.get("total_commission_value"));
         item.put("withdrawable", row.get("available_commission_value"));
         // 动态获取 sign_time 或 agreement_time 或 create_time
@@ -1328,6 +1425,23 @@ public class UserAdminPersistenceService {
         return item;
     }
 
+    private String userUidExpression(String userAlias, String promoterAlias, boolean hasPromoterUid) {
+        String expr = "CAST(" + promoterAlias + ".user_id AS CHAR)";
+        if (schemaInspector.hasColumn(userTable(), "user_no")) {
+            expr = "COALESCE(" + userAlias + ".user_no, " + expr + ")";
+        }
+        if (schemaInspector.hasColumn(userTable(), "user_uid")) {
+            expr = "COALESCE(" + userAlias + ".user_uid, " + expr + ")";
+        }
+        if (schemaInspector.hasColumn(userTable(), "uid")) {
+            expr = "COALESCE(" + userAlias + ".uid, " + expr + ")";
+        }
+        if (hasPromoterUid) {
+            expr = "COALESCE(" + promoterAlias + ".user_uid, " + expr + ")";
+        }
+        return expr;
+    }
+
     private Long countArtistByStatus(int status) {
         String artistTable = artistTable();
         return jdbcTemplate.queryForObject(
@@ -1335,6 +1449,148 @@ public class UserAdminPersistenceService {
             Long.class,
             status
         );
+    }
+
+    private void syncArtworkArtists() {
+        String artworkTable = schemaInspector.resolveTable("artist_sync_artwork", "artwork", "artworks", "products", "product");
+        String artistTable = artistTable();
+        if (artworkTable == null || schemaInspector.getColumns(artworkTable).isEmpty()
+            || artistTable == null || schemaInspector.getColumns(artistTable).isEmpty()
+            || !schemaInspector.hasColumn(artworkTable, "author_name")) {
+            return;
+        }
+
+        String authorIdSelect = schemaInspector.hasColumn(artworkTable, "author_id") ? "author_id" : "NULL";
+        String authorUidSelect = schemaInspector.hasColumn(artworkTable, "author_uid") ? "author_uid" : "NULL";
+        String avatarSelect = schemaInspector.hasColumn(artworkTable, "author_avatar") ? "MAX(author_avatar)" : "NULL";
+        String bioSelect = schemaInspector.hasColumn(artworkTable, "author_bio") ? "MAX(author_bio)" : "NULL";
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+            SELECT %s AS author_id, %s AS author_uid, author_name, %s AS author_avatar, %s AS author_bio
+            FROM %s
+            WHERE author_name IS NOT NULL AND TRIM(author_name) <> ''
+            GROUP BY %s, %s, author_name
+            """.formatted(
+                authorIdSelect,
+                authorUidSelect,
+                avatarSelect,
+                bioSelect,
+                artworkTable,
+                authorIdSelect,
+                authorUidSelect
+            ));
+
+        for (Map<String, Object> row : rows) {
+            Long authorId = row.get("author_id") == null ? null : toLong(row.get("author_id"));
+            String authorUid = Objects.toString(row.get("author_uid"), "").trim();
+            String authorName = Objects.toString(row.get("author_name"), "").trim();
+            if (authorName.isEmpty() || artistExistsForArtworkAuthor(authorId, authorUid, authorName)) {
+                continue;
+            }
+            insertSyncedArtist(authorId, authorUid, authorName, Objects.toString(row.get("author_avatar"), ""), Objects.toString(row.get("author_bio"), ""));
+            if (authorId != null && userExists(authorId)) {
+                appendIdentity(authorId, "artist");
+            }
+        }
+    }
+
+    private boolean artistExistsForArtworkAuthor(Long authorId, String authorUid, String authorName) {
+        String artistTable = artistTable();
+        List<String> conditions = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        if (authorId != null && schemaInspector.hasColumn(artistTable, "user_id")) {
+            conditions.add("user_id = ?");
+            args.add(authorId);
+        }
+        if (authorUid != null && !authorUid.isBlank() && schemaInspector.hasColumn(artistTable, "user_uid")) {
+            conditions.add("user_uid = ?");
+            args.add(authorUid);
+        }
+        String realNameCol = schemaInspector.firstExistingColumn(artistTable, "real_name", "realName", "artist_name", "name");
+        if (schemaInspector.hasColumn(artistTable, realNameCol)) {
+            conditions.add("BINARY " + realNameCol + " = BINARY ?");
+            args.add(authorName);
+        }
+        if (conditions.isEmpty()) {
+            return false;
+        }
+        Long count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + artistTable + " WHERE " + String.join(" OR ", conditions),
+            Long.class,
+            args.toArray()
+        );
+        return count != null && count > 0;
+    }
+
+    private void insertSyncedArtist(Long authorId, String authorUid, String authorName, String avatar, String bio) {
+        String artistTable = artistTable();
+        LocalDateTime now = LocalDateTime.now();
+        String artistCode = generateArtistCode();
+        Long userId = authorId;
+        if (userId == null || !userExists(userId)) {
+            userId = createUserForAdmin("", authorName, avatar, List.of("artist", "collector"));
+            authorUid = getUserUidById(userId);
+        }
+
+        if ("artist_profile".equals(artistTable)) {
+            jdbcTemplate.update("""
+                INSERT INTO artist_profile (user_id, user_uid, artist_name, avatar_url, bio, style_tags, slogan, status, created_at, updated_at, artist_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                """,
+                userId,
+                nullableText(authorUid),
+                authorName,
+                nullableText(avatar),
+                nullableText(bio),
+                null,
+                null,
+                now,
+                now,
+                artistCode
+            );
+            return;
+        }
+
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+        addInsertValue(columns, values, artistTable, "user_id", userId);
+        addInsertValue(columns, values, artistTable, "user_uid", nullableText(authorUid));
+        addInsertValue(columns, values, artistTable, "real_name", authorName);
+        addInsertValue(columns, values, artistTable, "artist_name", authorName);
+        addInsertValue(columns, values, artistTable, "name", authorName);
+        addInsertValue(columns, values, artistTable, "id_card", null);
+        addInsertValue(columns, values, artistTable, "bio", nullableText(bio));
+        addInsertValue(columns, values, artistTable, "resume", nullableText(bio));
+        addInsertValue(columns, values, artistTable, "artist_resume", nullableText(bio));
+        addInsertValue(columns, values, artistTable, "artist_code", artistCode);
+        addInsertValue(columns, values, artistTable, "avatar_url", nullableText(avatar));
+        addInsertValue(columns, values, artistTable, "avatar", nullableText(avatar));
+        addInsertValue(columns, values, artistTable, artistStatusColumn(artistTable), 1);
+        addInsertValue(columns, values, artistTable, createTimeColumn(artistTable), now);
+        addInsertValue(columns, values, artistTable, "update_time", now);
+        addInsertValue(columns, values, artistTable, "updated_at", now);
+        addInsertValue(columns, values, artistTable, "cert_time", now);
+        addInsertValue(columns, values, artistTable, "review_time", now);
+
+        String placeholders = columns.stream().map(col -> "?").collect(Collectors.joining(", "));
+        jdbcTemplate.update(
+            "INSERT INTO " + artistTable + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")",
+            values.toArray()
+        );
+    }
+
+    private void addInsertValue(List<String> columns, List<Object> values, String table, String column, Object value) {
+        if (column != null && !columns.contains(column) && schemaInspector.hasColumn(table, column)) {
+            columns.add(column);
+            values.add(value);
+        }
+    }
+
+    private boolean userExists(Long userId) {
+        if (userId == null || userId <= 0) {
+            return false;
+        }
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + userTable() + " WHERE id = ?", Long.class, userId);
+        return count != null && count > 0;
     }
 
     private Long createUserForAdmin(String phone, String nickname, String avatar, List<String> identities) {
@@ -1832,6 +2088,7 @@ public class UserAdminPersistenceService {
         return switch (status) {
             case "approved" -> 1;
             case "rejected" -> 2;
+            case "hidden" -> 3;
             default -> 0;
         };
     }
@@ -1932,18 +2189,72 @@ public class UserAdminPersistenceService {
     public void deleteArtist(Long id) {
         String artistTable = artistTable();
         // 获取艺术家关联的用户ID
+        String userIdSelect = schemaInspector.hasColumn(artistTable, "user_id") ? "user_id" : "NULL";
+        String userUidSelect = schemaInspector.hasColumn(artistTable, "user_uid") ? "user_uid" : "NULL";
+        String realNameCol = schemaInspector.firstExistingColumn(artistTable, "real_name", "realName", "artist_name", "name");
+        String realNameSelect = schemaInspector.hasColumn(artistTable, realNameCol) ? realNameCol : "NULL";
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT user_id FROM " + artistTable + " WHERE id = ? LIMIT 1", id);
+            "SELECT id, " + userIdSelect + " AS user_id, " + userUidSelect + " AS user_uid, " +
+                realNameSelect + " AS real_name FROM " + artistTable + " WHERE id = ? LIMIT 1",
+            id
+        );
         if (rows.isEmpty()) {
             return;
         }
-        Long userId = toLong(rows.get(0).get("user_id"));
+        Map<String, Object> artist = rows.get(0);
+        Long artistRecordId = toLong(artist.get("id"));
+        Long userId = artist.get("user_id") == null ? null : toLong(artist.get("user_id"));
+        String userUid = Objects.toString(artist.get("user_uid"), "").trim();
+        String realName = Objects.toString(artist.get("real_name"), "").trim();
+
+        long artworkCount = countArtistArtworks(artistRecordId, userId, userUid, realName);
+        if (artworkCount > 0) {
+            throw new IllegalStateException("该艺术家名下还有 " + artworkCount + " 件作品，请先删除艺术家名下的作品");
+        }
 
         // 删除艺术家认证记录
         jdbcTemplate.update("DELETE FROM " + artistTable + " WHERE id = ?", id);
 
         // 从用户身份中移除 artist
-        removeIdentity(userId, "artist");
+        if (userId != null) {
+            removeIdentity(userId, "artist");
+        }
+    }
+
+    private long countArtistArtworks(Long artistRecordId, Long userId, String userUid, String realName) {
+        String artworkTable = schemaInspector.resolveTable("artist_delete_artwork", "artwork", "artworks", "products", "product");
+        if (artworkTable == null || schemaInspector.getColumns(artworkTable).isEmpty()) {
+            return 0L;
+        }
+
+        List<String> conditions = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        if (artistRecordId != null && schemaInspector.hasColumn(artworkTable, "author_id")) {
+            conditions.add("author_id = ?");
+            args.add(artistRecordId);
+        }
+        if (userId != null && !Objects.equals(userId, artistRecordId) && schemaInspector.hasColumn(artworkTable, "author_id")) {
+            conditions.add("author_id = ?");
+            args.add(userId);
+        }
+        if (userUid != null && !userUid.isBlank() && schemaInspector.hasColumn(artworkTable, "author_uid")) {
+            conditions.add("author_uid = ?");
+            args.add(userUid);
+        }
+        if (realName != null && !realName.isBlank() && schemaInspector.hasColumn(artworkTable, "author_name")) {
+            conditions.add("BINARY author_name = BINARY ?");
+            args.add(realName);
+        }
+        if (conditions.isEmpty()) {
+            return 0L;
+        }
+
+        Long count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + artworkTable + " WHERE " + String.join(" OR ", conditions),
+            Long.class,
+            args.toArray()
+        );
+        return count == null ? 0L : count;
     }
 
     @Transactional

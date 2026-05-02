@@ -3,28 +3,37 @@
     <!-- 顶部导航栏 -->
     <view class="nav-bar">
       <view class="nav-back" @click="goBack">
-        
+        ‹
       </view>
+      <view class="nav-title">作品详情</view>
       <view class="nav-actions">
         <view class="nav-action" @click="onShare">
-          
+          ↗
         </view>
       </view>
     </view>
     
     <!-- 图片轮播 -->
-    <swiper class="image-swiper" indicator-dots @change="onSwiperChange">
-      <swiper-item v-for="(img, index) in images" :key="index">
-        <image class="product-image" :src="img" mode="aspectFit" @click="previewImage(index)"></image>
-      </swiper-item>
-    </swiper>
-    
-    <view class="image-indicator">{{ currentImageIndex + 1 }}/{{ images.length }}</view>
-    
-    <!-- 视频按钮 -->
-    <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">
-      <text class="play-icon">▶</text>
-      <text>观看视频</text>
+    <view class="image-stage" :style="{ height: currentSwiperHeight }">
+      <swiper class="image-swiper" indicator-dots @change="onSwiperChange">
+        <swiper-item v-for="(img, index) in images" :key="index">
+          <image
+            class="product-image"
+            :src="img"
+            mode="widthFix"
+            @load="onImageLoad($event, index)"
+            @click="previewImage(index)"
+          ></image>
+        </swiper-item>
+      </swiper>
+      
+      <view class="image-indicator">{{ currentImageIndex + 1 }}/{{ images.length }}</view>
+      
+      <!-- 视频按钮 -->
+      <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">
+        <text class="play-icon">▶</text>
+        <text>观看视频</text>
+      </view>
     </view>
     
     <!-- 商品信息卡片 -->
@@ -32,7 +41,7 @@
       <view class="product-title">{{ detail.title }}</view>
       
       <view class="author-row">
-        <image class="author-avatar" :src="detail.authorAvatar || '/static/avatar/default.png'" @click="goArtistHome"></image>
+        <image class="author-avatar" :src="authorAvatarSrc" @click="goArtistHome" @error="onAuthorAvatarError"></image>
         <view class="author-info" @click="goArtistHome">
           <text class="author-name">{{ detail.authorName }}</text>
           <view class="identity-tag" :class="'identity-' + detail.authorIdentity">
@@ -48,8 +57,12 @@
       </view>
       
       <view class="price-row">
-        <text class="current-price">¥{{ formatPrice(detail.price) }}</text>
-        <text class="original-price" v-if="detail.originalPrice">¥{{ formatPrice(detail.originalPrice) }}</text>
+        <text class="current-price">{{ formatPrice(detail.price) }}</text>
+        <text class="original-price" v-if="detail.originalPrice">{{ formatPrice(detail.originalPrice) }}</text>
+      </view>
+
+      <view class="monthly-rise">
+        最近一个月涨幅 {{ formatMonthlyRise(detail.priceRise) }}
       </view>
       
       <view class="price-change" v-if="detail.priceRise > 0">
@@ -57,9 +70,9 @@
         <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
       </view>
       
-      <view class="price-forecast" v-if="expectedRise > 0">
-        <text class="forecast-label">预计明日:</text>
-        <text class="forecast-value">+{{ (expectedRise * 100).toFixed(2) }}%</text>
+      <view class="price-forecast" v-if="tomorrowIncreaseRange">
+        <text class="forecast-label">预估涨幅：</text>
+        <text class="forecast-value">{{ tomorrowIncreaseRange }}</text>
       </view>
     </view>
     
@@ -91,7 +104,6 @@
           <text class="info-label">持有时长</text>
           <text class="info-value">{{ formatHoldDuration(detail.holdDuration) }}</text>
         </view>
-        <!-- 新增：作品编号和艺术家ID显示 -->
         <view class="info-item" v-if="detail.artworkCode || detail.displayArtworkId">
           <text class="info-label">作品编号</text>
           <text class="info-value id-value">{{ detail.artworkCode || detail.displayArtworkId }}</text>
@@ -119,7 +131,7 @@
     <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
       <text class="star-icon">★</text>
       <text class="tip-text">分享推广可获得佣金</text>
-      <text class="tip-amount">¥{{ commission }}</text>
+      <text class="tip-amount">{{ formatYuanAmount(commission) }}</text>
       <text class="arrow-icon">›</text>
     </view>
     
@@ -128,7 +140,7 @@
       <view class="action-icons">
         <view class="action-item" @click="onFavorite">
           <text :class="['icon-heart', detail.isFavorite ? 'active' : '']">{{ detail.isFavorite ? '❤' : '♡' }}</text>
-          <text>{{ detail.favoriteCount || 0 }}</text>
+          <text>{{ displayLikeCount }}</text>
         </view>
         <view class="action-item" @click="onShare">
           <text class="icon-share">↗</text>
@@ -145,17 +157,24 @@
     <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
       <view class="share-content" @click.stop>
         <view class="share-title">分享到</view>
+        <view class="commission-levels" v-if="commissionLevels.length">
+          <view class="commission-level-title">艺荐官佣金预估</view>
+          <view class="commission-level-row" v-for="level in commissionLevels" :key="level.name">
+            <text>{{ level.name }}</text>
+            <text>{{ level.amountText }}</text>
+          </view>
+        </view>
         <view class="share-icons">
           <view class="share-icon-item" @click="shareToFriend">
-            <image class="share-icon" src="/static/icons/wechat.png" mode="aspectFit"></image>
+            <view class="share-icon">微</view>
             <text>微信好友</text>
           </view>
           <view class="share-icon-item" @click="shareToTimeline">
-            <image class="share-icon" src="/static/icons/moments.png" mode="aspectFit"></image>
+            <view class="share-icon">圈</view>
             <text>朋友圈</text>
           </view>
           <view class="share-icon-item" @click="copyLink">
-            <image class="share-icon" src="/static/icons/link.png" mode="aspectFit"></image>
+            <view class="share-icon">链</view>
             <text>复制链接</text>
           </view>
         </view>
@@ -173,7 +192,7 @@
           </view>
         </view>
         <view class="contact-artist-info">
-          <image class="artist-avatar" :src="detail.authorAvatar || '/static/avatar/default.png'"></image>
+          <image class="artist-avatar" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
           <text class="artist-name">{{ detail.authorName }}</text>
         </view>
         <view class="contact-actions">
@@ -215,9 +234,12 @@ export default {
         price: 0
       },
       images: [],
+      imageHeights: {},
       currentImageIndex: 0,
       storyExpanded: false,
       commission: 0,
+      commissionLevels: [],
+      defaultAvatar: '/static/avatar/default.png',
       showSharePanel: false,
       showContactModal: false
     }
@@ -226,6 +248,31 @@ export default {
   computed: {
     storyCanExpand() {
       return this.detail.description && this.detail.description.length > 100
+    },
+    authorAvatarSrc() {
+      return this.normalizeResourceUrl(this.detail.authorAvatar) || this.defaultAvatar
+    },
+    displayLikeCount() {
+      return this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 0
+    },
+    currentSwiperHeight() {
+      return this.imageHeights[this.currentImageIndex] || '750rpx'
+    },
+    tomorrowIncreaseRange() {
+      const min = Number(this.detail.tomorrowIncreaseMin || 0)
+      const max = Number(this.detail.tomorrowIncreaseMax || 0)
+      if (min > 0 || max > 0) {
+        const low = Math.min(min || max, max || min)
+        const high = Math.max(min, max)
+        return low === high ? this.formatPrice(low) : `${this.formatPrice(low)} - ${this.formatPrice(high)}`
+      }
+      const price = Number(this.detail.price || 0)
+      const baseRate = Number(this.detail.customBaseDailyRate || this.detail.baseDailyRate || 0)
+      const matureRate = Number(this.detail.customMatureDailyRate || this.detail.matureDailyRate || baseRate)
+      if (!price || (!baseRate && !matureRate)) return ''
+      const low = Math.round(price * Math.min(baseRate || matureRate, matureRate || baseRate))
+      const high = Math.round(price * Math.max(baseRate, matureRate))
+      return low === high ? this.formatPrice(low) : `${this.formatPrice(low)} - ${this.formatPrice(high)}`
     }
   },
   
@@ -245,14 +292,16 @@ export default {
         const data = await getProductDetail(id)
         if (data) {
           this.detail = data
+          this.imageHeights = {}
+          this.currentImageIndex = 0
           
           // 处理图片显示
           if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-            this.images = data.images
+            this.images = data.images.map(this.normalizeResourceUrl)
           } else if (data.cover) {
-            this.images = [data.cover]
+            this.images = [this.normalizeResourceUrl(data.cover)]
           } else if (data.coverImage) {
-            this.images = [data.coverImage]
+            this.images = [this.normalizeResourceUrl(data.coverImage)]
           } else {
             // 使用默认图片
             this.images = ['https://picsum.photos/750/750?random=' + id]
@@ -260,6 +309,7 @@ export default {
           
           // 商品价格加载完成后计算佣金
           this.loadCommission(id)
+          this.saveBrowseHistory(data)
         } else {
           this.loadMockData()
           this.loadCommission(id)
@@ -268,6 +318,35 @@ export default {
         console.error('获取详情失败', e)
         this.loadMockData()
         this.loadCommission(id)
+      }
+    },
+
+    saveBrowseHistory(item) {
+      if (!item || !item.id) return
+      const record = {
+        id: item.id,
+        name: item.title || item.name || '未命名作品',
+        author: item.authorName || item.artistName || '未知艺术家',
+        price: item.price || 0,
+        image: item.coverImage || item.cover || (Array.isArray(item.images) ? item.images[0] : ''),
+        time: Date.now()
+      }
+      const history = uni.getStorageSync('browseHistoryWorks') || []
+      const next = [record, ...history.filter(v => v.id !== record.id)].slice(0, 50)
+      uni.setStorageSync('browseHistoryWorks', next)
+
+      if (item.authorId || item.authorUid || item.authorName) {
+        const artistRecord = {
+          id: item.authorId || item.authorUid,
+          name: item.authorName || item.artistName || '未知艺术家',
+          avatar: item.authorAvatar || '/static/avatar/default.png',
+          tags: [item.artType || item.category || '艺术家'].filter(Boolean),
+          intro: item.authorBio || '',
+          isFollowing: !!item.isFollowing,
+          time: Date.now()
+        }
+        const artists = uni.getStorageSync('browseHistoryArtists') || []
+        uni.setStorageSync('browseHistoryArtists', [artistRecord, ...artists.filter(v => v.id !== artistRecord.id)].slice(0, 50))
       }
     },
     
@@ -305,20 +384,41 @@ export default {
         // price 单位是"分"，需要转为"元"显示
         const priceYuan = (this.detail.price || 0) / 100
         this.commission = Math.floor(priceYuan * rate) / 100
+        this.commissionLevels = this.buildCommissionLevels(res, rate)
       } catch (e) {
         // API 失败时，根据商品价格计算佣金（默认 5%）
         const rate = this.detail.commissionRate || 5
         const priceYuan = (this.detail.price || 0) / 100
         this.commission = Math.floor(priceYuan * rate) / 100
+        this.commissionLevels = this.buildCommissionLevels(null, rate)
       }
     },
     
     goBack() {
-      uni.navigateBack()
+      const pages = getCurrentPages()
+      if (pages && pages.length > 1) {
+        uni.navigateBack()
+      } else {
+        uni.reLaunch({ url: '/pages/index/index' })
+      }
     },
     
     onSwiperChange(e) {
       this.currentImageIndex = e.detail.current
+    },
+    
+    onImageLoad(e, index) {
+      const width = Number(e.detail?.width || 0)
+      const height = Number(e.detail?.height || 0)
+      if (!width || !height) return
+      
+      const info = uni.getSystemInfoSync()
+      const viewportWidth = Number(info.windowWidth || 375)
+      const displayHeight = Math.max(240, Math.round(viewportWidth * height / width))
+      this.imageHeights = {
+        ...this.imageHeights,
+        [index]: `${displayHeight}px`
+      }
     },
     
     previewImage(index) {
@@ -347,11 +447,11 @@ export default {
         if (this.detail.isFavorite) {
           await removeFavorite(this.detail.id)
           this.detail.isFavorite = false
-          this.detail.favoriteCount = (this.detail.favoriteCount || 1) - 1
+          this.bumpLikeCount(-1)
         } else {
           await addFavorite(this.detail.id)
           this.detail.isFavorite = true
-          this.detail.favoriteCount = (this.detail.favoriteCount || 0) + 1
+          this.bumpLikeCount(1)
         }
       } catch (e) {
         uni.showToast({ title: '操作失败', icon: 'none' })
@@ -490,14 +590,67 @@ export default {
         url: `/pages/artist/home?userId=${this.detail.authorId}`
       })
     },
+
+    normalizeResourceUrl(url) {
+      if (!url || typeof url !== 'string') return ''
+      if (url.startsWith('/')) return url
+      const app = getApp()
+      const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
+      if (!url.startsWith('http')) {
+        return domain ? `${domain}${url.startsWith('/') ? '' : '/'}${url}` : url
+      }
+      return url
+    },
+
+    onAuthorAvatarError() {
+      this.detail.authorAvatar = this.defaultAvatar
+    },
+
+    bumpLikeCount(step) {
+      const nextFavorite = Math.max((this.detail.favoriteCount || 0) + step, 0)
+      const nextDisplay = Math.max((this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 0) + step, 0)
+      this.detail.favoriteCount = nextFavorite
+      this.detail.displayLikeCount = nextDisplay
+      this.detail.likeCount = nextDisplay
+    },
+
+    buildCommissionLevels(res, rate) {
+      const priceYuan = (this.detail.price || 0) / 100
+      const levels = Array.isArray(res?.levels) && res.levels.length
+        ? res.levels
+        : [
+            { name: '普通艺荐官', rate },
+            { name: '高级艺荐官', rate: Number(rate) * 1.2 },
+            { name: '合伙人艺荐官', rate: Number(rate) * 1.5 }
+          ]
+
+      return levels.map(level => {
+        const levelRate = Number(level.rate || level.commissionRate || rate || 0)
+        const amount = Number(level.amount || level.commission || (priceYuan * levelRate / 100))
+        return {
+          name: level.name || level.levelName || '艺荐官',
+          amount,
+          amountText: this.formatYuanAmount(amount)
+        }
+      })
+    },
     
     formatPrice(price) {
-      if (!price) return '0'
+      if (!price) return '¥0'
       const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
-      return yuan.toLocaleString()
+      return this.formatYuanAmount(yuan)
+    },
+
+    formatYuanAmount(amount) {
+      const value = Number(amount || 0)
+      return `¥${Math.round(value).toLocaleString()}`
+    },
+
+    formatMonthlyRise(rise) {
+      const value = Number(rise || 0)
+      const ratio = Math.abs(value) < 1 ? value * 100 : value
+      const prefix = ratio > 0 ? '+' : ''
+      return `${prefix}${ratio.toFixed(1)}%`
     },
     
     formatHoldDuration(days) {
@@ -548,7 +701,7 @@ $accent-gold-light: #e6c65c;
   justify-content: space-between;
   padding: 0 30rpx;
   z-index: 100;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  background: transparent;
   
   .nav-back, .nav-action {
     width: 64rpx;
@@ -556,8 +709,18 @@ $accent-gold-light: #e6c65c;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.28);
     border-radius: 50%;
+    color: $text-primary;
+    font-size: 42rpx;
+    line-height: 1;
+  }
+
+  .nav-title {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
   }
   
   .nav-actions {
@@ -567,20 +730,28 @@ $accent-gold-light: #e6c65c;
 }
 
 // 图片轮播
-.image-swiper {
-  height: 750rpx;
+.image-stage {
+  position: relative;
+  width: 100vw;
   background: $bg-card;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+.image-swiper {
+  width: 100%;
+  height: 100%;
   
   .product-image {
     width: 100%;
-    height: 100%;
+    display: block;
   }
 }
 
 .image-indicator {
   position: absolute;
   right: 30rpx;
-  top: 680rpx;
+  bottom: 24rpx;
   padding: 8rpx 20rpx;
   background: rgba(0, 0, 0, 0.6);
   color: $text-primary;
@@ -591,7 +762,7 @@ $accent-gold-light: #e6c65c;
 .video-btn {
   position: absolute;
   right: 30rpx;
-  top: 610rpx;
+  bottom: 88rpx;
   display: flex;
   align-items: center;
   gap: 8rpx;
@@ -692,11 +863,6 @@ $accent-gold-light: #e6c65c;
     font-size: 44rpx;
     font-weight: 600;
     color: $accent-gold;
-    
-    &::before {
-      content: '¥';
-      font-size: 28rpx;
-    }
   }
   
   .original-price {
@@ -704,11 +870,6 @@ $accent-gold-light: #e6c65c;
     color: $text-muted;
     text-decoration: line-through;
     margin-left: 16rpx;
-    
-    &::before {
-      content: '¥';
-      font-size: 20rpx;
-    }
   }
 }
 
@@ -725,6 +886,12 @@ $accent-gold-light: #e6c65c;
   .arrow-up {
     font-size: 16rpx;
   }
+}
+
+.monthly-rise {
+  margin-bottom: 12rpx;
+  font-size: 22rpx;
+  color: rgba(201, 162, 39, 0.86);
 }
 
 // 基本信息
@@ -953,6 +1120,34 @@ $accent-gold-light: #e6c65c;
       color: $text-primary;
       margin-bottom: 40rpx;
     }
+
+    .commission-levels {
+      margin-bottom: 36rpx;
+      padding: 24rpx;
+      background: rgba(201, 162, 39, 0.08);
+      border: 1rpx solid rgba(201, 162, 39, 0.24);
+      border-radius: 16rpx;
+    }
+
+    .commission-level-title {
+      margin-bottom: 16rpx;
+      font-size: 24rpx;
+      color: $text-secondary;
+    }
+
+    .commission-level-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10rpx 0;
+      font-size: 24rpx;
+      color: $text-primary;
+
+      text:last-child {
+        color: $accent-gold;
+        font-weight: 600;
+      }
+    }
     
     .share-icons {
       display: flex;
@@ -968,7 +1163,16 @@ $accent-gold-light: #e6c65c;
         .share-icon {
           width: 100rpx;
           height: 100rpx;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           margin-bottom: 16rpx;
+          border-radius: 50%;
+          background: rgba(201, 162, 39, 0.14);
+          border: 1rpx solid rgba(201, 162, 39, 0.35);
+          color: $accent-gold;
+          font-size: 34rpx;
+          font-weight: 600;
         }
         
         text {

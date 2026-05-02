@@ -1,0 +1,38 @@
+.price-card {
+  padding: 28rpx;
+  border-radius: 24rpx;
+  background: #111;
+  color: #fff;
+}
+
+.price-label {
+  font-size: 24rpx;
+  opacity: 0.7;
+}
+
+.price {
+  font-size: 48rpx;
+  font-weight: 700;
+  margin: 10rpx 0 24rpx;
+}
+
+.growth-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 0;
+  font-size: 26rpx;
+  border-top: 1rpx solid rgba(255,255,255,0.12);
+}
+
+.growth {
+  color: #d6a84f;
+}
+
+.next-condition {
+  margin-top: 20rpx;
+  padding: 18rpx;
+  background: rgba(255,255,255,0.08);
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}

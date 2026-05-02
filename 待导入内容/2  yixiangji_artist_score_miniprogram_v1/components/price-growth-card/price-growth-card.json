@@ -1,0 +1,21 @@
+{
+  "component": true,
+  "properties": {
+    "price": {
+      "type": "Number",
+      "value": 0
+    },
+    "growthRate": {
+      "type": "String",
+      "value": "0%"
+    },
+    "collectCount": {
+      "type": "Number",
+      "value": 0
+    },
+    "nextCondition": {
+      "type": "String",
+      "value": "收藏人数增加后可能涨价"
+    }
+  }
+}

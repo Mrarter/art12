@@ -20,3 +20,13 @@ backend/**/target/
 # 配置文件（避免提交私有配置）
 project.private.config.json
 frontend/project.private.config.json
+
+# 系统文件
+.DS_Store
+
+# 日志文件
+backend/logs/
+logs/
+
+# 构建产物
+admin/dist/

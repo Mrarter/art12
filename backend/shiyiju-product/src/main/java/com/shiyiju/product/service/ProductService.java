@@ -87,7 +87,8 @@ public class ProductService {
                 .map(a -> convertToVO(a, userId))
                 .collect(Collectors.toList());
 
-        return PageResult.of(result.getTotal(), query.getPage(), query.getPageSize(), voList);
+        long total = result.getTotal() > 0 ? result.getTotal() : voList.size();
+        return PageResult.of(total, query.getPage(), query.getPageSize(), voList);
     }
 
     /** 获取我的作品列表（艺术家自己的作品） */
@@ -129,7 +130,7 @@ public class ProductService {
         vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
         vo.setArtworkCode(artwork.getArtworkCode());
         vo.setSaleCount(artwork.getSaleCount());
-        vo.setViewCount(artwork.getViewCount());
+        applyHeatCounts(vo, artwork);
         return vo;
     }
 
@@ -151,6 +152,9 @@ public class ProductService {
         if (query.getId() != null) {
             wrapper.eq(Artwork::getId, query.getId());
         }
+        if (query.getArtworkCode() != null && !query.getArtworkCode().isEmpty()) {
+            wrapper.like(Artwork::getArtworkUid, query.getArtworkCode());
+        }
         // 作品名称模糊搜索
         if (query.getTitle() != null && !query.getTitle().isEmpty()) {
             wrapper.like(Artwork::getTitle, query.getTitle());
@@ -162,6 +166,9 @@ public class ProductService {
         
         if (query.getCategoryId() != null) {
             wrapper.eq(Artwork::getCategoryId, query.getCategoryId());
+        }
+        if (query.getArtType() != null && !query.getArtType().isEmpty()) {
+            wrapper.eq(Artwork::getArtType, query.getArtType());
         }
         if (query.getKeyword() != null && !query.getKeyword().isEmpty()) {
             wrapper.and(w -> w.like(Artwork::getTitle, query.getKeyword())
@@ -318,6 +325,8 @@ public class ProductService {
         artwork.setArtType(dto.getArtType());
         artwork.setSize(dto.getSize());
         artwork.setYear(dto.getYear());
+        artwork.setDailyViewCount(dto.getDailyViewCount() != null ? dto.getDailyViewCount() : 0);
+        artwork.setDailyLikeCount(dto.getDailyLikeCount() != null ? dto.getDailyLikeCount() : 0);
         artwork.setDistributionEnabled(dto.getDistributionEnabled() != null ? dto.getDistributionEnabled() : false);
         artwork.setCommissionRate(dto.getCommissionRate() != null ? dto.getCommissionRate() : 10);
         artwork.setCreateTime(LocalDateTime.now());
@@ -418,6 +427,8 @@ public class ProductService {
         if (dto.getArtType() != null) artwork.setArtType(dto.getArtType());
         if (dto.getSize() != null) artwork.setSize(dto.getSize());
         if (dto.getYear() != null) artwork.setYear(dto.getYear());
+        if (dto.getDailyViewCount() != null) artwork.setDailyViewCount(Math.max(dto.getDailyViewCount(), 0));
+        if (dto.getDailyLikeCount() != null) artwork.setDailyLikeCount(Math.max(dto.getDailyLikeCount(), 0));
         // 分销相关
         if (dto.getDistributionEnabled() != null) artwork.setDistributionEnabled(dto.getDistributionEnabled());
         if (dto.getCommissionRate() != null) artwork.setCommissionRate(dto.getCommissionRate());
@@ -465,7 +476,8 @@ public class ProductService {
                 .map(a -> convertToVO(a, userId))
                 .collect(Collectors.toList());
 
-        return PageResult.of(result.getTotal(), query.getPage(), query.getPageSize(), voList);
+        long total = result.getTotal() > 0 ? result.getTotal() : voList.size();
+        return PageResult.of(total, query.getPage(), query.getPageSize(), voList);
     }
 
     /** 转换实体为VO */
@@ -497,7 +509,7 @@ public class ProductService {
         vo.setStatus(artwork.getStatus());
         vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
         vo.setOwnershipType(artwork.getOwnershipType() != null ? artwork.getOwnershipType() : 1);
-        vo.setArtworkCode(artwork.getArtworkCode());
+        vo.setArtworkCode(artwork.getArtworkUid() != null ? artwork.getArtworkUid() : artwork.getArtworkCode());
         // 作品类型文本
         vo.setOwnershipTypeText(switch (artwork.getOwnershipType()) {
             case 1 -> "原创";
@@ -505,8 +517,7 @@ public class ProductService {
             default -> "原创";
         });
         vo.setPriceRise(artwork.getPriceRise() != null ? artwork.getPriceRise() : BigDecimal.ZERO);
-        vo.setViewCount(artwork.getViewCount() != null ? artwork.getViewCount() : 0);
-        vo.setFavoriteCount(artwork.getFavoriteCount() != null ? artwork.getFavoriteCount() : 0);
+        applyHeatCounts(vo, artwork);
         vo.setSaleCount(artwork.getSaleCount() != null ? artwork.getSaleCount() : 0);
         vo.setCreateTime(artwork.getCreateTime() != null ? artwork.getCreateTime().toString() : null);
 
@@ -520,7 +531,7 @@ public class ProductService {
 
         // 是否热门（销量>0或收藏数>5）
         boolean isHot = (artwork.getSaleCount() != null && artwork.getSaleCount() > 0)
-                || (artwork.getFavoriteCount() != null && artwork.getFavoriteCount() > 5);
+                || (vo.getDisplayLikeCount() != null && vo.getDisplayLikeCount() > 5);
         vo.setIsHot(isHot);
 
         // 来源文本
@@ -542,12 +553,18 @@ public class ProductService {
 
         // 检查是否已收藏
         if (userId != null) {
-            ArtworkFavorite fav = favoriteMapper.selectOne(
-                    new LambdaQueryWrapper<ArtworkFavorite>()
-                            .eq(ArtworkFavorite::getUserId, userId)
-                            .eq(ArtworkFavorite::getArtworkId, artwork.getId())
-            );
-            vo.setIsFavorited(fav != null);
+            try {
+                ArtworkFavorite fav = favoriteMapper.selectOne(
+                        new LambdaQueryWrapper<ArtworkFavorite>()
+                                .eq(ArtworkFavorite::getUserId, userId)
+                                .eq(ArtworkFavorite::getArtworkId, artwork.getId())
+                );
+                vo.setIsFavorited(fav != null);
+            } catch (Exception e) {
+                log.warn("检查作品收藏状态失败，使用默认未收藏: artworkId={}, userId={}",
+                        artwork.getId(), userId, e);
+                vo.setIsFavorited(false);
+            }
         } else {
             vo.setIsFavorited(false);
         }
@@ -629,8 +646,29 @@ public class ProductService {
         vo.setCustomViewRate(artwork.getCustomViewRate());
         vo.setCustomFavoriteRate(artwork.getCustomFavoriteRate());
         vo.setCustomMaxGrowthMultiple(artwork.getCustomMaxGrowthMultiple());
+        vo.setTomorrowIncreaseMin(priceGrowthService.calculateTomorrowIncreaseMin(artwork));
+        vo.setTomorrowIncreaseMax(priceGrowthService.calculateTomorrowIncreaseMax(artwork));
 
         return vo;
+    }
+
+    private void applyHeatCounts(ArtworkVO vo, Artwork artwork) {
+        int realViewCount = artwork.getViewCount() != null ? artwork.getViewCount() : 0;
+        int realFavoriteCount = artwork.getFavoriteCount() != null ? artwork.getFavoriteCount() : 0;
+        int dailyViewCount = artwork.getDailyViewCount() != null ? artwork.getDailyViewCount() : 0;
+        int dailyLikeCount = artwork.getDailyLikeCount() != null ? artwork.getDailyLikeCount() : 0;
+        int displayViewCount = priceGrowthService.calculateDisplayViewCount(artwork);
+        int displayLikeCount = priceGrowthService.calculateDisplayLikeCount(artwork);
+
+        vo.setRealViewCount(realViewCount);
+        vo.setRealFavoriteCount(realFavoriteCount);
+        vo.setDailyViewCount(dailyViewCount);
+        vo.setDailyLikeCount(dailyLikeCount);
+        vo.setDisplayViewCount(displayViewCount);
+        vo.setDisplayLikeCount(displayLikeCount);
+        vo.setViewCount(displayViewCount);
+        vo.setFavoriteCount(displayLikeCount);
+        vo.setLikeCount(displayLikeCount);
     }
 
     /**
@@ -673,6 +711,10 @@ public class ProductService {
         result.put("customViewRate", artwork.getCustomViewRate() != null ? artwork.getCustomViewRate() : new BigDecimal("1.1"));
         result.put("customFavoriteRate", artwork.getCustomFavoriteRate() != null ? artwork.getCustomFavoriteRate() : new BigDecimal("1.1"));
         result.put("customMaxGrowthMultiple", artwork.getCustomMaxGrowthMultiple() != null ? artwork.getCustomMaxGrowthMultiple() : new BigDecimal("5.0"));
+        result.put("dailyViewCount", artwork.getDailyViewCount() != null ? artwork.getDailyViewCount() : 0);
+        result.put("dailyLikeCount", artwork.getDailyLikeCount() != null ? artwork.getDailyLikeCount() : 0);
+        result.put("displayViewCount", priceGrowthService.calculateDisplayViewCount(artwork));
+        result.put("displayLikeCount", priceGrowthService.calculateDisplayLikeCount(artwork));
         
         return result;
     }
@@ -707,6 +749,12 @@ public class ProductService {
         }
         if (config.get("customMaxGrowthMultiple") != null) {
             artwork.setCustomMaxGrowthMultiple(new BigDecimal(config.get("customMaxGrowthMultiple").toString()));
+        }
+        if (config.get("dailyViewCount") != null) {
+            artwork.setDailyViewCount(Math.max(Integer.parseInt(config.get("dailyViewCount").toString()), 0));
+        }
+        if (config.get("dailyLikeCount") != null) {
+            artwork.setDailyLikeCount(Math.max(Integer.parseInt(config.get("dailyLikeCount").toString()), 0));
         }
         
         artwork.setUpdateTime(LocalDateTime.now());

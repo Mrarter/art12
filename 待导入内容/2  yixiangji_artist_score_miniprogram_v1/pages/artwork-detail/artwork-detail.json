@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "作品详情",
+  "usingComponents": {
+    "price-growth-card": "../../components/price-growth-card/price-growth-card"
+  }
+}

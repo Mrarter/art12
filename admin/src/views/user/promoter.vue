@@ -127,6 +127,11 @@
               <el-tag v-if="currentUser.isVip" type="warning" size="small">VIP</el-tag>
             </h3>
             <p class="user-id">ID: {{ currentUser.userId || currentUser.id }}</p>
+            <p class="user-id">UID: {{ currentUser.uid || currentUser.displayId || '-' }}</p>
+            <div class="profile-stats">
+              <span>上级：{{ formatParent(currentUser) }}</span>
+              <span>团队：{{ currentUser.teamCount || 0 }} 人</span>
+            </div>
             <div class="identity-tags">
               <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
               <el-tag v-if="currentUser.isPromoter || currentUser.certified" type="warning" size="small">艺荐官</el-tag>
@@ -136,18 +141,46 @@
         </div>
         
         <!-- 编辑表单 -->
-        <el-form ref="profileFormRef" :model="profileForm" label-width="90px" class="profile-form">
+        <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-width="90px" class="profile-form">
           <el-divider content-position="left">基本信息</el-divider>
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="昵称" prop="nickname">
-                <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
+              <el-form-item label="姓名" prop="realName">
+                <el-input v-model="profileForm.realName" placeholder="请输入姓名" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="手机号">
+              <el-form-item label="手机号" prop="phone">
                 <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
               </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-divider content-position="left">团队关系</el-divider>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="上级UID">
+                <el-input v-model="profileForm.inviterUid" placeholder="请输入上级用户UID" clearable />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="团队人数">
+                <el-input-number v-model="profileForm.teamCount" :min="0" :precision="0" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="info-item">
+                <span class="label">直接下级</span>
+                <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <span class="label">上级信息</span>
+                <span class="value">{{ formatParent(currentUser) }}</span>
+              </div>
             </el-col>
           </el-row>
           
@@ -380,10 +413,13 @@ const sharingSize = 10
 
 const profileForm = reactive({
   nickname: '',
+  realName: '',
   phone: '',
   email: '',
   avatar: '',
-  identities: []
+  identities: [],
+  inviterUid: '',
+  teamCount: 0
 })
 
 const addForm = reactive({
@@ -403,6 +439,11 @@ const addRules = {
   phone: [{ required: true, message: '请输入手机号，用于创建用户', trigger: 'blur' }]
 }
 
+const profileRules = {
+  realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }]
+}
+
 const pagination = reactive({
   page: 1,
   size: 10,
@@ -412,20 +453,28 @@ const pagination = reactive({
 const getStatusType = (status) => {
   if (status === 1 || status === 'approved') return 'success'
   if (status === 0 || status === 'pending') return 'warning'
-  if (status === 2 || status === 'rejected') return 'danger'
+  if (status === -1 || status === 2 || status === 'rejected') return 'danger'
   return 'info'
 }
 
 const getStatusText = (status) => {
   if (status === 1 || status === 'approved') return '已认证'
   if (status === 0 || status === 'pending') return '待审核'
-  if (status === 2 || status === 'rejected') return '已拒绝'
+  if (status === -1 || status === 2 || status === 'rejected') return '已拒绝'
   return status
 }
 
 const getSourceText = (source) => {
   const map = { wechat: '微信', ios: 'iOS', android: 'Android', web: 'Web', '': '-' }
   return map[source] || source || '-'
+}
+
+const formatParent = (user) => {
+  if (!user) return '无'
+  const uid = user.parentUid || user.inviterUid
+  const name = user.parentName
+  if (!uid && !name) return '无'
+  return name ? `${name} (${uid || '-'})` : uid
 }
 
 // 复制ID
@@ -459,9 +508,12 @@ const openUserProfile = async (row) => {
   
   Object.assign(profileForm, {
     nickname: row.nickname || row.userNickname || '',
+    realName: row.realName || row.nickname || row.userNickname || '',
     phone: row.phone || row.userPhone || '',
     email: row.email || '',
-    avatar: row.avatar || row.userAvatar || ''
+    avatar: row.avatar || row.userAvatar || '',
+    inviterUid: row.inviterUid || row.parentUid || '',
+    teamCount: row.teamCount || 0
   })
 
   // 加载销售记录
@@ -560,14 +612,22 @@ const handleAvatarUpload = async (options) => {
 
 // 保存用户资料
 const saveProfile = async () => {
+  const valid = await profileFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   try {
     editLoading.value = true
     const userId = currentUser.value.userId || currentUser.value.id
     await request.put(`/user/${userId}`, {
-      nickname: profileForm.nickname,
+      nickname: profileForm.realName,
       avatar: profileForm.avatar,
       phone: profileForm.phone,
       email: profileForm.email
+    })
+    await request.put(`/user/promoter/${userId}/relation`, {
+      realName: profileForm.realName,
+      inviterUid: profileForm.inviterUid,
+      teamCount: profileForm.teamCount
     })
     detailVisible.value = false
     ElMessage.success('保存成功')

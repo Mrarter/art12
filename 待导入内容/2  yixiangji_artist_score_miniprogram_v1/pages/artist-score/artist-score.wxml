@@ -1,0 +1,19 @@
+<view class="page">
+  <artist-level-badge level="{{score.level}}" score="{{score.totalScore}}" />
+
+  <view class="score-list">
+    <block wx:for="{{scoreItems}}" wx:key="key">
+      <view class="score-item">
+        <view>
+          <view class="score-name">{{item.name}}</view>
+          <view class="score-desc">{{item.desc}}</view>
+        </view>
+        <view class="score-value">{{item.value}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="notice">
+    评分由平台根据销售、影响力、活跃度、作品质量、藏家评价、学术资质、互联网资质综合生成。
+  </view>
+</view>

@@ -21,7 +21,7 @@ upload:
   storage-type: local
   local:
     path: /Users/master/CodeBuddy/art12/uploads
-  cdn-url: http://localhost:8087
+  cdn-url: http://192.168.1.109:8087
   max-image-size: 10485760
   max-video-size: 104857600
 tencent:

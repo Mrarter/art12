@@ -85,22 +85,8 @@ export default {
     return {
       currentTab: 'works',
       isSelectAll: false,
-      worksGrouped: {
-        '今天': [
-          { id: 1, name: '张大千 山水长卷', author: '张大千', price: '168,000', image: '/static/artwork-placeholder.png' },
-          { id: 2, name: '齐白石 花鸟四条屏', author: '齐白石', price: '98,000', image: '/static/artwork-placeholder.png' }
-        ],
-        '昨天': [
-          { id: 3, name: '徐悲鸿 骏马图', author: '徐悲鸿', price: '288,000', image: '/static/artwork-placeholder.png' }
-        ],
-        '3天前': [
-          { id: 4, name: '黄永玉 墨荷', author: '黄永玉', price: '158,000', image: '/static/artwork-placeholder.png' }
-        ]
-      },
-      artistsList: [
-        { id: 1, name: '李明', avatar: '/static/avatar-default.png', tags: ['国画', '山水'], intro: '当代著名山水画家', isFollowing: true },
-        { id: 2, name: '王芳', avatar: '/static/avatar-default.png', tags: ['油画', '风景'], intro: '新锐油画艺术家', isFollowing: false }
-      ]
+      worksGrouped: {},
+      artistsList: []
     }
   },
   computed: {
@@ -108,7 +94,45 @@ export default {
       return Object.keys(this.worksGrouped).length > 0
     }
   },
+  onShow() {
+    this.loadHistory()
+  },
   methods: {
+    loadHistory() {
+      const works = uni.getStorageSync('browseHistoryWorks') || []
+      const groups = {}
+      works.forEach(item => {
+        const label = this.getDateLabel(item.time)
+        if (!groups[label]) groups[label] = []
+        groups[label].push({
+          ...item,
+          price: this.formatPrice(item.price),
+          image: item.image || '/static/artwork-placeholder.png'
+        })
+      })
+      this.worksGrouped = groups
+      this.artistsList = (uni.getStorageSync('browseHistoryArtists') || []).map(item => ({
+        ...item,
+        avatar: item.avatar || '/static/avatar/default.png',
+        tags: item.tags && item.tags.length ? item.tags : ['艺术家']
+      }))
+    },
+    getDateLabel(time) {
+      const value = Number(time || Date.now())
+      const today = new Date()
+      const target = new Date(value)
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+      const targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime()
+      const diff = Math.floor((todayStart - targetStart) / 86400000)
+      if (diff <= 0) return '今天'
+      if (diff === 1) return '昨天'
+      return `${diff}天前`
+    },
+    formatPrice(price) {
+      const yuan = Number(price || 0) / 100
+      if (yuan >= 10000) return `${(yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1)}万`
+      return yuan.toLocaleString()
+    },
     switchTab(tab) {
       this.currentTab = tab
     },
@@ -142,6 +166,9 @@ export default {
         success: (res) => {
           if (res.confirm) {
             this.worksGrouped = {}
+            this.artistsList = []
+            uni.removeStorageSync('browseHistoryWorks')
+            uni.removeStorageSync('browseHistoryArtists')
             uni.showToast({ title: '已清空', icon: 'success' })
           }
         }

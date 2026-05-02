@@ -58,12 +58,19 @@ public class ArtworkVO implements Serializable {
     private String ownershipTypeText; // 作品类型文本
     private String artworkCode; // 作品编号
     private Integer viewCount;
+    private Integer realViewCount;
+    private Integer dailyViewCount;
+    private Integer displayViewCount;
     
     /** 价格涨幅 */
     @JsonProperty("priceRise")
     private BigDecimal priceRise;
     
     private Integer favoriteCount;
+    private Integer realFavoriteCount;
+    private Integer dailyLikeCount;
+    private Integer displayLikeCount;
+    private Integer likeCount;
     private Integer saleCount;
     
     /** 是否已收藏 */
@@ -118,4 +125,6 @@ public class ArtworkVO implements Serializable {
     private BigDecimal customViewRate;
     private BigDecimal customFavoriteRate;
     private BigDecimal customMaxGrowthMultiple;
+    private Long tomorrowIncreaseMin;
+    private Long tomorrowIncreaseMax;
 }

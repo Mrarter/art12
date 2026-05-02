@@ -32,6 +32,10 @@ public class Artwork implements Serializable {
     private Integer status;
     private BigDecimal priceRise;
     private Integer viewCount;
+    @TableField("daily_view_count")
+    private Integer dailyViewCount;
+    @TableField("daily_like_count")
+    private Integer dailyLikeCount;
     private Integer favoriteCount;
     private Integer saleCount;
     @TableField(fill = FieldFill.INSERT)

@@ -468,6 +468,7 @@ public class OrderService {
         }
 
         order.setStatus(OrderConstant.STATUS_REFUNDING);
+        order.setPaymentStatus(OrderConstant.STATUS_REFUNDING);
         order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
     }
@@ -615,7 +616,9 @@ public class OrderService {
         if (order == null) return;
 
         order.setStatus(OrderConstant.STATUS_PAID);
+        order.setPaymentStatus(OrderConstant.STATUS_PAID);
         order.setPayTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
 
         // 支付成功后计算并发放佣金（二级分销+团队奖励）

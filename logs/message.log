@@ -29,3 +29,6 @@ Standard Commons Logging discovery in action with spring-jcl: please remove comm
                         3.5.8 
 2026-04-27T22:38:26.978+08:00  INFO 90581 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8088 (http) with context path ''
 2026-04-27T22:38:26.991+08:00  INFO 90581 --- [           main] com.shiyiju.message.MessageApplication   : Started MessageApplication in 5.378 seconds (process running for 5.972)
+2026-05-01T22:07:43.043+08:00  INFO 90581 --- [nio-8088-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-01T22:07:43.048+08:00  INFO 90581 --- [nio-8088-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-01T22:07:43.105+08:00  INFO 90581 --- [nio-8088-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 57 ms

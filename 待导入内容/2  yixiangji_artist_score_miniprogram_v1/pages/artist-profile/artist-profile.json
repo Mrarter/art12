@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "艺术家主页",
+  "usingComponents": {
+    "artist-level-badge": "../../components/artist-level-badge/artist-level-badge",
+    "artist-cert-tags": "../../components/artist-cert-tags/artist-cert-tags"
+  }
+}

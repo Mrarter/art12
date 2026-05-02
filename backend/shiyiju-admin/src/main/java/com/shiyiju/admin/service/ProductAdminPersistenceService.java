@@ -201,6 +201,15 @@ public class ProductAdminPersistenceService {
         return text.isEmpty() ? null : text;
     }
 
+    private String firstAvailableColumn(String tableName, String... candidates) {
+        for (String candidate : candidates) {
+            if (schemaInspector.hasColumn(tableName, candidate)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
     private int toInt(Object value, int defaultValue) {
         if (value == null) {
             return defaultValue;
@@ -213,6 +222,42 @@ public class ProductAdminPersistenceService {
         } catch (NumberFormatException ex) {
             return defaultValue;
         }
+    }
+
+    private boolean toBool(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = value.toString().trim();
+        return "true".equalsIgnoreCase(text) || "1".equals(text);
+    }
+
+    private int toCommissionPercent(Object value) {
+        if (value == null) {
+            return 10;
+        }
+        BigDecimal rate;
+        if (value instanceof BigDecimal decimal) {
+            rate = decimal;
+        } else if (value instanceof Number number) {
+            rate = BigDecimal.valueOf(number.doubleValue());
+        } else {
+            try {
+                rate = new BigDecimal(value.toString());
+            } catch (NumberFormatException ex) {
+                return 10;
+            }
+        }
+        if (rate.compareTo(BigDecimal.ONE) <= 0) {
+            rate = rate.multiply(BigDecimal.valueOf(100));
+        }
+        return rate.setScale(0, java.math.RoundingMode.HALF_UP).intValue();
     }
 
     private String formatDateTime(Object value) {
@@ -260,6 +305,7 @@ public class ProductAdminPersistenceService {
 
         // 2. 获取艺术家编号
         String artistCode = findArtistCodeByUserId(authorId);
+        String authorUid = findAuthorUidByUserId(authorId);
 
         // 3. 构建作品SQL
         LocalDateTime now = LocalDateTime.now();
@@ -270,6 +316,12 @@ public class ProductAdminPersistenceService {
         args.add(Objects.toString(params.get("title"), ""));
         args.add(authorId);
         args.add(artistName);
+
+        if (schemaInspector.hasColumn("artwork", "author_uid")) {
+            sql.append(", author_uid");
+            values.append(", ?");
+            args.add(authorUid);
+        }
 
         // 可选字段
         if (schemaInspector.hasColumn("artwork", "category_id")) {
@@ -301,6 +353,18 @@ public class ProductAdminPersistenceService {
             sql.append(", description");
             values.append(", ?");
             args.add(Objects.toString(params.get("description"), ""));
+        }
+
+        if (schemaInspector.hasColumn("artwork", "daily_view_count")) {
+            sql.append(", daily_view_count");
+            values.append(", ?");
+            args.add(Math.max(toInt(params.get("dailyViewCount"), 0), 0));
+        }
+
+        if (schemaInspector.hasColumn("artwork", "daily_like_count")) {
+            sql.append(", daily_like_count");
+            values.append(", ?");
+            args.add(Math.max(toInt(params.get("dailyLikeCount"), 0), 0));
         }
 
         if (schemaInspector.hasColumn("artwork", "price")) {
@@ -393,29 +457,29 @@ public class ProductAdminPersistenceService {
      * @return 用户ID
      */
     private Long findOrCreateArtist(String artistName) {
-        // 1. 先通过艺术家认证表查找
+        // 1. 先通过当前艺术家列表查找
         Long existingArtistId = findArtistByName(artistName);
         if (existingArtistId != null) {
             return existingArtistId;
         }
 
-        // 2. 再通过用户名模糊查找
-        String userTable = userTable();
-        String identityColumn = identityColumn(userTable);
-
-        String searchSql = String.format(
-            "SELECT id FROM %s WHERE nickname LIKE ? AND %s LIKE '%%artist%%' LIMIT 1",
-            userTable, identityColumn
-        );
-        try {
-            Long userId = jdbcTemplate.queryForObject(searchSql, Long.class, "%" + artistName + "%");
-            if (userId != null) {
-                // 确保该用户有艺术家身份
-                ensureUserHasArtistIdentity(userId);
-                return userId;
+        // 2. 再通过用户昵称精确查找，找到后补齐艺术家列表
+        String userTable = authorLookupUserTable();
+        if (schemaInspector.hasColumn(userTable, "nickname")) {
+            try {
+                Long userId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM " + userTable + " WHERE BINARY nickname = BINARY ? ORDER BY id DESC LIMIT 1",
+                    Long.class,
+                    artistName
+                );
+                if (userId != null) {
+                    ensureUserHasArtistIdentity(userId);
+                    ensureArtistProfile(userId, artistName, LocalDateTime.now());
+                    return userId;
+                }
+            } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+                // 没有找到匹配用户
             }
-        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
-            // 没有找到匹配的艺术家
         }
 
         // 3. 自动创建新艺术家
@@ -427,12 +491,16 @@ public class ProductAdminPersistenceService {
      */
     private Long findArtistByName(String artistName) {
         try {
-            // 尝试通过真实姓名查找（使用id排序避免字段不存在问题）
-            String sql = 
-                "SELECT ac.user_id FROM artist_certifications ac " +
-                "JOIN sys_user u ON ac.user_id = u.id " +
-                "WHERE ac.real_name = ? OR u.nickname = ? " +
-                "ORDER BY ac.id DESC LIMIT 1";
+            String artistTable = schemaInspector.resolveTable("product_artist_profile", "artist_profile", "artist_certifications");
+            String userTable = authorLookupUserTable();
+            String nameExpr = schemaInspector.hasColumn(artistTable, "real_name") && schemaInspector.hasColumn(artistTable, "artist_name")
+                ? "COALESCE(ap.real_name, ap.artist_name)"
+                : (schemaInspector.hasColumn(artistTable, "real_name") ? "ap.real_name" : "ap.artist_name");
+            String sql =
+                "SELECT ap.user_id FROM " + artistTable + " ap " +
+                "LEFT JOIN " + userTable + " u ON ap.user_id = u.id " +
+                "WHERE BINARY " + nameExpr + " = BINARY ? OR BINARY u.nickname = BINARY ? " +
+                "ORDER BY ap.id DESC LIMIT 1";
             return jdbcTemplate.queryForObject(sql, Long.class, artistName, artistName);
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return null;
@@ -447,8 +515,11 @@ public class ProductAdminPersistenceService {
      * 确保用户具有艺术家身份
      */
     private void ensureUserHasArtistIdentity(Long userId) {
-        String userTable = userTable();
+        String userTable = authorLookupUserTable();
         String identityColumn = identityColumn(userTable);
+        if (!schemaInspector.hasColumn(userTable, identityColumn)) {
+            return;
+        }
 
         // 获取当前身份
         String currentIdentity = jdbcTemplate.queryForObject(
@@ -473,61 +544,70 @@ public class ProductAdminPersistenceService {
      * 创建新艺术家（同时创建用户和艺术家认证记录）
      */
     private Long createNewArtist(String artistName) {
-        String userTable = userTable();
+        String userTable = authorLookupUserTable();
         LocalDateTime now = LocalDateTime.now();
+        String userUid = generateInlineUserUid();
 
-        // 1. 构建用户SQL（避免identity列重复）
-        String nicknameCol = schemaInspector.firstExistingColumn(userTable, "nickname");
-        
-        // 检查identity相关列的实际情况
-        boolean hasIdentityCol = schemaInspector.hasColumn(userTable, "identity");
-        boolean hasIdentityJsonCol = schemaInspector.hasColumn(userTable, "identity_json");
-        
-        org.slf4j.LoggerFactory.getLogger(getClass()).info("创建艺术家: hasIdentity={}, hasIdentityJson={}", hasIdentityCol, hasIdentityJsonCol);
-        
-        // 构建SQL
-        StringBuilder sql = new StringBuilder("INSERT INTO ").append(userTable)
-            .append(" (").append(nicknameCol).append(", create_time, update_time");
-        StringBuilder values = new StringBuilder("VALUES (?, ?, ?");
-        
+        String nicknameCol = schemaInspector.firstExistingColumn(userTable, "nickname", "name");
+        String createTimeCol = schemaInspector.firstExistingColumn(userTable, "created_at", "create_time");
+        String updateTimeCol = schemaInspector.firstExistingColumn(userTable, "updated_at", "update_time");
+        StringBuilder sql = new StringBuilder("INSERT INTO ").append(userTable).append(" (").append(nicknameCol);
+        StringBuilder values = new StringBuilder("VALUES (?");
+
         List<Object> args = new ArrayList<>();
-        args.add(artistName);  // nickname
-        args.add(now);         // create_time
-        args.add(now);         // update_time
-        
-        // 添加identity字段（如果存在）
-        if (hasIdentityCol) {
+        args.add(artistName);
+
+        if (schemaInspector.hasColumn(userTable, "status")) {
+            sql.append(", status");
+            values.append(", ?");
+            args.add("user_account".equals(userTable) ? "ENABLED" : 1);
+        }
+        if (schemaInspector.hasColumn(userTable, "register_source")) {
+            sql.append(", register_source");
+            values.append(", ?");
+            args.add("ADMIN");
+        }
+        if (schemaInspector.hasColumn(userTable, "user_no")) {
+            sql.append(", user_no");
+            values.append(", ?");
+            args.add("U" + System.currentTimeMillis());
+        }
+        if (schemaInspector.hasColumn(userTable, "uid")) {
+            sql.append(", uid");
+            values.append(", ?");
+            args.add(userUid);
+        }
+        if (schemaInspector.hasColumn(userTable, "user_uid")) {
+            sql.append(", user_uid");
+            values.append(", ?");
+            args.add(userUid);
+        }
+        if (schemaInspector.hasColumn(userTable, "identity")) {
             sql.append(", identity");
             values.append(", ?");
             args.add("artist");
         }
-        
-        // 添加identity_json字段（如果存在）
-        if (hasIdentityJsonCol) {
+        if (schemaInspector.hasColumn(userTable, "identity_json")) {
             sql.append(", identity_json");
             values.append(", ?");
             args.add("[\"artist\"]");
         }
+        if (schemaInspector.hasColumn(userTable, createTimeCol)) {
+            sql.append(", ").append(createTimeCol);
+            values.append(", ?");
+            args.add(now);
+        }
+        if (schemaInspector.hasColumn(userTable, updateTimeCol)) {
+            sql.append(", ").append(updateTimeCol);
+            values.append(", ?");
+            args.add(now);
+        }
         
         sql.append(") ").append(values).append(")");
-        String finalSql = sql.toString();
-        org.slf4j.LoggerFactory.getLogger(getClass()).info("执行SQL: {}", finalSql);
-        jdbcTemplate.update(finalSql, args.toArray());
+        jdbcTemplate.update(sql.toString(), args.toArray());
 
         Long userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-
-        // 2. 生成用户UID（仅当uid字段存在时）
-        if (schemaInspector.hasColumn(userTable, "uid")) {
-            String userUid = generateInlineUserUid();
-            jdbcTemplate.update(
-                "UPDATE " + userTable + " SET uid = ? WHERE id = ?",
-                userUid, userId
-            );
-            org.slf4j.LoggerFactory.getLogger(getClass()).info("生成用户UID: {}", userUid);
-        }
-
-        // 3. 尝试创建艺术家认证记录
-        createArtistCertification(userId, artistName, now);
+        ensureArtistProfile(userId, artistName, now);
 
         org.slf4j.LoggerFactory.getLogger(getClass()).info("自动创建艺术家成功: userId={}, artistName={}",
             userId, artistName);
@@ -538,55 +618,77 @@ public class ProductAdminPersistenceService {
     /**
      * 创建艺术家认证记录（安全实现，兼容不同表结构）
      */
-    private void createArtistCertification(Long userId, String artistName, LocalDateTime now) {
+    private void ensureArtistProfile(Long userId, String artistName, LocalDateTime now) {
+        String artistTable = schemaInspector.resolveTable("product_artist_profile", "artist_profile", "artist_certifications");
         try {
-            // 生成艺术家编号
-            String artistCode = generateInlineArtistCode();
-
-            // 检查字段并构建合适的SQL
-            boolean hasArtistCode = schemaInspector.hasColumn("artist_certifications", "artist_code");
-            boolean hasCertStatus = schemaInspector.hasColumn("artist_certifications", "cert_status");
-            boolean hasCreateTime = schemaInspector.hasColumn("artist_certifications", "create_time");
-            boolean hasUpdateTime = schemaInspector.hasColumn("artist_certifications", "update_time");
-
-            StringBuilder sql = new StringBuilder("INSERT INTO artist_certifications (user_id, real_name");
-            StringBuilder values = new StringBuilder("VALUES (?, ?");
-
-            List<Object> args = new ArrayList<>();
-            args.add(userId);
-            args.add(artistName);
-
-            if (hasArtistCode) {
-                sql.append(", artist_code");
-                values.append(", ?");
-                args.add(artistCode);
+            Integer exists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + artistTable + " WHERE user_id = ?",
+                Integer.class,
+                userId
+            );
+            if (exists != null && exists > 0) {
+                return;
             }
-
-            if (hasCertStatus) {
-                sql.append(", cert_status");
-                values.append(", ?");
-                args.add(1); // 默认认证通过
-            }
-
-            if (hasCreateTime) {
-                sql.append(", create_time");
-                values.append(", ?");
-                args.add(now);
-            }
-
-            if (hasUpdateTime) {
-                sql.append(", update_time");
-                values.append(", ?");
-                args.add(now);
-            }
-
-            sql.append(") ").append(values).append(")");
-            jdbcTemplate.update(sql.toString(), args.toArray());
-
-        } catch (Exception e) {
-            // 记录但不要抛出异常，用户记录已创建成功
-            org.slf4j.LoggerFactory.getLogger(getClass()).warn("创建艺术家认证记录失败: {}", e.getMessage());
+        } catch (Exception ignored) {
         }
+
+        String userUid = findAuthorUidByUserId(userId);
+        String artistCode = generateInlineArtistCode();
+        StringBuilder sql = new StringBuilder("INSERT INTO ").append(artistTable).append(" (user_id");
+        StringBuilder values = new StringBuilder("VALUES (?");
+        List<Object> args = new ArrayList<>();
+        args.add(userId);
+
+        if (schemaInspector.hasColumn(artistTable, "user_uid")) {
+            sql.append(", user_uid");
+            values.append(", ?");
+            args.add(userUid);
+        }
+        if (schemaInspector.hasColumn(artistTable, "artist_name")) {
+            sql.append(", artist_name");
+            values.append(", ?");
+            args.add(artistName);
+        }
+        if (schemaInspector.hasColumn(artistTable, "real_name")) {
+            sql.append(", real_name");
+            values.append(", ?");
+            args.add(artistName);
+        }
+        if (schemaInspector.hasColumn(artistTable, "artist_code")) {
+            sql.append(", artist_code");
+            values.append(", ?");
+            args.add(artistCode);
+        }
+        if (schemaInspector.hasColumn(artistTable, "is_signed")) {
+            sql.append(", is_signed");
+            values.append(", ?");
+            args.add(1);
+        }
+        if (schemaInspector.hasColumn(artistTable, "status")) {
+            sql.append(", status");
+            values.append(", ?");
+            args.add("artist_profile".equals(artistTable) ? "ACTIVE" : 1);
+        }
+        if (schemaInspector.hasColumn(artistTable, "cert_status")) {
+            sql.append(", cert_status");
+            values.append(", ?");
+            args.add(1);
+        }
+        String createTimeCol = schemaInspector.firstExistingColumn(artistTable, "created_at", "create_time");
+        if (schemaInspector.hasColumn(artistTable, createTimeCol)) {
+            sql.append(", ").append(createTimeCol);
+            values.append(", ?");
+            args.add(now);
+        }
+        String updateTimeCol = schemaInspector.firstExistingColumn(artistTable, "updated_at", "update_time");
+        if (schemaInspector.hasColumn(artistTable, updateTimeCol)) {
+            sql.append(", ").append(updateTimeCol);
+            values.append(", ?");
+            args.add(now);
+        }
+
+        sql.append(") ").append(values).append(")");
+        jdbcTemplate.update(sql.toString(), args.toArray());
     }
 
     /**
@@ -597,7 +699,8 @@ public class ProductAdminPersistenceService {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         // 获取今日注册数量作为序列号基础
         Long todayCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + userTable() + " WHERE DATE(create_time) = CURDATE()",
+            "SELECT COUNT(*) FROM " + authorLookupUserTable() + " WHERE DATE(" +
+                schemaInspector.firstExistingColumn(authorLookupUserTable(), "created_at", "create_time") + ") = CURDATE()",
             Long.class
         );
         int seq = (int)((todayCount != null ? todayCount : 0) % 10000);
@@ -612,8 +715,10 @@ public class ProductAdminPersistenceService {
     private String generateInlineArtistCode() {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         // 获取今日艺术家认证数量作为序列号基础
+        String artistTable = schemaInspector.resolveTable("product_artist_profile", "artist_profile", "artist_certifications");
+        String createTimeCol = schemaInspector.firstExistingColumn(artistTable, "created_at", "create_time");
         Long todayCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM artist_certifications WHERE DATE(create_time) = CURDATE()",
+            "SELECT COUNT(*) FROM " + artistTable + " WHERE DATE(" + createTimeCol + ") = CURDATE()",
             Long.class
         );
         int seq = (int)((todayCount != null ? todayCount : 0) % 10000);
@@ -626,9 +731,10 @@ public class ProductAdminPersistenceService {
      */
     private String findArtistCodeByUserId(Long userId) {
         try {
-            if (schemaInspector.hasColumn("artist_certifications", "artist_code")) {
+            String artistTable = schemaInspector.resolveTable("product_artist_profile", "artist_profile", "artist_certifications");
+            if (schemaInspector.hasColumn(artistTable, "artist_code")) {
                 return jdbcTemplate.queryForObject(
-                    "SELECT artist_code FROM artist_certifications WHERE user_id = ? LIMIT 1",
+                    "SELECT artist_code FROM " + artistTable + " WHERE user_id = ? LIMIT 1",
                     String.class, userId
                 );
             }
@@ -638,11 +744,43 @@ public class ProductAdminPersistenceService {
         return null;
     }
 
+    private String findAuthorUidByUserId(Long userId) {
+        String userTable = authorLookupUserTable();
+        List<String> uidColumns = new ArrayList<>();
+        for (String candidate : List.of("uid", "user_uid", "user_no")) {
+            if (schemaInspector.hasColumn(userTable, candidate)) {
+                uidColumns.add(candidate);
+            }
+        }
+        if (uidColumns.isEmpty()) {
+            return userId == null ? null : String.valueOf(userId);
+        }
+        String uidExpression = uidColumns.size() == 1 ? uidColumns.get(0) : "COALESCE(" + String.join(", ", uidColumns) + ")";
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT " + uidExpression + " FROM " + userTable + " WHERE id = ? LIMIT 1",
+                String.class,
+                userId
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return userId == null ? null : String.valueOf(userId);
+        }
+    }
+
     /**
      * 获取用户表名
      */
     private String userTable() {
-        return schemaInspector.resolveTable("sys_user", "sys_user");
+        return authorLookupUserTable();
+    }
+
+    private String authorLookupUserTable() {
+        return schemaInspector.resolveTable("author_lookup_user", "user_account", "sys_user");
+    }
+
+    private String userUidColumn() {
+        String userTable = authorLookupUserTable();
+        return schemaInspector.firstExistingColumn(userTable, "uid", "user_uid", "user_no");
     }
 
     /**
@@ -655,19 +793,64 @@ public class ProductAdminPersistenceService {
     /**
      * 作品列表查询
      */
-    public Map<String, Object> listProducts(String keyword, Long categoryId, String status, int page, int size) {
+    public Map<String, Object> listProducts(
+        String keyword,
+        String id,
+        String artworkCode,
+        String title,
+        String authorName,
+        Long categoryId,
+        String artType,
+        String status,
+        int page,
+        int size
+    ) {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         
         if (keyword != null && !keyword.isBlank()) {
-            where.append(" AND (a.title LIKE ? OR a.author_name LIKE ?)");
+            where.append(" AND (a.title LIKE ? OR a.author_name LIKE ?");
             args.add("%" + keyword + "%");
             args.add("%" + keyword + "%");
+            if (schemaInspector.hasColumn("artwork", "artwork_code")) {
+                where.append(" OR a.artwork_code LIKE ?");
+                args.add("%" + keyword + "%");
+            }
+            if (schemaInspector.hasColumn("artist_profile", "user_uid")) {
+                where.append(" OR ap.user_uid LIKE ?");
+                args.add("%" + keyword + "%");
+            }
+            where.append(")");
+        }
+
+        if (id != null && !id.isBlank()) {
+            where.append(" AND a.id = ?");
+            args.add(Long.parseLong(id));
+        }
+
+        if (artworkCode != null && !artworkCode.isBlank() && schemaInspector.hasColumn("artwork", "artwork_code")) {
+            where.append(" AND a.artwork_code LIKE ?");
+            args.add("%" + artworkCode.trim() + "%");
+        }
+
+        if (title != null && !title.isBlank()) {
+            where.append(" AND a.title LIKE ?");
+            args.add("%" + title.trim() + "%");
+        }
+
+        if (authorName != null && !authorName.isBlank()) {
+            where.append(" AND a.author_name LIKE ?");
+            args.add("%" + authorName.trim() + "%");
         }
         
         if (categoryId != null) {
             where.append(" AND a.category_id = ?");
             args.add(categoryId);
+        }
+
+        if (artType != null && !artType.isBlank()) {
+            where.append(" AND a.art_type = ?");
+            args.add(artType);
         }
         
         if (status != null && !status.isBlank()) {
@@ -676,8 +859,31 @@ public class ProductAdminPersistenceService {
         }
         
         // 获取总数
+        boolean hasArtistProfileUid = schemaInspector.hasColumn("artist_profile", "user_uid");
+        String artistProfileJoin = hasArtistProfileUid
+            ? " LEFT JOIN artist_profile ap ON ap.user_id = a.author_id"
+            : "";
+        String artistProfileUidSelect = hasArtistProfileUid ? "ap.user_uid" : "NULL";
+        String authorUserTable = authorLookupUserTable();
+        boolean hasAuthorUserTable = !schemaInspector.getColumns(authorUserTable).isEmpty();
+        String authorUserUidColumn = hasAuthorUserTable
+            ? firstAvailableColumn(authorUserTable, "uid", "user_uid", "user_no")
+            : null;
+        String authorUserJoin = hasAuthorUserTable
+            ? " LEFT JOIN " + authorUserTable + " au ON au.id = a.author_id"
+            : "";
+        String authorUserUidSelect = authorUserUidColumn != null ? "au." + authorUserUidColumn : "NULL";
+        boolean hasArtistCertifications = !schemaInspector.getColumns("artist_certifications").isEmpty();
+        String artistCertificationJoin = hasArtistCertifications
+            ? " LEFT JOIN artist_certifications ac ON ac.user_id = a.author_id"
+            : "";
+        String artistCodeSelect = hasArtistCertifications && schemaInspector.hasColumn("artist_certifications", "artist_code")
+            ? "ac.artist_code"
+            : "NULL";
+        String authorJoins = artistProfileJoin + authorUserJoin + artistCertificationJoin;
+
         Long total = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM artwork a" + where,
+            "SELECT COUNT(*) FROM artwork a" + authorJoins + where,
             Long.class,
             args.toArray()
         );
@@ -687,13 +893,51 @@ public class ProductAdminPersistenceService {
         queryArgs.add((page - 1) * size);
         queryArgs.add(size);
         
+        String artworkCodeSelect = schemaInspector.hasColumn("artwork", "artwork_code") ? "a.artwork_code" : "NULL";
+        String authorUidSelect = schemaInspector.hasColumn("artwork", "author_uid")
+            ? "COALESCE(a.author_uid, " + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))"
+            : "COALESCE(" + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))";
+        String yearSelect = schemaInspector.hasColumn("artwork", "year") ? "a.year" :
+            (schemaInspector.hasColumn("artwork", "create_year") ? "a.create_year" : "NULL");
+        String favoriteCountSelect = schemaInspector.hasColumn("artwork", "favorite_count") ? "a.favorite_count" : "0";
+        String viewCountSelect = schemaInspector.hasColumn("artwork", "view_count") ? "a.view_count" : "0";
+        String descriptionSelect = schemaInspector.hasColumn("artwork", "description") ? "a.description" : "NULL";
+        String dailyViewCountSelect = schemaInspector.hasColumn("artwork", "daily_view_count") ? "a.daily_view_count" : "0";
+        String dailyLikeCountSelect = schemaInspector.hasColumn("artwork", "daily_like_count") ? "a.daily_like_count" : "0";
+        boolean hasWeightColumn = schemaInspector.hasColumn("artwork", "weight");
+        String weightSelect = hasWeightColumn ? "a.weight" : "0";
+        String ownershipTypeSelect = schemaInspector.hasColumn("artwork", "ownership_type") ? "a.ownership_type" : "1";
+        String distributionSelect = schemaInspector.hasColumn("artwork", "distribution_enabled") ? "a.distribution_enabled" :
+            (schemaInspector.hasColumn("artwork", "distributable") ? "a.distributable" : "0");
+        String commissionRateSelect = schemaInspector.hasColumn("artwork", "commission_rate") ? "a.commission_rate" : "10";
+
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
             SELECT a.id, a.title, a.author_name, a.cover_image, a.price, a.status,
+                   a.author_id, %s AS artwork_code, %s AS author_uid, a.size, %s AS artwork_year,
+                   a.art_type, %s AS favorite_count, %s AS weight_value, %s AS ownership_type,
+                   %s AS distribution_enabled, %s AS commission_rate, %s AS view_count,
+                   %s AS description, %s AS daily_view_count, %s AS daily_like_count,
                    a.create_time, c.name AS category_name
             FROM artwork a
+            %s
             LEFT JOIN %s c ON a.category_id = c.id
-            """.formatted(categoryTable()) + where + " ORDER BY a.create_time DESC, a.id DESC LIMIT ?, ?",
+            """.formatted(
+                artworkCodeSelect,
+                authorUidSelect,
+                yearSelect,
+                favoriteCountSelect,
+                weightSelect,
+                ownershipTypeSelect,
+                distributionSelect,
+                commissionRateSelect,
+                viewCountSelect,
+                descriptionSelect,
+                dailyViewCountSelect,
+                dailyLikeCountSelect,
+                authorJoins,
+                categoryTable()
+            ) + where + " ORDER BY " + (hasWeightColumn ? "a.weight DESC, " : "") + "a.create_time DESC, a.id DESC LIMIT ?, ?",
             queryArgs.toArray()
         );
         
@@ -701,12 +945,34 @@ public class ProductAdminPersistenceService {
         for (Map<String, Object> row : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", row.get("id"));
+            item.put("artworkId", row.get("id"));
+            item.put("displayArtworkId", String.format("%04d", toInt(row.get("id"), 0)));
+            item.put("artworkCode", row.get("artwork_code"));
+            item.put("artworkUid", row.get("artwork_code"));
+            item.put("authorId", row.get("author_id"));
+            item.put("displayAuthorId", row.get("author_uid"));
+            item.put("authorUid", row.get("author_uid"));
             item.put("title", row.get("title"));
             item.put("artistName", row.get("author_name"));
+            item.put("authorName", row.get("author_name"));
             item.put("cover", row.get("cover_image"));
             item.put("price", row.get("price"));
             item.put("categoryName", row.get("category_name"));
+            item.put("artType", row.get("art_type"));
+            item.put("size", row.get("size"));
+            item.put("year", row.get("artwork_year"));
+            item.put("favoriteCount", toInt(row.get("favorite_count"), 0));
+            item.put("viewCount", toInt(row.get("view_count"), 0));
+            item.put("description", row.get("description"));
+            item.put("dailyViewCount", toInt(row.get("daily_view_count"), 0));
+            item.put("dailyLikeCount", toInt(row.get("daily_like_count"), 0));
+            item.put("displayViewCount", toInt(row.get("view_count"), 0) + toInt(row.get("daily_view_count"), 0));
+            item.put("displayLikeCount", toInt(row.get("favorite_count"), 0) + toInt(row.get("daily_like_count"), 0));
+            item.put("weight", toInt(row.get("weight_value"), 0));
+            item.put("ownershipType", toInt(row.get("ownership_type"), 1));
             item.put("status", toInt(row.get("status"), 0));
+            item.put("distributionEnabled", toBool(row.get("distribution_enabled")));
+            item.put("commissionRate", toCommissionPercent(row.get("commission_rate")));
             item.put("createTime", formatDateTime(row.get("create_time")));
             list.add(item);
         }
@@ -721,8 +987,8 @@ public class ProductAdminPersistenceService {
     
     private int mapProductStatus(String status) {
         return switch (status) {
-            case "active", "approved" -> 1;
-            case "inactive", "rejected" -> 0;
+            case "1", "active", "approved" -> 1;
+            case "0", "inactive", "rejected" -> 0;
             default -> 0;
         };
     }

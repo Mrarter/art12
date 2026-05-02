@@ -19,6 +19,8 @@
             <el-option label="已发货" value="shipped" />
             <el-option label="已完成" value="completed" />
             <el-option label="已取消" value="cancelled" />
+            <el-option label="退款中" value="refunding" />
+            <el-option label="已退款" value="refunded" />
           </el-select>
         </el-form-item>
         <el-form-item label="下单时间">
@@ -43,7 +45,7 @@
       <el-table-column label="买家信息" min-width="150">
         <template #default="{ row }">
           <p>{{ row.buyerName }}</p>
-          <p class="phone">{{ row.buyerPhone }}</p>
+          <p class="phone">{{ row.buyerUid || row.buyerPhone || '-' }}</p>
         </template>
       </el-table-column>
       <el-table-column label="作品信息" min-width="200">
@@ -84,17 +86,56 @@
         @current-change="loadData"
       />
     </div>
+
+    <el-dialog v-model="detailVisible" title="订单详情" width="720px" destroy-on-close>
+      <div v-if="currentOrder.id" class="order-detail">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单号">{{ currentOrder.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="订单状态">
+            <el-tag :type="getStatusType(currentOrder.status)">{{ getStatusText(currentOrder.status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="买家">{{ currentOrder.buyerNickname || currentOrder.buyerName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="买家UID">{{ currentOrder.buyerUid || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="支付状态">{{ currentOrder.paymentStatus || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间">{{ currentOrder.paidAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="商品金额">¥{{ currentOrder.goodsAmount || currentOrder.totalAmount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="实付金额">¥{{ currentOrder.payAmount || currentOrder.amount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="下单时间" :span="2">{{ currentOrder.createTime || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-table :data="currentOrder.items || []" border class="detail-items">
+          <el-table-column label="作品" min-width="220">
+            <template #default="{ row }">
+              <div class="artwork-info">
+                <el-image :src="getFullImageUrl(row.cover_url || row.coverImage)" style="width: 48px; height: 48px" fit="cover" />
+                <span>{{ row.item_title || row.artwork_title || '-' }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="单价" width="120">
+            <template #default="{ row }">¥{{ row.unit_price || 0 }}</template>
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" />
+          <el-table-column label="小计" width="120">
+            <template #default="{ row }">¥{{ row.subtotal_amount || 0 }}</template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import request, { getFullImageUrl as getUrl } from '@/api/request'
 
 const getFullImageUrl = getUrl
 
 const loading = ref(false)
 const tableData = ref([])
+const detailVisible = ref(false)
+const currentOrder = ref({})
 
 const searchForm = reactive({
   orderNo: '',
@@ -110,12 +151,12 @@ const pagination = reactive({
 })
 
 const getStatusType = (status) => {
-  const map = { pending: 'warning', paid: 'primary', shipped: 'info', completed: 'success', cancelled: 'info' }
+  const map = { pending: 'warning', paid: 'primary', shipped: 'info', completed: 'success', cancelled: 'info', refunding: 'warning', refunded: 'danger' }
   return map[status] || 'info'
 }
 
 const getStatusText = (status) => {
-  const map = { pending: '待付款', paid: '已付款', shipped: '已发货', completed: '已完成', cancelled: '已取消' }
+  const map = { pending: '待付款', paid: '已付款', shipped: '已发货', completed: '已完成', cancelled: '已取消', refunding: '退款中', refunded: '已退款' }
   return map[status] || status
 }
 
@@ -134,12 +175,9 @@ const loadData = async () => {
     tableData.value = data.records || data.list || []
     pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = [
-      { orderNo: 'SYJ20240120001', buyerName: '张三', buyerPhone: '13800138001', cover: '', artworkTitle: '山水国画', amount: 58000, freight: 0, status: 'completed', createTime: '2024-01-20 10:30:00' },
-      { orderNo: 'SYJ20240120002', buyerName: '李四', buyerPhone: '13800138002', cover: '', artworkTitle: '油画风景', amount: 32200, freight: 200, status: 'shipped', createTime: '2024-01-20 14:15:00' },
-      { orderNo: 'SYJ20240120003', buyerName: '王五', buyerPhone: '13800138003', cover: '', artworkTitle: '书法对联', amount: 15000, freight: 0, status: 'paid', createTime: '2024-01-20 16:45:00' }
-    ]
-    pagination.total = 3
+    console.error('加载订单列表失败', e)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -155,8 +193,19 @@ const resetSearch = () => {
   handleSearch()
 }
 
-const viewDetail = (row) => {
-  // TODO: 订单详情
+const viewDetail = async (row) => {
+  try {
+    const data = await request.get(`/order/detail/${row.id}`)
+    currentOrder.value = {
+      ...row,
+      ...data,
+      status: data.status || row.status,
+      items: data.items || []
+    }
+    detailVisible.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '加载订单详情失败')
+  }
 }
 
 onMounted(() => {
@@ -184,5 +233,9 @@ onMounted(() => {
 .freight {
   font-size: 12px;
   color: #999;
+}
+
+.detail-items {
+  margin-top: 16px;
 }
 </style>

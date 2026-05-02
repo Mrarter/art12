@@ -50,6 +50,10 @@ public class Artwork implements Serializable {
     private String artworkCode; // 作品编号，如 yh202604200001
     private BigDecimal priceRise;
     private Integer viewCount;
+    @TableField("daily_view_count")
+    private Integer dailyViewCount;
+    @TableField("daily_like_count")
+    private Integer dailyLikeCount;
     private Integer favoriteCount;
     private Integer saleCount;
     // 评价相关

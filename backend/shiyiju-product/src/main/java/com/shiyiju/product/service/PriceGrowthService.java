@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -60,15 +61,17 @@ public class PriceGrowthService {
         totalMultiplier = totalMultiplier.multiply(badgeMultiplier);
 
         // 3. 浏览量因素
+        int displayViewCount = calculateDisplayViewCount(artwork);
         BigDecimal viewMultiplier = useCustomConfig
             ? calculateViewMultiplierCustom(artwork)
-            : calculateViewMultiplier(artwork.getViewCount());
+            : calculateViewMultiplier(displayViewCount);
         totalMultiplier = totalMultiplier.multiply(viewMultiplier);
 
         // 4. 收藏量因素
+        int displayLikeCount = calculateDisplayLikeCount(artwork);
         BigDecimal favoriteMultiplier = useCustomConfig
             ? calculateFavoriteMultiplierCustom(artwork)
-            : calculateFavoriteMultiplier(artwork.getFavoriteCount());
+            : calculateFavoriteMultiplier(displayLikeCount);
         totalMultiplier = totalMultiplier.multiply(favoriteMultiplier);
 
         // 5. 销售次数因素
@@ -119,12 +122,13 @@ public class PriceGrowthService {
      * 计算浏览量倍数（单个作品自定义配置）
      */
     private BigDecimal calculateViewMultiplierCustom(Artwork artwork) {
-        if (artwork.getViewCount() == null || artwork.getViewCount() <= 0) {
+        int viewCount = calculateDisplayViewCount(artwork);
+        if (viewCount <= 0) {
             return BigDecimal.ONE;
         }
         
         // 使用全局的浏览量阈值
-        if (artwork.getViewCount() >= config.getViewThreshold()) {
+        if (viewCount >= config.getViewThreshold()) {
             return artwork.getCustomViewRate() != null ? artwork.getCustomViewRate() : config.getViewRate();
         }
         return BigDecimal.ONE;
@@ -134,12 +138,13 @@ public class PriceGrowthService {
      * 计算收藏量倍数（单个作品自定义配置）
      */
     private BigDecimal calculateFavoriteMultiplierCustom(Artwork artwork) {
-        if (artwork.getFavoriteCount() == null || artwork.getFavoriteCount() <= 0) {
+        int favoriteCount = calculateDisplayLikeCount(artwork);
+        if (favoriteCount <= 0) {
             return BigDecimal.ONE;
         }
         
         // 使用全局的收藏量阈值
-        if (artwork.getFavoriteCount() >= config.getFavoriteThreshold()) {
+        if (favoriteCount >= config.getFavoriteThreshold()) {
             return artwork.getCustomFavoriteRate() != null ? artwork.getCustomFavoriteRate() : config.getFavoriteRate();
         }
         return BigDecimal.ONE;
@@ -228,6 +233,66 @@ public class PriceGrowthService {
             return config.getFavoriteRate();
         }
         return BigDecimal.ONE;
+    }
+
+    public int calculateDisplayViewCount(Artwork artwork) {
+        if (artwork == null) return 0;
+        return calculateDisplayCount(artwork.getViewCount(), artwork.getDailyViewCount(), artwork.getCreateTime());
+    }
+
+    public int calculateDisplayLikeCount(Artwork artwork) {
+        if (artwork == null) return 0;
+        return calculateDisplayCount(artwork.getFavoriteCount(), artwork.getDailyLikeCount(), artwork.getCreateTime());
+    }
+
+    private int calculateDisplayCount(Integer realCount, Integer dailyCount, LocalDateTime createTime) {
+        int real = realCount != null ? realCount : 0;
+        int daily = dailyCount != null ? dailyCount : 0;
+        if (daily <= 0) return real;
+        return real + daily * getInclusiveOnlineDays(createTime);
+    }
+
+    private int getInclusiveOnlineDays(LocalDateTime createTime) {
+        if (createTime == null) return 1;
+        LocalDate start = createTime.toLocalDate();
+        LocalDate today = LocalDate.now();
+        long days = ChronoUnit.DAYS.between(start, today) + 1;
+        return (int) Math.max(days, 1);
+    }
+
+    public Long calculateTomorrowIncreaseMin(Artwork artwork) {
+        return calculateTomorrowIncrease(artwork, true);
+    }
+
+    public Long calculateTomorrowIncreaseMax(Artwork artwork) {
+        return calculateTomorrowIncrease(artwork, false);
+    }
+
+    private Long calculateTomorrowIncrease(Artwork artwork, boolean min) {
+        if (artwork == null || artwork.getPrice() == null || artwork.getPrice() <= 0) {
+            return 0L;
+        }
+        BigDecimal baseRate = resolveBaseDailyRate(artwork);
+        BigDecimal matureRate = resolveMatureDailyRate(artwork);
+        BigDecimal rate = min ? baseRate.min(matureRate) : baseRate.max(matureRate);
+        return BigDecimal.valueOf(artwork.getPrice())
+                .multiply(rate)
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValue();
+    }
+
+    private BigDecimal resolveBaseDailyRate(Artwork artwork) {
+        if (Boolean.TRUE.equals(artwork.getCustomPriceGrowthEnabled()) && artwork.getCustomBaseDailyRate() != null) {
+            return artwork.getCustomBaseDailyRate();
+        }
+        return config.getBaseDailyRate() != null ? config.getBaseDailyRate() : BigDecimal.ZERO;
+    }
+
+    private BigDecimal resolveMatureDailyRate(Artwork artwork) {
+        if (Boolean.TRUE.equals(artwork.getCustomPriceGrowthEnabled()) && artwork.getCustomMatureDailyRate() != null) {
+            return artwork.getCustomMatureDailyRate();
+        }
+        return config.getMatureDailyRate() != null ? config.getMatureDailyRate() : resolveBaseDailyRate(artwork);
     }
 
     /**

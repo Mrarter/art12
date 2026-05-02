@@ -1,0 +1,5 @@
+<view class="tag-wrap">
+  <block wx:for="{{tags}}" wx:key="index">
+    <view class="tag-item">{{item}}</view>
+  </block>
+</view>

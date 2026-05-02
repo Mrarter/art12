@@ -1,0 +1,18 @@
+<view class="price-card">
+  <view class="price-label">当前流通价</view>
+  <view class="price">¥{{price}}</view>
+
+  <view class="growth-row">
+    <text>今日涨幅</text>
+    <text class="growth">{{growthRate}}</text>
+  </view>
+
+  <view class="growth-row">
+    <text>收藏热度</text>
+    <text>{{collectCount}} 人收藏</text>
+  </view>
+
+  <view class="next-condition">
+    下一次涨价条件：{{nextCondition}}
+  </view>
+</view>

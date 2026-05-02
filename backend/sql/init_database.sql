@@ -151,6 +151,8 @@ CREATE TABLE `artwork` (
     `sales_count` INT DEFAULT 0 COMMENT '销量',
     `favorite_count` INT DEFAULT 0 COMMENT '收藏数',
     `view_count` INT DEFAULT 0 COMMENT '浏览数',
+    `daily_view_count` INT DEFAULT 0 COMMENT '每日展示浏览增量',
+    `daily_like_count` INT DEFAULT 0 COMMENT '每日展示点赞增量',
     `status` TINYINT DEFAULT 0 COMMENT '状态: 0-待审核, 1-上架, 2-下架, 3-售罄, 4-审核拒绝',
     `reject_reason` VARCHAR(255) DEFAULT NULL COMMENT '审核拒绝原因',
     `audit_time` DATETIME DEFAULT NULL COMMENT '审核时间',

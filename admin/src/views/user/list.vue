@@ -670,11 +670,7 @@ const loadData = async () => {
       request.get('/user/list', { params }),
       request.get('/user/stats')
     ])
-    tableData.value = (data.records || []).map((item, index) => ({
-      ...item,
-      // 确保有 uid 字段
-      uid: item.uid || `USR${new Date().toISOString().slice(0,10).replace(/-/g,'')}${String(index + 1).padStart(3, '0')}${String.fromCharCode(65 + index)}${String.fromCharCode(75 + index)}`
-    }))
+    tableData.value = data.records || []
     pagination.total = data.total || 0
     Object.assign(stats, statsData)
   } catch (e) {

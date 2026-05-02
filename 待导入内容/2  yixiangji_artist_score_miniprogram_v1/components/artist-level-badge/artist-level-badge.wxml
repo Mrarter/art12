@@ -1,0 +1,5 @@
+<view class="level-badge level-{{level}}">
+  <view class="level-main">{{level}}</view>
+  <view class="level-text">艺术家等级</view>
+  <view class="score-text">{{score}} 分</view>
+</view>
