@@ -529,9 +529,10 @@ public class UserAdminPersistenceService {
     }
 
     public Map<String, Object> listArtists(int page, int size, String status,
-                                            String keyword, String phone, String userId, String badge,
-                                            String startDate, String endDate, String sortField, String sortOrder) {
-        syncArtworkArtists();
+                                           String keyword, String phone, String userId, String badge,
+                                           String startDate, String endDate, String sortField, String sortOrder) {
+        // 移除自动同步：避免每次查看列表时从作品表重新创建艺术家记录
+        // syncArtworkArtists();
 
         String artistTable = artistTable();
         String userTable = userTable();
