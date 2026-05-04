@@ -1,0 +1,8 @@
+{
+  "version": "2.0",
+  "envId": "prod-1g8v85uf4e3d6ce6",
+  "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+  "cloudrun": {
+    "name": "shiyiju-user"
+  }
+}

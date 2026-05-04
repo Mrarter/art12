@@ -26,6 +26,7 @@
           <el-menu-item index="/user/list">用户列表</el-menu-item>
           <el-menu-item index="/user/artist">艺术家管理</el-menu-item>
           <el-menu-item index="/user/promoter">艺荐官管理</el-menu-item>
+          <el-menu-item index="/user/user-profile">用户画像</el-menu-item>
         </el-sub-menu>
         
         <el-sub-menu index="/product">
@@ -76,6 +77,15 @@
           <el-menu-item index="/community/topic">话题管理</el-menu-item>
         </el-sub-menu>
         
+        <el-sub-menu index="/price-control">
+          <template #title>
+            <el-icon><TrendCharts /></el-icon>
+            <span>交易调控</span>
+          </template>
+          <el-menu-item index="/price-control/artwork">价格调控</el-menu-item>
+          <el-menu-item index="/price-control/logs">价格日志</el-menu-item>
+        </el-sub-menu>
+
         <el-sub-menu index="/system">
           <template #title>
             <el-icon><Setting /></el-icon>
@@ -102,8 +112,8 @@
             </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <div class="right">
-          <el-dropdown @command="handleCommand">
+        <div class="right" key="header-right">
+          <el-dropdown @command="handleCommand" trigger="click">
             <span class="user-info">
               <el-avatar :size="32" icon="UserFilled" />
               <span>{{ adminName }}</span>

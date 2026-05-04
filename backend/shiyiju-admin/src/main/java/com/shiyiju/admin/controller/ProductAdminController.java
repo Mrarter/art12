@@ -95,4 +95,13 @@ public class ProductAdminController {
             keyword, id, artworkCode, title, authorName, categoryId, artType, status, page, size
         ));
     }
+
+    /**
+     * 删除作品 - /admin/product/artwork/{id}
+     */
+    @DeleteMapping("/artwork/{id}")
+    public Result<Void> deleteArtwork(@PathVariable Long id) {
+        productAdminPersistenceService.deleteArtwork(id);
+        return Result.success();
+    }
 }

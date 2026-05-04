@@ -7,36 +7,1044 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.1.5)
 
-2026-04-28T09:12:13.275+08:00  INFO 51049 --- [           main] com.shiyiju.admin.AdminApplication       : Starting AdminApplication using Java 17.0.19 with PID 51049 (/Users/master/CodeBuddy/art12/backend/deploy-admin/shiyiju-admin/shiyiju-admin-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12/backend/deploy-admin/shiyiju-admin)
-2026-04-28T09:12:13.276+08:00  INFO 51049 --- [           main] com.shiyiju.admin.AdminApplication       : No active profile set, falling back to 1 default profile: "default"
-2026-04-28T09:12:13.554+08:00  INFO 51049 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-04-28T09:12:13.555+08:00  INFO 51049 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-04-28T09:12:13.567+08:00  INFO 51049 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 6 ms. Found 0 Redis repository interfaces.
-2026-04-28T09:12:13.838+08:00  INFO 51049 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8090 (http)
-2026-04-28T09:12:13.843+08:00  INFO 51049 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-28T09:12:13.843+08:00  INFO 51049 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
-2026-04-28T09:12:13.880+08:00  INFO 51049 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-28T09:12:13.880+08:00  INFO 51049 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 584 ms
+2026-05-02T20:48:19.179+08:00  INFO 26622 --- [           main] com.shiyiju.admin.AdminApplication       : Starting AdminApplication using Java 17.0.19 with PID 26622 (/Users/master/CodeBuddy/art12/backend/shiyiju-admin/target/shiyiju-admin-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12/backend)
+2026-05-02T20:48:19.180+08:00  INFO 26622 --- [           main] com.shiyiju.admin.AdminApplication       : The following 1 profile is active: "dev"
+2026-05-02T20:48:19.463+08:00  INFO 26622 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-02T20:48:19.464+08:00  INFO 26622 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-02T20:48:19.475+08:00  INFO 26622 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-05-02T20:48:19.727+08:00  INFO 26622 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8090 (http)
+2026-05-02T20:48:19.732+08:00  INFO 26622 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-02T20:48:19.732+08:00  INFO 26622 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-05-02T20:48:19.764+08:00  INFO 26622 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-02T20:48:19.765+08:00  INFO 26622 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 567 ms
 Logging initialized using 'class org.apache.ibatis.logging.stdout.StdOutImpl' adapter.
-Get /192.168.1.176 network interface 
+Get /192.168.1.109 network interface 
 Get network interface info: name:en1 (en1)
-Initialization Sequence datacenterId:13 workerId:23
+Initialization Sequence datacenterId:13 workerId:16
  _ _   |_  _ _|_. ___ _ |    _ 
 | | |\/|_)(_| | |_\  |_)||_|_\ 
      /               |         
                         3.5.8 
-2026-04-28T09:12:14.104+08:00  INFO 51049 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-04-28T09:12:14.173+08:00  INFO 51049 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@36c54a56
-2026-04-28T09:12:14.176+08:00  INFO 51049 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-04-28T09:12:14.387+08:00  INFO 51049 --- [           main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
-2026-04-28T09:12:14.526+08:00 ERROR 51049 --- [           main] c.b.m.core.MybatisConfiguration          : mapper[com.shiyiju.admin.mapper.PromoterRecordMapper.countByLevel] is ignored, because it exists, maybe from xml file
-2026-04-28T09:12:14.587+08:00  INFO 51049 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8090 (http) with context path ''
-2026-04-28T09:12:14.591+08:00  INFO 51049 --- [           main] com.shiyiju.admin.AdminApplication       : Started AdminApplication in 1.454 seconds (process running for 1.653)
-2026-04-28T09:12:27.434+08:00  INFO 51049 --- [nio-8090-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-04-28T09:12:27.434+08:00  INFO 51049 --- [nio-8090-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-04-28T09:12:27.435+08:00  INFO 51049 --- [nio-8090-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2026-04-28T20:33:25.102+08:00  WARN 51049 --- [nio-8090-exec-9] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.ProductAdminController
-2026-04-28T20:52:42.009+08:00  WARN 51049 --- [nio-8090-exec-5] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.OrderAdminController
-2026-04-28T20:52:44.780+08:00  WARN 51049 --- [nio-8090-exec-9] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.AuctionAdminController
-2026-04-28T21:48:36.340+08:00  INFO 51049 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-04-28T21:48:36.342+08:00  INFO 51049 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-05-02T20:48:19.988+08:00  INFO 26622 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-02T20:48:20.063+08:00  INFO 26622 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@6df20ade
+2026-05-02T20:48:20.064+08:00  INFO 26622 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-02T20:48:20.276+08:00  INFO 26622 --- [           main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
+2026-05-02T20:48:20.424+08:00 ERROR 26622 --- [           main] c.b.m.core.MybatisConfiguration          : mapper[com.shiyiju.admin.mapper.PromoterRecordMapper.countByLevel] is ignored, because it exists, maybe from xml file
+2026-05-02T20:48:20.483+08:00  INFO 26622 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8090 (http) with context path ''
+2026-05-02T20:48:20.488+08:00  INFO 26622 --- [           main] com.shiyiju.admin.AdminApplication       : Started AdminApplication in 1.444 seconds (process running for 1.591)
+2026-05-02T20:50:52.566+08:00  INFO 26622 --- [nio-8090-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-02T20:50:52.566+08:00  INFO 26622 --- [nio-8090-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-02T20:50:52.567+08:00  INFO 26622 --- [nio-8090-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-05-02T20:50:52.580+08:00  WARN 26622 --- [nio-8090-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.ProductAdminController
+2026-05-02T20:50:52.591+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=47
+2026-05-02T20:50:56.561+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=50
+2026-05-02T21:07:50.180+08:00  WARN 26622 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s839ms), soft-evicting connections from pool.
+2026-05-02T21:10:42.893+08:00  WARN 26622 --- [nio-8090-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.admin.controller.UserManagementController
+2026-05-02T21:30:08.805+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T21:30:08.857+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T21:31:24.099+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [54, 0, 1]
+2026-05-02T21:31:24.101+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T21:31:28.247+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [54, 0, 1]
+2026-05-02T21:31:28.249+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T22:06:30.153+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=20
+2026-05-02T22:08:24.267+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [4828, 0, 1]
+2026-05-02T22:08:24.269+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 1
+2026-05-02T22:09:52.131+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:09:52.138+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:24:50.956+08:00  WARN 26622 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s871ms), soft-evicting connections from pool.
+2026-05-02T22:40:23.109+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=48
+2026-05-02T22:46:14.570+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:46:14.577+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:46:31.414+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:46:31.417+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:47:16.521+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:47:16.526+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:48:13.213+08:00 ERROR 26622 --- [nio-8090-exec-6] c.s.c.exception.GlobalExceptionHandler   : 系统异常 - URI: /admin/user/updateStatus, Error: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+
+org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+	at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:104) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:73) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:82) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1572) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:667) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:960) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1015) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1025) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService.updateUserStatus(UserAdminPersistenceService.java:431) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:343) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:391) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:703) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService$$SpringCGLIB$$0.updateUserStatus(<generated>) ~[classes!/:na]
+	at com.shiyiju.admin.controller.UserManagementController.updateStatus(UserManagementController.java:115) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at com.shiyiju.admin.config.ApiForwardFilter.doFilter(ApiForwardFilter.java:39) ~[classes!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:840) ~[na:na]
+Caused by: java.sql.SQLException: No value specified for parameter 3
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1084) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.0.1.jar!/:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar!/:na]
+	at org.springframework.jdbc.core.JdbcTemplate.lambda$update$2(JdbcTemplate.java:965) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:648) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	... 73 common frames omitted
+
+2026-05-02T22:49:30.336+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:49:30.340+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:52:07.584+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:52:07.597+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:52:09.691+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:52:09.697+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T22:52:13.358+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T22:52:13.361+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:03:11.670+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:03:11.675+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:03:13.860+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:03:13.865+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:03:23.001+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:03:23.005+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:04:32.839+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:04:32.844+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:07:39.177+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:07:39.194+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:07:48.043+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:07:48.050+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:23:17.811+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:23:17.818+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:23:26.212+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:23:26.215+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:23:28.815+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:23:28.821+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:17.760+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:24:17.764+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:21.901+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:24:21.905+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:33.593+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [10, 10]
+2026-05-02T23:24:33.598+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:35.172+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:24:35.178+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:44.427+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:24:44.431+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:49.405+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [10, 10]
+2026-05-02T23:24:49.410+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:24:57.221+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 10]
+2026-05-02T23:24:57.225+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:01.126+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 10, 10]
+2026-05-02T23:25:01.132+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:02.863+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 20, 10]
+2026-05-02T23:25:02.869+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:03.652+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 30, 10]
+2026-05-02T23:25:03.657+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:06.690+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 40, 10]
+2026-05-02T23:25:06.694+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:07.315+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 60, 10]
+2026-05-02T23:25:07.320+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:09.150+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 10]
+2026-05-02T23:25:09.155+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:13.659+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 批量删除用户：10 个
+2026-05-02T23:25:13.672+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 10]
+2026-05-02T23:25:13.676+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:16.283+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:16.289+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 100
+2026-05-02T23:25:24.114+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 批量删除用户：100 个
+2026-05-02T23:25:24.199+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:24.206+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 100
+2026-05-02T23:25:27.108+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 批量删除用户：100 个
+2026-05-02T23:25:27.198+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:27.203+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 95
+2026-05-02T23:25:30.195+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 批量删除用户：95 个
+2026-05-02T23:25:30.286+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:30.288+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T23:25:32.906+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:32.908+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T23:25:33.590+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:33.599+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T23:25:33.787+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:33.791+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T23:25:39.522+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%孟儒%, 0, 100]
+2026-05-02T23:25:39.526+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T23:25:41.056+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 100]
+2026-05-02T23:25:41.060+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 100
+2026-05-02T23:25:52.298+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-02T23:25:52.302+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-02T23:25:54.715+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [61, 0, 10]
+2026-05-02T23:25:54.720+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-02T23:25:58.363+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [61, 0, 10]
+2026-05-02T23:25:58.364+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-03T04:49:55.713+08:00  WARN 26622 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s860ms), soft-evicting connections from pool.
+2026-05-03T07:24:27.600+08:00  WARN 26622 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s794ms), soft-evicting connections from pool.
+2026-05-03T09:27:59.040+08:00  WARN 26622 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s864ms), soft-evicting connections from pool.
+2026-05-03T09:41:03.436+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [61, 0, 10]
+2026-05-03T09:41:03.462+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-03T09:41:04.408+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T09:41:04.411+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:26:40.486+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:26:40.495+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:26:43.683+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [10, 10]
+2026-05-03T10:26:43.686+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:26:44.672+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [20, 10]
+2026-05-03T10:26:44.677+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:26:50.073+08:00 ERROR 26622 --- [nio-8090-exec-6] c.s.c.exception.GlobalExceptionHandler   : 系统异常 - URI: /admin/user/updateStatus, Error: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+
+org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+	at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:104) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:73) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:82) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1572) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:667) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:960) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1015) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1025) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService.updateUserStatus(UserAdminPersistenceService.java:431) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:343) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:391) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:703) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService$$SpringCGLIB$$0.updateUserStatus(<generated>) ~[classes!/:na]
+	at com.shiyiju.admin.controller.UserManagementController.updateStatus(UserManagementController.java:115) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at com.shiyiju.admin.config.ApiForwardFilter.doFilter(ApiForwardFilter.java:39) ~[classes!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:840) ~[na:na]
+Caused by: java.sql.SQLException: No value specified for parameter 3
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1084) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.0.1.jar!/:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar!/:na]
+	at org.springframework.jdbc.core.JdbcTemplate.lambda$update$2(JdbcTemplate.java:965) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:648) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	... 73 common frames omitted
+
+2026-05-03T10:26:53.113+08:00 ERROR 26622 --- [nio-8090-exec-1] c.s.c.exception.GlobalExceptionHandler   : 系统异常 - URI: /admin/user/updateStatus, Error: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+
+org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+	at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:104) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:73) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:82) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1572) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:667) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:960) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1015) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1025) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService.updateUserStatus(UserAdminPersistenceService.java:431) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:343) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:391) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:703) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService$$SpringCGLIB$$0.updateUserStatus(<generated>) ~[classes!/:na]
+	at com.shiyiju.admin.controller.UserManagementController.updateStatus(UserManagementController.java:115) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at com.shiyiju.admin.config.ApiForwardFilter.doFilter(ApiForwardFilter.java:39) ~[classes!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:840) ~[na:na]
+Caused by: java.sql.SQLException: No value specified for parameter 3
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1084) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.0.1.jar!/:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar!/:na]
+	at org.springframework.jdbc.core.JdbcTemplate.lambda$update$2(JdbcTemplate.java:965) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:648) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	... 73 common frames omitted
+
+2026-05-03T10:31:49.027+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:31:49.031+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:31:54.204+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:31:54.208+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:32:02.486+08:00 ERROR 26622 --- [nio-8090-exec-8] c.s.c.exception.GlobalExceptionHandler   : 系统异常 - URI: /admin/user/updateStatus, Error: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+
+org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [UPDATE user_account SET status = ?, created_at = ? WHERE id = ?]
+	at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:104) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:73) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:82) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1572) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:667) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:960) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1015) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.update(JdbcTemplate.java:1025) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService.updateUserStatus(UserAdminPersistenceService.java:431) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:343) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:391) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:751) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:703) ~[spring-aop-6.0.13.jar!/:6.0.13]
+	at com.shiyiju.admin.service.UserAdminPersistenceService$$SpringCGLIB$$0.updateUserStatus(<generated>) ~[classes!/:na]
+	at com.shiyiju.admin.controller.UserManagementController.updateStatus(UserManagementController.java:115) ~[classes!/:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:na]
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77) ~[na:na]
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at com.shiyiju.admin.config.ApiForwardFilter.doFilter(ApiForwardFilter.java:39) ~[classes!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:840) ~[na:na]
+Caused by: java.sql.SQLException: No value specified for parameter 3
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1084) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.0.1.jar!/:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar!/:na]
+	at org.springframework.jdbc.core.JdbcTemplate.lambda$update$2(JdbcTemplate.java:965) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:648) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	... 73 common frames omitted
+
+2026-05-03T10:32:24.050+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [64, 0, 1]
+2026-05-03T10:32:24.053+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-03T10:32:27.696+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:32:27.702+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:32:33.202+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:32:33.205+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:34:36.417+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:34:36.421+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:34:47.042+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [61, 0, 1]
+2026-05-03T10:34:47.043+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-03T10:40:00.037+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:40:00.043+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:41:07.268+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:41:07.272+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:43:34.022+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:43:34.027+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T10:43:38.218+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%作品发布创建艺术家测试%, 0, 10]
+2026-05-03T10:43:38.220+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-03T10:55:06.064+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T10:55:06.068+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:10:51.977+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:10:51.985+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:10:53.560+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:10:53.563+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:10:56.038+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:10:56.041+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:12:58.669+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:12:58.675+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:13:02.574+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:13:02.577+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:13:09.700+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:13:09.704+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:14:10.021+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:14:10.025+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:23:21.763+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:23:21.770+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:24:00.699+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:24:00.703+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:24:02.750+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%测试24%, 0, 10]
+2026-05-03T11:24:02.753+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 0
+2026-05-03T11:30:00.301+08:00  WARN 26622 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s816ms), soft-evicting connections from pool.
+2026-05-03T11:30:30.908+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:30:30.911+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:30:35.216+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%测试%, 0, 10]
+2026-05-03T11:30:35.219+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:32:03.607+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:32:03.611+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:51:17.833+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:51:17.878+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:51:23.434+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND id = ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [4813, 0, 1]
+2026-05-03T11:51:23.435+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 1
+2026-05-03T11:51:26.020+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:51:26.023+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:51:54.841+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:51:54.846+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:51:55.774+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:51:55.779+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:52:03.797+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:52:03.801+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:52:06.976+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [10, 10]
+2026-05-03T11:52:06.987+08:00  INFO 26622 --- [nio-8090-exec-5] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:52:08.456+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [20, 10]
+2026-05-03T11:52:08.468+08:00  INFO 26622 --- [nio-8090-exec-6] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T11:52:10.116+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [200, 100]
+2026-05-03T11:52:10.120+08:00  INFO 26622 --- [io-8090-exec-10] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 100
+2026-05-03T11:52:22.041+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 AND nickname LIKE ? ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [%岳敏君%, 0, 100]
+2026-05-03T11:52:22.046+08:00  INFO 26622 --- [nio-8090-exec-9] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 100
+2026-05-03T11:52:47.323+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers SQL: SELECT id, COALESCE(COALESCE(uid, user_uid), user_no) AS uid, nickname, avatar_url AS avatar, mobile AS phone, status, created_at AS register_time, NULL AS identities_value,
+       NULL AS promoter_level_value,
+       0 AS available_commission_value,
+       0 AS total_commission_value
+FROM user_account
+ WHERE 1 = 1 ORDER BY created_at DESC, id DESC LIMIT ?, ?, args: [0, 10]
+2026-05-03T11:52:47.327+08:00  INFO 26622 --- [nio-8090-exec-4] c.s.a.s.UserAdminPersistenceService      : 【DEBUG】listUsers result count: 10
+2026-05-03T12:00:18.610+08:00  INFO 26622 --- [nio-8090-exec-1] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=55
+2026-05-03T12:00:20.513+08:00  INFO 26622 --- [nio-8090-exec-2] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=56
+2026-05-03T12:00:22.206+08:00  INFO 26622 --- [nio-8090-exec-8] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=57
+2026-05-03T12:00:23.919+08:00  INFO 26622 --- [nio-8090-exec-7] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=54
+2026-05-03T12:00:25.675+08:00  INFO 26622 --- [nio-8090-exec-3] c.s.a.s.ProductAdminPersistenceService   : 作品删除成功: id=59

@@ -10,10 +10,12 @@ import com.shiyiju.common.util.JwtUtil;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.dto.ArtistCertDTO;
 import com.shiyiju.user.entity.ArtistCertification;
+import com.shiyiju.user.entity.ArtistProfile;
 import com.shiyiju.user.entity.PromoterRecord;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.common.entity.Address;
 import com.shiyiju.user.mapper.ArtistCertificationMapper;
+import com.shiyiju.user.mapper.ArtistProfileMapper;
 import com.shiyiju.user.mapper.PromoterRecordMapper;
 import com.shiyiju.user.mapper.UserMapper;
 import com.shiyiju.user.vo.LoginVO;
@@ -43,6 +45,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final PromoterRecordMapper promoterRecordMapper;
     private final ArtistCertificationMapper artistCertMapper;
+    private final ArtistProfileMapper artistProfileMapper;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
@@ -627,9 +630,15 @@ public class UserService {
         // TODO: 调用订单服务删除收货地址
     }
 
+        /**
+     * 搜索艺术家
+     * 根据名称模糊搜索艺术家，优先从 artist_profile 表查询，保持与后台艺术家管理一致
+     * 支持中文和拼音首字母搜索
+     */
     /**
      * 搜索艺术家
-     * 根据名称模糊搜索已认证的艺术家，支持中文和拼音首字母搜索
+     * 根据名称模糊搜索艺术家，同时查询 artist_profile 和 artist_certifications 两个表
+     * 支持中文和拼音首字母搜索
      */
     public List<Map<String, Object>> searchArtists(String keyword, int limit) {
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -638,66 +647,155 @@ public class UserService {
 
         String trimmedKeyword = keyword.trim();
         boolean isPinyinSearch = isPinyinSearch(trimmedKeyword);
+        LinkedHashMap<Long, User> matchedUsers = new LinkedHashMap<>();
+        Map<Long, ArtistProfile> profileMap = new HashMap<>();
+        Map<Long, ArtistCertification> certMap = new HashMap<>();
 
-        List<User> users;
-        if (isPinyinSearch) {
-            users = userMapper.selectList(new LambdaQueryWrapper<User>()
-                    .eq(User::getDeleted, 0)
-                    .orderByDesc(User::getCreateTime)
-                    .last("LIMIT 200"))
-                .stream()
-                .filter(user -> user.getNickname() != null && PinyinUtil.matchesPinyinHead(user.getNickname(), trimmedKeyword))
-                .limit(limit)
-                .toList();
-        } else {
-            LinkedHashMap<Long, User> matchedUsers = new LinkedHashMap<>();
-            userMapper.selectList(new LambdaQueryWrapper<User>()
-                    .eq(User::getDeleted, 0)
-                    .like(User::getNickname, trimmedKeyword)
-                    .orderByDesc(User::getCreateTime)
-                    .last("LIMIT " + limit))
-                .forEach(user -> matchedUsers.put(user.getId(), user));
+        // 1. 从 artist_profile 表查询
+        try {
+            List<ArtistProfile> profiles = artistProfileMapper.selectList(
+                new LambdaQueryWrapper<ArtistProfile>()
+                    .and(w -> w.like(ArtistProfile::getRealName, trimmedKeyword)
+                              .or()
+                              .like(ArtistProfile::getArtistName, trimmedKeyword))
+                    .orderByDesc(ArtistProfile::getUpdatedAt)
+                    .last("LIMIT " + limit)
+            );
 
-            List<ArtistCertification> certs = artistCertMapper.selectList(new LambdaQueryWrapper<ArtistCertification>()
-                    .like(ArtistCertification::getRealName, trimmedKeyword)
-                    .orderByDesc(ArtistCertification::getUpdateTime)
-                    .last("LIMIT " + limit));
-            if (!certs.isEmpty()) {
-                List<Long> userIds = certs.stream()
-                    .map(ArtistCertification::getUserId)
-                    .filter(Objects::nonNull)
-                    .distinct()
-                    .toList();
-                if (!userIds.isEmpty()) {
-                    userMapper.selectList(new LambdaQueryWrapper<User>()
-                            .eq(User::getDeleted, 0)
-                            .in(User::getId, userIds))
-                        .forEach(user -> matchedUsers.putIfAbsent(user.getId(), user));
+            for (ArtistProfile profile : profiles) {
+                profileMap.put(profile.getUserId(), profile);
+                User user = findUserByProfile(profile);
+                if (user != null) {
+                    matchedUsers.put(user.getId(), user);
                 }
             }
-            users = matchedUsers.values().stream().limit(limit).toList();
+        } catch (Exception e) {
+            log.warn("从 artist_profile 表查询失败: {}", e.getMessage());
+        }
+
+        // 2. 从 artist_certifications 表查询（待审核和已认证的艺术家）
+        try {
+            List<ArtistCertification> certs = artistCertMapper.selectList(
+                new LambdaQueryWrapper<ArtistCertification>()
+                    .and(w -> w.like(ArtistCertification::getRealName, trimmedKeyword)
+                              .or()
+                              .like(ArtistCertification::getArtistCode, trimmedKeyword))
+                    .in(ArtistCertification::getStatus, 0, 1) // 查询待审核(0)和已认证(1)的艺术家
+                    .orderByDesc(ArtistCertification::getUpdateTime)
+                    .last("LIMIT " + limit)
+            );
+
+            for (ArtistCertification cert : certs) {
+                certMap.put(cert.getUserId(), cert);
+                User user = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .eq(User::getId, cert.getUserId())
+                );
+                if (user != null) {
+                    matchedUsers.put(user.getId(), user);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("从 artist_certifications 表查询失败: {}", e.getMessage());
+        }
+
+        // 3. 如果艺术家表没有匹配，搜索 user_account 表
+        if (matchedUsers.isEmpty()) {
+            if (isPinyinSearch) {
+                userMapper.selectList(
+                    new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .orderByDesc(User::getCreateTime)
+                        .last("LIMIT 500")
+                ).stream()
+                    .filter(user -> user.getNickname() != null
+                            && PinyinUtil.matchesPinyinHead(user.getNickname(), trimmedKeyword))
+                    .limit(limit)
+                    .forEach(user -> matchedUsers.put(user.getId(), user));
+            } else {
+                userMapper.selectList(
+                    new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .like(User::getNickname, trimmedKeyword)
+                        .orderByDesc(User::getCreateTime)
+                        .last("LIMIT " + limit)
+                ).forEach(user -> matchedUsers.put(user.getId(), user));
+            }
+        }
+
+        List<User> users = matchedUsers.values().stream().limit(limit).toList();
+
+        // 预加载 artist_profile 数据
+        try {
+            List<Long> userIds = users.stream().map(User::getId).distinct().toList();
+            if (!userIds.isEmpty()) {
+                artistProfileMapper.selectList(
+                    new LambdaQueryWrapper<ArtistProfile>()
+                        .in(ArtistProfile::getUserId, userIds)
+                ).forEach(p -> profileMap.put(p.getUserId(), p));
+            }
+        } catch (Exception e) {
+            log.warn("预加载 artist_profile 失败: {}", e.getMessage());
         }
 
         return users.stream()
             .map(user -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("id", user.getId());
-                map.put("name", user.getNickname());
+                map.put("uid", user.getUid());
+                map.put("nickname", user.getNickname());
                 map.put("avatar", user.getAvatar());
                 map.put("bio", user.getBio());
-                map.put("uid", user.getUid());
-                // 检查认证状态
-                LambdaQueryWrapper<ArtistCertification> certWrapper = new LambdaQueryWrapper<>();
-                certWrapper.eq(ArtistCertification::getUserId, user.getId())
-                           .eq(ArtistCertification::getStatus, 1); // 已认证
-                ArtistCertification cert = artistCertMapper.selectOne(certWrapper);
-                map.put("certified", cert != null);
-                map.put("badge", cert != null ? cert.getRealName() : null); // 使用真实姓名作为徽章
-                // 添加艺术家认证编号
-                map.put("artistCode", cert != null ? cert.getArtistCode() : null);
+                
+                ArtistProfile profile = profileMap.get(user.getId());
+                ArtistCertification cert = certMap.get(user.getId());
+                
+                // 显示名称：优先用 profile.real_name > cert.real_name > nickname
+                String displayName = null;
+                if (profile != null && profile.getRealName() != null && !profile.getRealName().isEmpty()) {
+                    displayName = profile.getRealName();
+                } else if (cert != null && cert.getRealName() != null && !cert.getRealName().isEmpty()) {
+                    displayName = cert.getRealName();
+                }
+                if (displayName == null || displayName.isEmpty()) {
+                    displayName = user.getNickname();
+                }
+                map.put("name", displayName);
+                
+                boolean isCertified = (profile != null && profile.getStatus() != null && profile.getStatus() == 1)
+                    || (cert != null && cert.getStatus() != null && cert.getStatus() == 1);
+                map.put("certified", isCertified);
+                
+                String artistCode = null;
+                if (profile != null) {
+                    artistCode = profile.getArtistCode();
+                } else if (cert != null) {
+                    artistCode = cert.getArtistCode();
+                }
+                map.put("artistCode", artistCode);
+                map.put("badge", displayName);
+                
                 return map;
             }).toList();
     }
+    
+    /**
+     * 根据 ArtistProfile 查找对应的 User
+     */
+    private User findUserByProfile(ArtistProfile profile) {
+        if (profile.getUserId() == null && (profile.getUserUid() == null || profile.getUserUid().isEmpty())) {
+            return null;
+        }
+        return userMapper.selectOne(
+            new LambdaQueryWrapper<User>()
+                .eq(User::getDeleted, 0)
+                .and(w -> w.eq(User::getId, profile.getUserId())
+                          .or()
+                          .eq(User::getUid, profile.getUserUid()))
+        );
+    }
+
 
     /**
      * 判断是否为拼音搜索（输入的是英文字母）
@@ -713,6 +811,10 @@ public class UserService {
     /**
      * 查找或创建艺术家
      * 如果艺术家存在则返回，不存在则创建未审核状态的艺术家
+     * 搜索顺序：artist_profile -> artist_certifications -> user_account
+     * 确保与 searchArtists 方法使用一致的搜索逻辑
+     * 
+     * 创建时同时创建 artist_profile 记录（待审核状态），确保艺术家管理列表可见
      */
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> findOrCreateArtist(String name) {
@@ -720,26 +822,128 @@ public class UserService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "艺术家名称不能为空");
         }
 
-        // 先搜索是否已存在
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getNickname, name.trim())
-               .eq(User::getDeleted, 0);
-        User existingUser = userMapper.selectOne(wrapper);
+        String trimmedName = name.trim();
+        Map<String, Object> result = new HashMap<>();
 
-        if (existingUser != null) {
-            // 已存在
-            Map<String, Object> result = new HashMap<>();
-            result.put("id", existingUser.getId());
-            result.put("name", existingUser.getNickname());
-            result.put("avatar", existingUser.getAvatar());
-            result.put("exists", true);
-            result.put("certified", false); // 需检查认证状态
-            return result;
+        // 1. 先从 artist_profile 表查询（主表）
+        try {
+            ArtistProfile profile = artistProfileMapper.selectOne(
+                new LambdaQueryWrapper<ArtistProfile>()
+                    .and(w -> w.eq(ArtistProfile::getRealName, trimmedName)
+                              .or()
+                              .eq(ArtistProfile::getArtistName, trimmedName))
+                    .last("LIMIT 1")
+            );
+            if (profile != null && profile.getUserId() != null) {
+                User user = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .and(w -> w.eq(User::getId, profile.getUserId())
+                                  .or()
+                                  .eq(User::getUid, profile.getUserUid()))
+                );
+                if (user != null) {
+                    String displayName = profile.getRealName() != null && !profile.getRealName().isEmpty()
+                        ? profile.getRealName() : user.getNickname();
+                    result.put("id", user.getId());
+                    result.put("uid", user.getUid());
+                    result.put("name", displayName);
+                    result.put("avatar", user.getAvatar());
+                    result.put("artistCode", profile.getArtistCode());
+                    result.put("exists", true);
+                    result.put("certified", profile.getStatus() != null &&
+                        (profile.getStatus().equals("ACTIVE") || profile.getStatus().equals(1)));
+                    result.put("source", "artist_profile");
+                    log.info("从 artist_profile 表找到艺术家: name={}, userId={}", trimmedName, user.getId());
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("从 artist_profile 表查询失败: {}", e.getMessage());
         }
 
-        // 不存在，创建新用户作为艺术家（未认证状态）
+        // 2. 再从 artist_certifications 表查询（认证表）
+        try {
+            ArtistCertification cert = artistCertMapper.selectOne(
+                new LambdaQueryWrapper<ArtistCertification>()
+                    .eq(ArtistCertification::getRealName, trimmedName)
+                    .eq(ArtistCertification::getStatus, 1) // 只查询已认证的
+                    .last("LIMIT 1")
+            );
+            if (cert != null && cert.getUserId() != null) {
+                User user = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .eq(User::getId, cert.getUserId())
+                );
+                if (user != null) {
+                    result.put("id", user.getId());
+                    result.put("uid", user.getUid());
+                    result.put("name", cert.getRealName());
+                    result.put("avatar", user.getAvatar());
+                    result.put("artistCode", cert.getArtistCode());
+                    result.put("exists", true);
+                    result.put("certified", true);
+                    result.put("source", "artist_certifications");
+                    log.info("从 artist_certifications 表找到艺术家: name={}, userId={}", trimmedName, user.getId());
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("从 artist_certifications 表查询失败: {}", e.getMessage());
+        }
+
+        // 3. 最后查询 user_account 表
+        try {
+            User existingUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>()
+                    .eq(User::getNickname, trimmedName)
+                    .eq(User::getDeleted, 0)
+                    .last("LIMIT 1")
+            );
+            if (existingUser != null) {
+                // 如果用户已存在，检查是否有 artist_profile 记录
+                ArtistProfile existingProfile = artistProfileMapper.selectOne(
+                    new LambdaQueryWrapper<ArtistProfile>()
+                        .eq(ArtistProfile::getUserId, existingUser.getId())
+                        .last("LIMIT 1")
+                );
+                
+                // 如果没有 artist_profile 记录，创建一个待审核的
+                if (existingProfile == null) {
+                    ArtistProfile newProfile = new ArtistProfile();
+                    newProfile.setUserId(existingUser.getId());
+                    newProfile.setUserUid(existingUser.getUid());
+                    newProfile.setRealName(trimmedName);
+                    newProfile.setArtistName(trimmedName);
+                    newProfile.setStatus(0); // 待审核
+                    newProfile.setArtistCode(generateArtistCode()); // 生成艺术家编号
+                    newProfile.setCreatedAt(LocalDateTime.now());
+                    newProfile.setUpdatedAt(LocalDateTime.now());
+                    artistProfileMapper.insert(newProfile);
+                    log.info("为已有用户创建 artist_profile: name={}, userId={}", trimmedName, existingUser.getId());
+                }
+                
+                result.put("id", existingUser.getId());
+                result.put("uid", existingUser.getUid());
+                result.put("name", existingUser.getNickname());
+                result.put("avatar", existingUser.getAvatar());
+                result.put("exists", true);
+                result.put("certified", false); // 用户存在但未认证
+                result.put("pending", true); // 标记为待审核状态
+                result.put("source", "user_account");
+                log.info("从 user_account 表找到用户: name={}, userId={}", trimmedName, existingUser.getId());
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("从 user_account 表查询失败: {}", e.getMessage());
+        }
+
+        // 4. 不存在，创建新用户作为艺术家（未认证状态）
+        log.info("艺术家不存在，创建新艺术家: name={}", trimmedName);
         User newUser = new User();
-        newUser.setNickname(name.trim());
+        newUser.setNickname(trimmedName);
+        newUser.setUid(UserIdUtil.generateUid()); // 生成标准19位UID
         newUser.setCreateTime(LocalDateTime.now());
         newUser.setUpdateTime(LocalDateTime.now());
         newUser.setStatus(1);
@@ -749,27 +953,104 @@ public class UserService {
         newUser.setAvatar("https://picsum.photos/200/200?random=" + System.currentTimeMillis());
 
         userMapper.insert(newUser);
+        log.info("创建新用户: id={}, uid={}, nickname={}", newUser.getId(), newUser.getUid(), trimmedName);
 
-        // 创建认证记录（待审核状态）
+        // 创建 artist_profile 记录（待审核状态）- 艺术家管理列表查询此表
+        String artistCode = generateArtistCode(); // 生成艺术家编号
+        ArtistProfile newProfile = new ArtistProfile();
+        newProfile.setUserId(newUser.getId());
+        newProfile.setUserUid(newUser.getUid());
+        newProfile.setRealName(trimmedName);
+        newProfile.setArtistName(trimmedName);
+        newProfile.setStatus(0); // 待审核
+        newProfile.setArtistCode(artistCode);
+        newProfile.setCreatedAt(LocalDateTime.now());
+        newProfile.setUpdatedAt(LocalDateTime.now());
+        artistProfileMapper.insert(newProfile);
+        log.info("创建 artist_profile 记录: id={}, artistCode={}, userId={}", newProfile.getId(), artistCode, newUser.getId());
+
+        // 同时创建认证记录（待审核状态）- 保留原有逻辑以兼容
         ArtistCertification cert = new ArtistCertification();
         cert.setUserId(newUser.getId());
-        cert.setRealName(name.trim());
+        cert.setRealName(trimmedName);
         cert.setIdCard(""); // 默认空身份证号，后续补全
         cert.setStatus(0); // 待审核
+        cert.setArtistCode(artistCode); // 保持艺术家编号一致
         cert.setCreateTime(LocalDateTime.now());
         cert.setUpdateTime(LocalDateTime.now());
         artistCertMapper.insert(cert);
+        log.info("创建 artist_certifications 记录: id={}, artistCode={}", cert.getId(), artistCode);
 
-        Map<String, Object> result = new HashMap<>();
         result.put("id", newUser.getId());
+        result.put("uid", newUser.getUid());
         result.put("name", newUser.getNickname());
         result.put("avatar", newUser.getAvatar());
+        result.put("artistCode", artistCode);
         result.put("exists", false);
         result.put("certified", false);
         result.put("pending", true); // 标记为待审核状态
-        result.put("message", "艺术家不存在，已创建待审核艺术家");
+        result.put("message", "艺术家不存在，已创建待审核艺术家，艺术家编号：" + artistCode);
+        result.put("source", "created");
 
         return result;
+    }
+    
+    /**
+     * 生成19位艺术家编号
+     * 格式: ART + YYYYMMDD + 4位序列号 + 4位随机码
+     */
+    private String generateArtistCode() {
+        String date = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String prefix = "ART" + date;
+        
+        // 查询当天最大的序列号
+        Long maxSeq = 0L;
+        try {
+            // 从 artist_profile 表查询
+            maxSeq = artistProfileMapper.selectList(
+                new LambdaQueryWrapper<ArtistProfile>()
+                    .likeRight(ArtistProfile::getArtistCode, prefix)
+                    .last("LIMIT 100")
+            ).stream()
+                .filter(p -> p.getArtistCode() != null && p.getArtistCode().length() == 19)
+                .map(p -> {
+                    try {
+                        return Long.parseLong(p.getArtistCode().substring(11, 15));
+                    } catch (Exception e) {
+                        return 0L;
+                    }
+                })
+                .max(Long::compareTo)
+                .orElse(0L);
+        } catch (Exception e) {
+            log.warn("查询 artist_profile 最大序列号失败: {}", e.getMessage());
+        }
+        
+        try {
+            // 从 artist_certifications 表查询
+            Long certMaxSeq = artistCertMapper.selectList(
+                new LambdaQueryWrapper<ArtistCertification>()
+                    .likeRight(ArtistCertification::getArtistCode, prefix)
+                    .last("LIMIT 100")
+            ).stream()
+                .filter(c -> c.getArtistCode() != null && c.getArtistCode().length() == 19)
+                .map(c -> {
+                    try {
+                        return Long.parseLong(c.getArtistCode().substring(11, 15));
+                    } catch (Exception e) {
+                        return 0L;
+                    }
+                })
+                .max(Long::compareTo)
+                .orElse(0L);
+            maxSeq = Math.max(maxSeq, certMaxSeq);
+        } catch (Exception e) {
+            log.warn("查询 artist_certifications 最大序列号失败: {}", e.getMessage());
+        }
+        
+        String seq = String.format("%04d", maxSeq + 1);
+        String random = UUID.randomUUID().toString().replace("-", "").substring(0, 4).toUpperCase();
+        return prefix + seq + random;
     }
     
     /**
@@ -808,5 +1089,111 @@ public class UserService {
             userMapper.updateById(user);
             log.info("更新用户 {} 的UID为 {}", userId, uid);
         }
+    }
+
+    /**
+     * 搜索全局用户列表
+     * 用于发布作品时选择作者
+     * 搜索顺序：artist_profile -> user_account
+     * 同时返回艺术家认证状态
+     */
+    public List<Map<String, Object>> searchUsers(String keyword, int limit) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+
+        String trimmedKeyword = keyword.trim();
+        List<Map<String, Object>> results = new ArrayList<>();
+        Set<Long> addedUserIds = new HashSet<>();
+
+        // 1. 先从 artist_profile 表查询（艺术家优先）
+        try {
+            List<ArtistProfile> profiles = artistProfileMapper.selectList(
+                new LambdaQueryWrapper<ArtistProfile>()
+                    .and(w -> w.like(ArtistProfile::getRealName, trimmedKeyword)
+                              .or()
+                              .like(ArtistProfile::getArtistName, trimmedKeyword))
+                    .orderByDesc(ArtistProfile::getUpdatedAt)
+                    .last("LIMIT " + limit)
+            );
+
+            for (ArtistProfile profile : profiles) {
+                if (addedUserIds.contains(profile.getUserId())) continue;
+                
+                User user = null;
+                if (profile.getUserId() != null) {
+                    user = userMapper.selectById(profile.getUserId());
+                } else if (profile.getUserUid() != null && !profile.getUserUid().isEmpty()) {
+                    user = userMapper.selectOne(
+                        new LambdaQueryWrapper<User>()
+                            .eq(User::getUid, profile.getUserUid())
+                            .eq(User::getDeleted, 0)
+                    );
+                }
+                
+                if (user != null && user.getDeleted() != null && user.getDeleted() == 0) {
+                    addedUserIds.add(user.getId());
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", user.getId());
+                    item.put("uid", user.getUid());
+                    item.put("nickname", user.getNickname());
+                    item.put("avatar", user.getAvatar());
+                    item.put("name", profile.getRealName() != null && !profile.getRealName().isEmpty() 
+                        ? profile.getRealName() : user.getNickname());
+                    item.put("artistCode", profile.getArtistCode());
+                    item.put("isArtist", true);
+                    item.put("certified", profile.getStatus() != null && profile.getStatus() == 1);
+                    item.put("artistStatus", profile.getStatus());
+                    item.put("source", "artist_profile");
+                    results.add(item);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("从 artist_profile 表搜索用户失败: {}", e.getMessage());
+        }
+
+        // 2. 从 user_account 表查询（普通用户）
+        if (results.size() < limit) {
+            try {
+                int userLimit = limit - results.size();
+                List<User> users = userMapper.selectList(
+                    new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .and(w -> w.like(User::getNickname, trimmedKeyword)
+                                  .or()
+                                  .like(User::getPhone, trimmedKeyword))
+                        .orderByDesc(User::getCreateTime)
+                        .last("LIMIT " + userLimit)
+                );
+
+                for (User user : users) {
+                    if (addedUserIds.contains(user.getId())) continue;
+                    
+                    // 检查是否是艺术家
+                    ArtistProfile profile = artistProfileMapper.selectOne(
+                        new LambdaQueryWrapper<ArtistProfile>()
+                            .eq(ArtistProfile::getUserId, user.getId())
+                            .last("LIMIT 1")
+                    );
+                    
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", user.getId());
+                    item.put("uid", user.getUid());
+                    item.put("nickname", user.getNickname());
+                    item.put("avatar", user.getAvatar());
+                    item.put("name", user.getNickname());
+                    item.put("isArtist", profile != null);
+                    item.put("certified", profile != null && profile.getStatus() != null && profile.getStatus() == 1);
+                    item.put("artistStatus", profile != null ? profile.getStatus() : null);
+                    item.put("artistCode", profile != null ? profile.getArtistCode() : null);
+                    item.put("source", "user_account");
+                    results.add(item);
+                }
+            } catch (Exception e) {
+                log.warn("从 user_account 表搜索用户失败: {}", e.getMessage());
+            }
+        }
+
+        return results.stream().limit(limit).toList();
     }
 }

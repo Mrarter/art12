@@ -137,18 +137,55 @@ public class UserAdminPersistenceService {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         
-        // 关联作品表查询作品数量
-        String artworkJoin = "";
-        String artistUidSelect = "COALESCE(u.uid, u.user_code, CONCAT('USR', DATE_FORMAT(COALESCE(u.register_time, u.create_time), '%Y%m%d'), LPAD(u.id, 4, '0')))";
+        String artistTable = artistTable();
+        // 艺术家审批列表同样需要关联 user_account 表
+        String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
+        String userUidCol = "user_account".equals(userTable) ? "user_uid" : "uid";
+        
+        // 艺术家状态列（使用动态列名，与 listArtists 一致）
+        String statusCol = artistStatusColumn(artistTable);
+        String reviewTimeCol = reviewTimeColumn(artistTable);
+        
+        // 只查询待审核(0)和已认证(1)的艺术家 - 使用动态列名
+        if (!"NULL".equals(statusCol)) {
+            where.append(" AND (").append("a.").append(statusCol).append(" IN (0, 1) OR ").append("a.").append(statusCol).append(" IN ('pending', 'approved')").append(")");
+        }
+        
+        // 艺术家UID选择
+        String userIdField = schemaInspector.hasColumn(artistTable, "user_uid") 
+            ? "COALESCE(a.user_uid, u." + userUidCol + ", CAST(u.id AS CHAR))" : "u." + userUidCol;
+        
+        // 艺术家姓名（优先 real_name，其次 artist_name）
+        String nameSelect = schemaInspector.hasColumn(artistTable, "real_name") && schemaInspector.hasColumn(artistTable, "artist_name")
+            ? "COALESCE(a.real_name, a.artist_name)"
+            : (schemaInspector.hasColumn(artistTable, "real_name") ? "a.real_name" : "a.artist_name");
 
         if (keyword != null && !keyword.isBlank()) {
-            where.append(" AND (u.nickname LIKE ? OR ").append(artistUidSelect).append(" LIKE ?)");
+            where.append(" AND (").append(nameSelect).append(" LIKE ? OR u.nickname LIKE ? OR ").append(userIdField).append(" LIKE ?)");
+            args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
         }
         
+        // user_uid 关联 user_account.user_uid，user_id (数字) 关联 user_account.id（与 listArtists 一致）
+        String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
+            ? "((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidCol + ") OR (a.user_uid IS NULL AND a.user_id = u.id))"
+            : "a.user_id = u.id";
+
+        // 过滤孤立的 artist_profile 记录
+        where.append(" AND u.id IS NOT NULL");
+        
+        // 关联作品表查询作品数量
+        String artworkTable = schemaInspector.resolveTable("artist_count_artwork", "artwork", "artworks", "products", "product");
+        boolean canJoinArtworkCount = artworkTable != null
+            && schemaInspector.hasColumn(artistTable, "user_id")
+            && schemaInspector.hasColumn(artworkTable, "author_id");
+        String artworkCountJoin = canJoinArtworkCount
+            ? " LEFT JOIN (SELECT author_id, COUNT(*) AS artwork_count, COALESCE(SUM(view_count), 0) AS total_views, COALESCE(SUM(favorite_count), 0) AS total_favorites FROM " + artworkTable + " GROUP BY author_id) art ON a.user_id = art.author_id"
+            : " LEFT JOIN (SELECT author_id, COUNT(*) AS artwork_count, COALESCE(SUM(view_count), 0) AS total_views, COALESCE(SUM(favorite_count), 0) AS total_favorites FROM artwork GROUP BY author_id) art ON a.user_id = art.author_id";
+        
         // 统计
-        String countSql = "SELECT COUNT(*) FROM users u" + where;
+        String countSql = "SELECT COUNT(*) FROM " + artistTable + " a LEFT JOIN " + userTable + " u ON " + userJoinCondition + where;
         Long total = jdbcTemplate.queryForObject(countSql, Long.class, args.toArray());
         
         // 分页查询
@@ -156,32 +193,54 @@ public class UserAdminPersistenceService {
         queryArgs.add((page - 1) * size);
         queryArgs.add(size);
         
+        // 用户状态列（兼容不同表的状态字段名）
+        String userStatusSelect = schemaInspector.firstExistingColumn(userTable, "status", "user_status", "state");
+        
         String sql = """
-            SELECT u.id, %s AS uid, u.nickname, u.phone, u.avatar, 
+            SELECT a.id, %s AS user_id, %s AS user_uid, %s AS artist_name, u.nickname, u.phone, u.avatar, u.%s AS user_status,
+                   %s AS artist_status,
+                   %s AS review_time,
                    COALESCE(art.artwork_count, 0) AS artwork_count,
                    COALESCE(art.total_views, 0) AS total_views,
                    COALESCE(art.total_favorites, 0) AS total_favorites,
                    COALESCE(u.register_time, u.create_time) AS register_time
-            FROM users u
-            LEFT JOIN (
-                SELECT author_id, 
-                       COUNT(*) AS artwork_count,
-                       COALESCE(SUM(view_count), 0) AS total_views,
-                       COALESCE(SUM(favorite_count), 0) AS total_favorites
-                FROM artwork
-                GROUP BY author_id
-            ) art ON u.id = art.author_id
-            """.formatted(artistUidSelect) + where + " ORDER BY u.id DESC LIMIT ?, ?";
+            FROM %s a
+            LEFT JOIN %s u ON %s
+            %s
+            """.formatted(
+                schemaInspector.hasColumn(artistTable, "user_id") ? "a.user_id" : "0",
+                artistColumnOrNull("user_uid"),
+                nameSelect,
+                userStatusSelect,
+                statusCol,
+                reviewTimeCol,
+                artistTable,
+                userTable,
+                userJoinCondition,
+                artworkCountJoin
+            ) + where + " ORDER BY a.id DESC LIMIT ?, ?";
         
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, queryArgs.toArray());
         
         List<Map<String, Object>> records = rows.stream().map(row -> {
             Map<String, Object> record = new LinkedHashMap<>();
-            record.put("userId", row.get("id"));
-            record.put("uid", row.get("uid"));
-            record.put("nickname", row.get("nickname"));
+            record.put("id", row.get("id"));
+            record.put("userId", row.get("user_id"));
+            record.put("uid", row.get("user_uid"));
+            // 艺术家名称：优先使用 artist_name，如果没有则用 nickname
+            Object artistName = row.get("artist_name");
+            record.put("nickname", artistName != null ? artistName : row.get("nickname"));
             record.put("phone", row.get("phone"));
             record.put("avatar", row.get("avatar"));
+            // 用户状态：转换为前端期望的格式
+            Object userStatus = row.get("user_status");
+            String userStatusStr = normalizeUserStatus(userStatus);
+            record.put("status", userStatusStr);
+            // 艺术家状态：转换为前端期望的格式
+            Object artistStatus = row.get("artist_status");
+            int artistStatusInt = normalizeArtistStatus(artistStatus);
+            record.put("artistStatus", artistStatusInt);
+            record.put("reviewTime", row.get("review_time"));
             record.put("artworkCount", row.get("artwork_count"));
             record.put("totalViews", row.get("total_views"));
             record.put("totalFavorites", row.get("total_favorites"));
@@ -530,12 +589,14 @@ public class UserAdminPersistenceService {
 
     public Map<String, Object> listArtists(int page, int size, String status,
                                            String keyword, String phone, String userId, String badge,
-                                           String startDate, String endDate, String sortField, String sortOrder) {
+                                           String startDate, String endDate, String sortField, String sortOrder,
+                                           String categoryId) {
         // 移除自动同步：避免每次查看列表时从作品表重新创建艺术家记录
         // syncArtworkArtists();
 
         String artistTable = artistTable();
-        String userTable = userTable();
+        // 艺术家列表需要关联 user_account 表（非 users 表），因为 artist_profile 的 user_id 对应的是 user_account.id
+        String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
         String artistStatusColumn = artistStatusColumn(artistTable);
         String artistResumeColumn = artistResumeColumn(artistTable);
         String artistWorksColumn = artistWorksColumn(artistTable);
@@ -590,10 +651,25 @@ public class UserAdminPersistenceService {
             where.append(" AND a.").append(timeCol).append(" <= ?");
             args.add(endDate.trim() + " 23:59:59");
         }
+        // 作品分类筛选：通过艺术家关联的作品进行分类过滤
+        if (categoryId != null && !categoryId.isBlank()) {
+            String artworkTable = schemaInspector.resolveTable("artist_category_filter", "artwork", "artworks");
+            if (artworkTable != null && schemaInspector.hasColumn(artworkTable, "author_id")
+                && schemaInspector.hasColumn(artworkTable, "category_id")) {
+                where.append(" AND a.user_id IN (SELECT DISTINCT author_id FROM " + artworkTable + " WHERE category_id = ?)");
+                try { args.add(Long.parseLong(categoryId.trim())); } catch (Exception e) { args.add(-1L); }
+            }
+        }
 
-        // user_uid 关联 user_account.uid，user_id (数字) 关联 user_account.id（需要提前定义供COUNT查询使用）
+        // 用户UID列名：user_account 表为 user_uid，users 表为 uid
+        String userUidCol = "user_account".equals(userTable) ? "user_uid" : "uid";
+
+        // 过滤掉没有关联用户的孤立 artist_profile 记录
+        where.append(" AND u.id IS NOT NULL");
+
+        // user_uid 关联 user_account.user_uid，user_id 关联 user_account.id
         String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
-            ? "((a.user_uid IS NOT NULL AND a.user_uid = u.uid) OR (a.user_uid IS NULL AND a.user_id = u.id))"
+            ? "((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidCol + ") OR (a.user_uid IS NULL AND a.user_id = u.id))"
             : "a.user_id = u.id";
         
         // COUNT查询需要同样的表连接
@@ -604,9 +680,9 @@ public class UserAdminPersistenceService {
         queryArgs.add((page - 1) * size);
         queryArgs.add(size);
         
-        // 显示字段：优先用 user_uid (字符串格式)，否则用 user_account.uid/user_uid/id 兜底
+        // 显示字段：优先用 user_uid (19位UID)，否则用用户表的 user_uid/uid/id 兜底
         String userIdField = schemaInspector.hasColumn(artistTable, "user_uid") 
-            ? "COALESCE(a.user_uid, u.uid, u.user_uid, CAST(u.id AS CHAR))" : "u.uid";
+            ? "COALESCE(a.user_uid, u." + userUidCol + ", CAST(u.id AS CHAR))" : "u." + userUidCol;
         String realNameSelect = artistColumnOrNull("real_name");
         if ("NULL".equals(realNameSelect)) {
             realNameSelect = artistColumnOrNull("artist_name");
@@ -647,7 +723,7 @@ public class UserAdminPersistenceService {
                 rejectReasonColumn(artistTable),
                 "u." + schemaInspector.firstExistingColumn(userTable, "mobile", "phone"),
                 "u." + schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar"),
-                userColumnOrNull("artist_level"),
+                schemaInspector.hasColumn(userTable, "artist_level") ? "u.artist_level" : "NULL",
                 schemaInspector.firstExistingColumn(artistTable, "created_at", "create_time", "register_time"),
                 artistCodeSelect,
                 artworkCountSelect,
@@ -983,7 +1059,8 @@ public class UserAdminPersistenceService {
         if (userId == null) {
             // 使用真实姓名作为昵称（如果昵称为空）
             String finalNickname = nickname.isEmpty() ? realName : nickname;
-            userId = createUserForAdmin(phone, finalNickname, avatar, List.of("artist", "collector"));
+            Map<String, Object> userResult = createUserForAdmin(phone, finalNickname, avatar, List.of("artist", "collector"));
+            userId = (Long) userResult.get("userId");
             isNewUser = true;
         } else {
             appendIdentity(userId, "artist");
@@ -1432,7 +1509,8 @@ public class UserAdminPersistenceService {
                 String suffix = phone.length() >= 4 ? phone.substring(phone.length() - 4) : phone;
                 nickname = "用户" + suffix;
             }
-            userId = createUserForAdmin(phone, nickname, avatar, List.of("promoter", "collector"));
+            Map<String, Object> userResult = createUserForAdmin(phone, nickname, avatar, List.of("promoter", "collector"));
+            userId = (Long) userResult.get("userId");
             isNewUser = true;
         } else {
             appendIdentity(userId, "promoter");
@@ -1856,8 +1934,19 @@ public class UserAdminPersistenceService {
 
     private Long countArtistByStatus(int status) {
         String artistTable = artistTable();
+        String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : schemaInspector.resolveTable("count_artist_user", "users", "sys_user");
+        String statusCol = artistStatusColumn(artistTable);
+        if (userTable != null && schemaInspector.hasColumn(artistTable, "user_uid")) {
+            return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + artistTable + " a "
+                + "INNER JOIN " + userTable + " u ON ((a.user_uid IS NOT NULL AND a.user_uid = u.user_uid) OR (a.user_uid IS NULL AND a.user_id = u.id)) "
+                + "WHERE a." + statusCol + " = ?",
+                Long.class,
+                status
+            );
+        }
         return jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + artistTable + " WHERE " + artistStatusColumn(artistTable) + " = ?",
+            "SELECT COUNT(*) FROM " + artistTable + " WHERE " + statusCol + " = ?",
             Long.class,
             status
         );
@@ -1939,7 +2028,8 @@ public class UserAdminPersistenceService {
         String artistCode = generateArtistCode();
         Long userId = authorId;
         if (userId == null || !userExists(userId)) {
-            userId = createUserForAdmin("", authorName, avatar, List.of("artist", "collector"));
+            Map<String, Object> userResult = createUserForAdmin("", authorName, avatar, List.of("artist", "collector"));
+            userId = (Long) userResult.get("userId");
             authorUid = getUserUidById(userId);
         }
 
@@ -2005,33 +2095,38 @@ public class UserAdminPersistenceService {
         return count != null && count > 0;
     }
 
-    private Long createUserForAdmin(String phone, String nickname, String avatar, List<String> identities) {
+    /**
+     * 创建用户（管理员后台）
+     * @return 包含 userId (数字ID) 和 userUid (19位UID) 的 Map
+     */
+    private Map<String, Object> createUserForAdmin(String phone, String nickname, String avatar, List<String> identities) {
         String userTable = userTable();
         LocalDateTime now = LocalDateTime.now();
         Long userId;
+        String userUid = generateUserUid(); // 所有表都生成标准的19位UID
         
         // nickname 截断处理，防止超过数据库字段长度限制
         String finalNickname = nickname.length() > 50 ? nickname.substring(0, 50) : nickname;
         
         if ("users".equals(userTable)) {
+            // users 表：使用 uid 列存储标准19位UID
             String avatarColumn = avatarColumn(userTable);
             jdbcTemplate.update("""
-                INSERT INTO users (nickname, phone, %s, identities, status, register_time, create_time, update_time)
-                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+                INSERT INTO users (nickname, phone, %s, identities, status, uid, register_time, create_time, update_time)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
                 """.formatted(avatarColumn),
                 finalNickname,
                 phone,
                 avatar.isEmpty() ? null : avatar,
                 String.join(",", identities),
+                userUid,
                 now,
                 now,
                 now
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else if ("user_account".equals(userTable)) {
-            // user_account 表：生成 user_uid 和 user_no，nickname 限制100字符
-            String userUid = generateUserUid();
-            // 添加4位随机后缀避免时间戳冲突
+            // user_account 表：存储到 user_uid 列，user_no 作为兼容
             String userNo = "U" + System.currentTimeMillis() + String.format("%04d", new Random().nextInt(10000));
             String avatarColumn = avatarColumn(userTable);
             String safeNickname = nickname.length() > 100 ? nickname.substring(0, 100) : nickname;
@@ -2065,7 +2160,12 @@ public class UserAdminPersistenceService {
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         }
-        return userId;
+        
+        // 返回结果
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("userId", userId);
+        result.put("userUid", userUid);
+        return result;
     }
     
     private void updateUserAvatar(Long userId, String avatar) {
@@ -2097,7 +2197,11 @@ public class UserAdminPersistenceService {
         return rows.isEmpty() ? null : toLong(rows.get(0).get("id"));
     }
 
-    public Long createUser(String phone, String nickname, List<String> identities) {
+    /**
+     * 创建用户（管理员后台）
+     * @return 包含 userId (数字ID) 和 userUid (19位UID) 的 Map
+     */
+    public Map<String, Object> createUser(String phone, String nickname, List<String> identities) {
         return createUserForAdmin(phone, nickname, "", identities);
     }
 
@@ -2438,7 +2542,16 @@ public class UserAdminPersistenceService {
         return raw.replace("[", "").replace("]", "").replace("\"", "");
     }
 
+    /**
+     * 获取用户表名
+     * 优先使用 users 表（shiyiju-user 服务使用的表，有正确的 uid），
+     * 其次使用 user_account 表
+     */
     private String userTable() {
+        // 优先使用 users 表，因为该表有正确的 uid
+        if (schemaInspector.hasColumn("users", "uid")) {
+            return "users";
+        }
         return schemaInspector.resolveTable("user", "user_account", "users");
     }
 
@@ -2585,6 +2698,50 @@ public class UserAdminPersistenceService {
         } catch (NumberFormatException ex) {
             return defaultValue;
         }
+    }
+
+    /**
+     * 将数据库用户状态转换为前端期望的格式
+     * @param status 数据库中的状态值
+     * @return 前端格式: "normal" 表示正常，其他表示禁用
+     */
+    private String normalizeUserStatus(Object status) {
+        if (status == null) {
+            return "normal";
+        }
+        // 常见"正常"状态值
+        if (status instanceof Number num) {
+            int val = num.intValue();
+            if (val == 1 || val == 0) {
+                return val == 1 ? "normal" : "disabled";
+            }
+        }
+        String strStatus = status.toString().toUpperCase();
+        if ("NORMAL".equals(strStatus) || "ENABLED".equals(strStatus) || "ACTIVE".equals(strStatus) || "1".equals(strStatus)) {
+            return "normal";
+        }
+        return "disabled";
+    }
+
+    /**
+     * 将数据库艺术家认证状态转换为前端期望的数值格式
+     * @param status 数据库中的状态值（可能是数字或字符串如 'approved', 'pending' 等）
+     * @return 前端格式: 0=待审核, 1=已认证, 2=未通过, 3=已隐藏
+     */
+    private int normalizeArtistStatus(Object status) {
+        if (status == null) {
+            return 0;
+        }
+        if (status instanceof Number num) {
+            return num.intValue();
+        }
+        String strStatus = status.toString().toLowerCase();
+        return switch (strStatus) {
+            case "approved", "certified", "1" -> 1;
+            case "rejected", "failed", "2" -> 2;
+            case "hidden", "3" -> 3;
+            default -> 0;  // pending, not_certified 等默认为待审核
+        };
     }
 
     @Transactional

@@ -3,10 +3,11 @@
 > vite --host 0.0.0.0 --port 5174
 
 
-  VITE v4.5.14  ready in 337 ms
+  VITE v4.5.14  ready in 253 ms
 
   ➜  Local:   http://localhost:5174/
-  ➜  Network: http://192.168.1.176:5174/
+  ➜  Network: http://192.168.1.109:5174/
+  ➜  Network: http://10.6.218.141:5174/
 DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
 
 More info: https://sass-lang.com/d/legacy-js-api
@@ -15,5 +16,105 @@ DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be
 
 More info: https://sass-lang.com/d/legacy-js-api
 
-(node:44170) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(node:60907) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
+12:07:40 PM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+12:07:51 PM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+12:25:39 PM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+12:36:11 PM [vite] page reload src/router/index.js
+12:36:13 PM [vite] hmr update /src/views/Layout.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+12:36:27 PM [vite] hmr update /src/views/user/artist.vue
+12:36:40 PM [vite] hmr update /src/views/user/artist.vue
+12:36:47 PM [vite] hmr update /src/views/user/artist.vue
+12:36:53 PM [vite] hmr update /src/views/user/artist.vue
+12:37:05 PM [vite] hmr update /src/views/user/artist.vue
+12:37:23 PM [vite] hmr update /src/views/user/artist.vue
+12:38:27 PM [vite] hmr update /src/views/user/artist.vue
+12:38:35 PM [vite] hmr update /src/views/user/artist.vue
+12:38:49 PM [vite] hmr update /src/views/user/artist.vue
+12:39:12 PM [vite] hmr update /src/views/user/artist.vue?vue&type=style&index=0&scoped=b2e14e46&lang.css
+12:39:30 PM [vite] hmr update /src/views/artist-score/ArtistScoreList.vue, /src/views/artist-score/ArtistScoreList.vue?vue&type=style&index=0&scoped=d2c15faf&lang.css
+12:39:31 PM [vite] hmr update /src/views/artist-score/ArtistIdentityAudit.vue, /src/views/artist-score/ArtistIdentityAudit.vue?vue&type=style&index=0&scoped=f76ef78f&lang.css
+12:39:52 PM [vite] page reload src/router/index.js

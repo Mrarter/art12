@@ -1,15 +1,16 @@
 // API 地址
-// H5/模拟器可以使用 127.0.0.1；微信真机调试必须使用电脑在同一 Wi-Fi 下的局域网 IP。
-// 生产预览/上传版仍需要在微信公众平台配置 HTTPS 合法域名。
+// H5/模拟器：使用相对路径走 Vite 代理 (/api -> localhost:8082)
+// 微信真机调试：必须使用电脑在同一 Wi-Fi 下的局域网 IP
+// 生产预览/上传版：需要在微信公众平台配置 HTTPS 合法域名
 const DEV_LAN_HOST = '192.168.1.109'
 const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8080`
-  : 'http://127.0.0.1:8080'
+  ? `http://${DEV_LAN_HOST}:8082`
+  : ''
 const BASE_URL = API_ORIGIN + '/api'
 const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
 const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
   ? `http://${DEV_LAN_HOST}:8087`
-  : 'http://127.0.0.1:8087'
+  : ''
 
 // 增加超时时间到 30 秒
 const TIMEOUT = 30000

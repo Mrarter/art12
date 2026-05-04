@@ -31,6 +31,17 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/admin\/system/, '/admin')
       },
+      // 艺术家评分/资质审核/价格调控 -> product服务(8082)
+      '/api/admin/artist': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/admin/, '/admin')
+      },
+      '/api/admin/artwork': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/admin/, '/admin')
+      },
       // 管理员接口 -> admin服务(8090) (处理 /api/admin/xxx -> /admin/xxx)
       '/api/admin': {
         target: 'http://localhost:8090',
@@ -42,6 +53,11 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/user/, '/user')
+      },
+      // C端艺术家评分接口 -> product服务(8082)
+      '/api/artist': {
+        target: 'http://localhost:8082',
+        changeOrigin: true
       },
       // 商品服务 -> 8082
       '/api/product': {

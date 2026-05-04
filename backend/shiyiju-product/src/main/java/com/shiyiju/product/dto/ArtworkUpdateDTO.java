@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 public class ArtworkUpdateDTO {
     private Long id;
     private Long authorId;
+    private String authorUid; // 作者UID
     private String title;
     private String authorName;
     private Long categoryId;

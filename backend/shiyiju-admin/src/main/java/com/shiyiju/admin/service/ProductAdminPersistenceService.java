@@ -102,6 +102,21 @@ public class ProductAdminPersistenceService {
         jdbcTemplate.update("DELETE FROM " + categoryTable + " WHERE id = ?", id);
     }
 
+    /**
+     * 删除作品
+     */
+    @Transactional
+    public void deleteArtwork(Long id) {
+        // 检查作品是否存在
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artwork WHERE id = ?", Integer.class, id);
+        if (count == null || count == 0) {
+            throw new IllegalArgumentException("作品不存在");
+        }
+        // 删除作品
+        jdbcTemplate.update("DELETE FROM artwork WHERE id = ?", id);
+        org.slf4j.LoggerFactory.getLogger(getClass()).info("作品删除成功: id={}", id);
+    }
+
     public Map<String, Object> listAuditRecords(String auditStatus, int page, int size) {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");

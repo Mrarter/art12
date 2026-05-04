@@ -48,7 +48,7 @@ const routes = [
             name: 'UserProfile',
             component: () => import('@/views/user/user-profile.vue'),
             meta: { title: '用户画像' }
-          }
+          },
         ]
       },
       {
@@ -179,6 +179,25 @@ const routes = [
             name: 'ContentReview',
             component: () => import('@/views/community/content-review.vue'),
             meta: { title: '内容审核' }
+          }
+        ]
+      },
+      {
+        path: 'price-control',
+        name: 'PriceControl',
+        meta: { title: '交易调控', icon: 'TrendCharts' },
+        children: [
+          {
+            path: 'artwork',
+            name: 'ArtworkPriceControl',
+            component: () => import('@/views/artist-score/ArtworkPriceControl.vue'),
+            meta: { title: '价格调控' }
+          },
+          {
+            path: 'logs',
+            name: 'ArtworkPriceLog',
+            component: () => import('@/views/artist-score/ArtworkPriceLog.vue'),
+            meta: { title: '价格日志' }
           }
         ]
       },

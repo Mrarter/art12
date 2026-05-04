@@ -845,6 +845,8 @@ const confirmReject = async () => {
     ElMessage.success('已拒绝')
     rejectVisible.value = false
     await loadData()
+  } catch (e) {
+    ElMessage.error('操作失败')
   }
 }
 

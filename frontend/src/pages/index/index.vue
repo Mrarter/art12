@@ -102,7 +102,7 @@
                   <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
               </view>
-              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
+              <view class="rise-tip" v-if="showRiseTip(item)">{{ getRiseTipText(item) }}</view>
             </view>
           </view>
         </view>
@@ -140,7 +140,7 @@
                   <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
               </view>
-              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
+              <view class="rise-tip" v-if="showRiseTip(item)">{{ getRiseTipText(item) }}</view>
             </view>
           </view>
         </view>
@@ -405,6 +405,14 @@ const showRiseTip = (item) => {
   return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
 }
 
+const getRiseTipText = (item) => {
+  if (!item.tomorrowIncreaseMin && !item.tomorrowIncreaseMax) return ''
+  const min = (item.tomorrowIncreaseMin || 0) / 100
+  const max = (item.tomorrowIncreaseMax || 0) / 100
+  const fmt = (v) => Number.isInteger(v) ? v.toString() : v.toFixed(1)
+  return `预估上涨￥${fmt(min)}--￥${fmt(max)}`
+}
+
 // 计算左右列数据
 const leftList = computed(() => {
   return productList.value.filter((item, index) => index % 2 === 0)
@@ -523,7 +531,7 @@ $price-down: #4CAF50;
 }
 
 .banner-swiper {
-  height: 320rpx;
+  height: 350rpx;
   border-radius: 20rpx;
   overflow: hidden;
   

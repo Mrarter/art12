@@ -101,9 +101,9 @@
     <view class="form-section card">
       <view class="form-title">专业信息</view>
 
-      <!-- 艺术门类 -->
+      <!-- 作品分类 -->
       <view class="form-item">
-        <view class="form-label"><text class="required">*</text>艺术门类</view>
+        <view class="form-label"><text class="required">*</text>作品分类</view>
         <picker :value="form.artCategoryIndex" :range="artCategories" range-key="name" @change="onArtCategoryChange">
           <view class="picker-value">
             {{ form.artCategory || '请选择' }}
@@ -290,20 +290,10 @@ export default {
         idCardFront: '',
         idCardBack: ''
       },
-      artCategories: [
-        { id: 1, name: '国画' },
-        { id: 2, name: '油画' },
-        { id: 3, name: '版画' },
-        { id: 4, name: '雕塑' },
-        { id: 5, name: '书法' },
-        { id: 6, name: '摄影' },
-        { id: 7, name: '水彩' },
-        { id: 8, name: '插画' },
-        { id: 9, name: '数字艺术' },
-        { id: 10, name: '其他' }
-      ],
+      artCategories: [],
       countdown: 0,
-      agreed: false
+      agreed: false,
+      loadingCategories: true
     }
   },
 
@@ -408,6 +398,30 @@ export default {
 
     showPrivacy() {
       uni.navigateTo({ url: '/pages/user/agreement?type=privacy' })
+    },
+
+    onLoad() {
+      this.loadCategories()
+    },
+
+    async loadCategories() {
+      try {
+        const { getCategories } = await import('@/api/product.js')
+        const list = await getCategories()
+        if (list && list.length > 0) {
+          this.artCategories = list.map(item => ({ id: item.id, name: item.name }))
+        }
+      } catch (e) {
+        this.artCategories = [
+          { id: 1, name: '国画' }, { id: 2, name: '油画' },
+          { id: 3, name: '版画' }, { id: 4, name: '雕塑' },
+          { id: 5, name: '书法' }, { id: 6, name: '摄影' },
+          { id: 7, name: '水彩' }, { id: 8, name: '插画' },
+          { id: 9, name: '数字艺术' }, { id: 10, name: '其他' }
+        ]
+      } finally {
+        this.loadingCategories = false
+      }
     },
 
     submitApplication() {

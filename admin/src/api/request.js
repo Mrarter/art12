@@ -16,6 +16,11 @@ const requestApi = axios.create({
   timeout: 15000
 })
 
+// 不显示错误消息的请求方法
+request.silentGet = (url, config = {}) => {
+  return request.get(url, { ...config, silent: true })
+}
+
 // 请求拦截
 request.interceptors.request.use(
   config => {
@@ -43,22 +48,30 @@ requestApi.interceptors.request.use(
 request.interceptors.response.use(
   response => {
     const res = response.data
+    const silent = response.config.silent
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
+      if (!silent) {
+        ElMessage.error(res.message || '请求失败')
+      }
       return Promise.reject(new Error(res.message || '请求失败'))
     }
     return res.data
   },
   error => {
+    const silent = error.config?.silent
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
-      console.warn('后端服务未启动，部分功能可能不可用')
+      if (!silent) {
+        console.warn('后端服务未启动，部分功能可能不可用')
+      }
       return Promise.reject(new Error('backend_offline'))
     }
     if (error.response?.status === 401) {
       localStorage.removeItem('admin_token')
       window.location.href = '/login'
     }
-    ElMessage.error(error.message || '网络错误')
+    if (!silent) {
+      ElMessage.error(error.message || '网络错误')
+    }
     return Promise.reject(error)
   }
 )

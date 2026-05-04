@@ -180,9 +180,10 @@ public class UserManagementController {
         @RequestParam(required = false) String startDate,
         @RequestParam(required = false) String endDate,
         @RequestParam(required = false) String sortField,
-        @RequestParam(required = false) String sortOrder
+        @RequestParam(required = false) String sortOrder,
+        @RequestParam(required = false) String categoryId
     ) {
-        return Result.success(userAdminPersistenceService.listArtists(page, size, status, keyword, phone, userId, badge, startDate, endDate, sortField, sortOrder));
+        return Result.success(userAdminPersistenceService.listArtists(page, size, status, keyword, phone, userId, badge, startDate, endDate, sortField, sortOrder, categoryId));
     }
 
     @PostMapping("/artist/approve")
@@ -441,12 +442,15 @@ public class UserManagementController {
             nickname = "用户" + phone.substring(phone.length() - 4);
         }
         
-        Long userId = userAdminPersistenceService.createUser(phone, nickname, List.of("collector"));
+        Map<String, Object> userResult = userAdminPersistenceService.createUser(phone, nickname, List.of("collector"));
+        Long userId = (Long) userResult.get("userId");
+        String userUid = (String) userResult.get("userUid");
         
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("userId", userId);
+        result.put("userUid", userUid);
         result.put("isNewUser", true);
-        result.put("message", "新用户创建成功，用户ID：" + userId);
+        result.put("message", "新用户创建成功，用户UID：" + userUid);
         return Result.success(result);
     }
 

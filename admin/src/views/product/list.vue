@@ -558,6 +558,72 @@
         <el-button type="primary" @click="handleSave" :loading="saveLoading">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 艺术家信息编辑弹窗 -->
+    <el-dialog v-model="artistDialogVisible" title="编辑艺术家信息" width="600px" destroy-on-close>
+      <div v-loading="artistEditLoading">
+        <el-form ref="artistFormRef" :model="artistForm" label-width="90px">
+          <div class="artist-profile-header">
+            <div class="avatar-section">
+              <el-avatar :src="artistForm.avatar" :size="80" fit="cover" />
+              <el-upload
+                class="avatar-uploader"
+                :show-file-list="false"
+                :http-request="handleArtistAvatarUpload"
+                accept="image/*"
+              >
+                <el-button size="small" type="primary">上传头像</el-button>
+              </el-upload>
+            </div>
+            <div class="artist-info-summary">
+              <p class="artist-id">UID: {{ artistCurrentRow.authorUid || artistCurrentRow.displayAuthorId || artistForm.userId }}</p>
+              <p class="artist-name-preview">{{ artistCurrentRow.artistName }}</p>
+            </div>
+          </div>
+          <el-divider content-position="left">基本信息</el-divider>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="昵称" prop="nickname">
+                <el-input v-model="artistForm.nickname" placeholder="请输入昵称" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="手机号" prop="phone">
+                <el-input v-model="artistForm.phone" placeholder="请输入手机号" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="邮箱">
+            <el-input v-model="artistForm.email" placeholder="请输入邮箱" />
+          </el-form-item>
+          <el-divider content-position="left">艺术家信息</el-divider>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="真实姓名">
+                <el-input v-model="artistForm.realName" placeholder="请输入真实姓名" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="身份证号">
+                <el-input v-model="artistForm.idCard" placeholder="请输入身份证号" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="艺术家简介">
+            <el-input
+              v-model="artistForm.resume"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入艺术家简介"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="artistDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="artistEditLoading" @click="saveArtistInfo">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -568,6 +634,7 @@ import { Plus, Picture, Edit, Setting, Search } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
+import { uploadFile } from '@/api/request'
 
 const router = useRouter()
 const loading = ref(false)
@@ -821,6 +888,23 @@ const distForm = reactive({
   distributionUsers: 0
 })
 
+// 艺术家信息编辑相关
+const artistDialogVisible = ref(false)
+const artistEditLoading = ref(false)
+const artistFormRef = ref()
+const artistCurrentRow = ref({})
+const artistForm = reactive({
+  userId: null,
+  nickname: '',
+  realName: '',
+  idCard: '',
+  resume: '',
+  avatar: '',
+  phone: '',
+  email: '',
+  identities: []
+})
+
 const rules = {
   title: [{ required: true, message: '请输入作品名称', trigger: 'blur' }],
   artistName: [{ required: true, message: '请输入艺术家名称', trigger: 'blur' }],
@@ -933,20 +1017,55 @@ const resetSearch = () => {
   handleSearch()
 }
 
-const openArtistEditor = (row) => {
-  if (!row.authorId) {
+const openArtistEditor = async (row) => {
+  // 优先使用数字ID authorId
+  const authorId = row.authorId
+  if (!authorId) {
     ElMessage.warning('该作品未关联艺术家')
     return
   }
-  router.push({
-    path: '/user/artist',
-    query: {
-      userId: row.authorId,
-      artistName: row.artistName || '',
-      authorUid: getAuthorUid(row),
-      open: 'profile'
+  artistCurrentRow.value = row
+  artistEditLoading.value = true
+  
+  // 默认使用作品中的基本信息
+  const fallbackData = {
+    userId: authorId,
+    nickname: row.artistName || '',
+    realName: '',
+    idCard: '',
+    resume: '',
+    avatar: row.authorAvatar || '',
+    phone: '',
+    email: '',
+    identities: ['artist']
+  }
+  Object.assign(artistForm, fallbackData)
+  
+  try {
+    // 获取艺术家详细信息（静默模式，不显示错误消息）
+    const res = await request.get(`/admin/user/${authorId}`, { silent: true })
+    // 处理 Result 包装结构
+    const data = res?.data || res
+    if (data && data.nickname) {
+      Object.assign(artistForm, {
+        userId: authorId,
+        nickname: data.nickname || data.userNickname || '',
+        realName: data.realName || '',
+        idCard: data.idCard || '',
+        resume: data.resume || data.bio || '',
+        avatar: data.avatar || '',
+        phone: data.phone || data.userPhone || '',
+        email: data.email || '',
+        identities: data.isArtist ? ['artist'] : []
+      })
     }
-  })
+  } catch (e) {
+    // 获取失败，保持使用作品中的基本信息
+    console.warn('获取用户详情失败，使用作品基本信息:', e.message)
+  } finally {
+    artistDialogVisible.value = true
+    artistEditLoading.value = false
+  }
 }
 
 const handleEdit = async (row) => {
@@ -1175,7 +1294,8 @@ const handleWeightChange = async (row) => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该作品吗？', '提示', { type: 'warning' })
-    await requestApi.delete(`/product/${row.artworkId}`)
+    // 使用管理后台的接口删除作品
+    await request.delete(`/product/artwork/${row.artworkId}`)
     ElMessage.success('删除成功')
     loadData()
   } catch (e) {
@@ -1229,6 +1349,56 @@ const copyLink = () => {
   }).catch(() => {
     ElMessage.error('复制失败')
   })
+}
+
+// 保存艺术家信息
+const saveArtistInfo = async () => {
+  artistEditLoading.value = true
+  try {
+    await request.put(`/admin/user/${artistForm.userId}`, {
+      nickname: artistForm.nickname,
+      avatar: artistForm.avatar,
+      phone: artistForm.phone,
+      email: artistForm.email,
+      identities: artistForm.identities,
+      realName: artistForm.realName,
+      idCard: artistForm.idCard,
+      resume: artistForm.resume
+    })
+    ElMessage.success('艺术家信息保存成功')
+    artistDialogVisible.value = false
+  } catch (e) {
+    ElMessage.error('保存失败：' + (e.message || '未知错误'))
+  } finally {
+    artistEditLoading.value = false
+  }
+}
+
+// 上传艺术家头像
+const handleArtistAvatarUpload = async (options) => {
+  const { file, onSuccess, onError } = options
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    onError(new Error('请选择图片文件'))
+    return
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 10MB')
+    onError(new Error('图片大小不能超过 10MB'))
+    return
+  }
+
+  try {
+    const result = await uploadFile(file)
+    artistForm.avatar = result?.url || result || ''
+    ElMessage.success('头像上传成功')
+    onSuccess()
+  } catch (e) {
+    ElMessage.error(e.message || '头像上传失败')
+    onError(e)
+  }
 }
 
 onMounted(() => {
@@ -1577,6 +1747,50 @@ onMounted(() => {
 
 .artist-create-tip {
   margin-top: 8px;
+}
+
+/* 艺术家编辑弹窗样式 */
+.artist-profile-header {
+  display: flex;
+  gap: 20px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+
+  .avatar-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+
+    .avatar-uploader {
+      :deep(.el-upload) {
+        cursor: pointer;
+      }
+    }
+  }
+
+  .artist-info-summary {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+
+    .artist-id {
+      margin: 0;
+      font-size: 13px;
+      color: #909399;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .artist-name-preview {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #303133;
+    }
+  }
 }
 
 /* 4位数ID显示样式 */

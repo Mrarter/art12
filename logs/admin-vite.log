@@ -286,3 +286,198 @@ More info: https://sass-lang.com/d/legacy-js-api
 1:49:59 PM [vite] hmr update /src/views/user/promoter.vue
 1:52:56 PM [vite] hmr update /src/views/user/promoter.vue
 7:35:51 PM [vite] hmr update /src/views/user/artist.vue
+8:16:46 PM [vite] hmr update /src/views/user/artist.vue
+8:16:47 PM [vite] hmr update /src/views/user/artist.vue
+8:16:49 PM [vite] hmr update /src/views/user/artist.vue
+8:22:34 PM [vite] hmr update /src/views/product/list.vue
+8:22:42 PM [vite] hmr update /src/views/product/list.vue
+8:22:51 PM [vite] hmr update /src/views/product/list.vue
+8:23:00 PM [vite] hmr update /src/views/product/list.vue
+8:23:14 PM [vite] hmr update /src/views/product/list.vue
+8:23:22 PM [vite] hmr update /src/views/product/list.vue?vue&type=style&index=0&scoped=4cde41b8&lang.css
+8:25:43 PM [vite] hmr update /src/views/product/list.vue
+8:25:51 PM [vite] hmr update /src/views/product/list.vue
+8:26:23 PM [vite] hmr update /src/views/product/list.vue
+8:30:56 PM [vite] hmr update /src/views/product/list.vue
+8:31:12 PM [vite] hmr update /src/views/product/list.vue
+8:31:25 PM [vite] hmr update /src/views/Login.vue, /src/views/product/list.vue, /src/views/product/category.vue, /src/views/product/audit.vue, /src/views/order/list.vue, /src/views/auction/session.vue, /src/views/user/list.vue, /src/views/user/artist.vue, /src/views/user/promoter.vue, /src/views/promotion/commission.vue, /src/views/auction/lot.vue, /src/views/auction/record.vue, /src/views/order/aftersale.vue, /src/views/promotion/withdraw.vue, /src/views/community/post.vue, /src/views/community/topic.vue, /src/views/system/banner.vue, /src/views/dashboard/index.vue
+8:31:34 PM [vite] hmr update /src/views/Login.vue, /src/views/product/list.vue, /src/views/product/category.vue, /src/views/product/audit.vue, /src/views/order/list.vue, /src/views/auction/session.vue, /src/views/user/list.vue, /src/views/user/artist.vue, /src/views/user/promoter.vue, /src/views/promotion/commission.vue, /src/views/auction/lot.vue, /src/views/auction/record.vue, /src/views/order/aftersale.vue, /src/views/promotion/withdraw.vue, /src/views/community/post.vue, /src/views/community/topic.vue, /src/views/system/banner.vue, /src/views/dashboard/index.vue
+8:31:48 PM [vite] hmr update /src/views/product/list.vue
+8:37:19 PM [vite] hmr update /src/views/product/list.vue
+9:29:57 PM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+11:01:09 PM [vite] hmr update /src/views/user/list.vue
+11:01:22 PM [vite] hmr update /src/views/user/list.vue
+10:26:39 AM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+10:41:29 AM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+11:12:41 AM [vite] hmr update /src/views/user/list.vue
+11:12:45 AM [vite] hmr update /src/views/user/list.vue
+11:12:51 AM [vite] hmr update /src/views/user/list.vue
+11:12:54 AM [vite] hmr update /src/views/user/list.vue
+11:12:58 AM [vite] hmr update /src/views/user/list.vue
+11:13:02 AM [vite] hmr update /src/views/user/list.vue
+11:13:09 AM [vite] hmr update /src/views/user/list.vue
+11:23:26 AM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+11:51:16 AM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)
+11:51:16 AM [vite] hmr update /src/views/user/list.vue
+11:51:29 AM [vite] hmr update /src/views/user/list.vue
+11:51:42 AM [vite] hmr update /src/views/user/list.vue
+11:51:55 AM [vite] hmr update /src/views/user/list.vue
+11:52:03 AM [vite] hmr update /src/views/user/list.vue
+11:58:18 AM [vite] hmr update /src/views/user/list.vue
+12:06:02 PM [vite] Internal server error: [vue/compiler-sfc] Missing catch or finally clause. (400:2)
+
+/Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue
+841|      return
+842|    }
+843|    try {
+   |    ^
+844|      await request.post('/user/promoter/reject', { id: currentRecord.value.id, reason: rejectReason.value })
+845|      ElMessage.success('已拒绝')
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/promoter.vue:400:2
+  238|                <div class="info-item">
+  239|                  <span class="label">直接下级</span>
+  240|                  <span class="value">{{ currentUser.directCount || 0 }} 人</span>
+     |                      ^
+  241|                </div>
+  242|              </el-col>
+      at constructor (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:365:19)
+      at Parser.raise (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:6599:19)
+      at Parser.parseTryStatement (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13224:12)
+      at Parser.parseStatementContent (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12804:21)
+      at Parser.parseStatementLike (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12767:17)
+      at Parser.parseStatementListItem (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12747:17)
+      at Parser.parseBlockOrModuleBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13316:61)
+      at Parser.parseBlockBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13309:10)
+      at Parser.parseBlock (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:13297:10)
+      at Parser.parseFunctionBody (/Users/master/CodeBuddy/art12/admin/node_modules/@babel/parser/lib/index.js:12100:24)

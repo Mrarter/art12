@@ -23,8 +23,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -314,6 +316,7 @@ public class ProductService {
         Artwork artwork = new Artwork();
         artwork.setTitle(dto.getTitle());
         artwork.setAuthorId(authorId);
+        artwork.setAuthorUid(dto.getAuthorUid()); // 设置作者UID
         artwork.setAuthorName(authorName);
         artwork.setCategoryId(dto.getCategoryId());
         artwork.setCoverImage(dto.getCover() != null ? dto.getCover() : "https://picsum.photos/400/400");
@@ -397,11 +400,20 @@ public class ProductService {
         String originalAuthorName = artwork.getAuthorName();
         
         // 处理艺术家关联
-        if (dto.getAuthorName() != null && !dto.getAuthorName().isEmpty()) {
+        // 优先使用传入的 authorId（从搜索选择），只有当 authorId 为空时才查找或创建
+        if (dto.getAuthorId() != null) {
+            // 用户从下拉列表选择了艺术家，直接使用传入的 authorId
+            artwork.setAuthorId(dto.getAuthorId());
+            if (dto.getAuthorUid() != null) {
+                artwork.setAuthorUid(dto.getAuthorUid()); // 设置作者UID
+            }
+            if (dto.getAuthorName() != null) {
+                artwork.setAuthorName(dto.getAuthorName());
+            }
+        } else if (dto.getAuthorName() != null && !dto.getAuthorName().isEmpty()) {
+            // 没有 authorId但有作者名称，需要查找或创建艺术家
             artwork.setAuthorName(dto.getAuthorName());
-            // 如果提供了新的作者名称，需要查找或创建艺术家（不管 authorId 是否存在）
-            // 只有当艺术家名称没有变化时才保留原有 authorId
-            if (dto.getAuthorId() == null || !dto.getAuthorName().equals(originalAuthorName)) {
+            if (!dto.getAuthorName().equals(originalAuthorName)) {
                 Long authorId = findOrCreateArtist(dto.getAuthorName());
                 if (authorId != null) {
                     artwork.setAuthorId(authorId);
@@ -464,7 +476,25 @@ public class ProductService {
     /** 删除作品 */
     @Transactional
     public void deleteArtwork(Long id) {
-        artworkMapper.deleteById(id);
+        // 检查作品是否存在
+        Artwork artwork = artworkMapper.selectById(id);
+        if (artwork == null) {
+            throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
+        }
+        
+        // 先删除相关的收藏记录
+        favoriteMapper.delete(
+            new LambdaQueryWrapper<ArtworkFavorite>()
+                .eq(ArtworkFavorite::getArtworkId, id)
+        );
+        
+        // 删除作品
+        int rows = artworkMapper.deleteById(id);
+        if (rows == 0) {
+            throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
+        }
+        
+        log.info("作品删除成功: id={}, title={}", id, artwork.getTitle());
     }
 
     /** 获取推荐作品 */
@@ -855,9 +885,13 @@ public class ProductService {
             return null;
         }
         try {
-            // 调用 user 服务的 API
-            String url = "http://localhost:8081/user/artist/find-or-create?name=" + java.net.URLEncoder.encode(artistName.trim(), "UTF-8");
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            // 调用 user 服务的 API，使用 UriComponentsBuilder 正确编码参数
+            String baseUrl = "http://localhost:8081/user/artist/find-or-create";
+            URI uri = UriComponentsBuilder.fromUriString(baseUrl)
+                    .queryParam("name", artistName.trim())
+                    .build()
+                    .toUri();
+            Map<String, Object> response = restTemplate.getForObject(uri, Map.class);
             if (response != null && response.get("code") != null && ((Number) response.get("code")).intValue() == 200) {
                 Map<String, Object> data = (Map<String, Object>) response.get("data");
                 if (data != null && data.get("id") != null) {

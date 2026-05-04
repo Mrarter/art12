@@ -1,6 +1,6 @@
 <template>
   <view class="gallery-page">
-    <!-- 顶部艺术门类Tab -->
+    <!-- 顶部作品分类Tab -->
     <view class="category-tabs">
       <scroll-view class="category-scroll" scroll-x enable-flex>
         <view 
@@ -46,7 +46,7 @@
                   <text>{{ item.priceChange }}%</text>
                 </view>
               </view>
-              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
+              <view class="rise-tip" v-if="showRiseTip(item)">{{ getRiseTipText(item) }}</view>
             </view>
           </view>
         </view>
@@ -77,7 +77,7 @@
                   <text>{{ item.priceChange }}%</text>
                 </view>
               </view>
-              <view class="rise-tip" v-if="showRiseTip(item)">预计1天后涨价</view>
+              <view class="rise-tip" v-if="showRiseTip(item)">{{ getRiseTipText(item) }}</view>
             </view>
           </view>
         </view>
@@ -383,6 +383,14 @@ export default {
 
     showRiseTip(item) {
       return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
+    },
+
+    getRiseTipText(item) {
+      if (!item.tomorrowIncreaseMin && !item.tomorrowIncreaseMax) return ''
+      const min = (item.tomorrowIncreaseMin || 0) / 100
+      const max = (item.tomorrowIncreaseMax || 0) / 100
+      const fmt = (v) => Number.isInteger(v) ? v.toString() : v.toFixed(1)
+      return `预估上涨￥${fmt(min)}--￥${fmt(max)}`
     },
     
     selectCategory(id) {

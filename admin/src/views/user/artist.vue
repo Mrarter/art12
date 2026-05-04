@@ -53,6 +53,12 @@
             <el-option label="大师级" value="master" />
           </el-select>
         </el-form-item>
+        <el-form-item label="作品分类">
+          <el-select v-model="searchForm.categoryId" placeholder="全部" clearable style="width: 150px" @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option v-for="cat in categoryOptions" :key="cat.id" :label="cat.name" :value="cat.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="时间范围">
           <el-date-picker
             v-model="searchForm.dateRange"
@@ -155,6 +161,26 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="评分等级" width="100" sortable>
+        <template #default="{ row }">
+          <ScoreLevelTag :level="row.scoreLevel" />
+        </template>
+      </el-table-column>
+      <el-table-column prop="totalScore" label="总分" width="80" sortable>
+        <template #default="{ row }">
+          {{ row.totalScore ?? '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="academicScore" label="学术资质" width="100">
+        <template #default="{ row }">
+          {{ row.academicScore ?? '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="internetScore" label="互联网资质" width="110">
+        <template #default="{ row }">
+          {{ row.internetScore ?? '-' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="resume" label="艺术家简介" min-width="200">
         <template #default="{ row }">
           <span v-if="row.resume || row.bio" class="resume-text" :title="row.resume || row.bio">
@@ -168,29 +194,41 @@
           {{ row.createTime || row.createdAt || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="250" fixed="right">
+      <el-table-column label="操作" width="360" fixed="right">
         <template #default="{ row }">
-          <!-- 待审核状态 -->
-          <template v-if="row.status === 0 || row.status === 'pending'">
-            <el-button type="success" link @click="handleApprove(row)">通过</el-button>
-            <el-button type="danger" link @click="handleReject(row)">拒绝</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-          </template>
-          <!-- 已认证状态 -->
-          <template v-else-if="row.status === 1 || row.status === 'approved'">
-            <el-button type="warning" link @click="showBadgeDialog(row)">设置等级</el-button>
-            <el-button type="danger" link @click="handleHide(row)">隐藏艺术家</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-          </template>
-          <template v-else-if="row.status === 3 || row.status === 'hidden'">
-            <el-button type="primary" link @click="handleUnhide(row)">重新显示</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-          </template>
-          <!-- 已拒绝状态 -->
-          <template v-else>
-            <el-button type="primary" link @click="handleReapply(row)">重新认证</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-          </template>
+          <el-button type="primary" link @click="openScoreDetail(row)">评分</el-button>
+          <el-button type="success" link @click="openIdentityAudit(row)">资质</el-button>
+          <el-button type="warning" link @click="recalculateScore(row)" size="small">重算</el-button>
+          <el-dropdown trigger="click" @command="(cmd) => handleDropdownAction(cmd, row)">
+            <el-button type="primary" link>
+              更多<el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <!-- 待审核状态 -->
+                <template v-if="row.status === 0 || row.status === 'pending'">
+                  <el-dropdown-item command="approve">通过</el-dropdown-item>
+                  <el-dropdown-item command="reject">拒绝</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </template>
+                <!-- 已认证状态 -->
+                <template v-else-if="row.status === 1 || row.status === 'approved'">
+                  <el-dropdown-item command="badge">设置等级</el-dropdown-item>
+                  <el-dropdown-item command="hide">隐藏艺术家</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </template>
+                <template v-else-if="row.status === 3 || row.status === 'hidden'">
+                  <el-dropdown-item command="unhide">重新显示</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </template>
+                <!-- 已拒绝状态 -->
+                <template v-else>
+                  <el-dropdown-item command="reapply">重新认证</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </template>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -207,124 +245,189 @@
       />
     </div>
     
-    <!-- 用户详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="用户详情" width="600px" destroy-on-close>
-      <div class="user-profile" v-if="currentUser">
-        <!-- 用户基本信息 -->
-        <div class="profile-header">
-          <div class="avatar-wrapper">
-            <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
-            <el-upload
-              class="avatar-uploader"
-              :show-file-list="false"
-              :http-request="handleAvatarUpload"
-              accept="image/*"
-            >
-              <el-button size="small" type="primary">更换头像</el-button>
-            </el-upload>
+    <!-- 用户详情弹窗（多Tab） -->
+    <el-dialog v-model="detailVisible" title="用户详情" width="800px" destroy-on-close>
+      <el-tabs v-model="detailActiveTab" type="border-card" v-if="currentUser">
+        <!-- Tab1: 用户信息 -->
+        <el-tab-pane label="用户信息" name="info">
+          <div class="user-profile">
+            <div class="profile-header">
+              <div class="avatar-wrapper">
+                <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
+                <el-upload
+                  class="avatar-uploader"
+                  :show-file-list="false"
+                  :http-request="handleAvatarUpload"
+                  accept="image/*"
+                >
+                  <el-button size="small" type="primary">更换头像</el-button>
+                </el-upload>
+              </div>
+              <div class="profile-info">
+                <h3>{{ profileForm.nickname || currentUser.nickname || currentUser.userNickname || '未知用户' }}
+                  <el-tag v-if="currentUser.isVip" type="warning" size="small">VIP</el-tag>
+                </h3>
+                <p class="user-id">ID: {{ currentUser.displayId || currentUser.userId || currentUser.id }}</p>
+                <div class="identity-tags">
+                  <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
+                  <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
+                  <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter" type="info" size="small">普通用户</el-tag>
+                </div>
+              </div>
+            </div>
+            
+            <el-form ref="profileFormRef" :model="profileForm" label-width="90px" class="profile-form">
+              <el-divider content-position="left">基本信息</el-divider>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="昵称" prop="nickname">
+                    <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="手机号">
+                    <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-form-item label="邮箱">
+                <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
+              </el-form-item>
+              
+              <el-divider content-position="left">艺术家信息</el-divider>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="真实姓名">
+                    <el-input v-model="profileForm.realName" placeholder="请输入真实姓名" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="身份证号">
+                    <el-input v-model="profileForm.idCard" placeholder="请输入身份证号" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-form-item label="艺术家简介">
+                <el-input 
+                  v-model="profileForm.resume" 
+                  type="textarea" 
+                  :rows="2" 
+                  placeholder="请输入艺术家简介"
+                />
+              </el-form-item>
+              
+              <el-divider content-position="left">身份配置</el-divider>
+              <el-form-item label="身份">
+                <el-checkbox-group v-model="profileForm.identities">
+                  <el-checkbox label="artist">艺术家</el-checkbox>
+                  <el-checkbox label="promoter">艺荐官</el-checkbox>
+                </el-checkbox-group>
+              </el-form-item>
+              
+              <el-divider content-position="left">账户信息</el-divider>
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <div class="info-item">
+                    <span class="label">账户余额</span>
+                    <span class="value">¥{{ currentUser.balance || 0 }}</span>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="info-item">
+                    <span class="label">累计消费</span>
+                    <span class="value">¥{{ currentUser.totalConsume || 0 }}</span>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="info-item">
+                    <span class="label">订单数量</span>
+                    <span class="value">{{ currentUser.orderCount || 0 }}</span>
+                  </div>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <div class="info-item">
+                    <span class="label">注册时间</span>
+                    <span class="value">{{ currentUser.registerTime || currentUser.createTime || '-' }}</span>
+                  </div>
+                </el-col>
+                <el-col :span="12">
+                  <div class="info-item">
+                    <span class="label">注册来源</span>
+                    <span class="value">{{ getSourceText(currentUser.source) }}</span>
+                  </div>
+                </el-col>
+              </el-row>
+            </el-form>
           </div>
-          <div class="profile-info">
-            <h3>{{ profileForm.nickname || currentUser.nickname || currentUser.userNickname || '未知用户' }}
-              <el-tag v-if="currentUser.isVip" type="warning" size="small">VIP</el-tag>
-            </h3>
-            <p class="user-id">ID: {{ currentUser.displayId || currentUser.userId || currentUser.id }}</p>
-            <div class="identity-tags">
-              <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
-              <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
-              <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter" type="info" size="small">普通用户</el-tag>
+        </el-tab-pane>
+
+        <!-- Tab2: 评分详情 -->
+        <el-tab-pane label="评分详情" name="score">
+          <div class="score-detail">
+            <el-row :gutter="16" style="margin-bottom: 20px;">
+              <el-col :span="8">
+                <el-statistic title="总评分" :value="currentScoreData.totalScore || 0" />
+              </el-col>
+              <el-col :span="8">
+                <div class="level-box">
+                  <div class="level-label">当前等级</div>
+                  <ScoreLevelTag :level="currentScoreData.level" />
+                </div>
+              </el-col>
+              <el-col :span="8" style="text-align: right;">
+                <el-button type="primary" size="small" @click="recalculateScore(currentRecord)" style="margin-right: 8px;">重算评分</el-button>
+                <el-button type="warning" size="small" @click="openScoreAdjust">人工调分</el-button>
+              </el-col>
+            </el-row>
+
+            <el-table :data="scoreItems()" border size="small">
+              <el-table-column prop="name" label="评分维度" width="140" />
+              <el-table-column prop="value" label="分值" width="100" />
+              <el-table-column prop="max" label="上限" width="100" />
+              <el-table-column prop="desc" label="说明" />
+            </el-table>
+          </div>
+        </el-tab-pane>
+
+        <!-- Tab3: 资质审核 -->
+        <el-tab-pane label="资质审核" name="identity">
+          <div class="identity-detail" v-if="currentIdentityData.artistId">
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="毕业院校">{{ currentIdentityData.schoolName || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="学历">{{ currentIdentityData.degree || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="职称">{{ currentIdentityData.academicTitle || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="协会">{{ currentIdentityData.associationName || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="社交平台">{{ currentIdentityData.socialPlatform || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="粉丝数">{{ currentIdentityData.followerCount || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="账号链接" :span="2">{{ currentIdentityData.socialAccountUrl || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="展览经历" :span="2">{{ currentIdentityData.exhibitions || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="获奖经历" :span="2">{{ currentIdentityData.awards || '-' }}</el-descriptions-item>
+            </el-descriptions>
+            <el-tag :type="identityStatusType" style="margin-top: 16px;">
+              审核状态：{{ identityStatusText }}
+            </el-tag>
+            <el-input
+              v-model="identityAuditRemark"
+              type="textarea"
+              :rows="3"
+              placeholder="审核备注"
+              style="margin-top: 16px"
+            />
+            <div style="margin-top: 16px; text-align: right;">
+              <el-button type="success" @click="auditIdentityInDetail('PASS')">审核通过</el-button>
+              <el-button type="danger" @click="auditIdentityInDetail('REJECT')">驳回</el-button>
             </div>
           </div>
-        </div>
-        
-        <!-- 编辑表单 -->
-        <el-form ref="profileFormRef" :model="profileForm" label-width="90px" class="profile-form">
-          <el-divider content-position="left">基本信息</el-divider>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="昵称" prop="nickname">
-                <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="手机号">
-                <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="邮箱">
-            <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
-          </el-form-item>
-          
-          <el-divider content-position="left">艺术家信息</el-divider>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="真实姓名">
-                <el-input v-model="profileForm.realName" placeholder="请输入真实姓名" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="身份证号">
-                <el-input v-model="profileForm.idCard" placeholder="请输入身份证号" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="艺术家简介">
-            <el-input 
-              v-model="profileForm.resume" 
-              type="textarea" 
-              :rows="2" 
-              placeholder="请输入艺术家简介"
-            />
-          </el-form-item>
-          
-          <el-divider content-position="left">身份配置</el-divider>
-          <el-form-item label="身份">
-            <el-checkbox-group v-model="profileForm.identities">
-              <el-checkbox label="artist">艺术家</el-checkbox>
-              <el-checkbox label="promoter">艺荐官</el-checkbox>
-            </el-checkbox-group>
-          </el-form-item>
-          
-          <el-divider content-position="left">账户信息</el-divider>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <div class="info-item">
-                <span class="label">账户余额</span>
-                <span class="value">¥{{ currentUser.balance || 0 }}</span>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="info-item">
-                <span class="label">累计消费</span>
-                <span class="value">¥{{ currentUser.totalConsume || 0 }}</span>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="info-item">
-                <span class="label">订单数量</span>
-                <span class="value">{{ currentUser.orderCount || 0 }}</span>
-              </div>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <div class="info-item">
-                <span class="label">注册时间</span>
-                <span class="value">{{ currentUser.registerTime || currentUser.createTime || '-' }}</span>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <span class="label">注册来源</span>
-                <span class="value">{{ getSourceText(currentUser.source) }}</span>
-              </div>
-            </el-col>
-          </el-row>
-          
-          <el-divider content-position="left">艺术家作品 ({{ userArtworks.total || 0 }})</el-divider>
-          <div v-loading="artworksLoading" class="artworks-section">
+          <el-empty v-else description="该艺术家暂无资质审核记录" :image-size="60" />
+        </el-tab-pane>
+
+        <!-- Tab4: 作品管理 -->
+        <el-tab-pane label="作品管理" name="artworks">
+          <div class="artworks-section" v-loading="artworksLoading">
             <div v-if="userArtworks.list && userArtworks.list.length > 0" class="artwork-grid">
-              <div v-for="artwork in userArtworks.list" :key="artwork.id" class="artwork-item">
+              <div v-for="artwork in userArtworks.list" :key="artwork.id" class="artwork-item" style="min-height: 180px;">
                 <el-image :src="getFullImageUrl(artwork.cover)" :alt="artwork.title" fit="cover" class="artwork-cover" />
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
@@ -343,22 +446,23 @@
               添加作品
             </el-button>
           </div>
-        </el-form>
-      </div>
+        </el-tab-pane>
+      </el-tabs>
       <template #footer>
         <div class="dialog-footer-between">
           <el-button
-            v-if="currentRecord?.certified || currentRecord?.status === 1"
+            v-if="detailActiveTab === 'info' && (currentRecord?.certified || currentRecord?.status === 1)"
             type="danger"
             plain
             @click="handleRevokeFromDetail"
           >
             取消认证
           </el-button>
+          <span v-else-if="detailActiveTab !== 'info'"></span>
           <span v-else></span>
           <span>
-            <el-button @click="detailVisible = false">取消</el-button>
-            <el-button type="primary" :loading="editLoading" @click="saveProfile">保存修改</el-button>
+            <el-button @click="detailVisible = false">关闭</el-button>
+            <el-button v-if="detailActiveTab === 'info'" type="primary" :loading="editLoading" @click="saveProfile">保存修改</el-button>
           </span>
         </div>
       </template>
@@ -653,11 +757,14 @@
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Check, Download } from '@element-plus/icons-vue'
+import { Plus, Check, Download, ArrowDown } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
 import { requestApi } from '@/api/request'
 import { copyId } from '@/utils/id'
+import ScoreLevelTag from '@/components/ScoreLevelTag.vue'
+import { getArtistScoreList, recalculateArtistScore, manualAdjustArtistScore, getArtistScoreDetail } from '@/api/artistScore'
+import { getIdentityAuditList, getIdentityDetail, auditArtistIdentity } from '@/api/artistIdentity'
 
 const route = useRoute()
 const loading = ref(false)
@@ -677,12 +784,14 @@ const artworksPage = ref(1)
 const artworksSize = 8
 const rejectReason = ref('')
 const selectedBadge = ref('')
-const activeTab = ref('pending')
+const categoryOptions = ref([])
+const activeTab = ref('all')
 const searchForm = reactive({
   keyword: '',
   phone: '',
   userId: '',
   badge: '',
+  categoryId: '',
   dateRange: []
 })
 const pendingCount = ref(0)
@@ -706,6 +815,31 @@ const selectedExistingId = ref(null)
 const selectedExistingTitle = ref('')
 
 const exportLoading = ref(false)
+
+// 评分相关状态
+const scoreMap = ref({})
+const scoreDetailVisible = ref(false)
+const identityAuditVisible = ref(false)
+const currentScoreData = ref({})
+const currentIdentityData = ref({})
+const identityAuditRemark = ref('')
+const scoreAdjustVisible = ref(false)
+const scoreAdjustForm = ref({ artistId: '', adjustScore: 0, reason: '' })
+const detailActiveTab = ref('info')
+
+// 资质状态计算
+const identityStatusType = () => {
+  const s = currentIdentityData.value.auditStatus
+  if (s === 'PASS') return 'success'
+  if (s === 'REJECT') return 'danger'
+  return 'warning'
+}
+const identityStatusText = () => {
+  const s = currentIdentityData.value.auditStatus
+  if (s === 'PASS') return '已通过'
+  if (s === 'REJECT') return '已驳回'
+  return '待审核'
+}
 
 // 批量操作相关变量
 const selectedRows = ref([])
@@ -831,11 +965,30 @@ const openUserProfile = async (row) => {
     resume: row.resume || row.bio || ''
   })
 
+  // 预加载评分和资质数据
+  const artistId = row.id
+  if (artistId) {
+    try {
+      const scoreData = await getArtistScoreDetail(artistId)
+      currentScoreData.value = scoreData || {}
+    } catch (e) {
+      currentScoreData.value = {}
+    }
+    try {
+      const identityData = await getIdentityDetail(artistId)
+      currentIdentityData.value = identityData || {}
+      identityAuditRemark.value = identityData?.auditRemark || ''
+    } catch (e) {
+      currentIdentityData.value = {}
+    }
+  }
+
   // 加载艺术家作品
   artworksPage.value = 1
   userArtworks.value = { list: [], total: 0 }
   await loadUserArtworks(userId)
 
+  detailActiveTab.value = 'info'
   detailVisible.value = true
 }
 
@@ -952,10 +1105,21 @@ const handleReset = () => {
     phone: '',
     userId: '',
     badge: '',
+    categoryId: '',
     dateRange: []
   })
   pagination.page = 1
   loadData()
+}
+
+// 加载作品分类列表
+const loadCategoryOptions = async () => {
+  try {
+    const res = await requestApi.get('/product/categories')
+    categoryOptions.value = Array.isArray(res) ? res : (res?.data || [])
+  } catch (e) {
+    categoryOptions.value = []
+  }
 }
 
 const loadData = async () => {
@@ -969,6 +1133,7 @@ const loadData = async () => {
     phone: searchForm.phone || undefined,
     userId: searchForm.userId || undefined,
     badge: searchForm.badge || undefined,
+    categoryId: searchForm.categoryId || undefined,
     startDate: searchForm.dateRange && searchForm.dateRange[0] || undefined,
     endDate: searchForm.dateRange && searchForm.dateRange[1] || undefined
   }
@@ -979,6 +1144,32 @@ const loadData = async () => {
     approvedCount.value = data.approvedCount || 0
     rejectedCount.value = data.rejectedCount || 0
     hiddenCount.value = data.hiddenCount || 0
+
+    // 并行加载评分数据并合并到表格
+    try {
+      const scoreRes = await getArtistScoreList({ page: 1, size: 9999 })
+      const scoreList = scoreRes.records || scoreRes || []
+      const map = {}
+      scoreList.forEach(s => {
+        // artistId 对应 artist_profile.id
+        map[String(s.artistId)] = {
+          scoreLevel: s.level,
+          totalScore: s.totalScore,
+          academicScore: s.academicScore,
+          internetScore: s.internetScore
+        }
+      })
+      scoreMap.value = map
+      // 将评分信息合并到表格行
+      tableData.value = tableData.value.map(row => {
+        const idStr = String(row.id)
+        const scoreInfo = map[idStr] || {}
+        return { ...row, ...scoreInfo }
+      })
+    } catch (e) {
+      // 评分数据加载失败不影响主表格
+      console.warn('评分数据加载失败', e)
+    }
   } catch (e) {
     tableData.value = []
     pagination.total = 0
@@ -1455,7 +1646,7 @@ const handleBatchApprove = async () => {
     
     batchLoading.value = true
     const ids = selectedRows.value.map(row => row.id)
-    await request.post('/artist/batchApprove', {
+    await request.post('/user/artist/batchApprove', {
       ids
     })
     ElMessage.success('批量通过成功')
@@ -1491,7 +1682,7 @@ const confirmBatchReject = async () => {
   try {
     batchLoading.value = true
     const ids = selectedRows.value.map(row => row.id)
-    await request.post('/artist/batchReject', {
+    await request.post('/user/artist/batchReject', {
       ids,
       reason: batchRejectReason.value
     })
@@ -1522,7 +1713,7 @@ const handleBatchHide = async () => {
     
     batchLoading.value = true
     const ids = selectedRows.value.map(row => row.id)
-    await request.post('/artist/batchHide', {
+    await request.post('/user/artist/batchHide', {
       ids
     })
     ElMessage.success('批量隐藏成功')
@@ -1572,7 +1763,136 @@ const handleBatchDelete = async () => {
   }
 }
 
+// ==================== 评分/资质集成功能 ====================
+
+// 打开评分详情Tab
+const openScoreDetail = async (row) => {
+  const artistId = row.id
+  if (!artistId) {
+    ElMessage.warning('缺少艺术家ID')
+    return
+  }
+  try {
+    const scoreData = await getArtistScoreDetail(artistId)
+    currentScoreData.value = scoreData || {}
+  } catch (e) {
+    currentScoreData.value = {}
+  }
+  // 设置当前记录并切换Tab
+  currentRecord.value = row
+  detailActiveTab.value = 'score'
+  // 确保详情弹窗打开
+  if (detailVisible.value) {
+    // 已打开，只切换Tab
+  } else {
+    // 先打开用户详情再切换Tab
+    detailVisible.value = true
+  }
+}
+
+// 打开资质审核Tab
+const openIdentityAudit = async (row) => {
+  const artistId = row.id
+  if (!artistId) {
+    ElMessage.warning('缺少艺术家ID')
+    return
+  }
+  try {
+    const identityData = await getIdentityDetail(artistId)
+    currentIdentityData.value = identityData || {}
+  } catch (e) {
+    currentIdentityData.value = {}
+  }
+  currentRecord.value = row
+  identityAuditRemark.value = currentIdentityData.value.auditRemark || ''
+  detailActiveTab.value = 'identity'
+  detailVisible.value = true
+}
+
+// 重算评分
+const recalculateScore = async (row) => {
+  const artistId = row.id
+  if (!artistId) return
+  try {
+    await ElMessageBox.confirm('确定重新计算该艺术家的评分吗？', '提示', { type: 'info' })
+    await recalculateArtistScore(artistId)
+    ElMessage.success('评分已重新计算')
+    await loadData()
+  } catch (e) {}
+}
+
+// 人工调分
+const openScoreAdjust = () => {
+  scoreAdjustForm.value = {
+    artistId: currentRecord.value.id,
+    adjustScore: 0,
+    reason: ''
+  }
+  scoreAdjustVisible.value = true
+}
+
+const submitScoreAdjust = async () => {
+  if (!scoreAdjustForm.value.reason) {
+    ElMessage.warning('请填写调整原因')
+    return
+  }
+  try {
+    await manualAdjustArtistScore(scoreAdjustForm.value)
+    ElMessage.success('人工调分成功')
+    scoreAdjustVisible.value = false
+    // 刷新评分数据
+    const scoreData = await getArtistScoreDetail(scoreAdjustForm.value.artistId)
+    currentScoreData.value = scoreData || {}
+    await loadData()
+  } catch (e) {}
+}
+
+// 资质审核操作（在详情Tab中使用）
+const auditIdentityInDetail = async (status) => {
+  const artistId = currentRecord.value.id
+  if (!artistId) return
+  try {
+    await auditArtistIdentity({
+      artistId: artistId,
+      auditStatus: status,
+      auditRemark: identityAuditRemark.value
+    })
+    if (status === 'PASS') {
+      await recalculateArtistScore(artistId)
+      ElMessage.success('审核通过，评分已重算')
+    } else {
+      ElMessage.success('已驳回')
+    }
+    detailVisible.value = false
+    await loadData()
+  } catch (e) {}
+}
+
+// 下拉菜单操作分发
+const handleDropdownAction = (cmd, row) => {
+  switch (cmd) {
+    case 'approve': handleApprove(row); break
+    case 'reject': handleReject(row); break
+    case 'badge': showBadgeDialog(row); break
+    case 'hide': handleHide(row); break
+    case 'unhide': handleUnhide(row); break
+    case 'reapply': handleReapply(row); break
+    case 'delete': handleDelete(row); break
+  }
+}
+
+const scoreItems = () => [
+  { name: '销售表现', value: currentScoreData.value.salesScore || 0, max: 300, desc: '成交金额、成交数量、销售增长率' },
+  { name: '市场影响力', value: currentScoreData.value.influenceScore || 0, max: 200, desc: '关注、收藏、浏览、分享' },
+  { name: '活跃度', value: currentScoreData.value.activityScore || 0, max: 100, desc: '上新、登录、互动' },
+  { name: '作品质量', value: currentScoreData.value.qualityScore || 0, max: 150, desc: '平台评审与作品完整度' },
+  { name: '藏家评价', value: currentScoreData.value.reviewScore || 0, max: 100, desc: '评价、复购、评论质量' },
+  { name: '学术资质', value: currentScoreData.value.academicScore || 0, max: 100, desc: '美院、职称、协会、展览、获奖' },
+  { name: '互联网资质', value: currentScoreData.value.internetScore || 0, max: 50, desc: '艺术博主身份、粉丝、内容质量、转化' }
+]
+
 onMounted(async () => {
+  await loadCategoryOptions()
   await loadData()
   await nextTick()
   await openUserProfileFromRoute()
@@ -1939,6 +2259,25 @@ onMounted(async () => {
     padding-top: 15px;
     border-top: 1px solid #eee;
     margin-top: 15px;
+  }
+}
+
+/* 评分详情 Tab 样式 */
+.score-detail {
+  .level-box {
+    padding-top: 6px;
+  }
+  .level-label {
+    color: #888;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+}
+
+/* 资质审核 Tab 样式 */
+.identity-detail {
+  .el-descriptions {
+    margin-bottom: 0;
   }
 }
 </style>

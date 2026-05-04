@@ -4,10 +4,9 @@
     <view class="form-section">
       <view class="section-title">作品封面</view>
       <view class="cover-upload" @click="chooseCover">
-        <image v-if="formData.cover" :src="formData.cover" mode="aspectFill" class="cover-preview"></image>
+        <image v-if="formData.cover" :src="formData.cover" mode="widthFix" class="cover-preview"></image>
         <view v-else class="upload-placeholder">
           <text class="upload-text">上传封面图</text>
-          <text class="upload-tip">建议尺寸 800x800</text>
         </view>
       </view>
     </view>
@@ -30,7 +29,7 @@
       <view class="form-item artist-form-item">
         <view class="artist-label-row">
           <text class="form-label">作者</text>
-          <text class="artist-id-display" v-if="formData.authorId">ID: {{ formData.authorId }}</text>
+          <text class="artist-id-display" v-if="formData.authorUid">UID: {{ formData.authorUid }}</text>
         </view>
         <view class="artist-input-wrapper">
           <input 
@@ -57,6 +56,7 @@
             <image class="artist-avatar" :src="artist.avatar || '/static/avatar/default.png'" mode="aspectFill"></image>
             <view class="artist-info">
               <text class="artist-name">{{ artist.name }}</text>
+              <text class="artist-uid" v-if="artist.uid">{{ artist.uid }}</text>
               <text class="artist-badge" v-if="artist.certified">已认证</text>
             </view>
           </view>
@@ -65,13 +65,12 @@
 
       <view class="form-item">
         <text class="form-label">创作年代</text>
-        <picker mode="selector" :range="yearRange" range-key="label" @change="onYearChange">
-          <view class="form-picker">
-            <text :class="{ placeholder: !formData.year }">
-              {{ formData.year ? formData.year + '年' : '请选择年代' }}
-            </text>
-          </view>
-        </picker>
+        <input 
+          class="form-input" 
+          v-model="formData.year" 
+          placeholder="请输入创作年代，如2020"
+          type="number"
+        />
       </view>
 
       <view class="form-item">
@@ -95,25 +94,24 @@
       </view>
 
       <view class="form-item">
-        <text class="form-label">材质</text>
-        <picker mode="selector" :range="materialRange" range-key="label" @change="onMaterialChange">
-          <view class="form-picker">
-            <text :class="{ placeholder: !formData.material }">
-              {{ formData.material || '请选择材质' }}
-            </text>
+        <text class="form-label">作品分类</text>
+        <view class="category-select-wrapper">
+          <view class="category-select-trigger" @click="toggleCategoryDropdown">
+            <text :class="['category-value', { placeholder: !formData.category }]">{{ formData.category || '请选择作品分类' }}</text>
+            <text class="arrow-down">▼</text>
           </view>
-        </picker>
-      </view>
-
-      <view class="form-item">
-        <text class="form-label">艺术门类</text>
-        <picker mode="selector" :range="categoryRange" range-key="label" @change="onCategoryChange">
-          <view class="form-picker">
-            <text :class="{ placeholder: !formData.category }">
-              {{ formData.category || '请选择门类' }}
-            </text>
+          <view class="category-dropdown" v-if="showCategoryDropdown">
+            <view 
+              class="dropdown-item" 
+              v-for="(cat, index) in categoryRange" 
+              :key="index"
+              :class="{ active: formData.categoryId === cat.id }"
+              @click="selectCategory(cat)"
+            >
+              {{ cat.name }}
+            </view>
           </view>
-        </picker>
+        </view>
       </view>
     </view>
 
@@ -132,6 +130,15 @@
             type="digit"
           />
         </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">参与分销</text>
+        <switch 
+          :checked="formData.allowDistribution" 
+          @change="(e) => formData.allowDistribution = e.detail.value"
+          color="#667eea"
+        />
       </view>
 
       <view class="form-item">
@@ -197,12 +204,14 @@
       <view class="save-draft" @click="saveDraft">保存草稿</view>
       <view class="submit-btn" @click="submit">发布作品</view>
     </view>
+
   </view>
 </template>
 
 <script>
 import { getArtworkDetail, getCategories, publishArtwork, updateArtwork } from '@/api/product.js'
-import { searchArtists, findOrCreateArtist } from '@/api/user.js'
+import { searchArtists, searchUsers, findOrCreateArtist } from '@/api/user.js'
+import { useUserStore } from '@/store/modules/user.js'
 import { uploadFile } from '@/api/file.js'
 
 export default {
@@ -214,6 +223,7 @@ export default {
         cover: '',
         title: '',
         authorId: null,
+        authorUid: null,
         authorName: '',
         categoryId: null,
         year: '',
@@ -222,6 +232,7 @@ export default {
         material: '',
         category: '',
         price: '',
+        allowDistribution: false,
         allowAuction: false,
         stock: 1,
         description: '',
@@ -242,8 +253,8 @@ export default {
         { label: '1980年代', value: 1980 },
         { label: '更早', value: 1900 }
       ],
-      materialRange: ['布面油画', '纸本水墨', '宣纸', '绢本', '木板', '铜版', '石版', '青铜', '陶瓷', '综合材料', '其他'],
-      categoryRange: []
+      categoryRange: [],
+      showCategoryDropdown: false,
     }
   },
 
@@ -260,11 +271,33 @@ export default {
 
   onLoad(options) {
     this.loadCategories()
+    
+    // 自动填入当前用户名称作为作者
+    if (!options.id) {
+      const userStore = useUserStore()
+      if (userStore.userInfo) {
+        const nickname = userStore.userInfo.nickname || userStore.userInfo.name || ''
+        if (nickname) {
+          this.artistKeyword = nickname
+          this.formData.authorName = nickname
+          this.artistStatus = 'exists'
+        }
+      }
+    }
+    
     if (options.id) {
       this.isEdit = true
       this.artworkId = Number(options.id)
       this.loadArtwork(options.id)
     }
+  },
+
+  mounted() {
+    document.addEventListener('click', this.handleClickOutside)
+  },
+
+  beforeDestroy() {
+    document.removeEventListener('click', this.handleClickOutside)
   },
 
   methods: {
@@ -314,6 +347,22 @@ export default {
             id: item.id,
             name: item.name
           }))
+        
+        // 材质选项（合并到作品分类）
+        const materialOptions = [
+          { label: '布面油画', value: '布面油画', name: '布面油画' },
+          { label: '纸本水墨', value: '纸本水墨', name: '纸本水墨' },
+          { label: '宣纸', value: '宣纸', name: '宣纸' },
+          { label: '绢本', value: '绢本', name: '绢本' },
+          { label: '木板', value: '木板', name: '木板' },
+          { label: '铜版', value: '铜版', name: '铜版' },
+          { label: '石版', value: '石版', name: '石版' },
+          { label: '青铜', value: '青铜', name: '青铜' },
+          { label: '陶瓷', value: '陶瓷', name: '陶瓷' },
+          { label: '综合材料', value: '综合材料', name: '综合材料' },
+          { label: '其他', value: '其他', name: '其他' }
+        ]
+        this.categoryRange = [...this.categoryRange, ...materialOptions]
       } catch (e) {
         console.error('加载作品分类失败', e)
         this.categoryRange = [
@@ -321,7 +370,18 @@ export default {
           { label: '油画', value: 2, id: 2, name: '油画' },
           { label: '书法', value: 3, id: 3, name: '书法' },
           { label: '版画', value: 4, id: 4, name: '版画' },
-          { label: '雕塑', value: 5, id: 5, name: '雕塑' }
+          { label: '雕塑', value: 5, id: 5, name: '雕塑' },
+          { label: '布面油画', value: '布面油画', name: '布面油画' },
+          { label: '纸本水墨', value: '纸本水墨', name: '纸本水墨' },
+          { label: '宣纸', value: '宣纸', name: '宣纸' },
+          { label: '绢本', value: '绢本', name: '绢本' },
+          { label: '木板', value: '木板', name: '木板' },
+          { label: '铜版', value: '铜版', name: '铜版' },
+          { label: '石版', value: '石版', name: '石版' },
+          { label: '青铜', value: '青铜', name: '青铜' },
+          { label: '陶瓷', value: '陶瓷', name: '陶瓷' },
+          { label: '综合材料', value: '综合材料', name: '综合材料' },
+          { label: '其他', value: '其他', name: '其他' }
         ]
       }
     },
@@ -348,12 +408,31 @@ export default {
       }, 300)
     },
 
-    // 搜索艺术家
+    // 搜索艺术家（优先搜索艺术家列表，同时搜索全局用户）
     async searchArtist() {
       try {
         const keyword = this.artistKeyword.trim()
-        const res = await searchArtists(keyword)
-        this.artistList = (res || []).map(this.normalizeArtist)
+        
+        // 并行搜索艺术家和全局用户
+        const [artistRes, userRes] = await Promise.all([
+          searchArtists(keyword).catch(() => []),
+          searchUsers(keyword).catch(() => [])
+        ])
+        
+        // 合并结果，艺术家优先
+        const artistMap = new Map()
+        ;(artistRes || []).forEach(a => {
+          const normalized = this.normalizeArtist(a)
+          artistMap.set(normalized.id, normalized)
+        })
+        ;(userRes || []).forEach(u => {
+          const normalized = this.normalizeUser(u)
+          if (!artistMap.has(normalized.id)) {
+            artistMap.set(normalized.id, normalized)
+          }
+        })
+        
+        this.artistList = Array.from(artistMap.values())
         
         if (this.artistList.length === 0) {
           this.artistStatus = 'notfound'
@@ -367,16 +446,18 @@ export default {
           if (exactMatch) {
             this.artistId = exactMatch.id
             this.formData.authorId = exactMatch.id
+            this.formData.authorUid = exactMatch.uid || null
             this.formData.authorName = exactMatch.name
-            this.artistStatus = 'exists'
+            this.artistStatus = exactMatch.isArtist ? 'exists' : 'new'
           } else {
             this.formData.authorId = null
+            this.formData.authorUid = null
             this.formData.authorName = keyword
             this.artistStatus = 'notfound'
           }
         }
       } catch (e) {
-        console.error('搜索艺术家失败', e)
+        console.error('搜索失败', e)
         this.artistList = []
         this.artistStatus = 'notfound'
       }
@@ -387,9 +468,24 @@ export default {
       return {
         ...artist,
         id: artist.id || artist.userId || artist.artistId,
+        uid: artist.uid || null,
         name,
         avatar: artist.avatar || artist.avatarUrl || '',
-        certified: Boolean(artist.certified || artist.artistCode || artist.badge)
+        certified: Boolean(artist.certified || artist.artistCode || artist.badge),
+        isArtist: true
+      }
+    },
+    
+    // 规范化全局用户数据
+    normalizeUser(user = {}) {
+      const name = user.name || user.nickname || ''
+      return {
+        ...user,
+        id: user.id || user.userId,
+        name,
+        avatar: user.avatar || '',
+        certified: Boolean(user.certified),
+        isArtist: Boolean(user.isArtist)
       }
     },
 
@@ -398,6 +494,7 @@ export default {
       this.artistKeyword = artist.name
       this.artistId = artist.id
       this.formData.authorId = artist.id
+      this.formData.authorUid = artist.uid || null
       this.formData.authorName = artist.name
       this.artistStatus = artist.certified ? 'exists' : 'new'
       this.artistList = []
@@ -443,14 +540,31 @@ export default {
       this.formData.year = this.yearRange[e.detail.value].value
     },
 
-    onMaterialChange(e) {
-      this.formData.material = this.materialRange[e.detail.value]
+    // 分类选择
+    toggleCategoryDropdown() {
+      this.showCategoryDropdown = !this.showCategoryDropdown
+    },
+
+    selectCategory(cat) {
+      this.formData.categoryId = cat.id || cat.value
+      this.formData.category = cat.name || cat.label
+      this.showCategoryDropdown = false
+    },
+
+    handleClickOutside(e) {
+      const el = this.$el?.querySelector('.category-select-wrapper')
+      if (!el) return
+      if (!el.contains(e.target)) {
+        this.showCategoryDropdown = false
+      }
     },
 
     onCategoryChange(e) {
       const selected = this.categoryRange[e.detail.value]
-      this.formData.categoryId = selected.id || selected.value
-      this.formData.category = selected.name || selected.label
+      if (selected) {
+        this.formData.categoryId = selected.id || selected.value
+        this.formData.category = selected.name || selected.label
+      }
     },
 
     validate() {
@@ -474,8 +588,8 @@ export default {
         uni.showToast({ title: '价格必须大于0', icon: 'none' })
         return false
       }
-      if (!this.formData.categoryId) {
-        uni.showToast({ title: '请选择艺术门类', icon: 'none' })
+      if (!this.formData.category) {
+        uni.showToast({ title: '请填写作品分类', icon: 'none' })
         return false
       }
       return true
@@ -503,6 +617,7 @@ export default {
             const artistRes = await findOrCreateArtist(this.artistKeyword.trim())
             if (artistRes) {
               this.formData.authorId = artistRes.id
+              this.formData.authorUid = artistRes.uid // 修复：补充 UID 字段
               this.formData.authorName = artistRes.name
               if (artistRes.pending) {
                 uni.showToast({ title: '艺术家不存在，已创建待审核', icon: 'none', duration: 2000 })
@@ -516,15 +631,17 @@ export default {
         const submitData = {
           title: this.formData.title.trim(),
           authorId: this.formData.authorId,
+          authorUid: this.formData.authorUid || null,
           authorName: this.formData.authorName || this.artistKeyword,
           categoryId: this.formData.categoryId,
           cover: coverUrl,
           images: imageUrls.join(','),
           artType: this.formData.category,
-          medium: this.formData.material,
+          medium: this.formData.category,
           year: this.formData.year ? Number(this.formData.year) : null,
           size: `${this.formData.width}×${this.formData.height}cm`,
           price: this.formData.price ? Number(this.formData.price) : null,
+          allowDistribution: this.formData.allowDistribution || false,
           stock: this.formData.stock ? Number(this.formData.stock) : 1,
           description: this.formData.description,
           status: 1,
@@ -587,7 +704,7 @@ export default {
 
 .cover-upload {
   width: 300rpx;
-  height: 300rpx;
+  min-height: 200rpx;
   border-radius: 16rpx;
   overflow: hidden;
   background: #f9f9f9;
@@ -595,7 +712,7 @@ export default {
 
 .cover-preview {
   width: 100%;
-  height: 100%;
+  display: block;
 }
 
 .upload-placeholder {
@@ -762,6 +879,12 @@ export default {
   color: #333;
 }
 
+.artist-uid {
+  font-size: 20rpx;
+  color: #999;
+  margin-left: 12rpx;
+}
+
 .artist-badge {
   font-size: 20rpx;
   color: #50c878;
@@ -816,9 +939,12 @@ export default {
   
   .price-value {
     text-align: left;
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #e74c3c;
+  }
+  .price-value .uni-input-input,
+  .price-value input {
+    font-size: 24rpx !important;
+    font-weight: 400 !important;
+    color: #999 !important;
   }
 }
 
@@ -921,5 +1047,60 @@ export default {
   color: #fff;
   font-size: 30rpx;
   border-radius: 44rpx;
+}
+
+/* 作品分类下拉选择器 */
+.category-select-wrapper {
+  position: relative;
+  flex: 1;
+}
+.category-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72rpx;
+  padding: 0 20rpx;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+}
+.category-value {
+  font-size: 28rpx;
+  color: #333;
+}
+.category-value.placeholder {
+  color: #999;
+}
+.arrow-down {
+  font-size: 20rpx;
+  color: #999;
+  margin-left: 10rpx;
+}
+.category-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  max-height: 400rpx;
+  overflow-y: auto;
+  margin-top: 4rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.1);
+}
+.dropdown-item {
+  padding: 24rpx 20rpx;
+  font-size: 28rpx;
+  color: #333;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+.dropdown-item.active {
+  color: #667eea;
+  font-weight: 500;
+  background: #f0f5ff;
 }
 </style>

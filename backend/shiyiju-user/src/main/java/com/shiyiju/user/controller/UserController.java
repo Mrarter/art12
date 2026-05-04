@@ -215,6 +215,18 @@ public class UserController {
         }
         return Result.success(data);
     }
+
+    /**
+     * 搜索全局用户列表 (GET /user/search)
+     * 用于发布作品时选择作者，搜索所有用户
+     */
+    @GetMapping("/search")
+    public Result<java.util.List<java.util.Map<String, Object>>> searchUsers(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        return Result.success(userService.searchUsers(keyword, limit));
+    }
     
     /**
      * 批量更新用户UID (POST /user/admin/batch-update-uids)

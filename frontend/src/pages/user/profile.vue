@@ -162,7 +162,7 @@
         <view class="info-item">
           <view class="info-left">
             <text>★</text>
-            <text class="info-label">艺术门类</text>
+            <text class="info-label">作品分类</text>
           </view>
           <view class="info-right">
             <text class="info-value">{{ userInfo.artCategory || '未设置' }}</text>

@@ -138,19 +138,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { becomeArtist } from '@/api/user.js'
+import { getCategories } from '@/api/product.js'
 
-const artFields = [
-  { id: 1, name: '油画' },
-  { id: 2, name: '国画/书法' },
-  { id: 3, name: '版画' },
-  { id: 4, name: '雕塑' },
-  { id: 5, name: '水彩/水墨' },
-  { id: 6, name: '插画/动漫' },
-  { id: 7, name: '摄影' },
-  { id: 8, name: '装置艺术' },
-  { id: 9, name: '综合材料' },
-  { id: 10, name: '其他' }
-]
+const artFields = ref([
+  { id: '', name: '加载中...' }
+])
 
 const form = ref({
   realName: '',
@@ -181,8 +173,8 @@ const canSubmit = computed(() => {
 
 const onFieldChange = (e) => {
   const index = e.detail.value
-  form.value.artField = artFields[index].id
-  form.value.artFieldName = artFields[index].name
+  form.value.artField = artFields.value[index].id
+  form.value.artFieldName = artFields.value[index].name
 }
 
 const chooseImage = (type) => {
@@ -240,9 +232,28 @@ const reApply = () => {
   certStatus.value.status = 'none'
 }
 
-onMounted(() => {
-  // 模拟获取认证状态
-  // 实际应该从API获取
+onMounted(async () => {
+  // 从API加载分类数据
+  try {
+    const list = await getCategories()
+    if (list && list.length > 0) {
+      artFields.value = list.map(item => ({ id: item.id, name: item.name }))
+    }
+  } catch (e) {
+    console.warn('获取分类失败，使用默认分类', e)
+    artFields.value = [
+      { id: 1, name: '油画' },
+      { id: 2, name: '国画/书法' },
+      { id: 3, name: '版画' },
+      { id: 4, name: '雕塑' },
+      { id: 5, name: '水彩/水墨' },
+      { id: 6, name: '插画/动漫' },
+      { id: 7, name: '摄影' },
+      { id: 8, name: '装置艺术' },
+      { id: 9, name: '综合材料' },
+      { id: 10, name: '其他' }
+    ]
+  }
 })
 </script>
 

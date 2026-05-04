@@ -173,3 +173,11 @@ export const findOrCreateArtist = (name) => {
     data: { name }
   })
 }
+
+// 搜索全局用户列表（用于发布作品时选择作者）
+export const searchUsers = (keyword, limit = 20) => {
+  return request({
+    url: '/user/search',
+    data: { keyword, limit }
+  })
+}
