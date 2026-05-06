@@ -21,6 +21,14 @@ request.silentGet = (url, config = {}) => {
   return request.get(url, { ...config, silent: true })
 }
 
+requestApi.silentGet = (url, config = {}) => {
+  return requestApi.get(url, { ...config, silent: true })
+}
+
+requestApi.silentPut = (url, data, config = {}) => {
+  return requestApi.put(url, data, { ...config, silent: true })
+}
+
 // 请求拦截
 request.interceptors.request.use(
   config => {
@@ -79,22 +87,30 @@ request.interceptors.response.use(
 requestApi.interceptors.response.use(
   response => {
     const res = response.data
+    const silent = response.config.silent
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
+      if (!silent) {
+        ElMessage.error(res.message || '请求失败')
+      }
       return Promise.reject(new Error(res.message || '请求失败'))
     }
     return res.data
   },
   error => {
+    const silent = error.config?.silent
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
-      console.warn('后端服务未启动，部分功能可能不可用')
+      if (!silent) {
+        console.warn('后端服务未启动，部分功能可能不可用')
+      }
       return Promise.reject(new Error('backend_offline'))
     }
     if (error.response?.status === 401) {
       localStorage.removeItem('admin_token')
       window.location.href = '/login'
     }
-    ElMessage.error(error.message || '网络错误')
+    if (!silent) {
+      ElMessage.error(error.message || '网络错误')
+    }
     return Promise.reject(error)
   }
 )
@@ -131,8 +147,20 @@ export const uploadFile = async (file, onProgress) => {
 // 图片完整 URL 处理
 export const getFullImageUrl = (url) => {
   if (!url) return ''
-  // 如果已经是完整 URL（包含 http），直接返回
+  if (url.startsWith('/')) {
+    return CDN_URL + url
+  }
+
+  // 本地上传文件统一走 Vite 的 /upload 代理，避免数据库里旧局域网 IP 失效。
   if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const parsed = new URL(url)
+      if (parsed.pathname.startsWith('/upload/')) {
+        return parsed.pathname
+      }
+    } catch (e) {
+      return url
+    }
     return url
   }
   // 否则拼接 CDN 地址

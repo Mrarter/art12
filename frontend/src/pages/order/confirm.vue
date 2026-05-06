@@ -9,7 +9,7 @@
         <image class="goods-image" :src="item.coverImage || 'https://picsum.photos/200/200?random=goods'" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-title">{{ item.title }}</text>
-          <text class="goods-meta">{{ item.artType || '艺术品' }} · {{ item.size || '标准尺寸' }}</text>
+          <text class="goods-meta">{{ (item.artType || '艺术品').replace(/分类[:：]?\s*/g, '') }} · {{ item.size || '标准尺寸' }}</text>
           <view class="goods-price-row">
             <text class="goods-price">¥{{ formatPrice(item.price) }}</text>
             <text class="goods-qty">x{{ item.quantity }}</text>

@@ -371,6 +371,7 @@ export default {
     getCardMeta(item) {
       return [item.artType || item.category || item.categoryName || item.material, item.size, item.year || item.createYear]
         .filter(Boolean)
+        .map(s => String(s).replace(/分类[:：]?\s*/g, ''))
         .join(' / ')
     },
 

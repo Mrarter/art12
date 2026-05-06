@@ -604,8 +604,7 @@ public class UserAdminPersistenceService {
                                            String keyword, String phone, String userId, String badge,
                                            String startDate, String endDate, String sortField, String sortOrder,
                                            String categoryId) {
-        // 移除自动同步：避免每次查看列表时从作品表重新创建艺术家记录
-        // syncArtworkArtists();
+        syncArtworkArtists();
 
         String artistTable = artistTable();
         // 艺术家列表需要关联 user_account 表（非 users 表），因为 artist_profile 的 user_id 对应的是 user_account.id
@@ -624,8 +623,16 @@ public class UserAdminPersistenceService {
         }
         // 关键词搜索（昵称/真实姓名）
         if (keyword != null && !keyword.isBlank()) {
-            where.append(" AND (u.nickname LIKE ? OR " + artistColumnOrNull("real_name") + " LIKE ?)");
+            where.append(" AND (u.nickname LIKE ? OR ")
+                .append(artistColumnOrNull("real_name"))
+                .append(" LIKE ? OR ")
+                .append(artistColumnOrNull("artist_name"))
+                .append(" LIKE ? OR ")
+                .append(artistColumnOrNull("user_uid"))
+                .append(" LIKE ?)");
             String kw = "%" + keyword.trim() + "%";
+            args.add(kw);
+            args.add(kw);
             args.add(kw);
             args.add(kw);
         }
@@ -676,6 +683,7 @@ public class UserAdminPersistenceService {
 
         // 用户UID列名：user_account 表为 user_uid，users 表为 uid
         String userUidCol = "user_account".equals(userTable) ? "user_uid" : "uid";
+        String artistNameExpression = artistNameExpression(artistTable);
 
         // 过滤掉没有关联用户的孤立 artist_profile 记录
         where.append(" AND u.id IS NOT NULL");
@@ -696,13 +704,7 @@ public class UserAdminPersistenceService {
         // 显示字段：优先用 user_uid (19位UID)，否则用用户表的 user_uid/uid/id 兜底
         String userIdField = schemaInspector.hasColumn(artistTable, "user_uid") 
             ? "COALESCE(a.user_uid, u." + userUidCol + ", CAST(u.id AS CHAR))" : "u." + userUidCol;
-        String realNameSelect = artistColumnOrNull("real_name");
-        if ("NULL".equals(realNameSelect)) {
-            realNameSelect = artistColumnOrNull("artist_name");
-        }
-        if ("NULL".equals(realNameSelect)) {
-            realNameSelect = artistColumnOrNull("name");
-        }
+        String realNameSelect = artistNameExpression;
         String idCardSelect = artistColumnOrNull("id_card");
         String artistCodeSelect = artistColumnOrNull("artist_code");
         String artworkTable = schemaInspector.resolveTable("artist_count_artwork", "artwork", "artworks", "products", "product");
@@ -760,6 +762,10 @@ public class UserAdminPersistenceService {
             finalSql,
             finalArgs.toArray()
         );
+        if (keyword != null && !keyword.isBlank()) {
+            rows = dedupeArtistRowsByName(rows);
+            total = (long) rows.size();
+        }
 
         Long pendingCount = countArtistByStatus(0);
         Long approvedCount = countArtistByStatus(1);
@@ -782,6 +788,22 @@ public class UserAdminPersistenceService {
         return result;
     }
 
+    private List<Map<String, Object>> dedupeArtistRowsByName(List<Map<String, Object>> rows) {
+        Map<String, Map<String, Object>> deduped = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            String name = Objects.toString(row.get("real_name"), "").trim();
+            if (name.isEmpty()) {
+                name = Objects.toString(row.get("nickname"), "").trim();
+            }
+            String key = name.isEmpty() ? Objects.toString(row.get("user_id"), "") : name;
+            Map<String, Object> existing = deduped.get(key);
+            if (existing == null || toInt(row.get("artwork_count"), 0) > toInt(existing.get("artwork_count"), 0)) {
+                deduped.put(key, row);
+            }
+        }
+        return new ArrayList<>(deduped.values());
+    }
+
     /**
      * 构建艺术家列表的动态排序子句
      */
@@ -797,7 +819,7 @@ public class UserAdminPersistenceService {
                 String col = userColumnOrNull("artist_level");
                 yield " ORDER BY " + ("NULL".equals(col) ? "1" : col) + " " + order;
             }
-            default -> " ORDER BY a.id " + order;
+            default -> " ORDER BY artwork_count DESC, a.id " + order;
         };
     }
 
@@ -1999,17 +2021,22 @@ public class UserAdminPersistenceService {
             Long authorId = row.get("author_id") == null ? null : toLong(row.get("author_id"));
             String authorUid = Objects.toString(row.get("author_uid"), "").trim();
             String authorName = Objects.toString(row.get("author_name"), "").trim();
-            if (authorName.isEmpty() || artistExistsForArtworkAuthor(authorId, authorUid, authorName)) {
+            if (authorName.isEmpty()) {
                 continue;
             }
-            insertSyncedArtist(authorId, authorUid, authorName, Objects.toString(row.get("author_avatar"), ""), Objects.toString(row.get("author_bio"), ""));
-            if (authorId != null && userExists(authorId)) {
-                appendIdentity(authorId, "artist");
+
+            Long linkedUserId = findArtistUserIdForArtworkAuthor(authorId, authorUid, authorName);
+            if (linkedUserId == null) {
+                linkedUserId = insertSyncedArtist(authorId, authorUid, authorName, Objects.toString(row.get("author_avatar"), ""), Objects.toString(row.get("author_bio"), ""));
+            }
+            if (linkedUserId != null && userExists(linkedUserId)) {
+                appendIdentity(linkedUserId, "artist");
+                repairArtworkAuthorLink(artworkTable, authorId, authorUid, authorName, linkedUserId);
             }
         }
     }
 
-    private boolean artistExistsForArtworkAuthor(Long authorId, String authorUid, String authorName) {
+    private Long findArtistUserIdForArtworkAuthor(Long authorId, String authorUid, String authorName) {
         String artistTable = artistTable();
         List<String> conditions = new ArrayList<>();
         List<Object> args = new ArrayList<>();
@@ -2021,23 +2048,23 @@ public class UserAdminPersistenceService {
             conditions.add("user_uid = ?");
             args.add(authorUid);
         }
-        String realNameCol = schemaInspector.firstExistingColumn(artistTable, "real_name", "realName", "artist_name", "name");
-        if (schemaInspector.hasColumn(artistTable, realNameCol)) {
-            conditions.add("BINARY " + realNameCol + " = BINARY ?");
+        String nameExpr = artistNameExpression(artistTable).replace("a.", "");
+        if (!"NULL".equals(nameExpr)) {
+            conditions.add("BINARY " + nameExpr + " = BINARY ?");
             args.add(authorName);
         }
         if (conditions.isEmpty()) {
-            return false;
+            return null;
         }
-        Long count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + artistTable + " WHERE " + String.join(" OR ", conditions),
+        List<Long> ids = jdbcTemplate.queryForList(
+            "SELECT user_id FROM " + artistTable + " WHERE " + String.join(" OR ", conditions) + " ORDER BY id DESC LIMIT 1",
             Long.class,
             args.toArray()
         );
-        return count != null && count > 0;
+        return ids.isEmpty() ? null : ids.get(0);
     }
 
-    private void insertSyncedArtist(Long authorId, String authorUid, String authorName, String avatar, String bio) {
+    private Long insertSyncedArtist(Long authorId, String authorUid, String authorName, String avatar, String bio) {
         String artistTable = artistTable();
         LocalDateTime now = LocalDateTime.now();
         String artistCode = generateArtistCode();
@@ -2066,7 +2093,7 @@ public class UserAdminPersistenceService {
                 now,
                 artistCode
             );
-            return;
+            return userId;
         }
 
         List<String> columns = new ArrayList<>();
@@ -2095,6 +2122,46 @@ public class UserAdminPersistenceService {
             "INSERT INTO " + artistTable + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")",
             values.toArray()
         );
+        return userId;
+    }
+
+    private void repairArtworkAuthorLink(String artworkTable, Long oldAuthorId, String oldAuthorUid, String authorName, Long linkedUserId) {
+        if (artworkTable == null || !schemaInspector.hasColumn(artworkTable, "author_id")) {
+            return;
+        }
+        String linkedUid = getUserUidById(linkedUserId);
+        List<String> whereParts = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        if (oldAuthorId != null) {
+            whereParts.add("author_id = ?");
+            args.add(oldAuthorId);
+        }
+        if (oldAuthorUid != null && !oldAuthorUid.isBlank() && schemaInspector.hasColumn(artworkTable, "author_uid")) {
+            whereParts.add("author_uid = ?");
+            args.add(oldAuthorUid);
+        }
+        if (authorName != null && !authorName.isBlank() && schemaInspector.hasColumn(artworkTable, "author_name")) {
+            whereParts.add("BINARY author_name = BINARY ?");
+            args.add(authorName);
+        }
+        if (whereParts.isEmpty()) {
+            return;
+        }
+
+        List<Object> updateArgs = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("UPDATE ").append(artworkTable).append(" SET author_id = ?");
+        updateArgs.add(linkedUserId);
+        if (schemaInspector.hasColumn(artworkTable, "author_uid")) {
+            sql.append(", author_uid = ?");
+            updateArgs.add(linkedUid);
+        }
+        if (schemaInspector.hasColumn(artworkTable, "update_time")) {
+            sql.append(", update_time = ?");
+            updateArgs.add(LocalDateTime.now());
+        }
+        sql.append(" WHERE (").append(String.join(" OR ", whereParts)).append(")");
+        updateArgs.addAll(args);
+        jdbcTemplate.update(sql.toString(), updateArgs.toArray());
     }
 
     private void addInsertValue(List<String> columns, List<Object> values, String table, String column, Object value) {
@@ -2460,10 +2527,10 @@ public class UserAdminPersistenceService {
     private String getUserUidById(Long userId) {
         if (userId == null) return null;
         String userTable = userTable();
-        if (schemaInspector.hasColumn(userTable, "uid")) {
-            return jdbcTemplate.queryForObject("SELECT uid FROM " + userTable + " WHERE id = ?", String.class, userId);
-        } else if (schemaInspector.hasColumn(userTable, "user_uid")) {
+        if (schemaInspector.hasColumn(userTable, "user_uid")) {
             return jdbcTemplate.queryForObject("SELECT user_uid FROM " + userTable + " WHERE id = ?", String.class, userId);
+        } else if (schemaInspector.hasColumn(userTable, "uid")) {
+            return jdbcTemplate.queryForObject("SELECT uid FROM " + userTable + " WHERE id = ?", String.class, userId);
         } else {
             // 如果没有uid字段，使用旧式user_no
             return jdbcTemplate.queryForObject("SELECT user_no FROM " + userTable + " WHERE id = ?", String.class, userId);
@@ -2672,6 +2739,22 @@ public class UserAdminPersistenceService {
     private String artistColumnOrNull(String columnName) {
         String artistTable = artistTable();
         return schemaInspector.hasColumn(artistTable, columnName) ? "a." + columnName : "NULL";
+    }
+
+    private String artistNameExpression(String artistTable) {
+        List<String> columns = new ArrayList<>();
+        for (String column : List.of("real_name", "artist_name", "name")) {
+            if (schemaInspector.hasColumn(artistTable, column)) {
+                columns.add("NULLIF(a." + column + ", '')");
+            }
+        }
+        if (columns.isEmpty()) {
+            return "NULL";
+        }
+        if (columns.size() == 1) {
+            return columns.get(0);
+        }
+        return "COALESCE(" + String.join(", ", columns) + ")";
     }
     
     private String userColumnOrNull(String columnName) {

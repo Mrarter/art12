@@ -117,6 +117,67 @@ public class ProductAdminPersistenceService {
         org.slf4j.LoggerFactory.getLogger(getClass()).info("作品删除成功: id={}", id);
     }
 
+    /**
+     * 更新作品
+     */
+    @Transactional
+    public void updateArtwork(Long id, Map<String, Object> params) {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artwork WHERE id = ?", Integer.class, id);
+        if (count == null || count == 0) {
+            throw new IllegalArgumentException("作品不存在");
+        }
+
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("UPDATE artwork SET ");
+        List<String> assignments = new ArrayList<>();
+
+        appendTextUpdate(assignments, args, params, "title", "title");
+
+        Object authorName = params.get("authorName");
+        Long authorId = toLong(params.get("authorId"));
+        if ((authorId == null || !authorUserExists(authorId)) && authorName != null && !Objects.toString(authorName, "").isBlank()) {
+            authorId = findOrCreateArtist(Objects.toString(authorName, "").trim());
+        }
+        if (authorId != null && schemaInspector.hasColumn("artwork", "author_id")) {
+            assignments.add("author_id = ?");
+            args.add(authorId);
+            if (schemaInspector.hasColumn("artwork", "author_uid")) {
+                assignments.add("author_uid = ?");
+                args.add(findAuthorUidByUserId(authorId));
+            }
+        }
+        appendTextUpdate(assignments, args, params, "authorName", "author_name");
+        appendTextUpdate(assignments, args, params, "cover", "cover_image");
+        appendTextUpdate(assignments, args, params, "coverImage", "cover_image");
+        appendTextUpdate(assignments, args, params, "description", "description");
+        appendTextUpdate(assignments, args, params, "size", "size");
+        appendTextUpdate(assignments, args, params, "artType", "art_type");
+        appendNumericUpdate(assignments, args, params, "categoryId", "category_id");
+        appendBigDecimalUpdate(assignments, args, params, "price", "price");
+        appendBigDecimalUpdate(assignments, args, params, "originalPrice", "original_price");
+        appendNumericUpdate(assignments, args, params, "ownershipType", "ownership_type");
+        appendNumericUpdate(assignments, args, params, "status", "status");
+        appendNumericUpdate(assignments, args, params, "dailyViewCount", "daily_view_count");
+        appendNumericUpdate(assignments, args, params, "dailyLikeCount", "daily_like_count");
+        appendNumericUpdate(assignments, args, params, "weight", "weight");
+        appendYearUpdate(assignments, args, params);
+        appendDistributionUpdate(assignments, args, params);
+
+        if (schemaInspector.hasColumn("artwork", "update_time")) {
+            assignments.add("update_time = ?");
+            args.add(LocalDateTime.now());
+        }
+
+        if (assignments.isEmpty()) {
+            return;
+        }
+
+        sql.append(String.join(", ", assignments)).append(" WHERE id = ?");
+        args.add(id);
+        jdbcTemplate.update(sql.toString(), args.toArray());
+        org.slf4j.LoggerFactory.getLogger(getClass()).info("作品更新成功: id={}", id);
+    }
+
     public Map<String, Object> listAuditRecords(String auditStatus, int page, int size) {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
@@ -236,6 +297,93 @@ public class ProductAdminPersistenceService {
             return Integer.parseInt(value.toString());
         } catch (NumberFormatException ex) {
             return defaultValue;
+        }
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue());
+        }
+        try {
+            return new BigDecimal(value.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private void appendTextUpdate(List<String> assignments, List<Object> args, Map<String, Object> params, String paramKey, String column) {
+        if (!params.containsKey(paramKey) || !schemaInspector.hasColumn("artwork", column)) {
+            return;
+        }
+        assignments.add(column + " = ?");
+        args.add(nullableText(params.get(paramKey)));
+    }
+
+    private void appendNumericUpdate(List<String> assignments, List<Object> args, Map<String, Object> params, String paramKey, String column) {
+        if (!params.containsKey(paramKey) || !schemaInspector.hasColumn("artwork", column)) {
+            return;
+        }
+        assignments.add(column + " = ?");
+        args.add(params.get(paramKey) == null ? null : toInt(params.get(paramKey), 0));
+    }
+
+    private void appendBigDecimalUpdate(List<String> assignments, List<Object> args, Map<String, Object> params, String paramKey, String column) {
+        if (!params.containsKey(paramKey) || !schemaInspector.hasColumn("artwork", column)) {
+            return;
+        }
+        assignments.add(column + " = ?");
+        args.add(toBigDecimal(params.get(paramKey)));
+    }
+
+    private void appendYearUpdate(List<String> assignments, List<Object> args, Map<String, Object> params) {
+        if (!params.containsKey("year")) {
+            return;
+        }
+        String yearColumn = schemaInspector.hasColumn("artwork", "year") ? "year" :
+            (schemaInspector.hasColumn("artwork", "create_year") ? "create_year" : null);
+        if (yearColumn == null) {
+            return;
+        }
+        assignments.add(yearColumn + " = ?");
+        args.add(params.get("year") == null ? null : toInt(params.get("year"), 0));
+    }
+
+    private void appendDistributionUpdate(List<String> assignments, List<Object> args, Map<String, Object> params) {
+        if (params.containsKey("distributionEnabled")) {
+            String distributionColumn = schemaInspector.hasColumn("artwork", "distribution_enabled") ? "distribution_enabled" :
+                (schemaInspector.hasColumn("artwork", "distributable") ? "distributable" : null);
+            if (distributionColumn != null) {
+                assignments.add(distributionColumn + " = ?");
+                args.add(toBool(params.get("distributionEnabled")) ? 1 : 0);
+            }
+        }
+        if (params.containsKey("commissionRate") && schemaInspector.hasColumn("artwork", "commission_rate")) {
+            BigDecimal rate = toBigDecimal(params.get("commissionRate"));
+            if (rate != null && rate.compareTo(BigDecimal.ONE) > 0) {
+                rate = rate.divide(BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP);
+            }
+            assignments.add("commission_rate = ?");
+            args.add(rate);
         }
     }
 
@@ -501,6 +649,18 @@ public class ProductAdminPersistenceService {
         return createNewArtist(artistName);
     }
 
+    private boolean authorUserExists(Long userId) {
+        if (userId == null || userId <= 0) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + authorLookupUserTable() + " WHERE id = ?",
+            Integer.class,
+            userId
+        );
+        return count != null && count > 0;
+    }
+
     /**
      * 根据艺术家名称查找艺术家认证记录
      */
@@ -762,7 +922,7 @@ public class ProductAdminPersistenceService {
     private String findAuthorUidByUserId(Long userId) {
         String userTable = authorLookupUserTable();
         List<String> uidColumns = new ArrayList<>();
-        for (String candidate : List.of("uid", "user_uid", "user_no")) {
+        for (String candidate : List.of("user_uid", "uid", "user_no")) {
             if (schemaInspector.hasColumn(userTable, candidate)) {
                 uidColumns.add(candidate);
             }
@@ -778,7 +938,7 @@ public class ProductAdminPersistenceService {
                 userId
             );
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
-            return userId == null ? null : String.valueOf(userId);
+            return null;
         }
     }
 
@@ -882,7 +1042,7 @@ public class ProductAdminPersistenceService {
         String authorUserTable = authorLookupUserTable();
         boolean hasAuthorUserTable = !schemaInspector.getColumns(authorUserTable).isEmpty();
         String authorUserUidColumn = hasAuthorUserTable
-            ? firstAvailableColumn(authorUserTable, "uid", "user_uid", "user_no")
+            ? firstAvailableColumn(authorUserTable, "user_uid", "uid", "user_no")
             : null;
         String authorUserJoin = hasAuthorUserTable
             ? " LEFT JOIN " + authorUserTable + " au ON au.id = a.author_id"
@@ -909,8 +1069,11 @@ public class ProductAdminPersistenceService {
         queryArgs.add(size);
         
         String artworkCodeSelect = schemaInspector.hasColumn("artwork", "artwork_code") ? "a.artwork_code" : "NULL";
+        String artworkAuthorUidSelect = schemaInspector.hasColumn("artwork", "author_uid")
+            ? "CASE WHEN a.author_uid REGEXP '^[A-Z]{3}[0-9]{8}' THEN a.author_uid ELSE NULL END"
+            : "NULL";
         String authorUidSelect = schemaInspector.hasColumn("artwork", "author_uid")
-            ? "COALESCE(a.author_uid, " + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))"
+            ? "COALESCE(" + artworkAuthorUidSelect + ", " + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))"
             : "COALESCE(" + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))";
         String yearSelect = schemaInspector.hasColumn("artwork", "year") ? "a.year" :
             (schemaInspector.hasColumn("artwork", "create_year") ? "a.create_year" : "NULL");

@@ -76,6 +76,15 @@ public class ProductAdminController {
     }
 
     /**
+     * 更新作品 - /admin/product/artwork/{id}
+     */
+    @PutMapping("/artwork/{id}")
+    public Result<Void> updateArtwork(@PathVariable Long id, @RequestBody Map<String, Object> params) {
+        productAdminPersistenceService.updateArtwork(id, params);
+        return Result.success();
+    }
+
+    /**
      * 作品列表 - /admin/product/list
      */
     @GetMapping("/list")

@@ -641,7 +641,7 @@ import { Plus, Picture, Edit, Setting, Search } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
-import { uploadFile } from '@/api/request'
+import { getFullImageUrl, uploadFile } from '@/api/request'
 import ImageCropper from '@/components/ImageCropper.vue'
 
 const router = useRouter()
@@ -964,7 +964,7 @@ const loadData = async () => {
       authorUid: item.authorUid,
       title: item.title,
       artistName: item.authorName || item.artistName,  // 后端返回 authorName
-      cover: item.coverImage || item.cover || '', // 后端返回 coverImage
+      cover: getFullImageUrl(item.coverImage || item.cover || ''), // 后端返回 coverImage
       categoryId: item.categoryId,
       categoryName: item.category,  // 后端返回 category
       artType: item.artType,        // 画种
@@ -1107,13 +1107,13 @@ const handleEdit = async (row) => {
   
   // 加载单个作品的价格增长配置
   try {
-    const data = await requestApi.get(`/product/${row.artworkId}/priceGrowth`)
+    const data = await requestApi.silentGet(`/product/${row.artworkId}/priceGrowth`)
     Object.assign(editForm, {
       customPriceGrowthEnabled: data.customPriceGrowthEnabled || false
     })
     setPriceGrowthRanges(data)
   } catch (e) {
-    console.error('加载价格增长配置失败', e)
+    console.warn('加载价格增长配置失败，使用默认配置:', e.message)
     // 使用默认值
     Object.assign(editForm, {
       customPriceGrowthEnabled: false
@@ -1232,14 +1232,18 @@ const handleSave = async () => {
     if (editForm.artworkId) {
       // 更新作品
       params.id = Number(editForm.artworkId)
-      await requestApi.put('/product/update', params)
+      await request.put(`/product/artwork/${editForm.artworkId}`, params)
       
       // 保存单个作品的价格增长配置
       const priceGrowthParams = {
         customPriceGrowthEnabled: editForm.customPriceGrowthEnabled,
         ...priceGrowthValues
       }
-      await requestApi.put(`/product/${editForm.artworkId}/priceGrowth`, priceGrowthParams)
+      try {
+        await requestApi.silentPut(`/product/${editForm.artworkId}/priceGrowth`, priceGrowthParams)
+      } catch (e) {
+        console.warn('保存价格增长配置失败，作品基础信息已保存:', e.message)
+      }
       
       console.log('更新结果:')
       ElMessage.success('更新成功')
@@ -1270,8 +1274,7 @@ const handleToggleStatus = async (row) => {
     await ElMessageBox.confirm(`确定要${action}该作品吗？`, '提示', { type: 'warning' })
     console.log('确认后调用API...')
     // 调用后端 API 更新状态
-    const res = await requestApi.put('/product/update', {
-      id: Number(row.artworkId),
+    const res = await request.put(`/product/artwork/${row.artworkId}`, {
       status: newStatus
     })
     console.log('API响应:', res)
@@ -1288,8 +1291,7 @@ ElMessage.error(msg)
 // 权重变更
 const handleWeightChange = async (row) => {
   try {
-    await requestApi.put('/product/update', {
-      id: Number(row.artworkId),
+    await request.put(`/product/artwork/${row.artworkId}`, {
       weight: row.weight || 0
     })
     // 刷新列表
@@ -1333,8 +1335,7 @@ const handleSaveDistribution = async () => {
   try {
     console.log('分销保存参数:', distForm.artworkId, distForm.distributionEnabled, distForm.commissionRate)
     // 调用后端 API 保存分销设置
-    await requestApi.put('/product/update', {
-      id: Number(distForm.artworkId),
+    await request.put(`/product/artwork/${distForm.artworkId}`, {
       distributionEnabled: distForm.distributionEnabled,
       commissionRate: distForm.commissionRate
     })

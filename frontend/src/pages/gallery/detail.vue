@@ -1,9 +1,11 @@
 <template>
   <view class="detail-page">
-    <view class="nav-bar">
+    <view class="nav-bar" :class="{ 'is-transparent': pageScrolled }">
       <view class="nav-icon" @click="goBack">‹</view>
       <view class="nav-title">作品详情</view>
-      <view class="nav-icon share" @click="onShare">↗</view>
+      <view class="nav-icon share" @click="onShare">
+        <view class="share-mark"></view>
+      </view>
     </view>
 
     <!-- 空状态 -->
@@ -13,163 +15,190 @@
       <button class="empty-btn" @click="goBack">返回</button>
     </view>
 
-    <view class="content-area hero-card" v-if="!isEmpty">
-      <swiper class="image-swiper" @change="onSwiperChange">
-        <swiper-item v-for="(img, index) in images" :key="index">
-          <image
-            class="hero-image"
-            :src="img"
-            mode="aspectFill"
-            @error="onArtworkImageError(index)"
-            @click="previewImage(index)"
-          ></image>
-        </swiper-item>
-      </swiper>
-      <view class="image-count">{{ currentImageIndex + 1 }}/{{ images.length || 1 }}</view>
-      <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">观看视频</view>
-    </view>
-
-    <view class="summary-section">
-      <view class="work-title">{{ detail.title || '静物0751' }}</view>
-
-      <view class="author-row">
-        <image class="author-avatar" :src="authorAvatarSrc" @click="goArtistHome" @error="onAuthorAvatarError"></image>
-        <view class="author-info" @click="goArtistHome">
-          <view class="author-name-row">
-            <text class="author-name">{{ detail.authorName || '孟儒' }}</text>
-            <text class="verify-badge">V</text>
-          </view>
-          <text class="author-subtitle">{{ authorSubtitle }}</text>
+    <view class="detail-shell" v-if="!isEmpty">
+      <view class="hero-card" :style="heroCardStyle">
+        <swiper class="image-swiper" @change="onSwiperChange" v-if="images.length">
+          <swiper-item class="hero-slide" v-for="(img, index) in images" :key="index">
+            <image class="hero-backdrop" :src="img" mode="aspectFill"></image>
+            <image class="hero-image" :src="img" mode="aspectFill" @load="onHeroImageLoad" @error="onArtworkImageError(index)" @click="previewImage(index)"></image>
+          </swiper-item>
+        </swiper>
+        <view class="hero-shadow"></view>
+        <view class="new-chip" :class="{ 'chip-hidden': pageScrolled }">☆ NEW</view>
+        <view class="hero-copy">
+          <text class="hero-serial">作品编号：{{ certificateCode }}</text>
         </view>
-        <view class="like-counter" @click="onFavorite">
+        <view class="hero-like" @click="onFavorite">
           <text class="heart">{{ detail.isFavorite ? '♥' : '♡' }}</text>
           <text>{{ displayLikeCount }}</text>
         </view>
+        <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">观看视频</view>
       </view>
 
-      <view class="meta-strip">
-        <view class="meta-item">
-          <text class="meta-label">创作年份</text>
-          <text class="meta-value">{{ artworkYear }}</text>
-        </view>
-        <view class="meta-item">
-          <text class="meta-label">作品材质</text>
-          <text class="meta-value">{{ artworkMaterial }}</text>
-        </view>
-        <view class="meta-item">
-          <text class="meta-label">作品尺寸</text>
-          <text class="meta-value">{{ artworkSize }}</text>
-        </view>
-        <view class="meta-item">
-          <text class="meta-label">作品类型</text>
-          <text class="meta-value">{{ artworkType }}</text>
-        </view>
-      </view>
-
-      <view class="price-row">
-        <view>
-          <view class="price">{{ formatPrice(detail.price) }}</view>
-          <view class="forecast">
-            <text>预估上涨 {{ tomorrowIncreaseRange || '￥1.6 - ￥2.4' }}</text>
-            <text class="info-dot">i</text>
-          </view>
-        </view>
-        <view class="badges">
-          <text class="badge">唯一件</text>
-          <text class="badge">支持证书</text>
-          <text class="badge">支持流通</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="panel story-panel" v-if="storyText">
-      <view class="panel-heading">
-        <text class="panel-icon">▣</text>
-        <text>作品故事</text>
-      </view>
-      <view class="story-text" :class="{ expanded: storyExpanded }">
-        {{ storyText }}
-      </view>
-      <view class="panel-arrow" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">›</view>
-    </view>
-
-    <view class="split-grid">
-      <view class="panel info-panel">
-        <view class="panel-heading">
-          <text class="panel-icon">▤</text>
-          <text>作品信息</text>
-        </view>
-        <view class="info-row" v-for="row in infoRows" :key="row.label">
-          <text class="row-label">{{ row.label }}</text>
-          <text class="row-value">{{ row.value }}</text>
-        </view>
-      </view>
-
-      <view class="panel benefit-panel">
-        <view class="panel-heading">
-          <text class="panel-icon">◌</text>
-          <text>收藏权益</text>
-        </view>
-        <view class="benefit-item" v-for="item in benefits" :key="item.title">
-          <text class="benefit-mark">✓</text>
+      <view class="card market-card">
+        <view class="market-heading">
           <view>
-            <view class="benefit-title">{{ item.title }}</view>
-            <view class="benefit-desc">{{ item.desc }}</view>
+            <view class="work-title-row">
+              <text class="work-title">{{ workName }}</text>
+              <view class="tag-row">
+                <text class="gold-tag">原创作品</text>
+                <text class="gold-tag">唯一原作</text>
+                <text class="gold-tag">可流通</text>
+                <text class="gold-tag">平台托管</text>
+              </view>
+            </view>
+            <text class="work-artist">{{ detail.authorName || '孟儒' }}</text>
+            <text class="work-meta">{{ artworkMetaLine }}</text>
+          </view>
+        </view>
+        <view class="market-content">
+          <view class="price-block">
+            <view class="label-line">
+              <text>当前收藏价</text>
+              <text class="question">?</text>
+            </view>
+            <view class="price">
+              <text class="price-symbol">¥</text>
+              <text>{{ priceNumber }}</text>
+            </view>
+            <view class="rise-line">↗ 预计上涨 {{ growthRangeDisplay }}</view>
+            <view class="collect-line">♙ 已被 {{ displayLikeCount }} 位藏家收藏</view>
+          </view>
+          <view class="model-panel">
+            <view class="model-title">♙ 涨跌趋势</view>
+            <text class="model-sub">预计上涨区间</text>
+            <view class="model-body">
+              <view class="model-copy">
+                <text class="model-price">{{ growthRangeDisplay }}</text>
+                <text class="confidence">置信度 78%</text>
+                <text class="factor-title">影响因素</text>
+                <text class="factor">• 艺术家评级：高</text>
+                <text class="factor">• 历史成交：稳定</text>
+                <text class="factor">• 当前热度：上升</text>
+              </view>
+              <view class="confidence-ring">
+                <view class="ring-inner">78%</view>
+              </view>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <view class="panel circulation-panel">
-      <view class="panel-top">
-        <view class="panel-heading">
-          <text class="panel-icon">▥</text>
-          <text>流通记录摘要</text>
+      <view class="card artist-card" @click="goArtistHome">
+        <image class="artist-avatar-lg" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
+        <view class="artist-info-block">
+          <view class="artist-name-row">
+            <text class="artist-name">{{ detail.authorName || '孟儒' }}</text>
+            <text class="score-badge">B+</text>
+            <text class="score-text">艺术家评级</text>
+          </view>
+          <text class="artist-subtitle">{{ authorSubtitle }}</text>
+          <view class="artist-stats">
+            <view class="artist-stat" v-for="item in artistStats" :key="item.label">
+              <text class="artist-stat-value">{{ item.value }}</text>
+              <text class="artist-stat-label">{{ item.label }}</text>
+            </view>
+          </view>
         </view>
-        <view class="more-link">查看完整记录 ›</view>
+        <view class="artist-link">进入艺术家主页 ›</view>
       </view>
-      <view class="timeline">
-        <view class="timeline-line"></view>
-        <view class="timeline-item" v-for="item in circulationSteps" :key="item.title">
-          <view class="timeline-dot"></view>
-          <view class="timeline-title">{{ item.title }}</view>
-          <view class="timeline-date">{{ item.date }}</view>
-        </view>
-      </view>
-    </view>
 
-    <view class="panel related-panel">
-      <view class="panel-top">
-        <view class="panel-heading">
-          <text class="panel-icon">▧</text>
-          <text>同艺术家其他作品</text>
+      <view class="card record-card">
+        <view class="section-top">
+          <view class="section-title">
+            <text class="section-icon">▤</text>
+            <text>流通记录</text>
+          </view>
+          <view class="more-link">查看完整记录 ›</view>
         </view>
-        <view class="more-link" @click="goArtistHome">更多 ›</view>
-      </view>
-      <view class="related-grid">
-        <view class="related-card" v-for="item in relatedWorks" :key="item.id" @click="goRelatedWork(item.id)">
-          <image class="related-image" :src="item.cover" mode="aspectFill"></image>
-          <view class="related-like">♡</view>
-          <view class="related-body">
-            <view class="related-title">{{ item.title }}</view>
-            <view class="related-meta">{{ item.meta }}</view>
-            <view class="related-price">{{ item.price }}</view>
+        <view class="record-body">
+          <view class="record-list">
+            <view class="record-item" v-for="item in circulationRows" :key="item.date">
+              <view class="record-dot"></view>
+              <text class="record-date">{{ item.date }}</text>
+              <text class="record-event">{{ item.event }}</text>
+              <text class="record-price" :class="{ current: item.current }">{{ item.price }}</text>
+            </view>
+          </view>
+          <view class="gain-card">
+            <view class="gain-copy">
+              <text class="gain-label">累计上涨</text>
+              <text class="gain-value">+54%</text>
+            </view>
+            <view class="sparkline">
+              <view class="spark-seg one"></view>
+              <view class="spark-seg two"></view>
+              <view class="spark-seg three"></view>
+              <view class="spark-seg four"></view>
+            </view>
           </view>
         </view>
       </view>
+
+      <view class="card cert-card">
+        <view class="section-top">
+          <view class="section-title">
+            <text class="section-icon">▣</text>
+            <text>收藏证书</text>
+          </view>
+          <view class="more-link">查看证书 ›</view>
+        </view>
+        <view class="cert-body">
+          <view class="cert-list">
+            <view class="cert-item">
+              <view class="cert-icon">▱</view>
+              <view>
+                <text class="cert-label">唯一编号</text>
+                <text class="cert-value">{{ certificateCode }}</text>
+              </view>
+            </view>
+            <view class="cert-item">
+              <view class="cert-icon">♕</view>
+              <view>
+                <text class="cert-label">艺术家认证</text>
+                <text class="cert-value">{{ detail.authorName || '孟儒' }} 亲笔签名</text>
+              </view>
+            </view>
+            <view class="cert-item">
+              <view class="cert-icon">✓</view>
+              <view>
+                <text class="cert-label">平台认证</text>
+                <text class="cert-value">艺术平台存证</text>
+              </view>
+            </view>
+          </view>
+          <view class="cert-preview">
+            <image class="cert-image" :src="images[0] || fallbackCover" mode="aspectFill"></image>
+          </view>
+        </view>
+      </view>
+
+      <view class="card description-card">
+        <view class="section-title">作品说明</view>
+        <view class="story-text" :class="{ expanded: storyExpanded }">
+          {{ storyText }}
+        </view>
+        <view class="expand-link" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">
+          {{ storyExpanded ? '收起' : '展开' }}⌄
+        </view>
+      </view>
+
+      <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
+        <text>分享推广可获得佣金</text>
+        <text>{{ formatYuanAmount(commission) }}</text>
+      </view>
     </view>
 
-    <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
-      <text>分享推广可获得佣金</text>
-      <text>{{ formatYuanAmount(commission) }}</text>
-    </view>
-
-    <view class="bottom-bar safe-area-bottom">
-      <button class="advisor-btn" @click="contactArtist">联系顾问</button>
-      <button class="collect-btn" @click="onFavorite">
-        <text>{{ detail.isFavorite ? '♥' : '♡' }}</text>
-        <text>{{ detail.isFavorite ? '已收藏' : '立即收藏' }}</text>
+    <view class="bottom-bar safe-area-bottom" v-if="!isEmpty">
+      <button class="bar-action" @click="onFavorite">
+        <text class="bar-icon">{{ detail.isFavorite ? '♥' : '♡' }}</text>
+        <text>{{ detail.isFavorite ? '已收藏' : '收藏' }}</text>
       </button>
+      <button class="bar-action consult-action" @click="contactArtist">
+        <view class="chat-mark"></view>
+        <text>咨询</text>
+      </button>
+      <button class="collect-btn" @click="onFavorite">立即收藏</button>
     </view>
 
     <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
@@ -225,7 +254,7 @@
           <text>{{ detail.authorPhone }}</text>
         </view>
       </view>
-    </view><!-- /.content-area -->
+    </view>
   </view><!-- /.detail-page -->
 </template>
 
@@ -251,10 +280,12 @@ export default {
       },
       images: [],
       currentImageIndex: 0,
+      heroHeight: 442,
+      pageScrolled: false,
       storyExpanded: false,
       commission: 0,
       commissionLevels: [],
-      defaultAvatar: '/static/images/avatar.png',
+      defaultAvatar: '/static/images/artist-avatar.png',
       showSharePanel: false,
       showContactModal: false,
       isEmpty: false,
@@ -283,7 +314,8 @@ export default {
       return this.detail.year || this.detail.createYear || '2024'
     },
     artworkMaterial() {
-      return this.extractMaterial(this.detail.material || this.detail.medium || this.detail.artType) || '布面油画'
+      const raw = this.detail.material || this.detail.medium || this.detail.artType || ''
+      return this.extractMaterial(raw.replace(/分类[:：]?\s*/g, '')) || '布面油画'
     },
     artworkSize() {
       return this.detail.size || '40 × 40 cm'
@@ -294,10 +326,50 @@ export default {
       return '原创'
     },
     subjectText() {
-      return this.cleanArtworkLabel(this.detail.subject || this.detail.categoryName || this.detail.artType) || '静物'
+      return this.cleanArtworkLabel(this.detail.subject || this.detail.categoryName || this.detail.artType || '').replace(/分类[:：]?\s*/g, '') || '静物'
     },
     authorSubtitle() {
       return this.detail.authorSubtitle || this.detail.authorBadge || '青年油画艺术家 · 杭州'
+    },
+    fallbackCover() {
+      return FALLBACK_COVER
+    },
+    workName() {
+      return this.detail.title || '静物0751'
+    },
+    heroCardStyle() {
+      return `height: ${this.heroHeight}rpx`
+    },
+    artworkMetaLine() {
+      return `${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`
+    },
+    priceNumber() {
+      const price = Number(this.detail.price || 804000)
+      return Math.round(price / 100).toLocaleString()
+    },
+    growthRangeDisplay() {
+      return (this.tomorrowIncreaseRange || '¥1.6 - ¥2.4').replace(/\s*-\s*/g, ' - ')
+    },
+    certificateCode() {
+      const raw = this.detail.uid || this.detail.artworkUid || this.detail.code || this.detail.artworkCode
+      if (raw) return raw
+      const year = String(this.artworkYear || '2024').replace(/[^\d]/g, '') || '2024'
+      return `AW${year}-0751`
+    },
+    artistStats() {
+      return [
+        { label: '作品数', value: this.detail.authorWorkCount || 12 },
+        { label: '成交数', value: this.detail.authorDealCount || 36 },
+        { label: '成交率', value: this.detail.authorDealRate || '85%' },
+        { label: '平均涨幅', value: this.detail.authorAverageRise || '+32%' }
+      ]
+    },
+    circulationRows() {
+      return [
+        { date: '2024.03.12', event: '首次收藏', price: '¥5,200' },
+        { date: '2024.06.18', event: '第二次流通', price: '¥6,800' },
+        { date: '2024.10.28', event: '第三次流通（当前）', price: this.formatPrice(this.detail.price || 804000), current: true }
+      ]
     },
     tomorrowIncreaseRange() {
       const min = Number(this.detail.tomorrowIncreaseMin || 0)
@@ -365,15 +437,19 @@ export default {
     }
   },
 
-  onLoad() {
-    this.fetchDetail()
+  onLoad(options = {}) {
+    this.fetchDetail(options)
+  },
+
+  onPageScroll(e) {
+    this.pageScrolled = Number(e?.scrollTop || 0) > 12
   },
 
   methods: {
-    async fetchDetail() {
+    async fetchDetail(routeOptions = {}) {
       const pages = getCurrentPages()
       const currentPage = pages[pages.length - 1]
-      const id = currentPage.options?.id
+      const id = routeOptions.id || currentPage.options?.id || this.readRouteIdFromLocation()
 
       if (!id) {
         this.isEmpty = true
@@ -386,18 +462,9 @@ export default {
           this.detail = data
           this.initPriceGrowth(data)
           this.currentImageIndex = 0
+          this.heroHeight = 442
 
-          if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-            this.images = data.images.map(this.normalizeResourceUrl).filter(Boolean)
-          } else if (data.cover) {
-            this.images = [this.normalizeResourceUrl(data.cover)]
-          } else if (data.coverImage) {
-            this.images = [this.normalizeResourceUrl(data.coverImage)]
-          } else {
-            this.images = [FALLBACK_COVER]
-          }
-
-          this.images = this.images.filter(Boolean)
+          this.images = this.buildArtworkImages(data)
           if (!this.images.length) this.images = [FALLBACK_COVER]
           this.loadCommission(id)
           this.saveBrowseHistory(data)
@@ -441,6 +508,12 @@ export default {
       }
     },
 
+    readRouteIdFromLocation() {
+      if (typeof window === 'undefined') return ''
+      const match = window.location.href.match(/[?&]id=([^&#]+)/)
+      return match ? decodeURIComponent(match[1]) : ''
+    },
+
     initPriceGrowth(data) {
       if (!data) return
       const rise = Number(data.priceRise || data.dailyIncreaseRate || 0)
@@ -477,6 +550,14 @@ export default {
 
     onSwiperChange(e) {
       this.currentImageIndex = e.detail.current
+    },
+
+    onHeroImageLoad(e) {
+      const width = Number(e.detail?.width || 0)
+      const height = Number(e.detail?.height || 0)
+      if (!width || !height) return
+      const containerWidth = 704
+      this.heroHeight = Math.round(containerWidth * (height / width))
     },
 
     previewImage(index) {
@@ -623,27 +704,65 @@ export default {
       uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
     },
 
+    buildArtworkImages(data) {
+      const candidates = [
+        ...this.extractImageList(data.images),
+        data.cover,
+        data.coverImage
+      ]
+
+      const seen = new Set()
+      return candidates
+        .map(this.normalizeResourceUrl)
+        .filter(Boolean)
+        .filter(url => {
+          if (seen.has(url)) return false
+          seen.add(url)
+          return true
+        })
+    },
+
+    extractImageList(value) {
+      if (Array.isArray(value)) return value
+      if (typeof value !== 'string') return []
+      const text = value.trim()
+      if (!text || text === '[]' || text === '{}') return []
+      try {
+        const parsed = JSON.parse(text)
+        return Array.isArray(parsed) ? parsed : [text]
+      } catch (e) {
+        return [text]
+      }
+    },
+
     normalizeResourceUrl(url) {
       if (!url || typeof url !== 'string') return ''
-      if (url === '[]' || url === '{}') return ''
-      if (url.startsWith('/')) return url
-      if (url.startsWith('http://localhost:8087')) {
-        return `/upload${url.slice('http://localhost:8087'.length)}`
+      const text = url.trim()
+      if (!text || text === '[]' || text === '{}' || text === 'null' || text === 'undefined') return ''
+      if (text.startsWith('/')) return text
+      if (text.startsWith('http://localhost:8087')) {
+        const path = text.slice('http://localhost:8087'.length)
+        return path.startsWith('/upload') ? path : `/upload${path}`
       }
-      if (url.startsWith('http://127.0.0.1:8087')) {
-        return `/upload${url.slice('http://127.0.0.1:8087'.length)}`
+      if (text.startsWith('http://127.0.0.1:8087')) {
+        const path = text.slice('http://127.0.0.1:8087'.length)
+        return path.startsWith('/upload') ? path : `/upload${path}`
+      }
+      const lanFileMatch = text.match(/^http:\/\/192\.168\.\d+\.\d+:8087(\/.*)$/)
+      if (lanFileMatch) {
+        return lanFileMatch[1].startsWith('/upload') ? lanFileMatch[1] : `/upload${lanFileMatch[1]}`
       }
       const app = getApp()
       const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
-      if (!url.startsWith('http')) {
-        return domain ? `${domain}${url.startsWith('/') ? '' : '/'}${url}` : url
+      if (!text.startsWith('http')) {
+        return domain ? `${domain}${text.startsWith('/') ? '' : '/'}${text}` : text
       }
-      return url
+      return text
     },
 
     cleanArtworkLabel(value) {
       if (!value || typeof value !== 'string') return ''
-      return value.replace(/^分类[:：]/, '').trim()
+      return value.replace(/分类[:：]?\s*/g, '').trim()
     },
 
     extractMaterial(value) {
@@ -1406,6 +1525,1002 @@ $gold-bright: #f0c83a;
   justify-content: space-between;
   color: $text-sub;
   font-size: 24rpx;
+}
+
+.detail-page {
+  min-height: 100vh;
+  padding: 104rpx 0 168rpx;
+  background:
+    radial-gradient(circle at 50% -14%, rgba(224, 181, 67, 0.1), transparent 28%),
+    linear-gradient(180deg, #090909 0%, #111 42%, #0a0a0a 100%);
+  color: #f2f2f2;
+}
+
+.detail-shell {
+  width: 100%;
+  max-width: 860rpx;
+  margin: 0 auto;
+  padding: 0 26rpx;
+  box-sizing: border-box;
+}
+
+.nav-bar {
+  height: 104rpx;
+  padding: 20rpx 34rpx 0;
+  background: transparent;
+  backdrop-filter: none;
+  border-bottom: 0;
+  transition: background 0.2s ease, backdrop-filter 0.2s ease;
+}
+
+.nav-bar.is-transparent {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.nav-bar.is-transparent .nav-title,
+.nav-bar.is-transparent .nav-icon {
+  opacity: 0;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  transition: opacity 0.25s ease;
+}
+
+.nav-icon {
+  width: 64rpx;
+  height: 64rpx;
+  font-size: 58rpx;
+  color: rgba(255, 255, 255, 0.92);
+  transition: opacity 0.25s ease;
+}
+
+.nav-icon.share {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #dfbd65;
+}
+
+.share-mark {
+  position: relative;
+  width: 38rpx;
+  height: 40rpx;
+  background: linear-gradient(#dfbd65, #dfbd65) center 4rpx / 3rpx 24rpx no-repeat;
+}
+
+.share-mark::before {
+  content: '';
+  position: absolute;
+  left: 6rpx;
+  right: 6rpx;
+  bottom: 2rpx;
+  height: 18rpx;
+  border: 3rpx solid #dfbd65;
+  border-top: 0;
+  border-radius: 5rpx;
+}
+
+.share-mark::after {
+  content: '';
+  position: absolute;
+  left: 11rpx;
+  top: 2rpx;
+  width: 15rpx;
+  height: 15rpx;
+  border-top: 3rpx solid #dfbd65;
+  border-left: 3rpx solid #dfbd65;
+  transform: rotate(45deg);
+}
+
+.hero-card {
+  height: 442rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  background: #070707;
+  box-shadow: none;
+}
+
+.image-swiper,
+.hero-image {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-slide {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: blur(18rpx);
+  opacity: 0.36;
+  transform: scale(1.08);
+}
+
+.hero-image {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-shadow {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04) 38%, rgba(0, 0, 0, 0.72) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.28), transparent 50%, rgba(0, 0, 0, 0.2));
+  pointer-events: none;
+}
+
+.new-chip {
+  position: absolute;
+  top: 22rpx;
+  right: 18rpx;
+  height: 48rpx;
+  padding: 0 18rpx;
+  display: flex;
+  align-items: center;
+  border: 1rpx solid rgba(221, 174, 64, 0.65);
+  border-radius: 999rpx;
+  background: rgba(18, 18, 18, 0.66);
+  color: #f0c76d;
+  font-size: 24rpx;
+  font-weight: 400;
+  opacity: 0.55;
+  transition: opacity 0.25s ease;
+}
+
+.new-chip.chip-hidden {
+  opacity: 0;
+}
+
+.hero-copy {
+  position: absolute;
+  left: 24rpx;
+  bottom: 8rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.hero-serial {
+  font-size: 22rpx;
+  line-height: 1;
+  font-weight: 400;
+  color: #999;
+  letter-spacing: 1rpx;
+  font-family: 'FangSong', '仿宋', 'FZFS', serif;
+  white-space: nowrap;
+  display: inline;
+}
+
+.hero-like {
+  position: absolute;
+  right: 28rpx;
+  bottom: 32rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.heart {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 42rpx;
+  line-height: 1;
+}
+
+.card {
+  margin-top: 18rpx;
+  padding: 22rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.035), transparent 34%),
+    linear-gradient(135deg, rgba(33, 33, 33, 0.96), rgba(21, 21, 21, 0.98));
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.035);
+}
+
+.market-card {
+  padding: 22rpx 22rpx 20rpx;
+}
+
+.market-heading {
+  display: block;
+}
+
+.work-title,
+.work-artist,
+.work-meta {
+  display: block;
+}
+
+.work-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.work-title {
+  color: #f5f5f5;
+  font-size: 30rpx;
+  line-height: 1.18;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.work-artist {
+  margin-top: 10rpx;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 23rpx;
+}
+
+.work-meta {
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 22rpx;
+  line-height: 1.3;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.gold-tag {
+  height: 28rpx;
+  padding: 0 9rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(211, 159, 45, 0.7);
+  width: 105rpx;
+  border-radius: 999rpx;
+  background: rgba(211, 159, 45, 0.06);
+  color: #d8aa45;
+  font-size: 16rpx;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.market-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 352rpx;
+  gap: 14rpx;
+  margin-top: -78rpx;
+}
+
+.price-block {
+  min-height: 216rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.label-line {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 20rpx;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.question {
+  width: 24rpx;
+  height: 24rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1rpx solid rgba(220, 177, 78, 0.8);
+  color: #d8aa45;
+  font-size: 18rpx;
+}
+
+.price {
+  margin-top: 14rpx;
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+  color: #f0c65d;
+  font-size: 54rpx;
+  line-height: 1;
+  font-weight: 800;
+  text-shadow: 0 0 34rpx rgba(224, 181, 67, 0.18);
+}
+
+.price-symbol {
+  font-size: 34rpx;
+}
+
+.rise-line {
+  margin-top: 20rpx;
+  color: #d7ad4d;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.collect-line {
+  margin-top: 18rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 19rpx;
+  line-height: 1.55;
+}
+
+.model-panel {
+  padding: 18rpx 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.07);
+  border-radius: 14rpx;
+  background: rgba(13, 13, 13, 0.34);
+  align-self: start;
+}
+
+.model-title {
+  color: #efefef;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.model-sub {
+  display: block;
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 17rpx;
+  line-height: 1.45;
+}
+
+.model-body {
+  display: grid;
+  grid-template-columns: 1fr 94rpx;
+  gap: 12rpx;
+  margin-top: 8rpx;
+  align-items: center;
+}
+
+.model-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-price {
+  color: #f0c65d;
+  font-size: 28rpx;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.confidence,
+.factor-title,
+.factor {
+  display: block;
+  font-size: 17rpx;
+  line-height: 1.55;
+}
+
+.confidence {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.factor-title {
+  margin-top: 14rpx;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.factor {
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.confidence-ring {
+  width: 88rpx;
+  height: 88rpx;
+  padding: 10rpx;
+  border-radius: 50%;
+  background: conic-gradient(#f0c65d 0 78%, rgba(255, 255, 255, 0.09) 78% 100%);
+  box-sizing: border-box;
+  margin-top: -125rpx;
+}
+
+.ring-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #171717;
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.artist-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 92rpx minmax(0, 1fr);
+  gap: 18rpx;
+  align-items: center;
+  padding-right: 28rpx;
+}
+
+.artist-avatar-lg {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(212, 160, 52, 0.56);
+  background: #2a2a2a;
+}
+
+.artist-info-block {
+  min-width: 0;
+  padding-right: 0;
+}
+
+.artist-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.artist-name {
+  color: #f5f5f5;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+
+.score-badge {
+  height: 30rpx;
+  padding: 0 10rpx;
+  display: inline-flex;
+  align-items: center;
+  border: 1rpx solid rgba(220, 177, 78, 0.9);
+  border-radius: 999rpx;
+  color: #d8aa45;
+  font-size: 19rpx;
+  font-weight: 800;
+}
+
+.score-text,
+.artist-subtitle {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 20rpx;
+}
+
+.score-text {
+  color: #d8aa45;
+}
+
+.artist-subtitle {
+  display: block;
+  margin-top: 10rpx;
+}
+
+.artist-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 16rpx;
+}
+
+.artist-stat {
+  min-width: 0;
+  padding: 0 12rpx;
+  border-left: 1rpx solid rgba(255, 255, 255, 0.07);
+}
+
+.artist-stat:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.artist-stat-value,
+.artist-stat-label {
+  display: block;
+}
+
+.artist-stat-value {
+  color: #fff;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.artist-stat-label {
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 18rpx;
+  white-space: nowrap;
+}
+
+.artist-link,
+.more-link {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 21rpx;
+  white-space: nowrap;
+}
+
+.artist-link {
+  position: absolute;
+  right: 24rpx;
+  top: 24rpx;
+  height: 42rpx;
+  padding: 0 16rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(216, 170, 69, 0.38);
+  border-radius: 999rpx;
+  background: rgba(216, 170, 69, 0.08);
+  color: #d8aa45;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.section-top,
+.section-title {
+  display: flex;
+  align-items: center;
+}
+
+.section-top {
+  justify-content: space-between;
+}
+
+.section-title {
+  gap: 12rpx;
+  color: #f2f2f2;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.section-icon {
+  color: #d8aa45;
+  font-size: 26rpx;
+}
+
+.record-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 222rpx;
+  gap: 18rpx;
+  margin-top: 22rpx;
+  align-items: end;
+}
+
+.record-list {
+  position: relative;
+}
+
+.record-list::before {
+  content: '';
+  position: absolute;
+  left: 6rpx;
+  top: 14rpx;
+  bottom: 14rpx;
+  width: 2rpx;
+  background: rgba(240, 198, 93, 0.45);
+}
+
+.record-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 124rpx minmax(0, 1fr) 86rpx;
+  gap: 10rpx;
+  align-items: center;
+  padding: 8rpx 0 8rpx 24rpx;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 21rpx;
+}
+
+.record-dot {
+  position: absolute;
+  left: 0;
+  top: 18rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #f0c65d;
+}
+
+.record-event {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.record-price {
+  text-align: right;
+  color: rgba(255, 255, 255, 0.64);
+  white-space: nowrap;
+  margin-right: 60rpx;
+}
+
+.record-price.current {
+  color: #f0c65d;
+  font-weight: 800;
+}
+
+.gain-card {
+  height: 120rpx;
+  padding: 16rpx 18rpx 14rpx;
+  position: relative;
+  margin-top: -35rpx;
+  overflow: hidden;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(216, 170, 69, 0.18);
+  background:
+    radial-gradient(circle at 84% 28%, rgba(240, 198, 93, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(216, 170, 69, 0.08), rgba(12, 12, 12, 0.34)),
+    rgba(9, 9, 9, 0.48);
+  box-sizing: border-box;
+}
+
+.gain-card::before {
+  content: '';
+  position: absolute;
+  inset: auto 12rpx 16rpx 12rpx;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba(216, 170, 69, 0.24), transparent);
+}
+
+.gain-label,
+.gain-value {
+  display: block;
+}
+
+.gain-label {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 18rpx;
+}
+
+.gain-value {
+  margin-top: 2rpx;
+  color: #f0c65d;
+  font-size: 34rpx;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.sparkline {
+  position: absolute;
+  left: 78rpx;
+  right: 14rpx;
+  bottom: 14rpx;
+  height: 54rpx;
+}
+
+.sparkline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12rpx;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba(216, 170, 69, 0.22), transparent);
+}
+
+.sparkline::after {
+  content: '';
+  position: absolute;
+  right: 4rpx;
+  top: 7rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #f0c65d;
+  box-shadow: 0 0 12rpx rgba(240, 198, 93, 0.45);
+}
+
+.spark-seg {
+  position: absolute;
+  height: 5rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #a77a19, #f0c65d);
+  transform-origin: left center;
+  box-shadow: 0 0 14rpx rgba(240, 198, 93, 0.22);
+}
+
+.spark-seg.one { left: 2rpx; bottom: 14rpx; width: 34rpx; transform: rotate(-18deg); }
+.spark-seg.two { left: 31rpx; bottom: 22rpx; width: 32rpx; transform: rotate(13deg); }
+.spark-seg.three { left: 59rpx; bottom: 21rpx; width: 34rpx; transform: rotate(-24deg); }
+.spark-seg.four { left: 88rpx; bottom: 31rpx; width: 42rpx; transform: rotate(-39deg); }
+
+.cert-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 168rpx;
+  gap: 14rpx;
+  align-items: center;
+  margin-top: 22rpx;
+}
+
+.cert-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+}
+
+.cert-item {
+  display: grid;
+  grid-template-columns: 34rpx 1fr;
+  gap: 8rpx;
+  min-width: 0;
+  align-items: center;
+}
+
+.cert-icon {
+  width: 30rpx;
+  height: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1rpx solid rgba(216, 170, 69, 0.35);
+  color: #d8aa45;
+  background: rgba(216, 170, 69, 0.08);
+}
+
+.cert-label,
+.cert-value {
+  display: block;
+}
+
+.cert-label {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 18rpx;
+  font-weight: 600;
+}
+
+.cert-value {
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 16rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cert-preview {
+  width: 168rpx;
+  height: 94rpx;
+  padding: 8rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(216, 170, 69, 0.18);
+  background:
+    linear-gradient(135deg, rgba(216, 170, 69, 0.08), transparent),
+    rgba(10, 10, 10, 0.4);
+  box-sizing: border-box;
+}
+
+.cert-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 8rpx;
+  opacity: 0.62;
+  border: 1rpx solid rgba(216, 170, 69, 0.2);
+}
+
+.description-card {
+  padding-bottom: 30rpx;
+}
+
+.story-text {
+  margin-top: 14rpx;
+  padding-right: 58rpx;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 21rpx;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.story-text.expanded {
+  display: block;
+}
+
+.expand-link {
+  position: absolute;
+  right: 28rpx;
+  bottom: 30rpx;
+  color: #d8aa45;
+  font-size: 24rpx;
+}
+
+.commission-tip {
+  margin-top: 18rpx;
+  padding: 20rpx 26rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid rgba(216, 170, 69, 0.35);
+  background: rgba(216, 170, 69, 0.08);
+  color: #f0c65d;
+}
+
+.bottom-bar {
+  grid-template-columns: 104rpx 104rpx minmax(0, 1fr);
+  gap: 18rpx;
+  padding: 16rpx 30rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: rgba(24, 24, 24, 0.94);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.bar-action {
+  height: 82rpx;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 20rpx;
+  line-height: 1;
+}
+
+.chat-mark {
+  position: relative;
+  width: 36rpx;
+  height: 30rpx;
+  border: 3rpx solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.chat-mark::after {
+  content: '';
+  position: absolute;
+  right: 1rpx;
+  bottom: -6rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border-right: 3rpx solid rgba(255, 255, 255, 0.9);
+  border-bottom: 3rpx solid rgba(255, 255, 255, 0.9);
+  transform: rotate(18deg);
+}
+
+.bar-icon {
+  font-size: 38rpx;
+  line-height: 1;
+}
+
+.collect-btn {
+  height: 80rpx;
+  width: 100%;
+  margin: 0;
+  padding: 0 36rpx;
+  border: 0;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #d6aa34 0%, #c19724 52%, #aa7712 100%);
+  color: #fff;
+  font-size: 27rpx;
+  font-weight: 800;
+  box-shadow: 0 12rpx 34rpx rgba(194, 145, 33, 0.28);
+}
+
+@media (max-width: 520px) {
+  .detail-shell {
+    max-width: none;
+    padding: 0 22rpx;
+  }
+
+  .tag-row {
+    gap: 6rpx;
+  }
+
+  .gold-tag {
+    height: 26rpx;
+    padding: 0 8rpx;
+    font-size: 15rpx;
+  }
+
+  .market-content {
+    grid-template-columns: minmax(0, 1fr) 312rpx;
+    align-items: end;
+  }
+
+  .price-block {
+    min-height: 196rpx;
+  }
+
+  .model-panel {
+    padding: 16rpx;
+  }
+
+  .model-body {
+    grid-template-columns: 1fr 82rpx;
+  }
+
+  .confidence-ring {
+    width: 78rpx;
+    height: 78rpx;
+  }
+
+  .artist-card {
+    grid-template-columns: 86rpx minmax(0, 1fr);
+  }
+
+  .artist-avatar-lg {
+    width: 86rpx;
+    height: 86rpx;
+  }
+
+  .artist-stats {
+    column-gap: 0;
+  }
+
+  .artist-stat {
+    padding: 0 8rpx;
+  }
+
+  .artist-stat-value {
+    font-size: 24rpx;
+  }
+
+  .artist-stat-label {
+    font-size: 17rpx;
+    line-height: 1.18;
+  }
+
+  .record-body {
+    grid-template-columns: minmax(0, 1fr) 174rpx;
+    gap: 14rpx;
+  }
+
+  .gain-card {
+    width: 174rpx;
+    height: 112rpx;
+    justify-self: end;
+  }
+
+  .record-item {
+    grid-template-columns: 118rpx minmax(0, 1fr) 78rpx;
+    gap: 8rpx;
+    font-size: 20rpx;
+  }
+
+  .cert-body {
+    grid-template-columns: minmax(0, 1fr) 150rpx;
+    gap: 12rpx;
+  }
+
+  .cert-preview {
+    width: 150rpx;
+    height: 86rpx;
+    justify-self: end;
+  }
+
+  .cert-list {
+    gap: 8rpx;
+  }
+
+  .cert-item {
+    grid-template-columns: 30rpx 1fr;
+    gap: 6rpx;
+  }
+
+  .cert-icon {
+    width: 28rpx;
+    height: 28rpx;
+    font-size: 16rpx;
+  }
 }
 
 button::after {
