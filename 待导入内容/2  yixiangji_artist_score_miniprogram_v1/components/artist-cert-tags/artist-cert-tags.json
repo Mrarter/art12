@@ -1,9 +1,0 @@
-{
-  "component": true,
-  "properties": {
-    "tags": {
-      "type": "Array",
-      "value": []
-    }
-  }
-}

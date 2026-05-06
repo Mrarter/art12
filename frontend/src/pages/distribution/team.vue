@@ -64,7 +64,7 @@ export default {
       currentTab: 'gold',
       memberList: [
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           name: '李明',
           level: 1,
           levelText: '金牌',
@@ -73,7 +73,7 @@ export default {
           monthEarnings: '1,850'
         },
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           name: '王芳',
           level: 1,
           levelText: '金牌',
@@ -82,7 +82,7 @@ export default {
           monthEarnings: '2,280'
         },
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           name: '张伟',
           level: 1,
           levelText: '金牌',
@@ -98,14 +98,14 @@ export default {
       this.currentTab = tab
       if (tab === 'gold') {
         this.memberList = [
-          { avatar: '/static/avatar-default.png', name: '李明', level: 1, levelText: '金牌', inviteCode: 'LM2024001', customerCount: 28, monthEarnings: '1,850' },
-          { avatar: '/static/avatar-default.png', name: '王芳', level: 1, levelText: '金牌', inviteCode: 'WF2024002', customerCount: 35, monthEarnings: '2,280' },
-          { avatar: '/static/avatar-default.png', name: '张伟', level: 1, levelText: '金牌', inviteCode: 'ZW2024003', customerCount: 22, monthEarnings: '1,420' }
+          { avatar: '/static/images/avatar.png', name: '李明', level: 1, levelText: '金牌', inviteCode: 'LM2024001', customerCount: 28, monthEarnings: '1,850' },
+          { avatar: '/static/images/avatar.png', name: '王芳', level: 1, levelText: '金牌', inviteCode: 'WF2024002', customerCount: 35, monthEarnings: '2,280' },
+          { avatar: '/static/images/avatar.png', name: '张伟', level: 1, levelText: '金牌', inviteCode: 'ZW2024003', customerCount: 22, monthEarnings: '1,420' }
         ]
       } else {
         this.memberList = [
-          { avatar: '/static/avatar-default.png', name: '赵丽', level: 0, levelText: '普通', inviteCode: 'ZL2024004', customerCount: 15, monthEarnings: '860' },
-          { avatar: '/static/avatar-default.png', name: '孙强', level: 0, levelText: '普通', inviteCode: 'SQ2024005', customerCount: 12, monthEarnings: '680' }
+          { avatar: '/static/images/avatar.png', name: '赵丽', level: 0, levelText: '普通', inviteCode: 'ZL2024004', customerCount: 15, monthEarnings: '860' },
+          { avatar: '/static/images/avatar.png', name: '孙强', level: 0, levelText: '普通', inviteCode: 'SQ2024005', customerCount: 12, monthEarnings: '680' }
         ]
       }
     }

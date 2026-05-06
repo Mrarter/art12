@@ -92,7 +92,7 @@
       </view>
       <view class="team-list">
         <view class="team-item" v-for="item in teamList" :key="item.userId" @click="goTeamDetail(item.userId)">
-          <image class="team-avatar" :src="item.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+          <image class="team-avatar" :src="item.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
           <view class="team-info">
             <text class="team-name">{{ item.nickname }}</text>
             <text class="team-level">{{ item.level === 1 ? '一级成员' : '二级成员' }}</text>

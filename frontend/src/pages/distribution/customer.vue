@@ -75,7 +75,7 @@ export default {
       sortBy: 'time',
       customerList: [
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           name: '陈先生',
           phone: '138****5678',
           tags: ['高消费', 'VIP'],
@@ -84,7 +84,7 @@ export default {
           lastOrderDays: 3
         },
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           name: '刘女士',
           phone: '139****8765',
           tags: ['艺术品爱好者'],
@@ -93,7 +93,7 @@ export default {
           lastOrderDays: 7
         },
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           name: '王先生',
           phone: '136****1234',
           tags: ['新客户', '活跃'],

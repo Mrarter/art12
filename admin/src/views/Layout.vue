@@ -48,6 +48,16 @@
           <el-menu-item index="/order/aftersale">售后管理</el-menu-item>
         </el-sub-menu>
         
+        <el-sub-menu index="/trade">
+          <template #title>
+            <el-icon><ShoppingCart /></el-icon>
+            <span>收藏交易</span>
+          </template>
+          <el-menu-item index="/trade/intents">收藏意向单</el-menu-item>
+          <el-menu-item index="/trade/orders">正式订单</el-menu-item>
+          <el-menu-item index="/trade/certificates">收藏证书</el-menu-item>
+        </el-sub-menu>
+        
         <el-sub-menu index="/auction">
           <template #title>
             <el-icon><Tools /></el-icon>
@@ -84,6 +94,7 @@
           </template>
           <el-menu-item index="/price-control/artwork">价格调控</el-menu-item>
           <el-menu-item index="/price-control/logs">价格日志</el-menu-item>
+          <el-menu-item index="/price-control/price-rule">涨价规则</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="/system">

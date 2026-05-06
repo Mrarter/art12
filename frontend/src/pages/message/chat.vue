@@ -162,7 +162,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 const chatUser = ref({
   id: 0,
   name: '聊天中...',
-  avatar: '/static/avatar/default.jpg',
+  avatar: '/static/images/avatar.png',
   online: false
 })
 
@@ -221,7 +221,7 @@ const scrollIntoView = ref('')
 const loadingMore = ref(false)
 const canSend = computed(() => inputText.value.trim().length > 0)
 
-const myAvatar = '/static/avatar/default.jpg'
+const myAvatar = '/static/images/avatar.png'
 
 const placeholder = '输入消息...'
 

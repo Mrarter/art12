@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="header">
+    <text>←</text>
+    <text>流通记录详情</text>
+    <text>⋯</text>
+  </view>
+
+  <view class="card">
+    <image class="cover" src="https://picsum.photos/400/300" />
+    <text class="gold">晨曦·归航</text>
+    <text>孟儒</text>
+  </view>
+
+  <view class="card">
+    <text>当前持有人：匿名藏家</text>
+    <text>流通次数：3次</text>
+  </view>
+
+  <view class="footer">
+    <button class="btn secondary">变更保管</button>
+    <button class="btn primary">再次流通</button>
+  </view>
+</view>

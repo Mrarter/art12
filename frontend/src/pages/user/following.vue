@@ -3,7 +3,7 @@
     <!-- 关注列表 -->
     <view class="following-list" v-if="followingList.length > 0">
       <view class="following-item" v-for="item in followingList" :key="item.id">
-        <image class="artist-avatar" :src="item.avatar || '/static/avatar/default.jpg'" mode="aspectFill" @click="goArtistHome(item.id)"></image>
+        <image class="artist-avatar" :src="item.avatar || '/static/images/avatar.png'" mode="aspectFill" @click="goArtistHome(item.id)"></image>
         <view class="artist-info" @click="goArtistHome(item.id)">
           <view class="artist-name">
             {{ item.name || item.nickname }}

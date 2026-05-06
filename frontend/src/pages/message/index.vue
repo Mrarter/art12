@@ -124,7 +124,7 @@ export default {
       ],
       interactMessages: [
         {
-          avatar: '/static/avatar-default.png',
+          avatar: '/static/images/avatar.png',
           nickname: '李先生',
           action: '点赞',
           target: '帖子',

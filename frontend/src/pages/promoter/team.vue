@@ -29,7 +29,7 @@
         </view>
         <view class="group-members">
           <view class="member-item" v-for="item in group.members" :key="item.userId" @click="goDetail(item.userId)">
-            <image class="member-avatar" :src="item.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+            <image class="member-avatar" :src="item.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
             <view class="member-info">
               <text class="member-name">{{ item.nickname }}</text>
               <text class="member-time">加入于 {{ item.joinTime }}</text>

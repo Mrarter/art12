@@ -1,16 +1,46 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <span class="title">艺术家认证管理</span>
-      <el-button type="primary" @click="showAddDialog">
-        <el-icon><Plus /></el-icon>
-      添加艺术家
-      </el-button>
-      <el-button type="success" link @click="handleExport" :loading="exportLoading">
-        导出CSV
-      </el-button>
+      <span class="title">艺术家管理</span>
+      <div>
+        <el-button type="primary" @click="showAddDialog">
+          <el-icon><Plus /></el-icon>
+        添加艺术家
+        </el-button>
+        <el-button type="success" link @click="handleExport" :loading="exportLoading">
+          导出CSV
+        </el-button>
+      </div>
     </div>
-    
+
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" class="stats-row">
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-label">艺术家总数</div>
+          <div class="stat-value">{{ pagination.total }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-label">已认证</div>
+          <div class="stat-value stat-green">{{ approvedCount }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-label">待审核</div>
+          <div class="stat-value stat-orange">{{ pendingCount }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-label">签约艺术家</div>
+          <div class="stat-value stat-red">{{ approvedCount }}</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 状态 Tab 切换 -->
     <div class="status-tabs">
       <el-radio-group v-model="activeTab" @change="handleTabChange">
@@ -34,18 +64,18 @@
     
     <!-- 搜索筛选 -->
     <el-card class="search-card" shadow="never">
-      <el-form :model="searchForm" inline>
+      <el-form :model="searchForm" inline @submit.prevent="handleSearch">
         <el-form-item label="昵称/姓名">
-          <el-input v-model="searchForm.keyword" placeholder="请输入昵称或姓名" clearable style="width: 180px" />
+          <el-input v-model="searchForm.keyword" placeholder="请输入昵称或姓名" clearable style="width: 180px" @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="手机号">
-          <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable style="width: 150px" />
+          <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable style="width: 150px" @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="ID/UID">
-          <el-input v-model="searchForm.userId" placeholder="请输入ID或UID" clearable style="width: 150px" />
+          <el-input v-model="searchForm.userId" placeholder="请输入ID或UID" clearable style="width: 150px" @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="认证等级">
-          <el-select v-model="searchForm.badge" placeholder="全部" clearable style="width: 130px">
+          <el-select v-model="searchForm.badge" placeholder="全部" clearable style="width: 130px" @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option label="普通认证" value="verified" />
             <el-option label="认证艺术家" value="verified_plus" />
@@ -67,10 +97,11 @@
             end-placeholder="结束日期"
             value-format="YYYY-MM-DD"
             style="width: 260px"
+            @change="handleSearch"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button type="primary" native-type="submit">搜索</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
@@ -179,6 +210,17 @@
       <el-table-column prop="internetScore" label="互联网资质" width="110">
         <template #default="{ row }">
           {{ row.internetScore ?? '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="标签" width="200">
+        <template #default="{ row }">
+          <div class="tag-list-mini">
+            <el-tag v-if="row.certified" size="small" type="success">平台认证</el-tag>
+            <el-tag v-if="row.badge === 'master'" size="small" type="danger">大师级</el-tag>
+            <el-tag v-else-if="row.badge === 'popular'" size="small" type="warning">人气</el-tag>
+            <el-tag v-if="row.scoreLevel" size="small">{{ row.scoreLevel }}级</el-tag>
+            <span v-if="!row.certified && !row.badge && !row.scoreLevel" class="no-tags">-</span>
+          </div>
         </template>
       </el-table-column>
       <el-table-column prop="resume" label="艺术家简介" min-width="200">
@@ -468,43 +510,57 @@
       </template>
     </el-dialog>
     
-    <!-- 认证材料弹窗 -->
-    <el-dialog v-model="materialsVisible" title="认证材料" width="700px">
+    <!-- 认证材料弹窗（可编辑） -->
+    <el-dialog v-model="materialsVisible" title="编辑认证材料" width="720px" destroy-on-close>
       <div v-if="currentRecord" class="materials">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="真实姓名">{{ currentRecord.realName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="身份证号">{{ currentRecord.idCard || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="个人简介" :span="2">{{ currentRecord.resume || currentRecord.bio || '-' }}</el-descriptions-item>
-        </el-descriptions>
-        
-        <div v-if="currentRecord.images || currentRecord.artworks" class="images-section">
-          <p class="section-title">证件照片：</p>
-          <div class="image-list">
-            <el-image 
-              v-for="(img, index) in (currentRecord.images || '').split(',').filter(Boolean)" 
-              :key="'img-' + index"
-              :src="img" 
-              :preview-src-list="(currentRecord.images || '').split(',').filter(Boolean)"
-              style="width: 120px; height: 90px; margin-right: 10px; margin-bottom: 10px"
-              fit="cover"
-            />
-          </div>
-        </div>
-        
-        <div v-if="currentRecord.exhibits" class="images-section">
-          <p class="section-title">参展证明：</p>
-          <div class="image-list">
-            <el-image 
-              v-for="(img, index) in currentRecord.exhibits.split(',').filter(Boolean)" 
-              :key="'exhibit-' + index"
-              :src="img" 
-              :preview-src-list="currentRecord.exhibits.split(',').filter(Boolean)"
-              style="width: 120px; height: 90px; margin-right: 10px; margin-bottom: 10px"
-              fit="cover"
-            />
-          </div>
-        </div>
+        <el-form :model="materialForm" label-width="100px">
+          <el-form-item label="真实姓名">
+            <el-input v-model="materialForm.realName" placeholder="请输入真实姓名" />
+          </el-form-item>
+          <el-form-item label="身份证号">
+            <el-input v-model="materialForm.idCard" placeholder="请输入身份证号" />
+          </el-form-item>
+          <el-form-item label="个人简介">
+            <el-input v-model="materialForm.resume" type="textarea" :rows="3" placeholder="请输入艺术家简介" />
+          </el-form-item>
+          <el-form-item label="证件照片">
+            <div class="material-images">
+              <div v-for="(img, idx) in materialForm.certImagesList" :key="'ci-'+idx" class="material-image-item">
+                <el-image :src="getFullImageUrl(img)" fit="cover" class="material-preview" />
+                <el-button size="small" type="danger" link @click="removeMaterialImage('certImagesList', idx)">移除</el-button>
+              </div>
+              <el-upload
+                class="material-upload"
+                :show-file-list="false"
+                :http-request="(opt) => uploadMaterialImage(opt, 'certImagesList')"
+                accept="image/*"
+              >
+                <el-button size="small" type="primary">+ 添加图片</el-button>
+              </el-upload>
+            </div>
+          </el-form-item>
+          <el-form-item label="参展证明">
+            <div class="material-images">
+              <div v-for="(img, idx) in materialForm.certExhibitsList" :key="'ce-'+idx" class="material-image-item">
+                <el-image :src="getFullImageUrl(img)" fit="cover" class="material-preview" />
+                <el-button size="small" type="danger" link @click="removeMaterialImage('certExhibitsList', idx)">移除</el-button>
+              </div>
+              <el-upload
+                class="material-upload"
+                :show-file-list="false"
+                :http-request="(opt) => uploadMaterialImage(opt, 'certExhibitsList')"
+                accept="image/*"
+              >
+                <el-button size="small" type="primary">+ 添加图片</el-button>
+              </el-upload>
+            </div>
+          </el-form-item>
+        </el-form>
       </div>
+      <template #footer>
+        <el-button @click="materialsVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingMaterials" @click="saveMaterials">保存</el-button>
+      </template>
     </el-dialog>
     
     <!-- 拒绝原因弹窗 -->
@@ -815,6 +871,14 @@ const selectedExistingId = ref(null)
 const selectedExistingTitle = ref('')
 
 const exportLoading = ref(false)
+const savingMaterials = ref(false)
+const materialForm = reactive({
+  realName: '',
+  idCard: '',
+  resume: '',
+  certImagesList: [],
+  certExhibitsList: []
+})
 
 // 评分相关状态
 const scoreMap = ref({})
@@ -1234,7 +1298,56 @@ const handleExport = async () => {
 
 const viewMaterials = (row) => {
   currentRecord.value = row
+  materialForm.realName = row.realName || ''
+  materialForm.idCard = row.idCard || ''
+  materialForm.resume = row.resume || row.bio || ''
+  materialForm.certImagesList = (row.images || row.artworks || '').split(',').filter(Boolean)
+  materialForm.certExhibitsList = (row.exhibits || '').split(',').filter(Boolean)
   materialsVisible.value = true
+}
+
+const saveMaterials = async () => {
+  try {
+    savingMaterials.value = true
+    const userId = currentRecord.value.userId || currentRecord.value.id
+    await request.put(`/user/${userId}`, {
+      realName: materialForm.realName,
+      idCard: materialForm.idCard,
+      resume: materialForm.resume,
+      certImages: materialForm.certImagesList.join(','),
+      certExhibits: materialForm.certExhibitsList.join(',')
+    })
+    ElMessage.success('认证材料已保存')
+    materialsVisible.value = false
+    await loadData()
+  } catch (e) {
+    ElMessage.error('保存失败：' + (e.message || '未知错误'))
+  } finally {
+    savingMaterials.value = false
+  }
+}
+
+const uploadMaterialImage = async (options, listField) => {
+  const { file, onSuccess, onError } = options
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    onError(new Error('请选择图片文件'))
+    return
+  }
+  try {
+    const result = await uploadFile(file)
+    const url = result?.url || result || ''
+    materialForm[listField].push(url)
+    ElMessage.success('图片已添加')
+    onSuccess()
+  } catch (e) {
+    ElMessage.error('上传失败')
+    onError(e)
+  }
+}
+
+const removeMaterialImage = (listField, index) => {
+  materialForm[listField].splice(index, 1)
 }
 
 const handleApprove = async (row) => {
@@ -1921,6 +2034,35 @@ onMounted(async () => {
 .page-container {
   padding: 20px;
 }
+
+/* 统计卡片 */
+.stats-row {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  .stat-label {
+    font-size: 13px;
+    color: #909399;
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #303133;
+  }
+  .stat-green { color: #67c23a; }
+  .stat-orange { color: #e6a23c; }
+  .stat-red { color: #f56c6c; }
+}
+
+/* 标签列 */
+.tag-list-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.no-tags { color: #c0c4cc; font-size: 12px; }
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -2280,4 +2422,10 @@ onMounted(async () => {
     margin-bottom: 0;
   }
 }
+
+/* 认证材料编辑样式 */
+.material-images { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.material-image-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.material-preview { width: 120px; height: 90px; border-radius: 4px; border: 1px solid #eee; object-fit: cover; }
+.material-upload { flex-shrink: 0; }
 </style>

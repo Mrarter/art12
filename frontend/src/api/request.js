@@ -6,7 +6,9 @@ const DEV_LAN_HOST = '192.168.1.109'
 const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
   ? `http://${DEV_LAN_HOST}:8082`
   : ''
-const BASE_URL = API_ORIGIN + '/api'
+const BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
+  ? API_ORIGIN
+  : '/api'
 const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
 const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
   ? `http://${DEV_LAN_HOST}:8087`

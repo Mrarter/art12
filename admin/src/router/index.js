@@ -183,6 +183,31 @@ const routes = [
         ]
       },
       {
+        path: 'trade',
+        name: 'Trade',
+        meta: { title: '收藏交易', icon: 'ShoppingCart' },
+        children: [
+          {
+            path: 'intents',
+            name: 'IntentList',
+            component: () => import('@/views/order/IntentList.vue'),
+            meta: { title: '收藏意向单' }
+          },
+          {
+            path: 'orders',
+            name: 'TradeOrderList',
+            component: () => import('@/views/order/OrderList.vue'),
+            meta: { title: '正式订单' }
+          },
+          {
+            path: 'certificates',
+            name: 'CertificateList',
+            component: () => import('@/views/certificate/CertificateList.vue'),
+            meta: { title: '收藏证书' }
+          }
+        ]
+      },
+      {
         path: 'price-control',
         name: 'PriceControl',
         meta: { title: '交易调控', icon: 'TrendCharts' },
@@ -198,6 +223,12 @@ const routes = [
             name: 'ArtworkPriceLog',
             component: () => import('@/views/artist-score/ArtworkPriceLog.vue'),
             meta: { title: '价格日志' }
+          },
+          {
+            path: 'price-rule',
+            name: 'PriceRuleConfig',
+            component: () => import('@/views/system/PriceRuleConfig.vue'),
+            meta: { title: '涨价规则' }
           }
         ]
       },

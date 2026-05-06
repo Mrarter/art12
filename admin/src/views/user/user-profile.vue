@@ -1,9 +1,9 @@
 <template>
-  <view class="user-profile-container">
+  <div class="user-profile-container">
     <!-- 页面标题 -->
-    <view class="page-header">
+    <div class="page-header">
       <h2>用户画像分析</h2>
-      <view class="header-actions">
+      <div class="header-actions">
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -17,8 +17,8 @@
         <el-button type="primary" size="small" @click="loadData">
           <i class="el-icon-refresh"></i> 刷新
         </el-button>
-      </view>
-    </view>
+      </div>
+    </div>
 
     <!-- 核心指标卡片 -->
     <el-row :gutter="20" class="stats-cards">
@@ -152,16 +152,16 @@
           </div>
           <div class="behavior-list">
             <div class="behavior-item" v-for="item in behaviorData" :key="item.action">
-              <view class="behavior-icon" :style="{ background: item.color }">
+              <div class="behavior-icon" :style="{ background: item.color }">
                 <i :class="item.icon"></i>
-              </view>
-              <view class="behavior-info">
-                <text class="behavior-name">{{ item.action }}</text>
-                <text class="behavior-count">{{ item.count }}次</text>
-              </view>
-              <view class="behavior-bar">
-                <view class="bar-fill" :style="{ width: item.percent + '%', background: item.color }"></view>
-              </view>
+              </div>
+              <div class="behavior-info">
+                <span class="behavior-name">{{ item.action }}</span>
+                <span class="behavior-count">{{ item.count }}次</span>
+              </div>
+              <div class="behavior-bar">
+                <div class="bar-fill" :style="{ width: item.percent + '%', background: item.color }"></div>
+              </div>
             </div>
           </div>
         </el-card>
@@ -282,7 +282,7 @@
         <el-button type="primary" @click="sendMessage(userDetail)">发送消息</el-button>
       </div>
     </el-dialog>
-  </view>
+  </div>
 </template>
 
 <script>

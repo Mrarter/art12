@@ -1,225 +1,76 @@
-/**
- * 订单 API
- * 接口: 5.5-5.6节 订单模块
- * 注意: 网关路由 /api/order/** -> shiyiju-order
- */
 import request from './request'
 
 /**
- * 创建订单(从购物车)
- * POST /order/orders/create
- * @param {Object} data
- * @param {Array<number>} data.cartIds - 购物车项ID数组
- * @param {number} data.addressId - 地址ID
- * @param {string} data.remark - 备注
+ * 前端订单/意向单 API
  */
-export const createOrderFromCart = (data) => {
-  return request.post('/order/orders/create', data)
+export const createPurchaseIntent = (data) => {
+  return request({
+    url: '/order/intent/create',
+    method: 'POST',
+    data
+  })
 }
 
-/**
- * 获取订单各状态数量统计
- * GET /order/orders/counts
- */
-export const getOrderCounts = () => {
-  return request.get('/order/orders/counts')
+export const getIntentDetail = (id) => {
+  return request({
+    url: `/order/intent/${id}`
+  })
 }
 
-/**
- * 直接购买
- * POST /order/orders/direct
- * @param {Object} data
- * @param {number} data.productId - 作品ID
- * @param {number} data.quantity - 数量
- * @param {number} data.addressId - 地址ID
- * @param {string} data.remark - 备注
- */
-export const directBuy = (data) => {
-  return request.post('/order/orders/direct', data)
+export const getCertDetail = (id) => {
+  return request({
+    url: `/order/certificate/${id}`
+  })
 }
 
-/**
- * 获取订单列表
- * GET /order/orders
- * @param {string} status - 订单状态: all/pending/paid/shipped/completed/refund
- * @param {number} page - 页码
- * @param {number} pageSize - 每页数量
- */
-export const getOrderList = (params) => {
-  return request.get('/order/orders', params)
+export const getCirculationDetail = (artworkId) => {
+  return request({
+    url: `/order/circulation/${artworkId}`
+  })
 }
 
-/**
- * 获取订单详情
- * GET /order/orders/{id}
- */
-export const getOrderDetail = (id) => {
-  return request.get(`/order/orders/${id}`)
+// ===== 以下为 confirm.vue 等已有页面依赖的 API =====
+
+export const getCartList = (params) => {
+  return request({ url: '/cart/list', data: params })
 }
 
-/**
- * 取消订单
- * PUT /order/orders/{id}/cancel
- */
-export const cancelOrder = (id) => {
-  return request.put(`/order/orders/${id}/cancel`)
-}
-
-/**
- * 确认收货
- * PUT /order/orders/{id}/confirm
- */
-export const confirmReceive = (id) => {
-  return request.put(`/order/orders/${id}/confirm`)
-}
-
-/**
- * 申请售后/退款
- * POST /order/orders/{id}/refund
- * @param {Object} data
- * @param {string} data.reason - 退款原因
- * @param {Array<string>} data.images - 凭证图片
- */
-export const applyRefund = (id, data) => {
-  return request.post(`/order/orders/${id}/refund`, data)
-}
-
-/**
- * 微信支付统一下单
- * POST /order/pay/unified-order
- * @param {Object} data
- * @param {number} data.orderId - 订单ID
- * @param {string} data.payType - 支付类型: wechat
- */
-export const unifiedOrder = (data) => {
-  return request.post('/order/pay/unified-order', data)
-}
-
-/**
- * 获取收货地址列表
- * GET /order/user/addresses
- */
 export const getAddressList = () => {
-  return request.get('/order/user/addresses')
+  return request({ url: '/user/address/list' })
 }
 
-/**
- * 添加收货地址
- * POST /order/user/addresses
- */
-export const addAddress = (data) => {
-  return request.post('/order/user/addresses', data)
+export const createOrderFromCart = (data) => {
+  return request({ url: '/order/create', method: 'POST', data })
 }
 
-/**
- * 更新收货地址
- * PUT /order/user/addresses/{id}
- */
-export const updateAddress = (id, data) => {
-  return request.put(`/order/user/addresses/${id}`, data)
+export const directBuy = (data) => {
+  return request({ url: '/order/direct', method: 'POST', data })
 }
 
-/**
- * 删除收货地址
- * DELETE /order/user/addresses/{id}
- */
-export const deleteAddress = (id) => {
-  return request.delete(`/order/user/addresses/${id}`)
+export const getOrderList = (params) => {
+  return request({ url: '/order/list', data: params })
 }
 
-// 导入购物车相关函数
-export { getCartList } from './cart'
+export const getOrderDetail = (orderNo) => {
+  return request({ url: `/order/detail/${orderNo}` })
+}
 
-/**
- * 提交退款申请
- * POST /order/orders/{id}/refund
- * @param {Object} data
- * @param {string} data.type - 退款类型: refund-仅退款 return-退货退款
- * @param {string} data.reason - 退款原因
- * @param {string} data.images - 凭证图片（逗号分隔）
- * @param {number} data.amount - 退款金额
- */
+export const getOrderCounts = () => {
+  return request({ url: '/order/counts' })
+}
+
+export const cancelOrder = (orderId) => {
+  return request({ url: `/order/cancel/${orderId}`, method: 'POST' })
+}
+
+export const confirmReceive = (orderId) => {
+  return request({ url: `/order/confirm/${orderId}`, method: 'POST' })
+}
+
 export const refundApply = (data) => {
-  return request.post(`/order/orders/${data.orderId}/refund`, {
-    type: data.type,
-    reason: data.reason,
-    images: data.images,
-    amount: data.amount
-  })
+  return request({ url: '/order/refund', method: 'POST', data })
 }
 
-/**
- * 获取退款记录
- * GET /order/orders/{id}/refund
- */
-export const getRefundRecord = (orderId) => {
-  return request.get(`/order/orders/${orderId}/refund`)
-}
-
-/**
- * 提交评价
- * POST /order/orders/{id}/review
- * @param {Object} data
- * @param {number} data.rating - 评分 1-5
- * @param {string} data.content - 评价内容
- * @param {string} data.images - 评价图片（逗号分隔）
- * @param {number} data.isAnonymous - 是否匿名 0-否 1-是
- */
 export const submitReview = (data) => {
-  return request.post(`/order/orders/${data.orderId}/review`, {
-    rating: data.rating,
-    content: data.content,
-    images: data.images,
-    isAnonymous: data.isAnonymous
-  })
-}
-
-/**
- * 获取评价列表
- * GET /order/orders/{id}/reviews
- */
-export const getReviews = (orderId) => {
-  return request.get(`/order/orders/${orderId}/reviews`)
-}
-
-/**
- * ========== 物流相关 API ==========
- */
-
-/**
- * 获取订单物流信息
- * GET /order/logistics/{orderId}
- */
-export const getOrderLogistics = (orderId) => {
-  return request.get(`/order/logistics/${orderId}`)
-}
-
-/**
- * 根据运单号查询物流
- * GET /order/logistics/track/{trackingNo}
- */
-export const getLogisticsByTrackingNo = (trackingNo) => {
-  return request.get(`/order/logistics/track/${trackingNo}`)
-}
-
-/**
- * 获取物流公司列表
- * GET /order/logistics/companies
- */
-export const getLogisticsCompanies = () => {
-  return request.get('/order/logistics/companies')
-}
-
-/**
- * 商家发货
- * POST /order/logistics/ship
- * @param {Object} data
- * @param {number} data.orderId - 订单ID
- * @param {string} data.companyCode - 物流公司编码
- * @param {string} data.companyName - 物流公司名称
- * @param {string} data.trackingNo - 运单号
- * @param {string} data.remark - 备注
- */
-export const shipOrder = (data) => {
-  return request.post('/order/logistics/ship', data)
+  return request({ url: '/order/review', method: 'POST', data })
 }

@@ -82,7 +82,7 @@
 
 <script>
 import { submitReview } from '@/api/order'
-import { uploadFile } from '@/api/file'
+import { uploadFile, openCropper } from '@/api/file'
 
 export default {
   data() {
@@ -175,7 +175,12 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.images = [...this.images, ...res.tempFilePaths]
+          const paths = res.tempFilePaths
+          Promise.all(paths.map(p =>
+            openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
+          )).then(croppedList => {
+            this.images = [...this.images, ...croppedList]
+          })
         }
       })
     },

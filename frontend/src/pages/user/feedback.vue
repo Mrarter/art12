@@ -130,6 +130,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { openCropper } from '@/api/file.js'
 
 // 反馈类型
 const feedbackTypes = [
@@ -180,7 +181,12 @@ const chooseImage = () => {
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
     success: (res) => {
-      images.value = [...images.value, ...res.tempFilePaths]
+      const paths = res.tempFilePaths
+      Promise.all(paths.map(p =>
+        openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
+      )).then(croppedList => {
+        images.value = [...images.value, ...croppedList]
+      })
     }
   })
 }

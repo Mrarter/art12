@@ -23,7 +23,7 @@
       <!-- 未登录状态 -->
       <view class="login-state" v-if="!userStore.isAuthenticated">
         <view class="login-avatar">
-          <image class="avatar-img" src="/static/avatar/default.jpg" mode="aspectFill"></image>
+          <image class="avatar-img" src="/static/images/avatar.png" mode="aspectFill"></image>
         </view>
         <view class="login-text">
           <text class="login-title">登录 / 注册</text>
@@ -35,7 +35,7 @@
         <view class="avatar-container">
           <image
             class="user-avatar"
-            :src="userInfo.avatar || '/static/avatar/default.jpg'"
+            :src="userInfo.avatar || '/static/images/avatar.png'"
             mode="aspectFill"
           ></image>
           <view class="avatar-vip" v-if="isVip">

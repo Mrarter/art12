@@ -175,7 +175,7 @@ export default {
           groups[publisherId] = {
             publisherId,
             publisherName: item.publisherName || '未知卖家',
-            publisherAvatar: item.publisherAvatar || '/static/avatar/default.jpg',
+            publisherAvatar: item.publisherAvatar || '/static/images/avatar.png',
             promoterId: item.promoterId,
             promoterName: item.promoterName || '',
             items: []

@@ -53,6 +53,44 @@ const uploadFileByFetch = async (filePath, type, token) => {
 }
 
 /**
+ * 打开图片裁剪器
+ * @param {string} src - 图片临时路径
+ * @param {object} opts - 裁剪选项
+ * @param {string} [opts.ratio='1:1'] - 裁剪比例 (1:1, 4:3, 3:4, 16:9, free)
+ * @param {string} [opts.shape='square'] - 裁剪形状 (square, circle)
+ * @returns {Promise<string>} 裁剪后的图片路径
+ */
+export const openCropper = (src, opts = {}) => {
+  return new Promise((resolve, reject) => {
+    const { ratio = '1:1', shape = 'square' } = opts
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1]
+    const route = encodeURIComponent(src)
+
+    // 监听全局事件（备用方案）
+    const handler = (result) => {
+      uni.$off('cropResult', handler)
+      resolve(result)
+    }
+    uni.$on('cropResult', handler)
+
+    uni.navigateTo({
+      url: `/pages/common/cropper?src=${route}&ratio=${ratio}&shape=${shape}`,
+      events: {
+        onCrop: (result) => {
+          uni.$off('cropResult', handler)
+          resolve(result)
+        }
+      },
+      fail: (err) => {
+        uni.$off('cropResult', handler)
+        reject(err)
+      }
+    })
+  })
+}
+
+/**
  * 上传文件
  * @param {string} filePath - 文件临时路径
  * @param {string} type - 文件类型 (image/audio/video)

@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 public class UserAdminPersistenceService {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String DEFAULT_AVATAR_URL = "/images/default-avatar.png";
 
     private final JdbcTemplate jdbcTemplate;
     private final SchemaInspector schemaInspector;
@@ -423,9 +424,11 @@ public class UserAdminPersistenceService {
         String realName = Objects.toString(params.get("realName"), null);
         String idCard = Objects.toString(params.get("idCard"), null);
         String resume = Objects.toString(params.get("resume"), null);
+        String certImages = Objects.toString(params.get("certImages"), null);
+        String certExhibits = Objects.toString(params.get("certExhibits"), null);
 
         // 如果没有需要更新的艺术家字段，直接返回
-        if (realName == null && idCard == null && resume == null) {
+        if (realName == null && idCard == null && resume == null && certImages == null && certExhibits == null) {
             return;
         }
 
@@ -466,6 +469,16 @@ public class UserAdminPersistenceService {
         if (resume != null && schemaInspector.hasColumn(artistTable, resumeCol)) {
             setClauses.add(resumeCol + " = ?");
             args.add(resume.isEmpty() ? null : resume);
+        }
+        // 认证材料图片
+        if (certImages != null && schemaInspector.hasColumn(artistTable, "cert_images")) {
+            setClauses.add("cert_images = ?");
+            args.add(certImages.isEmpty() ? null : certImages);
+        }
+        // 参展证明图片
+        if (certExhibits != null && schemaInspector.hasColumn(artistTable, "cert_exhibits")) {
+            setClauses.add("cert_exhibits = ?");
+            args.add(certExhibits.isEmpty() ? null : certExhibits);
         }
 
         if (setClauses.isEmpty()) {
@@ -1037,6 +1050,8 @@ public class UserAdminPersistenceService {
         String nickname = Objects.toString(params.get("nickname"), "").trim();
         String realName = Objects.toString(params.get("realName"), "").trim();
         String avatar = Objects.toString(params.get("avatar"), "").trim();
+        // 空头像时使用默认头像
+        String finalAvatar = avatar.isEmpty() ? DEFAULT_AVATAR_URL : avatar;
         
         if (realName.isEmpty()) {
             throw new IllegalArgumentException("真实姓名不能为空");
@@ -1081,7 +1096,7 @@ public class UserAdminPersistenceService {
                 userId,
                 userUid,
                 realName,
-                avatar.isEmpty() ? null : avatar,
+                finalAvatar,
                 nullableText(params.get("resume")),
                 null,
                 nullableText(params.get("slogan")),
@@ -2026,6 +2041,8 @@ public class UserAdminPersistenceService {
         String artistTable = artistTable();
         LocalDateTime now = LocalDateTime.now();
         String artistCode = generateArtistCode();
+        // 空头像时使用默认头像
+        String finalAvatar = (avatar == null || avatar.isEmpty()) ? DEFAULT_AVATAR_URL : avatar;
         Long userId = authorId;
         if (userId == null || !userExists(userId)) {
             Map<String, Object> userResult = createUserForAdmin("", authorName, avatar, List.of("artist", "collector"));
@@ -2041,7 +2058,7 @@ public class UserAdminPersistenceService {
                 userId,
                 nullableText(authorUid),
                 authorName,
-                nullableText(avatar),
+                nullableText(finalAvatar),
                 nullableText(bio),
                 null,
                 null,
@@ -2064,8 +2081,8 @@ public class UserAdminPersistenceService {
         addInsertValue(columns, values, artistTable, "resume", nullableText(bio));
         addInsertValue(columns, values, artistTable, "artist_resume", nullableText(bio));
         addInsertValue(columns, values, artistTable, "artist_code", artistCode);
-        addInsertValue(columns, values, artistTable, "avatar_url", nullableText(avatar));
-        addInsertValue(columns, values, artistTable, "avatar", nullableText(avatar));
+        addInsertValue(columns, values, artistTable, "avatar_url", nullableText(finalAvatar));
+        addInsertValue(columns, values, artistTable, "avatar", nullableText(finalAvatar));
         addInsertValue(columns, values, artistTable, artistStatusColumn(artistTable), 1);
         addInsertValue(columns, values, artistTable, createTimeColumn(artistTable), now);
         addInsertValue(columns, values, artistTable, "update_time", now);
@@ -2108,6 +2125,9 @@ public class UserAdminPersistenceService {
         // nickname 截断处理，防止超过数据库字段长度限制
         String finalNickname = nickname.length() > 50 ? nickname.substring(0, 50) : nickname;
         
+        // 空头像时使用默认头像
+        String finalAvatar = avatar.isEmpty() ? DEFAULT_AVATAR_URL : avatar;
+
         if ("users".equals(userTable)) {
             // users 表：使用 uid 列存储标准19位UID
             String avatarColumn = avatarColumn(userTable);
@@ -2117,7 +2137,7 @@ public class UserAdminPersistenceService {
                 """.formatted(avatarColumn),
                 finalNickname,
                 phone,
-                avatar.isEmpty() ? null : avatar,
+                finalAvatar,
                 String.join(",", identities),
                 userUid,
                 now,
@@ -2136,7 +2156,7 @@ public class UserAdminPersistenceService {
                 """.formatted(avatarColumn),
                 safeNickname,
                 phone,
-                avatar.isEmpty() ? null : avatar,
+                finalAvatar,
                 now,
                 now,
                 userUid,
@@ -2152,7 +2172,7 @@ public class UserAdminPersistenceService {
                 """,
                 safeNickname64,
                 phone,
-                avatar.isEmpty() ? null : avatar,
+                finalAvatar,
                 primaryIdentity(identities),
                 toIdentityJson(identities),
                 now,
@@ -2548,7 +2568,12 @@ public class UserAdminPersistenceService {
      * 其次使用 user_account 表
      */
     private String userTable() {
-        // 优先使用 users 表，因为该表有正确的 uid
+        // 优先使用 user_account（新用户表），因为它关联了 artist_profile.user_id
+        // 并且已经补充了 identities 和 artist_level 列
+        if (schemaInspector.hasColumn("user_account", "identities")) {
+            return "user_account";
+        }
+        // 回退：使用 users（旧用户表）
         if (schemaInspector.hasColumn("users", "uid")) {
             return "users";
         }
@@ -2591,12 +2616,12 @@ public class UserAdminPersistenceService {
     }
 
     private String artistWorksColumn(String tableName) {
-        String col = schemaInspector.firstExistingColumn(tableName, "work_count", "artworks", "portfolio");
+        String col = schemaInspector.firstExistingColumn(tableName, "cert_images", "work_count", "artworks", "portfolio");
         return schemaInspector.hasColumn(tableName, col) ? "a." + col : "0";
     }
 
     private String artistExhibitsColumn(String tableName) {
-        String col = schemaInspector.firstExistingColumn(tableName, "sale_count", "exhibits", "exhibition_proof");
+        String col = schemaInspector.firstExistingColumn(tableName, "cert_exhibits", "sale_count", "exhibits", "exhibition_proof");
         return schemaInspector.hasColumn(tableName, col) ? "a." + col : "0";
     }
 
@@ -2630,7 +2655,14 @@ public class UserAdminPersistenceService {
     }
 
     private String updateTimeAssignment(String tableName) {
-        return schemaInspector.hasColumn(tableName, "update_time") ? "update_time = ?" : createTimeColumn(tableName) + " = ?";
+        if (schemaInspector.hasColumn(tableName, "update_time")) {
+            return "update_time = ?";
+        }
+        if (schemaInspector.hasColumn(tableName, "updated_at")) {
+            return "updated_at = ?";
+        }
+        // 兜底：用创建时间列（仅做备用，不推荐）
+        return createTimeColumn(tableName) + " = ?";
     }
 
     private String columnOrNull(String tableName, String columnName) {

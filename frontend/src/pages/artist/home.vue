@@ -1,1222 +1,1254 @@
 <template>
-  <view class="artist-home">
-    <!-- 头部信息 -->
-    <view class="artist-header">
-      <image class="header-bg" src="/static/banner/artist-bg.jpg" mode="aspectFill"></image>
-      <view class="header-content">
-        <view class="artist-info">
-          <image class="artist-avatar" :src="artistInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
-          <view class="artist-detail">
-            <view class="artist-name">
-              {{ artistInfo.name || artistInfo.nickname }}
-              <view class="identity-tag" :class="'tag-' + artistInfo.identityType">
-                {{ getIdentityLabel(artistInfo.identityType) }}
-              </view>
-              <view class="cert-status certified" v-if="artistInfo.certStatus === 'certified'">
-                
-                已认证
-              </view>
+  <view class="artist-home-page">
+    <view class="top-nav">
+      <view class="nav-icon" @click="goBack">
+        <image src="/static/art-icons/icon-back.svg" mode="aspectFit"></image>
+      </view>
+      <view class="nav-title">{{ artist.name }}</view>
+      <view class="nav-icon external" @click="shareArtist">
+        <image src="/static/art-icons/icon-share.svg" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <view class="profile-hero">
+      <image class="cover-image" :src="artist.cover" mode="aspectFill"></image>
+      <view class="cover-shade"></view>
+
+      <view class="profile-core">
+        <view class="avatar-wrap">
+          <image class="avatar" :src="artist.avatar" mode="aspectFill"></image>
+          <view class="avatar-cert">✓</view>
+        </view>
+        <view class="identity-block">
+          <view class="artist-name">{{ artist.name }}</view>
+          <view class="artist-title">{{ artist.title }}</view>
+          <view class="tag-row">
+            <view class="tag">
+              <image class="tag-icon-img" src="/static/art-icons/icon-verify.svg" mode="aspectFit"></image>
+              <text>平台认证</text>
             </view>
-            <text class="artist-signature">{{ artistInfo.signature || '暂无签名' }}</text>
-            <!-- 艺术家ID显示 -->
-            <view class="artist-id-badge" v-if="formatToFourDigits(artistId)">
-              ID: {{ formatToFourDigits(artistId) }}
+            <view class="tag">
+              <image class="tag-icon-img" src="/static/art-icons/icon-star.svg" mode="aspectFit"></image>
+              <text>签约艺术家</text>
             </view>
-          </view>
-        </view>
-        <view class="artist-stats">
-          <view class="stat-item" @click="goWorksList">
-            <text class="stat-value">{{ artistInfo.worksCount || 0 }}</text>
-            <text class="stat-label">作品</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-value">{{ formatCount(artistInfo.fansCount) }}</text>
-            <text class="stat-label">粉丝</text>
-          </view>
-          <view class="stat-item" @click="goFollowList">
-            <text class="stat-value">{{ formatCount(artistInfo.followCount) }}</text>
-            <text class="stat-label">关注</text>
-          </view>
-        </view>
-        <view class="artist-actions" v-if="!isOwnProfile">
-          <view class="action-btn btn-follow" v-if="!artistInfo.isFollowed" @click="onFollow">
-            + 关注
-          </view>
-          <view class="action-btn btn-followed" v-else @click="onUnfollow">
-            已关注
-          </view>
-          <view class="action-btn btn-message" @click="sendMessage">
-            
-            私信
+            <view class="tag">青年艺术家</view>
+            <view class="tag">布面油画</view>
           </view>
         </view>
       </view>
     </view>
 
-    <!-- 艺术家私密数据看板（仅本人可见） -->
-    <view class="private-dashboard card" v-if="isOwnProfile">
-      <view class="dashboard-header">
-        <text class="dashboard-title">
-          <text>🔒</text>
-          数据看板
-        </text>
-        <view class="dashboard-tip">仅自己可见</view>
-      </view>
-      <view class="dashboard-stats">
-        <view class="dashboard-item" @click="goSalesDetail">
-          <text class="dashboard-value">¥{{ formatPrice(privateData.totalSales || 0) }}</text>
-          <text class="dashboard-label">总销售额</text>
-        </view>
-        <view class="dashboard-item" @click="goRevenueDetail">
-          <text class="dashboard-value">¥{{ formatPrice(privateData.totalRevenue || 0) }}</text>
-          <text class="dashboard-label">总收入</text>
-        </view>
-        <view class="dashboard-item">
-          <text class="dashboard-value">{{ privateData.pendingOrders || 0 }}</text>
-          <text class="dashboard-label">待发货</text>
+    <view class="stats-actions">
+      <view class="stats">
+        <view class="stat-item" v-for="item in stats" :key="item.label">
+          <text class="stat-value">{{ item.value }}</text>
+          <text class="stat-label">{{ item.label }}</text>
         </view>
       </view>
-      <view class="dashboard-trend">
-        <view class="trend-header">
-          <text class="trend-title">本月趋势</text>
-          <view class="trend-period">
-            <text 
-              v-for="item in periodOptions" 
-              :key="item.value"
-              :class="['period-btn', { active: selectedPeriod === item.value }]"
-              @click="changePeriod(item.value)"
-            >{{ item.label }}</text>
-          </view>
-        </view>
-        <view class="trend-chart">
-          <view class="simple-bars">
-            <view 
-              v-for="(item, index) in trendData" 
-              :key="index"
-              class="bar-item"
-            >
-              <view 
-                class="bar" 
-                :style="{ height: (item.value / maxTrendValue * 80) + 'rpx' }"
-              ></view>
-              <text class="bar-label">{{ item.label }}</text>
-            </view>
-          </view>
-        </view>
+      <view class="hero-actions">
+        <button class="gold-btn" @click="followArtist">{{ followed ? '已关注' : '关注' }}</button>
+        <button class="outline-btn" @click="consult">咨询顾问</button>
       </view>
     </view>
 
-    <!-- 动态价格记录（仅本人可见） -->
-    <view class="price-records card" v-if="isOwnProfile">
-      <view class="section-header">
-        <text class="section-title">
-          
-          作品价格动态
-        </text>
-        <view class="more-link" @click="goPriceRecords">
-          <text>查看全部</text>
-          
-        </view>
+    <view class="intro-card">
+      <view class="section-title gold-title">艺术家介绍</view>
+      <view class="intro-text" :class="{ expanded: introExpanded }">
+        {{ artist.intro }}
       </view>
-      <view class="price-list">
-        <view class="price-item" v-for="item in recentPriceChanges" :key="item.artworkId">
-          <image class="price-cover" :src="item.cover" mode="aspectFill"></image>
-          <view class="price-info">
-            <text class="price-title">{{ item.title }}</text>
-            <view class="price-change">
-              <text class="old-price">¥{{ item.oldPrice }}</text>
-              
-              <text class="new-price">¥{{ item.newPrice }}</text>
-              <text class="change-rate" :class="item.changeRate > 0 ? 'up' : 'down'">
-                {{ item.changeRate > 0 ? '+' : '' }}{{ item.changeRate }}%
-              </text>
-            </view>
-          </view>
-        </view>
+      <view class="quote">“ 我试图用色彩记录内心的风景，让观者在画面中找到属于自己的记忆。 ”</view>
+      <view class="expand" @click="introExpanded = !introExpanded">
+        {{ introExpanded ? '收起' : '展开' }} <text>{{ introExpanded ? '⌃' : '⌄' }}</text>
       </view>
     </view>
 
-    <!-- 认证状态入口 -->
-    <view class="cert-section card" v-if="isOwnProfile && artistInfo.identityType === 'artist'" @click="goCertApply">
-      <view class="cert-content" v-if="!artistInfo.certStatus || artistInfo.certStatus === 'none'">
-        
-        <view class="cert-info">
-          <text class="cert-title">申请艺术家认证</text>
-          <text class="cert-desc">认证后可获得更多曝光和信任背书</text>
-        </view>
-        
+    <view class="section works-section">
+      <view class="section-head">
+        <view class="section-title">代表作品</view>
+        <view class="more-link" @click="goWorks">查看全部 ›</view>
       </view>
-      <view class="cert-content" v-else-if="artistInfo.certStatus === 'pending'">
-        
-        <view class="cert-info">
-          <text class="cert-title">认证审核中</text>
-          <text class="cert-desc">预计3个工作日内完成审核</text>
-        </view>
-      </view>
-      <view class="cert-content certified" v-else-if="artistInfo.certStatus === 'certified'">
-        
-        <view class="cert-info">
-          <text class="cert-title">已通过艺术家认证</text>
-          <text class="cert-desc">认证有效期至 {{ artistInfo.certExpireDate }}</text>
-        </view>
-        
-      </view>
-    </view>
-
-    <!-- 简介 -->
-    <view class="intro-section card" v-if="artistInfo.intro">
-      <view class="section-header">
-        <text class="section-title">个人简介</text>
-      </view>
-      <view class="intro-content" :class="{ collapsed: !introExpanded }">
-        {{ artistInfo.intro }}
-      </view>
-      <view class="intro-toggle" @click="introExpanded = !introExpanded">
-        <text>{{ introExpanded ? '收起' : '展开全部' }}</text>
-        
-      </view>
-    </view>
-
-    <!-- 作品列表 -->
-    <view class="works-section card">
-      <view class="section-header">
-        <text class="section-title">作品</text>
-        <view class="works-count">{{ worksList.length }}件</view>
-      </view>
-      <view class="works-tabs">
-        <view class="tab-item" :class="{ active: worksTab === 'list' }" @click="worksTab = 'list'">
-          作品列表
-        </view>
-        <view class="tab-item" :class="{ active: worksTab === 'gallery' }" @click="worksTab = 'gallery'">
-          画廊陈列
-        </view>
-      </view>
-      
-      <!-- 列表模式 -->
-      <view class="works-list" v-if="worksTab === 'list'">
-        <view class="works-grid">
-          <view class="work-card" v-for="work in worksList" :key="work.id" @click="goWorkDetail(work.id)">
+      <view class="work-scroll">
+        <view class="work-row">
+          <view class="work-card" v-for="work in works" :key="work.id" @click="goWork(work.id)">
             <view class="work-image-wrap">
-              <image class="work-image" :src="work.cover || work.coverImage" mode="aspectFill"></image>
-              <view class="work-status" v-if="work.status !== 'online' && work.status !== 1">
-                {{ getStatusText(work.status) }}
-              </view>
+              <image class="work-image" :src="work.cover" mode="aspectFill"></image>
+              <view class="new-badge">新</view>
             </view>
             <view class="work-info">
-              <text class="work-title">{{ work.title }}</text>
-              <view class="work-meta">
-                <text class="work-price">¥{{ formatPrice(work.price) }}</text>
-                <text class="work-sales" v-if="work.salesCount > 0">已售{{ work.salesCount }}</text>
+              <view class="work-title">{{ work.title }}</view>
+              <view class="work-meta">{{ work.material }} / {{ work.size }} / {{ work.year }}</view>
+              <view class="work-bottom">
+                <text class="price">{{ work.priceText }}</text>
+                <text class="collect-tag">可收藏</text>
               </view>
             </view>
           </view>
         </view>
       </view>
-      
-      <!-- 画廊模式 -->
-      <view class="works-gallery" v-if="worksTab === 'gallery'">
-        <view class="gallery-item" v-for="work in worksList" :key="work.id" @click="goWorkDetail(work.id)">
-          <image class="gallery-image" :src="work.cover || work.coverImage" mode="aspectFill"></image>
-          <view class="gallery-overlay">
-            <text class="gallery-title">{{ work.title }}</text>
-            <text class="gallery-price">¥{{ formatPrice(work.price) }}</text>
+    </view>
+
+    <view class="section circulation-section">
+      <view class="section-title">作品流通入口</view>
+      <view class="flow-list">
+        <view class="flow-item" v-for="work in flowWorks" :key="work.id" @click="goWork(work.id)">
+          <image class="flow-cover" :src="work.cover" mode="aspectFill"></image>
+          <view class="flow-main">
+            <view class="flow-title">{{ work.title }}</view>
+            <view class="flow-price">{{ work.priceText }}</view>
+          </view>
+          <view class="flow-feature">
+            <image src="/static/art-icons/icon-certificate.svg" mode="aspectFit"></image>
+            <text>收藏证书</text>
+          </view>
+          <view class="flow-feature">
+            <image src="/static/art-icons/icon-circulation.svg" mode="aspectFit"></image>
+            <text>流通记录</text>
+          </view>
+          <view class="flow-feature">
+            <image src="/static/art-icons/icon-verify.svg" mode="aspectFit"></image>
+            <text>平台保障</text>
+          </view>
+          <view class="flow-arrow">›</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="trust-section">
+      <view class="section-title">收藏信任</view>
+      <view class="trust-row">
+        <view class="trust-item" v-for="item in trustItems" :key="item.title">
+          <image class="trust-icon" :src="item.icon" mode="aspectFit"></image>
+          <view>
+            <view class="trust-title">{{ item.title }}</view>
+            <view class="trust-desc">{{ item.desc }}</view>
           </view>
         </view>
       </view>
-      
-      <!-- 加载更多 -->
-      <view class="load-more" v-if="hasMore && worksList.length > 0" @click="loadMoreWorks">
-        <text>{{ loadingMore ? '加载中...' : '加载更多' }}</text>
-      </view>
-      
-      <!-- 空状态 -->
-      <view class="empty-works" v-if="worksList.length === 0 && !loadingMore">
-        <text>暂无作品</text>
-      </view>
     </view>
+
+    <view class="bottom-actions">
+      <button class="all-works-btn" @click="goWorks">查看全部作品</button>
+      <button class="consult-btn" @click="consult">
+        <image src="/static/art-icons/icon-consultant.svg" mode="aspectFit"></image>
+        <text>发起收藏咨询</text>
+      </button>
+    </view>
+
+    <view class="home-indicator"></view>
   </view>
 </template>
 
 <script>
-import { getArtistInfo, followArtist, unfollowArtist } from '@/api/user.js'
-import { getProductList, getRecommend } from '@/api/product.js'
-import { getEarningsTrend } from '@/api/promoter.js'
-import { useUserStore } from '@/store/modules/user.js'
-
 export default {
   data() {
     return {
-      artistId: '',
-      artistInfo: {
-        identityType: 'artist'
-      },
-      worksList: [],
+      followed: false,
       introExpanded: false,
-      worksTab: 'list',
-      page: 1,
-      pageSize: 20,
-      hasMore: false,
-      loadingMore: false,
-      
-      // 私密数据
-      privateData: {
-        totalSales: 0,
-        totalRevenue: 0,
-        pendingOrders: 0
+      loading: true,
+      artist: {
+        id: 0,
+        name: '',
+        title: '',
+        avatar: '',
+        cover: '',
+        intro: ''
       },
-      trendData: [],
-      maxTrendValue: 0,
-      selectedPeriod: 'month',
-      periodOptions: [
-        { label: '周', value: 'week' },
-        { label: '月', value: 'month' },
-        { label: '季', value: 'quarter' }
+      works: [],
+      trustItems: [
+        { icon: '/static/art-icons/icon-verify.svg', title: '平台认证', desc: '严格审核' },
+        { icon: '/static/art-icons/icon-certificate.svg', title: '收藏证书', desc: '权威出具' },
+        { icon: '/static/art-icons/icon-circulation.svg', title: '流通记录', desc: '全程可查' },
+        { icon: '/static/art-icons/icon-platform-custody.svg', title: '保管支持', desc: '专业保管' },
+        { icon: '/static/art-icons/icon-consultant.svg', title: '顾问服务', desc: '专属顾问' }
       ],
-      recentPriceChanges: []
+      stats: [
+        { label: '作品', value: '0' },
+        { label: '收藏', value: '0' },
+        { label: '粉丝', value: '0' }
+      ]
     }
+  },
+
+  async onLoad(options = {}) {
+    const artistId = options.id || options.userId || options.artistId
+    if (artistId) {
+      this.artist.id = artistId
+      await this.loadArtistData(artistId)
+    }
+    this.loading = false
   },
 
   computed: {
-    userStore() {
-      return useUserStore()
-    },
-    isOwnProfile() {
-      return this.userStore.userInfo?.id === Number(this.artistId)
-    }
-  },
-
-  onLoad(options) {
-    this.artistId = options.id || options.userId || ''
-    if (this.artistId) {
-      this.loadArtistInfo()
-    } else {
-      this.loadDefaultArtist()
-    }
-  },
-
-  onShow() {
-    // 刷新艺术家信息
-    if (this.artistId) {
-      this.loadArtistInfo()
+    flowWorks() {
+      return this.works.slice(0, 2)
     }
   },
 
   methods: {
-    async loadArtistInfo() {
+    async loadArtistData(artistId) {
       try {
-        uni.showLoading({ title: '加载中...' })
-        let profile = {}
-        try {
-          profile = await getArtistInfo(this.artistId)
-        } catch (e) {
-          console.warn('艺术家详情接口不可用，使用作品公开数据组装主页', e)
-        }
-
-        const works = await this.loadArtistWorks(profile)
-        this.artistInfo = this.normalizeArtistInfo(profile, works)
-        this.worksList = works
-        this.hasMore = false
-        
-        // 如果是本人，加载私密数据
-        if (this.isOwnProfile) {
-          this.loadPrivateData()
-        }
-        
-        uni.hideLoading()
-      } catch (e) {
-        uni.hideLoading()
-        console.error('加载艺术家主页失败', e)
-        this.artistInfo = this.normalizeArtistInfo({}, [])
-        this.worksList = []
-      }
-    },
-
-    async loadDefaultArtist() {
-      try {
-        uni.showLoading({ title: '加载中...' })
-        const res = await getRecommend({ page: 1, pageSize: 50 })
-        const list = res?.records || res || []
-        const first = list.find(item => item.authorId || item.artistId)
-        if (first) {
-          this.artistId = String(first.authorId || first.artistId)
-          const works = list.filter(item => String(item.authorId || item.artistId) === this.artistId)
-          this.artistInfo = this.normalizeArtistInfo({}, works)
-          this.worksList = works
-        }
-      } catch (e) {
-        console.error('加载默认艺术家失败', e)
-      } finally {
-        uni.hideLoading()
-      }
-    },
-
-    async loadArtistWorks(profile = {}) {
-      const artistName = profile.realName || profile.nickname || profile.name
-      let works = []
-      if (artistName) {
-        const res = await getProductList({ page: 1, pageSize: 50, authorName: artistName })
-        works = res?.records || res || []
-      }
-      if (!works.length) {
-        const res = await getProductList({ page: 1, pageSize: 80 })
-        const allWorks = res?.records || res || []
-        works = allWorks.filter(item => String(item.authorId || item.artistId) === String(this.artistId))
-      }
-      return works
-    },
-
-    normalizeArtistInfo(profile = {}, works = []) {
-      const firstWork = works[0] || {}
-      const id = profile.userId || profile.id || firstWork.authorId || firstWork.artistId || this.artistId
-      const name = profile.realName || profile.nickname || profile.name || firstWork.authorName || firstWork.artistName || '艺术家'
-      const intro = profile.resume || profile.intro || profile.bio || firstWork.authorBio || ''
-      return {
-        id,
-        userId: id,
-        name,
-        nickname: name,
-        avatar: profile.avatar || firstWork.authorAvatar || firstWork.cover || firstWork.coverImage || '',
-        signature: intro || '以作品建立个人线索，持续更新创作档案',
-        intro,
-        region: profile.region || '',
-        identityType: profile.identityType || 'artist',
-        certStatus: profile.certStatus || (profile.artistStatus === '已认证' ? 'certified' : ''),
-        badge: profile.badge || profile.artistStatus || '艺术家',
-        worksCount: works.length || profile.worksCount || profile.artworkCount || 0,
-        fansCount: profile.fansCount || profile.followerCount || 0,
-        followCount: profile.followCount || profile.followingCount || 0,
-        isFollowed: Boolean(profile.isFollowed)
-      }
-    },
-
-    async loadPrivateData() {
-      try {
-        // 加载收益趋势
-        const trendRes = await getEarningsTrend(this.selectedPeriod)
-        if (trendRes && trendRes.length > 0) {
-          this.trendData = trendRes.map(item => ({
-            label: item.label,
-            value: item.amount
-          }))
-          this.maxTrendValue = Math.max(...this.trendData.map(item => item.value), 1)
-        }
-        
-        // 模拟私密数据
-        this.privateData = {
-          totalSales: 1280000,
-          totalRevenue: 960000,
-          pendingOrders: 5
-        }
-        
-        // 模拟价格变动
-        this.recentPriceChanges = [
-          { artworkId: 1, title: '山水长卷', cover: '/static/product/demo1.jpg', oldPrice: 120000, newPrice: 128000, changeRate: 6.67 },
-          { artworkId: 2, title: '荷花图', cover: '/static/product/demo2.jpg', oldPrice: 85000, newPrice: 88000, changeRate: 3.53 },
-          { artworkId: 3, title: '松云图', cover: '/static/product/demo3.jpg', oldPrice: 156000, newPrice: 156000, changeRate: 0 }
-        ]
-      } catch (e) {
-        console.error('加载私密数据失败', e)
-      }
-    },
-
-    loadMockData() {
-      this.artistInfo = {
-        id: 1,
-        name: '张大千',
-        nickname: '张大千',
-        avatar: '/static/avatar/demo.jpg',
-        signature: '画坛巨匠，国画大师',
-        identityType: 'artist',
-        certStatus: 'certified',
-        certExpireDate: '2027-06-30',
-        worksCount: 128,
-        fansCount: 56000,
-        followCount: 320,
-        isFollowed: false,
-        intro: '张大千（1899-1983），四川内江人，中国著名画家、书法家、诗人。他年轻时即擅长绘画，待人真挚诚恳。绘画方面融合了传统与创新，在山水画方面有突出贡献。'
-      }
-      
-      this.worksList = [
-        { id: 1, title: '山水长卷', cover: '/static/product/demo1.jpg', price: 128000, salesCount: 15 },
-        { id: 2, title: '荷花图', cover: '/static/product/demo2.jpg', price: 88000, salesCount: 8 },
-        { id: 3, title: '松云图', cover: '/static/product/demo3.jpg', price: 156000, salesCount: 12 },
-        { id: 4, title: '庐山图', cover: '/static/product/demo4.jpg', price: 280000, salesCount: 3 }
-      ]
-    },
-
-    async changePeriod(period) {
-      this.selectedPeriod = period
-      await this.loadPrivateData()
-    },
-
-    getIdentityLabel(type) {
-      const labels = {
-        artist: '艺术家',
-        gallery: '画廊',
-        dealer: '画商',
-        promoter: '艺荐官',
-        collector: '收藏家'
-      }
-      return labels[type] || ''
-    },
-
-    getStatusText(status) {
-      const map = {
-        1: '上架中',
-        0: '已下架',
-        pending: '审核中',
-        online: '上架中',
-        offline: '已下架',
-        sold: '已售罄'
-      }
-      return map[status] || ''
-    },
-
-    formatCount(num) {
-      if (!num) return '0'
-      if (num >= 10000) {
-        return (num / 10000).toFixed(1) + '万'
-      }
-      return num.toString()
-    },
-
-    formatPrice(price) {
-      if (!price) return '0'
-      const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
-      return yuan.toLocaleString()
-    },
-
-    // 格式化ID为4位数
-    formatToFourDigits(id) {
-      if (!id) return ''
-      return String(id).padStart(4, '0')
-    },
-
-    async onFollow() {
-      if (!this.userStore.isAuthenticated) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      
-      try {
-        await followArtist(this.artistId)
-        this.artistInfo.isFollowed = true
-        this.artistInfo.fansCount = (this.artistInfo.fansCount || 0) + 1
-        uni.showToast({ title: '关注成功', icon: 'success' })
-      } catch (e) {
-        uni.showToast({ title: '关注失败', icon: 'none' })
-      }
-    },
-
-    onUnfollow() {
-      uni.showModal({
-        title: '提示',
-        content: '确定取消关注吗？',
-        success: async (res) => {
-          if (res.confirm) {
-            try {
-              await unfollowArtist(this.artistId)
-              this.artistInfo.isFollowed = false
-              this.artistInfo.fansCount = Math.max((this.artistInfo.fansCount || 1) - 1, 0)
-            } catch (e) {
-              uni.showToast({ title: '取消失败', icon: 'none' })
-            }
+        const res = await getArtistInfo(artistId)
+        if (res) {
+          const data = res.data || res
+          this.artist = {
+            id: data.id || data.userId || artistId,
+            name: data.nickname || data.name || data.realName || '',
+            title: data.title || data.artistTitle || '',
+            avatar: data.avatar || data.avatarUrl || '',
+            cover: data.cover || data.coverUrl || '',
+            intro: data.intro || data.bio || data.resume || ''
           }
+          this.works = (data.works || data.artworks || []).map(w => ({
+            id: w.id,
+            title: w.title || w.name || '',
+            material: w.material || '',
+            size: w.size || '',
+            year: w.year || w.createYear || '',
+            priceText: w.priceText || (w.price ? '¥' + this.formatPrice(w.price) : ''),
+            cover: w.cover || w.coverImage || w.coverUrl || ''
+          }))
+          this.stats = [
+            { label: '作品', value: String(data.workCount || data.artworkCount || this.works.length || '0') },
+            { label: '收藏', value: String(data.collectCount || data.favoriteCount || '0') },
+            { label: '粉丝', value: String(data.fansCount || data.followerCount || '0') }
+          ]
         }
-      })
-    },
-
-    sendMessage() {
-      if (!this.userStore.isAuthenticated) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      uni.navigateTo({ url: `/pages/message/chat?userId=${this.artistId}` })
-    },
-
-    goWorkDetail(id) {
-      uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
-    },
-
-    goWorksList() {
-      uni.navigateTo({ url: '/pages/common/coming-soon?title=艺术家作品集&desc=更完整的作品集页还在整理中，当前可先在主页继续浏览作品。' })
-    },
-
-    goFollowList() {
-      uni.navigateTo({ url: '/pages/common/coming-soon?title=关注与粉丝&desc=关注关系页还在建设中，后续会展示完整的关注列表。' })
-    },
-
-    goSalesDetail() {
-      uni.navigateTo({ url: '/pages/common/coming-soon?title=销售明细&desc=销售明细页正在开发中，后续会补充订单与趋势数据。' })
-    },
-
-    goRevenueDetail() {
-      uni.navigateTo({ url: '/pages/common/coming-soon?title=收益明细&desc=收益明细页正在开发中，后续会补充结算与账单信息。' })
-    },
-
-    goPriceRecords() {
-      uni.navigateTo({ url: '/pages/common/coming-soon?title=价格记录&desc=价格轨迹页正在开发中，后续会展示涨跌历史和触发原因。' })
-    },
-
-    goCertApply() {
-      if (this.artistInfo.certStatus === 'pending') {
-        uni.showToast({ title: '审核中，请耐心等待', icon: 'none' })
-        return
-      }
-      if (this.artistInfo.certStatus === 'certified') {
-        uni.navigateTo({ url: '/pages/artist/cert' })
-        return
-      }
-      uni.navigateTo({ url: '/pages/artist/cert' })
-    },
-
-    async loadMoreWorks() {
-      if (this.loadingMore || !this.hasMore) return
-      
-      this.loadingMore = true
-      this.page++
-      
-      try {
-        const res = await getArtistInfo(this.artistId)
-        const newWorks = res.works || []
-        this.worksList = [...this.worksList, ...newWorks]
-        this.hasMore = res.hasMore || false
       } catch (e) {
-        console.error('加载更多失败', e)
+        console.error('加载艺术家数据失败', e)
       }
-      
-      this.loadingMore = false
-    }
+    },
+
+    formatPrice(v) {
+      if (!v) return '0'
+      return String(Math.round(v / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    },
+    goBack() {
+      const pages = getCurrentPages()
+      if (pages && pages.length > 1) {
+        uni.navigateBack()
+      } else {
+        uni.reLaunch({ url: '/pages/index/index' })
+      }
+    },
+    async followArtist() {
+      try {
+        if (this.followed) {
+          await unfollowArtist(this.artist.id)
+          this.followed = false
+        } else {
+          await followArtist(this.artist.id)
+          this.followed = true
+        }
+      } catch (e) {
+        console.error('关注操作失败', e)
+      }
+    },
+    shareArtist() {
+      uni.showToast({ title: '分享艺术家主页', icon: 'none' })
+    },
+    consult() { uni.showToast({ title: '已为你连接收藏顾问', icon: 'none' }) },
+    goGallery() { uni.navigateTo({ url: `/pages/artist/gallery/index?id=${this.artist.id}` }) },
+    goWorks() { uni.navigateTo({ url: `/pages/artist/works/index?id=${this.artist.id}` }) },
+    goWork(id) { uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` }) },
+    goIndex() { uni.reLaunch({ url: '/pages/index/index' }) },
+    goPublish() { uni.navigateTo({ url: '/pages/artist/publish' }) },
+    goCart() { uni.navigateTo({ url: '/pages/cart/index' }) },
+    goMine() { uni.navigateTo({ url: '/pages/user/index' }) }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-// 深色艺术主题色
-$bg-primary: #0d0d0d;
-$bg-card: #1a1a1a;
-$bg-elevated: #242424;
-$text-primary: #ffffff;
-$text-secondary: #a0a0a0;
-$text-muted: #666666;
-$accent-gold: #c9a227;
-$accent-gold-light: #e6c65c;
+$bg: #050505;
+$surface: #151515;
+$surface-2: #1e1e1e;
+$gold: #d7a51d;
+$gold-light: #f3c43d;
+$text: #f7f7f7;
+$muted: #a7a7a7;
+$dim: #6f6f6f;
+$line: rgba(255, 255, 255, 0.1);
+$gold-line: rgba(215, 165, 29, 0.65);
 
-.artist-home {
+.artist-home-page {
   min-height: 100vh;
-  background: $bg-primary;
-  padding-bottom: 40rpx;
+  padding: calc(88rpx + env(safe-area-inset-top)) 24rpx calc(178rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  color: $text;
+  background:
+    radial-gradient(circle at 70% 5%, rgba(215, 165, 29, 0.12), transparent 26%),
+    linear-gradient(180deg, #080808 0%, #040404 100%);
 }
 
-.card {
-  margin: 20rpx;
-  background: $bg-card;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.04);
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  height: calc(88rpx + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 24rpx 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(5, 5, 5, 0.86);
+  backdrop-filter: blur(18rpx);
 }
 
-.artist-header {
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.nav-icon {
+  width: 58rpx;
+  height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 58rpx;
+  line-height: 1;
+}
+
+.nav-icon.external {
+  font-size: 40rpx;
+}
+
+.profile-hero {
   position: relative;
+  height: 288rpx;
+  overflow: visible;
+  border-radius: 10rpx;
 }
 
-.header-bg {
+.cover-image,
+.cover-shade {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: 300rpx;
+  height: 100%;
+  border-radius: 10rpx;
 }
 
-.header-content {
-  position: relative;
-  background: $bg-card;
-  padding: 0 30rpx 30rpx;
-  margin-top: -80rpx;
-  border-radius: 24rpx 24rpx 0 0;
-  border: 1rpx solid rgba(255, 255, 255, 0.04);
+.cover-shade {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.2) 48%, rgba(0, 0, 0, 0.86) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.45), transparent 42%, rgba(0, 0, 0, 0.12));
 }
 
-.artist-info {
+.profile-core {
+  position: absolute;
+  left: 42rpx;
+  right: 28rpx;
+  bottom: -72rpx;
   display: flex;
   align-items: flex-end;
-  margin-bottom: 30rpx;
+  gap: 26rpx;
 }
 
-.artist-avatar {
-  width: 140rpx;
-  height: 140rpx;
+.avatar-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.avatar {
+  width: 166rpx;
+  height: 166rpx;
   border-radius: 50%;
-  border: 6rpx solid $bg-card;
-  margin-right: 24rpx;
-  margin-top: -70rpx;
-  background: $bg-elevated;
+  border: 4rpx solid $gold-light;
+  background: #222;
 }
 
-.artist-detail {
+.avatar-cert {
+  position: absolute;
+  right: 4rpx;
+  bottom: 8rpx;
+  width: 44rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffdc62, $gold);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.identity-block {
   flex: 1;
+  min-width: 0;
+  padding-bottom: 18rpx;
 }
 
 .artist-name {
-  display: flex;
-  align-items: center;
-  font-size: 36rpx;
-  color: $text-primary;
-  font-weight: 600;
-  margin-bottom: 10rpx;
-  flex-wrap: wrap;
-  gap: 12rpx;
+  font-size: 42rpx;
+  line-height: 1.08;
+  font-weight: 900;
 }
 
-.identity-tag {
-  font-size: 20rpx;
-  color: $bg-primary;
-  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
-  padding: 4rpx 16rpx;
-  border-radius: 6rpx;
-  
-  &.tag-artist {
-    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
-  }
-}
-
-.cert-status {
-  display: flex;
-  align-items: center;
-  font-size: 20rpx;
-  color: $accent-gold;
-  
-  .iconfont {
-    margin-right: 4rpx;
-  }
-}
-
-.artist-signature {
-  font-size: 26rpx;
-  color: $text-secondary;
-}
-
-// 艺术家ID徽章样式
-.artist-id-badge {
-  display: inline-block;
+.artist-title {
   margin-top: 8rpx;
-  padding: 4rpx 12rpx;
-  background: linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
-  border: 1rpx solid rgba(201, 162, 39, 0.3);
-  border-radius: 8rpx;
-  font-size: 20rpx;
-  font-family: 'Courier New', monospace;
-  color: #c9a227;
-  font-weight: 600;
-  letter-spacing: 2rpx;
+  color: #d4d4d4;
+  font-size: 26rpx;
 }
 
-.artist-stats {
+.tag-row {
   display: flex;
-  margin-bottom: 30rpx;
+  flex-wrap: wrap;
+  gap: 12rpx 14rpx;
+  margin-top: 14rpx;
+}
+
+.tag {
+  height: 42rpx;
+  padding: 0 16rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  border: 1rpx solid $gold-line;
+  border-radius: 7rpx;
+  color: $gold-light;
+  background: rgba(0, 0, 0, 0.34);
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.tag-icon {
+  font-size: 22rpx;
+}
+
+.stats-actions {
+  display: grid;
+  grid-template-columns: 1fr 360rpx;
+  gap: 24rpx;
+  align-items: center;
+  margin-top: 90rpx;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .stat-item {
-  flex: 1;
   text-align: center;
+  border-right: 1rpx solid rgba(255, 255, 255, 0.22);
+}
+
+.stat-item:last-child {
+  border-right: 0;
 }
 
 .stat-value {
   display: block;
-  font-size: 36rpx;
-  color: $text-primary;
-  font-weight: 600;
-  margin-bottom: 6rpx;
+  font-size: 32rpx;
+  line-height: 1;
+  font-weight: 900;
 }
 
 .stat-label {
-  font-size: 24rpx;
-  color: $text-secondary;
+  display: block;
+  margin-top: 10rpx;
+  color: $muted;
+  font-size: 22rpx;
 }
 
-.artist-actions {
-  display: flex;
-  gap: 20rpx;
+.hero-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
 }
 
-.action-btn {
-  flex: 1;
-  height: 72rpx;
-  line-height: 72rpx;
-  text-align: center;
-  border-radius: 36rpx;
-  font-size: 28rpx;
-}
-
-.btn-follow {
-  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
-  color: $bg-primary;
-}
-
-.btn-followed {
-  background: $bg-elevated;
-  color: $text-secondary;
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-message {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  background: $bg-elevated;
-  color: $text-secondary;
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
-}
-
-// 私密数据看板
-.private-dashboard {
-  .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24rpx;
-  }
-  
-  .dashboard-title {
-    display: flex;
-    align-items: center;
-    font-size: 30rpx;
-    font-weight: 600;
-    color: $text-primary;
-    
-    .iconfont {
-      margin-right: 8rpx;
-    }
-  }
-  
-  .dashboard-tip {
-    font-size: 20rpx;
-    color: $accent-gold;
-    background: rgba($accent-gold, 0.1);
-    padding: 6rpx 16rpx;
-    border-radius: 20rpx;
-  }
-}
-
-.dashboard-stats {
-  display: flex;
-  gap: 20rpx;
-  margin-bottom: 30rpx;
-}
-
-.dashboard-item {
-  flex: 1;
-  text-align: center;
-  background: linear-gradient(135deg, rgba($accent-gold, 0.2) 0%, rgba($accent-gold, 0.1) 100%);
-  border: 1rpx solid rgba($accent-gold, 0.3);
-  border-radius: 16rpx;
-  padding: 24rpx 16rpx;
-  
-  .dashboard-value {
-    display: block;
-    font-size: 32rpx;
-    font-weight: 600;
-    color: $accent-gold;
-    margin-bottom: 8rpx;
-  }
-  
-  .dashboard-label {
-    font-size: 22rpx;
-    color: $text-secondary;
-  }
-}
-
-.dashboard-trend {
-  .trend-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20rpx;
-  }
-  
-  .trend-title {
-    font-size: 26rpx;
-    color: $text-primary;
-    font-weight: 500;
-  }
-  
-  .trend-period {
-    display: flex;
-    gap: 12rpx;
-  }
-  
-  .period-btn {
-    font-size: 22rpx;
-    color: $text-secondary;
-    padding: 6rpx 16rpx;
-    border-radius: 16rpx;
-    background: $bg-elevated;
-    
-    &.active {
-      background: $accent-gold;
-      color: $bg-primary;
-    }
-  }
-}
-
-.trend-chart {
-  height: 160rpx;
-}
-
-.simple-bars {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  height: 120rpx;
-  padding-top: 20rpx;
-}
-
-.bar-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  
-  .bar {
-    width: 36rpx;
-    background: linear-gradient(180deg, $accent-gold 0%, rgba($accent-gold, 0.5) 100%);
-    border-radius: 6rpx 6rpx 0 0;
-    margin-bottom: 10rpx;
-    min-height: 10rpx;
-  }
-  
-  .bar-label {
-    font-size: 20rpx;
-    color: $text-muted;
-  }
-}
-
-// 价格动态
-.price-records {
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20rpx;
-  }
-  
-  .section-title {
-    display: flex;
-    align-items: center;
-    font-size: 30rpx;
-    font-weight: 600;
-    color: $text-primary;
-    
-    .iconfont {
-      margin-right: 8rpx;
-    }
-  }
-  
-  .more-link {
-    display: flex;
-    align-items: center;
-    font-size: 24rpx;
-    color: $text-muted;
-    
-    text {
-      margin-right: 6rpx;
-    }
-  }
-}
-
-.price-list {
-  .price-item {
-    display: flex;
-    align-items: center;
-    padding: 16rpx 0;
-    border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-    
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-  
-  .price-cover {
-    width: 80rpx;
-    height: 80rpx;
-    border-radius: 8rpx;
-    margin-right: 16rpx;
-    background: $bg-elevated;
-  }
-  
-  .price-info {
-    flex: 1;
-    
-    .price-title {
-      display: block;
-      font-size: 26rpx;
-      color: $text-primary;
-      margin-bottom: 8rpx;
-    }
-    
-    .price-change {
-      display: flex;
-      align-items: center;
-      font-size: 24rpx;
-      
-      .old-price {
-        color: $text-muted;
-        text-decoration: line-through;
-      }
-      
-      .new-price {
-        color: $text-primary;
-        margin-left: 8rpx;
-      }
-      
-      .change-rate {
-        margin-left: 16rpx;
-        padding: 2rpx 8rpx;
-        border-radius: 4rpx;
-        font-size: 20rpx;
-        
-        &.up {
-          background: rgba(255, 107, 107, 0.15);
-          color: #ff6b6b;
-        }
-        
-        &.down {
-          background: rgba(76, 175, 80, 0.15);
-          color: #4CAF50;
-        }
-      }
-    }
-  }
-}
-
-// 认证状态
-.cert-section {
-  cursor: pointer;
-}
-
-.cert-content {
-  display: flex;
-  align-items: center;
-  
-  .cert-info {
-    flex: 1;
-    margin-left: 16rpx;
-    
-    .cert-title {
-      display: block;
-      font-size: 28rpx;
-      color: $text-primary;
-      font-weight: 500;
-      margin-bottom: 6rpx;
-    }
-    
-    .cert-desc {
-      font-size: 22rpx;
-      color: $text-secondary;
-    }
-  }
-  
-  &.certified {
-    .cert-title {
-      color: $accent-gold;
-    }
-  }
-}
-
-// 简介
-.intro-section {
-  .section-header {
-    margin-bottom: 16rpx;
-  }
-  
-  .section-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: $text-primary;
-  }
-}
-
-.intro-content {
-  font-size: 28rpx;
-  color: $text-secondary;
-  line-height: 1.8;
-  
-  &.collapsed {
-    max-height: 200rpx;
-    overflow: hidden;
-  }
-}
-
-.intro-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-top: 20rpx;
-  font-size: 26rpx;
-  color: $accent-gold;
-}
-
-// 作品列表
-.works-section {
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20rpx;
-  }
-  
-  .section-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: $text-primary;
-  }
-  
-  .works-count {
-    font-size: 24rpx;
-    color: $text-muted;
-  }
-}
-
-.works-tabs {
-  display: flex;
-  background: $bg-elevated;
-  border-radius: 12rpx;
-  padding: 6rpx;
-  margin-bottom: 30rpx;
-}
-
-.tab-item {
-  flex: 1;
-  text-align: center;
-  padding: 16rpx 0;
-  font-size: 26rpx;
-  color: $text-secondary;
+.gold-btn,
+.outline-btn,
+.gallery-btn,
+.all-works-btn,
+.consult-btn {
+  height: 62rpx;
   border-radius: 8rpx;
-  
-  &.active {
-    background: $accent-gold;
-    color: $bg-primary;
-    font-weight: 500;
-  }
+  font-size: 25rpx;
+  font-weight: 800;
 }
 
-.works-grid {
+.gold-btn,
+.gallery-btn,
+.consult-btn {
+  color: #201600;
+  background: linear-gradient(135deg, #f3c43d 0%, #d6a51d 100%);
+}
+
+.outline-btn,
+.all-works-btn {
+  color: $gold-light;
+  border: 1rpx solid $gold-line;
+  background: rgba(5, 5, 5, 0.5);
+}
+
+.intro-card {
+  position: relative;
+  margin-top: 28rpx;
+  padding: 24rpx 28rpx 30rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, #202020, #151515);
+}
+
+.section-title {
+  color: $text;
+  font-size: 32rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.gold-title {
+  color: $gold-light;
+}
+
+.intro-text {
+  margin-top: 22rpx;
+  color: #b9b9b9;
+  font-size: 25rpx;
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.intro-text.expanded {
+  display: block;
+}
+
+.quote {
+  margin-top: 14rpx;
+  padding-right: 96rpx;
+  color: $gold-light;
+  font-size: 24rpx;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.expand {
+  position: absolute;
+  right: 26rpx;
+  bottom: 28rpx;
+  color: $dim;
+  font-size: 24rpx;
+}
+
+.section {
+  margin-top: 28rpx;
+}
+
+.section-head {
   display: flex;
-  flex-wrap: wrap;
-  margin: 0 -10rpx;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.more-link {
+  color: $muted;
+  font-size: 24rpx;
+}
+
+.work-scroll {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.work-row {
+  display: inline-flex;
+  gap: 16rpx;
 }
 
 .work-card {
-  width: 50%;
-  padding: 10rpx;
+  width: 292rpx;
+  overflow: hidden;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: #1a1a1a;
 }
 
 .work-image-wrap {
   position: relative;
+  height: 180rpx;
 }
 
 .work-image {
   width: 100%;
-  height: 300rpx;
-  border-radius: 12rpx;
-  margin-bottom: 16rpx;
-  background: $bg-elevated;
+  height: 100%;
 }
 
-.work-status {
+.new-badge {
   position: absolute;
-  top: 16rpx;
-  left: 16rpx;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  top: 14rpx;
+  right: 14rpx;
+  width: 40rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7rpx;
+  color: #151000;
+  background: $gold-light;
   font-size: 22rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
+  font-weight: 900;
 }
 
 .work-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 16rpx;
 }
 
 .work-title {
-  font-size: 26rpx;
-  color: $text-primary;
-  flex: 1;
+  color: #fff;
+  font-size: 25rpx;
+  font-weight: 900;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .work-meta {
+  margin-top: 8rpx;
+  color: $muted;
+  font-size: 20rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 12rpx;
+}
+
+.price {
+  color: $gold-light;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.collect-tag {
+  padding: 3rpx 10rpx;
+  border-radius: 6rpx;
+  border: 1rpx solid $gold-line;
+  color: $gold-light;
+  font-size: 19rpx;
+}
+
+.gallery-banner {
+  position: relative;
+  min-height: 122rpx;
+  margin-top: 26rpx;
+  padding: 18rpx 22rpx;
+  display: grid;
+  grid-template-columns: 92rpx 1fr 190rpx;
+  gap: 20rpx;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 10rpx;
+  border: 1rpx solid $gold-line;
+  background: #0c0c0c;
+}
+
+.gallery-bg,
+.gallery-mask {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-bg {
+  opacity: 0.46;
+}
+
+.gallery-mask {
+  background: linear-gradient(90deg, rgba(5, 5, 5, 0.9), rgba(26, 17, 4, 0.72), rgba(5, 5, 5, 0.82));
+}
+
+.gallery-icon {
+  position: relative;
+  z-index: 1;
+  color: $gold-light;
+  font-size: 66rpx;
+  line-height: 1;
+  text-align: center;
+}
+
+.gallery-title {
+  position: relative;
+  z-index: 1;
+  color: $gold-light;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.gallery-desc {
+  position: relative;
+  z-index: 1;
+  margin-top: 8rpx;
+  color: $muted;
+  font-size: 22rpx;
+}
+
+.gallery-btn {
+  position: relative;
+  z-index: 1;
+  height: 58rpx;
+  font-size: 23rpx;
+}
+
+.flow-list {
+  margin-top: 18rpx;
+}
+
+.flow-item {
+  display: grid;
+  grid-template-columns: 126rpx 1fr 118rpx 118rpx 118rpx 28rpx;
+  gap: 12rpx;
+  align-items: center;
+  margin-top: 10rpx;
+  padding: 10rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(135deg, #222, #151515);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.flow-cover {
+  width: 126rpx;
+  height: 72rpx;
+  border-radius: 6rpx;
+}
+
+.flow-title {
+  color: #e9e9e9;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.flow-price {
+  margin-top: 6rpx;
+  color: $gold-light;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.flow-feature {
+  color: $gold-light;
+  font-size: 21rpx;
+  text-align: center;
+}
+
+.flow-arrow {
+  color: $muted;
+  font-size: 38rpx;
+}
+
+.trust-section {
+  margin-top: 28rpx;
+}
+
+.trust-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10rpx;
+  margin-top: 22rpx;
+}
+
+.trust-item {
+  min-width: 0;
   display: flex;
   align-items: center;
+  gap: 10rpx;
+  padding-right: 10rpx;
+  border-right: 1rpx solid rgba(255, 255, 255, 0.16);
+}
+
+.trust-item:last-child {
+  border-right: 0;
+}
+
+.trust-icon {
+  flex: 0 0 auto;
+  color: $gold-light;
+  font-size: 42rpx;
+}
+
+.trust-title {
+  color: #cfcfcf;
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+.trust-desc {
+  margin-top: 4rpx;
+  color: $muted;
+  font-size: 18rpx;
+  line-height: 1.2;
+}
+
+.bottom-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 30rpx;
+}
+
+.all-works-btn,
+.consult-btn {
+  height: 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  border-radius: 8rpx;
+  font-size: 27rpx;
+}
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  height: 126rpx;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding-top: 14rpx;
+  box-sizing: border-box;
+  background: rgba(24, 24, 24, 0.96);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18rpx);
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  color: #8c8c8c;
+  font-size: 22rpx;
+}
+
+.tab-item.active {
+  color: $gold-light;
+}
+
+.tab-icon {
+  font-size: 38rpx;
+  line-height: 1;
+}
+
+button::after {
+  border: 0;
+}
+
+/* ===== art_profile_page_with_modern_design 1:1 rebuild ===== */
+.artist-home-page {
+  min-height: 100vh;
+  padding: 0 20rpx 30rpx;
+  box-sizing: border-box;
+  color: #f7f7f7;
+  background:
+    radial-gradient(circle at 80% 5%, rgba(214, 166, 32, 0.08), transparent 24%),
+    linear-gradient(180deg, #000 0%, #050505 100%);
+}
+
+.top-nav {
+  position: relative;
+  z-index: 2;
+  height: 76rpx;
+  padding: 0 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.nav-title {
+  color: #fff;
+  font-size: 30rpx;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.nav-icon {
+  width: 58rpx;
+  height: 58rpx;
+  font-size: 0;
+}
+
+.nav-icon image {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.nav-icon.external image {
+  width: 38rpx;
+  height: 38rpx;
+}
+
+.profile-hero {
+  height: 356rpx;
+  margin-top: 0;
+  border-radius: 14rpx;
+}
+
+.cover-image,
+.cover-shade {
+  border-radius: 14rpx;
+}
+
+.cover-image {
+  height: 230rpx;
+}
+
+.cover-shade {
+  height: 356rpx;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.06) 34%, rgba(0, 0, 0, 0.9) 70%, #000 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.18), transparent 45%, rgba(0, 0, 0, 0.08));
+}
+
+.profile-core {
+  left: 36rpx;
+  right: 22rpx;
+  bottom: 12rpx;
+  gap: 20rpx;
+  align-items: flex-end;
+}
+
+.avatar {
+  width: 166rpx;
+  height: 166rpx;
+  border: 4rpx solid #f2c14e;
+  box-shadow: 0 0 0 1rpx rgba(0, 0, 0, 0.45), 0 16rpx 38rpx rgba(0, 0, 0, 0.45);
+}
+
+.avatar-cert {
+  right: -6rpx;
+  bottom: 14rpx;
+  width: 46rpx;
+  height: 46rpx;
+  color: #fff;
+  font-size: 30rpx;
+  background: linear-gradient(180deg, #f7d46c, #d9a935);
+}
+
+.identity-block {
+  padding-bottom: 8rpx;
+}
+
+.artist-name {
+  color: #fff;
+  font-size: 38rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.artist-title {
+  margin-top: 14rpx;
+  color: #d0d0d0;
+  font-size: 23rpx;
+}
+
+.tag-row {
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.tag {
+  height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 7rpx;
+  border-color: rgba(242, 193, 78, 0.9);
+  color: #f2c14e;
+  background: rgba(0, 0, 0, 0.42);
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.tag-icon-img {
+  width: 22rpx;
+  height: 22rpx;
+}
+
+.stats-actions {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: 395rpx 1fr;
+  gap: 24rpx;
+}
+
+.stats {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 34rpx;
+}
+
+.stat-label {
+  margin-top: 10rpx;
+  color: #a9a9a9;
+  font-size: 22rpx;
+}
+
+.stat-item {
+  border-right-color: rgba(255, 255, 255, 0.24);
+}
+
+.hero-actions {
+  gap: 14rpx;
+}
+
+.gold-btn,
+.outline-btn {
+  height: 58rpx;
+  border-radius: 7rpx;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.gold-btn {
+  background: linear-gradient(180deg, #f4c653, #d8a81e);
+}
+
+.outline-btn {
+  color: #f2c14e;
+  border-color: rgba(242, 193, 78, 0.75);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.intro-card {
+  margin-top: 30rpx;
+  padding: 28rpx 28rpx 26rpx;
+  border-radius: 11rpx;
+  border-color: rgba(255, 255, 255, 0.09);
+  background: linear-gradient(135deg, #202020, #141414);
+}
+
+.section-title {
+  color: #fff;
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+.gold-title {
+  color: #f2c14e;
+  font-size: 27rpx;
+}
+
+.intro-text {
+  margin-top: 22rpx;
+  color: #c1c1c1;
+  font-size: 22rpx;
+  line-height: 1.72;
+  -webkit-line-clamp: 2;
+}
+
+.quote {
+  margin-top: 16rpx;
+  padding-right: 110rpx;
+  color: #f2c14e;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
+.expand {
+  right: 28rpx;
+  bottom: 27rpx;
+  color: #8c8c8c;
+  font-size: 21rpx;
+}
+
+.section {
+  margin-top: 30rpx;
+}
+
+.section-head {
+  margin-bottom: 20rpx;
+}
+
+.more-link {
+  color: #aaa;
+  font-size: 22rpx;
+}
+
+.work-row {
   gap: 12rpx;
 }
 
-.work-price {
-  font-size: 26rpx;
-  color: $accent-gold;
-  font-weight: 600;
+.work-card {
+  width: 274rpx;
+  border-radius: 8rpx;
+  background: #171717;
 }
 
-.work-sales {
-  font-size: 20rpx;
-  color: $text-muted;
+.work-image-wrap {
+  height: 190rpx;
 }
 
-.works-gallery {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+.new-badge {
+  top: 12rpx;
+  right: 12rpx;
+  width: 38rpx;
+  height: 42rpx;
+  border-radius: 8rpx;
+  font-size: 21rpx;
+  background: linear-gradient(180deg, #f6d98a, #d9a935);
 }
 
-.gallery-item {
-  position: relative;
+.work-info {
+  padding: 16rpx;
 }
 
-.gallery-image {
-  width: 100%;
-  height: 400rpx;
-  border-radius: 12rpx;
-  background: $bg-elevated;
+.work-title {
+  font-size: 24rpx;
 }
 
-.gallery-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
-  padding: 20rpx;
-  border-radius: 0 0 12rpx 12rpx;
-  
-  .gallery-title {
-    display: block;
-    font-size: 26rpx;
-    color: #fff;
-    margin-bottom: 6rpx;
-  }
-  
-  .gallery-price {
-    font-size: 28rpx;
-    color: #ffd700;
-    font-weight: 600;
-  }
+.work-meta {
+  font-size: 18rpx;
 }
 
-.load-more {
-  text-align: center;
-  padding: 30rpx;
-  font-size: 26rpx;
-  color: $text-muted;
+.price {
+  font-size: 27rpx;
+  color: #f2c14e;
 }
 
-.empty-works {
-  text-align: center;
-  padding: 60rpx;
-  color: $text-muted;
-  font-size: 28rpx;
+.collect-tag {
+  padding: 4rpx 11rpx;
+  border-radius: 6rpx;
+  font-size: 18rpx;
+}
+
+.circulation-section {
+  margin-top: 30rpx;
+}
+
+.flow-list {
+  margin-top: 18rpx;
+}
+
+.flow-item {
+  min-height: 76rpx;
+  grid-template-columns: 138rpx 150rpx 104rpx 104rpx 104rpx 18rpx;
+  gap: 8rpx;
+  margin-top: 7rpx;
+  padding: 0 12rpx 0 0;
+  border-radius: 7rpx;
+  background: linear-gradient(135deg, #202020, #141414);
+}
+
+.flow-cover {
+  width: 138rpx;
+  height: 76rpx;
+  border-radius: 7rpx 0 0 7rpx;
+}
+
+.flow-title {
+  font-size: 21rpx;
+  line-height: 1.15;
+}
+
+.flow-price {
+  font-size: 22rpx;
+}
+
+.flow-feature {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5rpx;
+  color: #f2c14e;
+  font-size: 17rpx;
+  white-space: nowrap;
+}
+
+.flow-feature image {
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.flow-arrow {
+  color: #aaa;
+  font-size: 34rpx;
+}
+
+.trust-section {
+  margin-top: 30rpx;
+}
+
+.trust-row {
+  margin-top: 22rpx;
+  gap: 0;
+}
+
+.trust-item {
+  gap: 12rpx;
+  padding: 0 16rpx 0 0;
+  border-right-color: rgba(255, 255, 255, 0.18);
+}
+
+.trust-icon {
+  width: 43rpx;
+  height: 43rpx;
+}
+
+.trust-title {
+  color: #cfcfcf;
+  font-size: 19rpx;
+}
+
+.trust-desc {
+  color: #9a9a9a;
+  font-size: 18rpx;
+}
+
+.bottom-actions {
+  margin-top: 30rpx;
+  gap: 18rpx;
+}
+
+.all-works-btn,
+.consult-btn {
+  height: 72rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+}
+
+.all-works-btn {
+  color: #fff;
+  border: 1rpx solid rgba(242, 193, 78, 0.8);
+  background: linear-gradient(135deg, #202020, #111);
+}
+
+.consult-btn {
+  color: #111;
+  background: linear-gradient(180deg, #f6d269, #d9a935);
+}
+
+.consult-btn image {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.tabbar {
+  display: none;
+}
+
+.home-indicator {
+  width: 326rpx;
+  height: 9rpx;
+  margin: 36rpx auto 0;
+  border-radius: 999rpx;
+  background: #fff;
 }
 </style>

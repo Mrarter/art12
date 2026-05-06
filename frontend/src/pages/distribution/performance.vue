@@ -100,11 +100,11 @@ export default {
     return {
       timeRange: 'month',
       rankingList: [
-        { avatar: '/static/avatar-default.png', name: '李明', earnings: '8,560' },
-        { avatar: '/static/avatar-default.png', name: '王芳', earnings: '7,230' },
-        { avatar: '/static/avatar-default.png', name: '张伟', earnings: '6,890' },
-        { avatar: '/static/avatar-default.png', name: '赵丽', earnings: '5,420' },
-        { avatar: '/static/avatar-default.png', name: '孙强', earnings: '4,850' }
+        { avatar: '/static/images/avatar.png', name: '李明', earnings: '8,560' },
+        { avatar: '/static/images/avatar.png', name: '王芳', earnings: '7,230' },
+        { avatar: '/static/images/avatar.png', name: '张伟', earnings: '6,890' },
+        { avatar: '/static/images/avatar.png', name: '赵丽', earnings: '5,420' },
+        { avatar: '/static/images/avatar.png', name: '孙强', earnings: '4,850' }
       ],
       detailList: [
         { title: '订单分成 - 张大千山水画', time: '2024-03-15 14:30', amount: '1,680' },

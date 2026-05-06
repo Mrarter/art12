@@ -101,7 +101,7 @@ export default {
       showShareTips: false,
       posterData: {
         userName: '张三',
-        userAvatar: '/static/avatar/default.jpg',
+        userAvatar: '/static/images/avatar.png',
         qrCodeUrl: '',
         appName: '拾艺局',
         slogan: '发现艺术，分享价值',

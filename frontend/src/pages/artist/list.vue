@@ -23,7 +23,7 @@
       @scrolltolower="loadMore"
     >
       <view class="artist-card" v-for="artist in artists" :key="artist.id" @click="goArtist(artist)">
-        <image class="artist-avatar" :src="artist.avatar || artist.cover || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+        <image class="artist-avatar" :src="artist.avatar || artist.cover || '/static/images/avatar.png'" mode="aspectFill"></image>
         <view class="artist-main">
           <view class="artist-topline">
             <text class="artist-name">{{ artist.name }}</text>

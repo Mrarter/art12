@@ -1,19 +1,46 @@
 <template>
   <view class="publish-page">
-    <!-- 封面图片 -->
-    <view class="form-section">
-      <view class="section-title">作品封面</view>
+    <view class="art-nav">
+      <view class="nav-icon" @click="goBack">
+        <image src="/static/art-icons/icon-back.svg" mode="aspectFit"></image>
+      </view>
+      <view class="nav-title">{{ isEdit ? '编辑作品' : '发布作品' }}</view>
+      <view class="nav-icon ghost" @click="saveDraft">
+        <image src="/static/art-icons/icon-document.svg" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <view class="publish-hero">
+      <view class="hero-kicker">Artist Work Entry</view>
+      <view class="hero-title">作品发布入口</view>
+      <view class="hero-desc">完善作品资料后将同步进入平台作品库、艺术家主页与前端展示链路。</view>
+    </view>
+
+    <view class="form-section cover-section">
+      <view class="section-head">
+        <view>
+          <view class="section-title">作品封面</view>
+          <view class="section-subtitle">建议上传 1:1 或 4:3 高清作品图</view>
+        </view>
+        <view class="section-chip">必填</view>
+      </view>
       <view class="cover-upload" @click="chooseCover">
-        <image v-if="formData.cover" :src="formData.cover" mode="widthFix" class="cover-preview"></image>
+        <image v-if="formData.cover" :src="formData.cover" mode="aspectFill" class="cover-preview"></image>
         <view v-else class="upload-placeholder">
+          <image class="upload-icon" src="/static/art-icons/icon-preview.svg" mode="aspectFit"></image>
           <text class="upload-text">上传封面图</text>
+          <text class="upload-tip">支持相册或拍摄</text>
         </view>
       </view>
     </view>
 
-    <!-- 作品信息 -->
     <view class="form-section">
-      <view class="section-title">基本信息</view>
+      <view class="section-head">
+        <view>
+          <view class="section-title">基本信息</view>
+          <view class="section-subtitle">用于生成作品详情与流通档案</view>
+        </view>
+      </view>
       
       <view class="form-item">
         <text class="form-label">作品名称</text>
@@ -53,7 +80,7 @@
             :key="artist.id"
             @click="selectArtist(artist)"
           >
-            <image class="artist-avatar" :src="artist.avatar || '/static/avatar/default.png'" mode="aspectFill"></image>
+            <image class="artist-avatar" :src="artist.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
             <view class="artist-info">
               <text class="artist-name">{{ artist.name }}</text>
               <text class="artist-uid" v-if="artist.uid">{{ artist.uid }}</text>
@@ -115,9 +142,13 @@
       </view>
     </view>
 
-    <!-- 价格设置 -->
     <view class="form-section">
-      <view class="section-title">价格设置</view>
+      <view class="section-head">
+        <view>
+          <view class="section-title">价格设置</view>
+          <view class="section-subtitle">配置出售、拍卖、分销与库存策略</view>
+        </view>
+      </view>
       
       <view class="form-item">
         <text class="form-label">出售价格</text>
@@ -137,7 +168,7 @@
         <switch 
           :checked="formData.allowDistribution" 
           @change="(e) => formData.allowDistribution = e.detail.value"
-          color="#667eea"
+          color="#F2C14E"
         />
       </view>
 
@@ -146,7 +177,7 @@
         <switch 
           :checked="formData.allowAuction" 
           @change="(e) => formData.allowAuction = e.detail.value"
-          color="#667eea"
+          color="#F2C14E"
         />
       </view>
 
@@ -161,9 +192,13 @@
       </view>
     </view>
 
-    <!-- 作品描述 -->
     <view class="form-section">
-      <view class="section-title">作品描述</view>
+      <view class="section-head">
+        <view>
+          <view class="section-title">作品描述</view>
+          <view class="section-subtitle">写清创作背景、主题、材质与收藏亮点</view>
+        </view>
+      </view>
       <textarea 
         class="form-textarea" 
         v-model="formData.description" 
@@ -173,11 +208,15 @@
       <view class="word-count">{{ formData.description.length }}/2000</view>
     </view>
 
-    <!-- 作品图片 -->
     <view class="form-section">
-      <view class="section-title">
-        作品详情图
-        <text class="section-tip">（最多9张）</text>
+      <view class="section-head">
+        <view>
+          <view class="section-title">
+            作品详情图
+            <text class="section-tip">最多9张</text>
+          </view>
+          <view class="section-subtitle">可上传局部、装裱、场景图</view>
+        </view>
       </view>
       <view class="images-grid">
         <view 
@@ -194,12 +233,14 @@
           v-if="formData.images.length < 9" 
           @click="chooseImages"
         >
+          <image src="/static/art-icons/icon-preview.svg" mode="aspectFit"></image>
           <text>添加图片</text>
         </view>
       </view>
     </view>
 
-    <!-- 提交按钮 -->
+    <view class="safe-bottom-space"></view>
+
     <view class="submit-bar">
       <view class="save-draft" @click="saveDraft">保存草稿</view>
       <view class="submit-btn" @click="submit">发布作品</view>
@@ -212,7 +253,7 @@
 import { getArtworkDetail, getCategories, publishArtwork, updateArtwork } from '@/api/product.js'
 import { searchArtists, searchUsers, findOrCreateArtist } from '@/api/user.js'
 import { useUserStore } from '@/store/modules/user.js'
-import { uploadFile } from '@/api/file.js'
+import { uploadFile, openCropper } from '@/api/file.js'
 
 export default {
   data() {
@@ -301,6 +342,15 @@ export default {
   },
 
   methods: {
+    goBack() {
+      const pages = getCurrentPages()
+      if (pages && pages.length > 1) {
+        uni.navigateBack()
+      } else {
+        uni.reLaunch({ url: '/pages/index/index' })
+      }
+    },
+
     async loadArtwork(id) {
       uni.showLoading({ title: '加载中...' })
       try {
@@ -515,7 +565,12 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.formData.cover = res.tempFilePaths[0]
+          const path = res.tempFilePaths[0]
+          openCropper(path, { ratio: '4:3', shape: 'square' }).then(cropped => {
+            this.formData.cover = cropped
+          }).catch(() => {
+            this.formData.cover = path
+          })
         }
       })
     },
@@ -527,7 +582,14 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.formData.images = [...this.formData.images, ...res.tempFilePaths]
+          const paths = res.tempFilePaths
+          // 对每张图进行裁剪
+          const cropPromises = paths.map(p =>
+            openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
+          )
+          Promise.all(cropPromises).then(croppedList => {
+            this.formData.images = [...this.formData.images, ...croppedList]
+          })
         }
       })
     },
@@ -1102,5 +1164,399 @@ export default {
   color: #667eea;
   font-weight: 500;
   background: #f0f5ff;
+}
+
+/* ===== v1.2 黑金发布页重构 ===== */
+.publish-page {
+  min-height: 100vh;
+  padding: calc(96rpx + env(safe-area-inset-top)) 24rpx calc(170rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  color: #f5f2ea;
+  background:
+    radial-gradient(circle at 84% 0%, rgba(242, 193, 78, 0.16), transparent 26%),
+    linear-gradient(180deg, #070707 0%, #050505 100%);
+}
+
+.art-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  height: calc(88rpx + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 24rpx 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(6, 6, 6, 0.92);
+  border-bottom: 1rpx solid rgba(242, 193, 78, 0.12);
+  backdrop-filter: blur(18rpx);
+}
+
+.nav-title {
+  color: #f5f2ea;
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.nav-icon {
+  width: 58rpx;
+  height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon image {
+  width: 34rpx;
+  height: 34rpx;
+}
+
+.nav-icon.ghost {
+  border-radius: 50%;
+  background: rgba(242, 193, 78, 0.08);
+}
+
+.publish-hero {
+  margin: 8rpx 0 22rpx;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(242, 193, 78, 0.18);
+  background:
+    linear-gradient(135deg, rgba(242, 193, 78, 0.14), rgba(255, 255, 255, 0.03)),
+    #111;
+}
+
+.hero-kicker {
+  color: #d8b24c;
+  font-size: 20rpx;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.hero-title {
+  margin-top: 10rpx;
+  color: #fff;
+  font-size: 42rpx;
+  font-weight: 900;
+}
+
+.hero-desc {
+  margin-top: 12rpx;
+  color: #a9a39a;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.form-section {
+  margin: 18rpx 0 0;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(216, 178, 76, 0.16);
+  background: linear-gradient(145deg, #1c1c1c, #101010);
+  box-shadow: 0 18rpx 44rpx rgba(0, 0, 0, 0.28);
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.section-title {
+  margin-bottom: 0;
+  color: #f2c14e;
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.section-title::after {
+  content: '';
+  display: block;
+  width: 44rpx;
+  height: 6rpx;
+  margin-top: 12rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #f2c14e, rgba(242, 193, 78, 0));
+}
+
+.section-subtitle {
+  margin-top: 12rpx;
+  color: #716d66;
+  font-size: 22rpx;
+}
+
+.section-tip,
+.section-chip {
+  margin-left: 12rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  color: #111;
+  background: linear-gradient(180deg, #f6d98a, #d9a935);
+  font-size: 20rpx;
+  font-weight: 800;
+}
+
+.cover-upload {
+  width: 100%;
+  min-height: 410rpx;
+  border-radius: 22rpx;
+  overflow: hidden;
+  background: #151515;
+}
+
+.cover-preview {
+  width: 100%;
+  height: 410rpx;
+  display: block;
+}
+
+.upload-placeholder {
+  min-height: 410rpx;
+  border: 2rpx dashed rgba(242, 193, 78, 0.35);
+  border-radius: 22rpx;
+  background:
+    linear-gradient(135deg, rgba(242, 193, 78, 0.08), rgba(255, 255, 255, 0.02)),
+    #151515;
+}
+
+.upload-icon {
+  width: 68rpx;
+  height: 68rpx;
+  opacity: 0.88;
+}
+
+.upload-placeholder .upload-text {
+  margin-top: 18rpx;
+  color: #f5f2ea;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.upload-placeholder .upload-tip {
+  margin-top: 10rpx;
+  color: #716d66;
+  font-size: 22rpx;
+}
+
+.form-item {
+  min-height: 104rpx;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.07);
+}
+
+.form-label {
+  flex: 0 0 174rpx;
+  width: 174rpx;
+  color: #f5f2ea;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.form-input {
+  min-height: 72rpx;
+  color: #f5f2ea;
+  font-size: 28rpx;
+}
+
+.artist-id-display {
+  color: #f2c14e;
+  background: rgba(242, 193, 78, 0.1);
+}
+
+.artist-input-wrapper {
+  gap: 14rpx;
+}
+
+.artist-input {
+  min-height: 82rpx;
+  padding: 0 22rpx;
+  color: #f5f2ea;
+  background: #141414;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.artist-input.artist-new,
+.artist-input.artist-exists {
+  background: rgba(242, 193, 78, 0.08);
+  border: 1rpx solid rgba(242, 193, 78, 0.55);
+}
+
+.artist-status-tag {
+  padding: 10rpx 16rpx;
+  border-radius: 999rpx;
+  color: #111;
+  font-size: 22rpx;
+  font-weight: 800;
+  background: linear-gradient(180deg, #f6d98a, #d9a935);
+}
+
+.artist-status-tag.status-exists,
+.artist-status-tag.status-new,
+.artist-status-tag.status-notfound {
+  color: #111;
+  background: linear-gradient(180deg, #f6d98a, #d9a935);
+}
+
+.artist-dropdown,
+.category-dropdown {
+  z-index: 120;
+  border: 1rpx solid rgba(216, 178, 76, 0.18);
+  border-radius: 18rpx;
+  background: #121212;
+  box-shadow: 0 22rpx 60rpx rgba(0, 0, 0, 0.45);
+}
+
+.artist-option {
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.artist-avatar {
+  background: #222;
+  border: 1rpx solid rgba(242, 193, 78, 0.24);
+}
+
+.artist-name {
+  color: #f5f2ea;
+}
+
+.artist-uid,
+.artist-badge {
+  color: #a9a39a;
+}
+
+.size-inputs {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.size-input {
+  width: 138rpx;
+  min-height: 72rpx;
+  border-radius: 14rpx;
+  background: #141414;
+}
+
+.size-separator,
+.size-unit {
+  color: #716d66;
+}
+
+.category-select-trigger {
+  min-height: 82rpx;
+  padding: 0 22rpx;
+  background: #141414;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.category-value {
+  color: #f5f2ea;
+}
+
+.category-value.placeholder,
+.arrow-down {
+  color: #716d66;
+}
+
+.dropdown-item {
+  color: #f5f2ea;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.dropdown-item.active {
+  color: #f2c14e;
+  background: rgba(242, 193, 78, 0.1);
+}
+
+.price-input {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.price-input .price-unit {
+  color: #f2c14e;
+  font-size: 36rpx;
+  font-weight: 900;
+}
+
+.price-input .price-value {
+  max-width: 260rpx;
+  color: #f2c14e;
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.form-textarea {
+  height: 280rpx;
+  color: #f5f2ea;
+  background: #141414;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 18rpx;
+}
+
+.word-count {
+  color: #716d66;
+}
+
+.images-grid {
+  gap: 18rpx;
+}
+
+.image-item,
+.image-add {
+  border-radius: 18rpx;
+}
+
+.image-add {
+  background: #141414;
+  border: 2rpx dashed rgba(242, 193, 78, 0.32);
+}
+
+.image-add image {
+  width: 52rpx;
+  height: 52rpx;
+  opacity: 0.82;
+}
+
+.image-add text {
+  color: #a9a39a;
+}
+
+.safe-bottom-space {
+  height: calc(150rpx + env(safe-area-inset-bottom));
+}
+
+.submit-bar {
+  z-index: 90;
+  gap: 18rpx;
+  padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
+  background: rgba(10, 10, 10, 0.96);
+  border-top: 1rpx solid rgba(216, 178, 76, 0.14);
+  box-shadow: 0 -20rpx 50rpx rgba(0, 0, 0, 0.35);
+}
+
+.save-draft,
+.submit-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.save-draft {
+  color: #d8b24c;
+  background: #101010;
+  border: 1rpx solid rgba(216, 178, 76, 0.55);
+}
+
+.submit-btn {
+  color: #111;
+  background: linear-gradient(180deg, #f5d36f, #d8b24c);
 }
 </style>

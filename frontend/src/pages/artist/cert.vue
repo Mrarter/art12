@@ -139,6 +139,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { becomeArtist } from '@/api/user.js'
 import { getCategories } from '@/api/product.js'
+import { openCropper } from '@/api/file.js'
 
 const artFields = ref([
   { id: '', name: '加载中...' }
@@ -187,7 +188,12 @@ const chooseImage = (type) => {
       } else if (type === 'idCardBack') {
         form.value.idCardBack = res.tempFilePaths[0]
       } else if (type === 'artworks') {
-        form.value.artworks.push(...res.tempFilePaths)  // 改为artworks
+        const paths = res.tempFilePaths
+        Promise.all(paths.map(p =>
+          openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
+        )).then(croppedList => {
+          form.value.artworks.push(...croppedList)
+        })
       }
     }
   })

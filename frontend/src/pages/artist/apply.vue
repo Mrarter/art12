@@ -268,6 +268,7 @@
 </template>
 
 <script>
+import { openCropper } from '@/api/file.js'
 export default {
   data() {
     return {
@@ -323,7 +324,12 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.form.avatar = res.tempFilePaths[0]
+          const path = res.tempFilePaths[0]
+          openCropper(path, { ratio: '1:1', shape: 'circle' }).then(cropped => {
+            this.form.avatar = cropped
+          }).catch(() => {
+            this.form.avatar = path
+          })
         }
       })
     },
@@ -348,7 +354,12 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.form.works = [...this.form.works, ...res.tempFilePaths]
+          const paths = res.tempFilePaths
+          Promise.all(paths.map(p =>
+            openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
+          )).then(croppedList => {
+            this.form.works = [...this.form.works, ...croppedList]
+          })
         }
       })
     },

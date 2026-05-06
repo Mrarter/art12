@@ -1,0 +1,19 @@
+.header {
+  padding-top: 88rpx;
+  height: 140rpx;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 24rpx;
+}
+.cover {
+  width: 100%;
+  height: 300rpx;
+}
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  padding: 24rpx;
+  display: flex;
+  gap: 20rpx;
+}

@@ -1,0 +1,6 @@
+.certificate {
+  margin: 24rpx;
+  padding: 32rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg,#f5e6c8,#e6c38a);
+}

@@ -103,7 +103,7 @@
 
 <script>
 import { createPost, getTopics } from '@/api/community'
-import { uploadFile } from '@/api/file'
+import { uploadFile, openCropper } from '@/api/file'
 
 export default {
   data() {
@@ -213,7 +213,14 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.images = [...this.images, ...res.tempFilePaths]
+          const paths = res.tempFilePaths
+          // 对每张图裁剪（自由比例），裁剪失败则使用原图
+          const cropPromises = paths.map(p =>
+            openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
+          )
+          Promise.all(cropPromises).then(croppedList => {
+            this.images = [...this.images, ...croppedList]
+          })
         }
       })
     },

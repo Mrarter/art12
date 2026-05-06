@@ -85,7 +85,7 @@
         @click="goChat(item)"
       >
         <view class="chat-avatar">
-          <image :src="item.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+          <image :src="item.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
           <view class="online-dot" v-if="item.online"></view>
         </view>
         <view class="chat-content">

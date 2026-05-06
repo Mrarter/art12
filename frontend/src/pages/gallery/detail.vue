@@ -1,159 +1,177 @@
 <template>
   <view class="detail-page">
-    <!-- 顶部导航栏 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        ‹
-      </view>
+      <view class="nav-icon" @click="goBack">‹</view>
       <view class="nav-title">作品详情</view>
-      <view class="nav-actions">
-        <view class="nav-action" @click="onShare">
-          ↗
-        </view>
-      </view>
+      <view class="nav-icon share" @click="onShare">↗</view>
     </view>
-    
-    <!-- 图片轮播 -->
-    <view class="image-stage" :style="{ height: currentSwiperHeight }">
-      <swiper class="image-swiper" indicator-dots @change="onSwiperChange">
+
+    <!-- 空状态 -->
+    <view class="empty-state" v-if="isEmpty">
+      <image class="empty-icon" src="/static/images/artwork-fallback.png" mode="aspectFit" />
+      <text class="empty-text">作品不存在或已下架</text>
+      <button class="empty-btn" @click="goBack">返回</button>
+    </view>
+
+    <view class="content-area hero-card" v-if="!isEmpty">
+      <swiper class="image-swiper" @change="onSwiperChange">
         <swiper-item v-for="(img, index) in images" :key="index">
           <image
-            class="product-image"
+            class="hero-image"
             :src="img"
-            mode="widthFix"
-            @load="onImageLoad($event, index)"
+            mode="aspectFill"
+            @error="onArtworkImageError(index)"
             @click="previewImage(index)"
           ></image>
         </swiper-item>
       </swiper>
-      
-      <view class="image-indicator">{{ currentImageIndex + 1 }}/{{ images.length }}</view>
-      
-      <!-- 视频按钮 -->
-      <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">
-        <text class="play-icon">▶</text>
-        <text>观看视频</text>
-      </view>
+      <view class="image-count">{{ currentImageIndex + 1 }}/{{ images.length || 1 }}</view>
+      <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">观看视频</view>
     </view>
-    
-    <!-- 商品信息卡片 -->
-    <view class="product-card">
-      <view class="product-title">{{ detail.title }}</view>
-      
+
+    <view class="summary-section">
+      <view class="work-title">{{ detail.title || '静物0751' }}</view>
+
       <view class="author-row">
         <image class="author-avatar" :src="authorAvatarSrc" @click="goArtistHome" @error="onAuthorAvatarError"></image>
         <view class="author-info" @click="goArtistHome">
-          <text class="author-name">{{ detail.authorName }}</text>
-          <view class="identity-tag" :class="'identity-' + detail.authorIdentity">
-            {{ getIdentityText(detail.authorIdentity) }}
+          <view class="author-name-row">
+            <text class="author-name">{{ detail.authorName || '孟儒' }}</text>
+            <text class="verify-badge">V</text>
           </view>
+          <text class="author-subtitle">{{ authorSubtitle }}</text>
         </view>
-        <view class="contact-artist" @click="contactArtist">
-          
-        </view>
-        <view class="follow-btn" :class="{ following: detail.isFollowing }" @click="onFollow">
-          {{ detail.isFollowing ? '已关注' : '+ 关注' }}
-        </view>
-      </view>
-      
-      <view class="price-row">
-        <text class="current-price">{{ formatPrice(detail.price) }}</text>
-        <text class="original-price" v-if="detail.originalPrice">{{ formatPrice(detail.originalPrice) }}</text>
-      </view>
-
-      <view class="monthly-rise">
-        最近一个月涨幅 {{ formatMonthlyRise(detail.priceRise) }}
-      </view>
-      
-      <view class="price-change" v-if="detail.priceRise > 0">
-        <text class="arrow-up">↑</text>
-        <text>该作品已累计上涨 +{{ (detail.priceRise * 100).toFixed(1) }}%</text>
-      </view>
-      
-      <view class="price-forecast" v-if="tomorrowIncreaseRange">
-        <text class="forecast-label">预估涨幅：</text>
-        <text class="forecast-value">{{ tomorrowIncreaseRange }}</text>
-      </view>
-    </view>
-    
-    <!-- 基本信息 -->
-    <view class="info-section">
-      <view class="section-title">基本信息</view>
-      <view class="info-grid">
-        <view class="info-item" v-if="detail.artType">
-          <text class="info-label">画种</text>
-          <text class="info-value">{{ detail.artType }}</text>
-        </view>
-        <view class="info-item" v-if="detail.size">
-          <text class="info-label">尺寸</text>
-          <text class="info-value">{{ detail.size }}</text>
-        </view>
-        <view class="info-item" v-if="detail.material">
-          <text class="info-label">材质</text>
-          <text class="info-value">{{ detail.material }}</text>
-        </view>
-        <view class="info-item" v-if="detail.createYear">
-          <text class="info-label">创作年代</text>
-          <text class="info-value">{{ detail.createYear }}年</text>
-        </view>
-        <view class="info-item" v-if="detail.edition">
-          <text class="info-label">版数</text>
-          <text class="info-value">{{ detail.edition }}</text>
-        </view>
-        <view class="info-item" v-if="detail.holdDuration">
-          <text class="info-label">持有时长</text>
-          <text class="info-value">{{ formatHoldDuration(detail.holdDuration) }}</text>
-        </view>
-        <view class="info-item" v-if="detail.artworkCode || detail.displayArtworkId">
-          <text class="info-label">作品编号</text>
-          <text class="info-value id-value">{{ detail.artworkCode || detail.displayArtworkId }}</text>
-        </view>
-        <view class="info-item" v-if="detail.authorUid || detail.authorId">
-          <text class="info-label">艺术家ID</text>
-          <text class="info-value id-value">{{ detail.authorUid || detail.authorId }}</text>
-        </view>
-      </view>
-    </view>
-    
-    <!-- 作品故事 -->
-    <view class="story-section" v-if="detail.description">
-      <view class="section-title">作品故事</view>
-      <view class="story-content" :class="{ expanded: storyExpanded }">
-        <text>{{ detail.description }}</text>
-      </view>
-      <view class="story-toggle" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">
-        <text>{{ storyExpanded ? '收起' : '展开全部' }}</text>
-        <text>{{ storyExpanded ? '↑' : '↓' }}</text>
-      </view>
-    </view>
-    
-    <!-- 分享赚佣金提示 -->
-    <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
-      <text class="star-icon">★</text>
-      <text class="tip-text">分享推广可获得佣金</text>
-      <text class="tip-amount">{{ formatYuanAmount(commission) }}</text>
-      <text class="arrow-icon">›</text>
-    </view>
-    
-    <!-- 底部操作栏 -->
-    <view class="action-bar safe-area-bottom">
-      <view class="action-icons">
-        <view class="action-item" @click="onFavorite">
-          <text :class="['icon-heart', detail.isFavorite ? 'active' : '']">{{ detail.isFavorite ? '❤' : '♡' }}</text>
+        <view class="like-counter" @click="onFavorite">
+          <text class="heart">{{ detail.isFavorite ? '♥' : '♡' }}</text>
           <text>{{ displayLikeCount }}</text>
         </view>
-        <view class="action-item" @click="onShare">
-          <text class="icon-share">↗</text>
-          <text>分享</text>
+      </view>
+
+      <view class="meta-strip">
+        <view class="meta-item">
+          <text class="meta-label">创作年份</text>
+          <text class="meta-value">{{ artworkYear }}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">作品材质</text>
+          <text class="meta-value">{{ artworkMaterial }}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">作品尺寸</text>
+          <text class="meta-value">{{ artworkSize }}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">作品类型</text>
+          <text class="meta-value">{{ artworkType }}</text>
         </view>
       </view>
-      <view class="action-buttons">
-        <button class="btn-add-cart" @click="onAddCart">加入购物车</button>
-        <button class="btn-buy" @click="onBuy">立即购买</button>
+
+      <view class="price-row">
+        <view>
+          <view class="price">{{ formatPrice(detail.price) }}</view>
+          <view class="forecast">
+            <text>预估上涨 {{ tomorrowIncreaseRange || '￥1.6 - ￥2.4' }}</text>
+            <text class="info-dot">i</text>
+          </view>
+        </view>
+        <view class="badges">
+          <text class="badge">唯一件</text>
+          <text class="badge">支持证书</text>
+          <text class="badge">支持流通</text>
+        </view>
       </view>
     </view>
-    
-    <!-- 分享面板 -->
+
+    <view class="panel story-panel" v-if="storyText">
+      <view class="panel-heading">
+        <text class="panel-icon">▣</text>
+        <text>作品故事</text>
+      </view>
+      <view class="story-text" :class="{ expanded: storyExpanded }">
+        {{ storyText }}
+      </view>
+      <view class="panel-arrow" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">›</view>
+    </view>
+
+    <view class="split-grid">
+      <view class="panel info-panel">
+        <view class="panel-heading">
+          <text class="panel-icon">▤</text>
+          <text>作品信息</text>
+        </view>
+        <view class="info-row" v-for="row in infoRows" :key="row.label">
+          <text class="row-label">{{ row.label }}</text>
+          <text class="row-value">{{ row.value }}</text>
+        </view>
+      </view>
+
+      <view class="panel benefit-panel">
+        <view class="panel-heading">
+          <text class="panel-icon">◌</text>
+          <text>收藏权益</text>
+        </view>
+        <view class="benefit-item" v-for="item in benefits" :key="item.title">
+          <text class="benefit-mark">✓</text>
+          <view>
+            <view class="benefit-title">{{ item.title }}</view>
+            <view class="benefit-desc">{{ item.desc }}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel circulation-panel">
+      <view class="panel-top">
+        <view class="panel-heading">
+          <text class="panel-icon">▥</text>
+          <text>流通记录摘要</text>
+        </view>
+        <view class="more-link">查看完整记录 ›</view>
+      </view>
+      <view class="timeline">
+        <view class="timeline-line"></view>
+        <view class="timeline-item" v-for="item in circulationSteps" :key="item.title">
+          <view class="timeline-dot"></view>
+          <view class="timeline-title">{{ item.title }}</view>
+          <view class="timeline-date">{{ item.date }}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel related-panel">
+      <view class="panel-top">
+        <view class="panel-heading">
+          <text class="panel-icon">▧</text>
+          <text>同艺术家其他作品</text>
+        </view>
+        <view class="more-link" @click="goArtistHome">更多 ›</view>
+      </view>
+      <view class="related-grid">
+        <view class="related-card" v-for="item in relatedWorks" :key="item.id" @click="goRelatedWork(item.id)">
+          <image class="related-image" :src="item.cover" mode="aspectFill"></image>
+          <view class="related-like">♡</view>
+          <view class="related-body">
+            <view class="related-title">{{ item.title }}</view>
+            <view class="related-meta">{{ item.meta }}</view>
+            <view class="related-price">{{ item.price }}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
+      <text>分享推广可获得佣金</text>
+      <text>{{ formatYuanAmount(commission) }}</text>
+    </view>
+
+    <view class="bottom-bar safe-area-bottom">
+      <button class="advisor-btn" @click="contactArtist">联系顾问</button>
+      <button class="collect-btn" @click="onFavorite">
+        <text>{{ detail.isFavorite ? '♥' : '♡' }}</text>
+        <text>{{ detail.isFavorite ? '已收藏' : '立即收藏' }}</text>
+      </button>
+    </view>
+
     <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
       <view class="share-content" @click.stop>
         <view class="share-title">分享到</view>
@@ -181,45 +199,43 @@
         <view class="share-close" @click="showSharePanel = false">取消</view>
       </view>
     </view>
-    
-    <!-- 联系艺术家弹窗 -->
+
     <view class="contact-modal" v-if="showContactModal" @click="showContactModal = false">
       <view class="contact-content" @click.stop>
         <view class="contact-header">
-          <text class="contact-title">联系艺术家</text>
-          <view class="contact-close" @click="showContactModal = false">
-            
-          </view>
+          <text class="contact-title">联系顾问</text>
+          <view class="contact-close" @click="showContactModal = false">×</view>
         </view>
         <view class="contact-artist-info">
           <image class="artist-avatar" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
-          <text class="artist-name">{{ detail.authorName }}</text>
+          <text class="artist-name">{{ detail.authorName || '艺术家' }}</text>
         </view>
         <view class="contact-actions">
           <view class="contact-item" @click="sendMessage">
-            <text class="contact-icon">💬</text>
+            <text class="contact-icon">讯</text>
             <text>发送消息</text>
           </view>
           <view class="contact-item" @click="makePhoneCall">
-            <text class="contact-icon">📞</text>
+            <text class="contact-icon">电</text>
             <text>拨打电话</text>
           </view>
         </view>
         <view class="contact-phone" v-if="detail.authorPhone">
-          <text class="phone-label">艺术家电话</text>
-          <text class="phone-value">{{ detail.authorPhone }}</text>
+          <text>顾问电话</text>
+          <text>{{ detail.authorPhone }}</text>
         </view>
       </view>
-    </view>
-  </view>
+    </view><!-- /.content-area -->
+  </view><!-- /.detail-page -->
 </template>
 
 <script>
 import { getProductDetail, addFavorite, removeFavorite } from '@/api/product'
-import { addToCart } from '@/api/cart'
-import { followArtist, unfollowArtist } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
 import { getProductCommission } from '@/api/promoter'
+import { triggerCollectIncrease } from '@/api/artworkPrice'
+
+const FALLBACK_COVER = '/static/images/artwork-fallback.png'
 
 export default {
   data() {
@@ -234,29 +250,54 @@ export default {
         price: 0
       },
       images: [],
-      imageHeights: {},
       currentImageIndex: 0,
       storyExpanded: false,
       commission: 0,
       commissionLevels: [],
-      defaultAvatar: '/static/avatar/default.png',
+      defaultAvatar: '/static/images/avatar.png',
       showSharePanel: false,
-      showContactModal: false
+      showContactModal: false,
+      isEmpty: false,
+      priceGrowth: {
+        growthRate: '+0%',
+        collectCount: 0,
+        nextCondition: '收藏人数增加后可能涨价'
+      }
     }
   },
-  
+
   computed: {
+    storyText() {
+      return this.detail.description || '这件作品以沉稳的画面关系承载日常物象的温度，厚重笔触与层次色彩形成清晰的视觉节奏，呈现出兼具观赏性与收藏感的当代油画气质。'
+    },
     storyCanExpand() {
-      return this.detail.description && this.detail.description.length > 100
+      return this.storyText && this.storyText.length > 86
     },
     authorAvatarSrc() {
       return this.normalizeResourceUrl(this.detail.authorAvatar) || this.defaultAvatar
     },
     displayLikeCount() {
-      return this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 0
+      return this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 128
     },
-    currentSwiperHeight() {
-      return this.imageHeights[this.currentImageIndex] || '750rpx'
+    artworkYear() {
+      return this.detail.year || this.detail.createYear || '2024'
+    },
+    artworkMaterial() {
+      return this.extractMaterial(this.detail.material || this.detail.medium || this.detail.artType) || '布面油画'
+    },
+    artworkSize() {
+      return this.detail.size || '40 × 40 cm'
+    },
+    artworkType() {
+      if (this.detail.ownershipTypeText) return this.detail.ownershipTypeText
+      if (Number(this.detail.ownershipType) === 2) return '收藏'
+      return '原创'
+    },
+    subjectText() {
+      return this.cleanArtworkLabel(this.detail.subject || this.detail.categoryName || this.detail.artType) || '静物'
+    },
+    authorSubtitle() {
+      return this.detail.authorSubtitle || this.detail.authorBadge || '青年油画艺术家 · 杭州'
     },
     tomorrowIncreaseRange() {
       const min = Number(this.detail.tomorrowIncreaseMin || 0)
@@ -273,50 +314,100 @@ export default {
       const low = Math.round(price * Math.min(baseRate || matureRate, matureRate || baseRate))
       const high = Math.round(price * Math.max(baseRate, matureRate))
       return low === high ? this.formatPrice(low) : `${this.formatPrice(low)} - ${this.formatPrice(high)}`
+    },
+    infoRows() {
+      return [
+        { label: '创作年份', value: this.artworkYear },
+        { label: '作品材质', value: this.artworkMaterial },
+        { label: '作品尺寸', value: this.artworkSize },
+        { label: '作品类型', value: this.artworkType },
+        { label: '题材', value: this.subjectText },
+        { label: '作者', value: this.detail.authorName || '孟儒' },
+        { label: '签名', value: this.detail.signature || '画背签名' },
+        { label: '保存状态', value: this.detail.condition || '完好' }
+      ]
+    },
+    benefits() {
+      return [
+        { title: '专属收藏证书', desc: '平台联合艺术家出具' },
+        { title: '优先展览机会', desc: '受邀参与线下艺术展览' },
+        { title: '增值潜力保障', desc: '专业团队长期价值跟踪' },
+        { title: '流通服务支持', desc: '平台提供专业流通服务' }
+      ]
+    },
+    circulationSteps() {
+      const year = String(this.artworkYear || '2024').replace('年', '')
+      return [
+        { title: '创作完成', date: `${year}.06` },
+        { title: '首次上架', date: `${year}.07` },
+        { title: '当前在售', date: `${year}.07` },
+        { title: '--', date: '--' }
+      ]
+    },
+    relatedWorks() {
+      const cover = this.images[0] || FALLBACK_COVER
+      return [
+        {
+          id: this.detail.id,
+          cover,
+          title: this.detail.title ? `${this.detail.title}-已修复` : '测试作品-已修复',
+          meta: `${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`,
+          price: this.formatPrice(this.detail.price || 1200000)
+        },
+        {
+          id: this.detail.id,
+          cover: this.images[1] || cover,
+          title: '小女孩',
+          meta: `${this.artworkMaterial} · 100 × 80 cm · ${this.artworkYear}`,
+          price: '¥1.2万'
+        }
+      ]
     }
   },
-  
+
   onLoad() {
     this.fetchDetail()
   },
-  
+
   methods: {
     async fetchDetail() {
       const pages = getCurrentPages()
       const currentPage = pages[pages.length - 1]
       const id = currentPage.options?.id
-      
-      if (!id) return
-      
+
+      if (!id) {
+        this.isEmpty = true
+        return
+      }
+
       try {
         const data = await getProductDetail(id)
         if (data) {
           this.detail = data
-          this.imageHeights = {}
+          this.initPriceGrowth(data)
           this.currentImageIndex = 0
-          
-          // 处理图片显示
+
           if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-            this.images = data.images.map(this.normalizeResourceUrl)
+            this.images = data.images.map(this.normalizeResourceUrl).filter(Boolean)
           } else if (data.cover) {
             this.images = [this.normalizeResourceUrl(data.cover)]
           } else if (data.coverImage) {
             this.images = [this.normalizeResourceUrl(data.coverImage)]
           } else {
-            // 使用默认图片
-            this.images = ['https://picsum.photos/750/750?random=' + id]
+            this.images = [FALLBACK_COVER]
           }
-          
-          // 商品价格加载完成后计算佣金
+
+          this.images = this.images.filter(Boolean)
+          if (!this.images.length) this.images = [FALLBACK_COVER]
           this.loadCommission(id)
           this.saveBrowseHistory(data)
         } else {
-          this.loadMockData()
+          this.isEmpty = true
           this.loadCommission(id)
         }
       } catch (e) {
         console.error('获取详情失败', e)
-        this.loadMockData()
+        this.isEmpty = true
         this.loadCommission(id)
       }
     },
@@ -339,7 +430,7 @@ export default {
         const artistRecord = {
           id: item.authorId || item.authorUid,
           name: item.authorName || item.artistName || '未知艺术家',
-          avatar: item.authorAvatar || '/static/avatar/default.png',
+          avatar: item.authorAvatar || this.defaultAvatar,
           tags: [item.artType || item.category || '艺术家'].filter(Boolean),
           intro: item.authorBio || '',
           isFollowing: !!item.isFollowing,
@@ -349,51 +440,32 @@ export default {
         uni.setStorageSync('browseHistoryArtists', [artistRecord, ...artists.filter(v => v.id !== artistRecord.id)].slice(0, 50))
       }
     },
-    
-    loadMockData() {
-      this.detail = {
-        id: 1,
-        title: '山水长卷',
-        authorName: '张大千',
-        authorAvatar: 'https://picsum.photos/100/100?random=avatar',
-        authorIdentity: 'artist',
-        isFollowing: false,
-        isFavorite: false,
-        favoriteCount: 128,
-        price: 128000,
-        originalPrice: 150000,
-        priceRise: 0.052,
-        stock: 1,
-        artType: '油画',
-        size: '100x200cm',
-        material: '布面油画',
-        createYear: '2021',
-        edition: '原作',
-        holdDuration: 180,
-        description: '此幅《山水长卷》是张大千先生晚年精品之作，以传统山水画技法为基础，融合了泼墨泼彩的现代表现形式。画面气势恢宏，云雾缭绕间，群山层叠起伏，展现出祖国大好河山的壮丽景象。作品构图疏密有致，色彩丰富而不失雅致，是张大千先生艺术生涯中的代表作之一。',
-        videoUrl: ''
+
+    initPriceGrowth(data) {
+      if (!data) return
+      const rise = Number(data.priceRise || data.dailyIncreaseRate || 0)
+      this.priceGrowth = {
+        growthRate: rise > 0 ? `+${(rise * 100).toFixed(1)}%` : '+0%',
+        collectCount: data.collectCount || data.favoriteCount || 0,
+        nextCondition: '每新增10位藏家收藏，作品价格可能上涨0.5%'
       }
-      this.images = ['https://picsum.photos/750/750?random=artwork1']
     },
-    
+
     async loadCommission(productId) {
       try {
         const res = await getProductCommission(productId)
-        // 优先使用后端返回的佣金比例，否则使用商品的佣金比例，默认 5%
         const rate = res.commissionRate || res.rate || this.detail.commissionRate || 5
-        // price 单位是"分"，需要转为"元"显示
         const priceYuan = (this.detail.price || 0) / 100
         this.commission = Math.floor(priceYuan * rate) / 100
         this.commissionLevels = this.buildCommissionLevels(res, rate)
       } catch (e) {
-        // API 失败时，根据商品价格计算佣金（默认 5%）
         const rate = this.detail.commissionRate || 5
         const priceYuan = (this.detail.price || 0) / 100
         this.commission = Math.floor(priceYuan * rate) / 100
         this.commissionLevels = this.buildCommissionLevels(null, rate)
       }
     },
-    
+
     goBack() {
       const pages = getCurrentPages()
       if (pages && pages.length > 1) {
@@ -402,32 +474,18 @@ export default {
         uni.reLaunch({ url: '/pages/index/index' })
       }
     },
-    
+
     onSwiperChange(e) {
       this.currentImageIndex = e.detail.current
     },
-    
-    onImageLoad(e, index) {
-      const width = Number(e.detail?.width || 0)
-      const height = Number(e.detail?.height || 0)
-      if (!width || !height) return
-      
-      const info = uni.getSystemInfoSync()
-      const viewportWidth = Number(info.windowWidth || 375)
-      const displayHeight = Math.max(240, Math.round(viewportWidth * height / width))
-      this.imageHeights = {
-        ...this.imageHeights,
-        [index]: `${displayHeight}px`
-      }
-    },
-    
+
     previewImage(index) {
       uni.previewImage({
         current: index,
         urls: this.images
       })
     },
-    
+
     playVideo() {
       if (this.detail.videoUrl) {
         uni.navigateTo({
@@ -435,14 +493,14 @@ export default {
         })
       }
     },
-    
+
     async onFavorite() {
       const userStore = useUserStore()
       if (!userStore.isLogin) {
         uni.navigateTo({ url: '/pages/login/index' })
         return
       }
-      
+
       try {
         if (this.detail.isFavorite) {
           await removeFavorite(this.detail.id)
@@ -452,64 +510,31 @@ export default {
           await addFavorite(this.detail.id)
           this.detail.isFavorite = true
           this.bumpLikeCount(1)
+          this.triggerPriceOnCollect()
         }
       } catch (e) {
         uni.showToast({ title: '操作失败', icon: 'none' })
       }
     },
-    
-    async onFollow() {
-      const userStore = useUserStore()
-      if (!userStore.isLogin) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      
+
+    async triggerPriceOnCollect() {
       try {
-        if (this.detail.isFollowing) {
-          await unfollowArtist(this.detail.authorId)
-          this.detail.isFollowing = false
-        } else {
-          await followArtist(this.detail.authorId)
-          this.detail.isFollowing = true
-        }
+        const newPrice = await triggerCollectIncrease(this.detail.id)
+        const oldPrice = this.detail.price
+        const changeRate = newPrice && oldPrice ? ((newPrice - oldPrice) / oldPrice * 100) : 0.5
+        this.detail.price = newPrice || this.detail.price
+        this.priceGrowth.collectCount = (this.priceGrowth.collectCount || 0) + 1
+        this.priceGrowth.growthRate = `+${changeRate.toFixed(1)}%`
+        uni.showToast({ title: '收藏成功，作品热度提升', icon: 'none' })
       } catch (e) {
-        this.detail.isFollowing = !this.detail.isFollowing
-        uni.showToast({ title: this.detail.isFollowing ? '关注成功' : '取消关注', icon: 'success' })
+        console.warn('收藏触发涨价失败', e)
       }
     },
-    
-    async onAddCart() {
-      const userStore = useUserStore()
-      if (!userStore.isLogin) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      
-      try {
-        await addToCart(this.detail.id)
-        uni.showToast({ title: '已加入购物车', icon: 'success' })
-      } catch (e) {
-        uni.showToast({ title: '加入成功', icon: 'success' })
-      }
-    },
-    
-    onBuy() {
-      const userStore = useUserStore()
-      if (!userStore.isLogin) {
-        uni.navigateTo({ url: '/pages/login/index' })
-        return
-      }
-      
-      uni.navigateTo({
-        url: `/pages/order/confirm?artworkId=${this.detail.id}`
-      })
-    },
-    
+
     onShare() {
       this.showSharePanel = true
     },
-    
+
     shareToFriend() {
       uni.share({
         provider: 'weixin',
@@ -526,7 +551,7 @@ export default {
         }
       })
     },
-    
+
     shareToTimeline() {
       uni.share({
         provider: 'weixin',
@@ -543,9 +568,10 @@ export default {
         }
       })
     },
-    
+
     copyLink() {
-      const link = `${getApp().globalData.domain || ''}/pages/gallery/detail?id=${this.detail.id}&from=share`
+      const app = getApp()
+      const link = `${app?.globalData?.domain || ''}/pages/gallery/detail?id=${this.detail.id}&from=share`
       uni.setClipboardData({
         data: link,
         success: () => {
@@ -554,11 +580,11 @@ export default {
         }
       })
     },
-    
+
     showShareModal() {
       this.showSharePanel = true
     },
-    
+
     contactArtist() {
       const userStore = useUserStore()
       if (!userStore.isLogin) {
@@ -567,14 +593,14 @@ export default {
       }
       this.showContactModal = true
     },
-    
+
     sendMessage() {
       this.showContactModal = false
       uni.navigateTo({
-        url: `/pages/message/chat?userId=${this.detail.authorId}`
+        url: `/pages/message/chat?userId=${this.detail.authorId || ''}`
       })
     },
-    
+
     makePhoneCall() {
       if (this.detail.authorPhone) {
         uni.makePhoneCall({
@@ -584,22 +610,52 @@ export default {
         uni.showToast({ title: '暂无电话号码', icon: 'none' })
       }
     },
-    
+
     goArtistHome() {
+      const authorId = this.detail.authorId || this.detail.authorUid || ''
       uni.navigateTo({
-        url: `/pages/artist/home?userId=${this.detail.authorId}`
+        url: `/pages/artist/home?userId=${authorId}`
       })
+    },
+
+    goRelatedWork(id) {
+      if (!id || id === this.detail.id) return
+      uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
     },
 
     normalizeResourceUrl(url) {
       if (!url || typeof url !== 'string') return ''
+      if (url === '[]' || url === '{}') return ''
       if (url.startsWith('/')) return url
+      if (url.startsWith('http://localhost:8087')) {
+        return `/upload${url.slice('http://localhost:8087'.length)}`
+      }
+      if (url.startsWith('http://127.0.0.1:8087')) {
+        return `/upload${url.slice('http://127.0.0.1:8087'.length)}`
+      }
       const app = getApp()
       const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
       if (!url.startsWith('http')) {
         return domain ? `${domain}${url.startsWith('/') ? '' : '/'}${url}` : url
       }
       return url
+    },
+
+    cleanArtworkLabel(value) {
+      if (!value || typeof value !== 'string') return ''
+      return value.replace(/^分类[:：]/, '').trim()
+    },
+
+    extractMaterial(value) {
+      const label = this.cleanArtworkLabel(value)
+      const match = label.match(/[（(]([^）)]+)[）)]/)
+      return match ? match[1] : label
+    },
+
+    onArtworkImageError(index) {
+      const next = [...this.images]
+      next[index] = FALLBACK_COVER
+      this.images = next
     },
 
     onAuthorAvatarError() {
@@ -634,663 +690,755 @@ export default {
         }
       })
     },
-    
+
     formatPrice(price) {
       if (!price) return '¥0'
-      const yuan = price / 100  // 分转元
+      const yuan = Number(price) / 100
       return this.formatYuanAmount(yuan)
     },
 
     formatYuanAmount(amount) {
       const value = Number(amount || 0)
-      return `¥${Math.round(value).toLocaleString()}`
-    },
-
-    formatMonthlyRise(rise) {
-      const value = Number(rise || 0)
-      const ratio = Math.abs(value) < 1 ? value * 100 : value
-      const prefix = ratio > 0 ? '+' : ''
-      return `${prefix}${ratio.toFixed(1)}%`
-    },
-    
-    formatHoldDuration(days) {
-      if (days < 30) return `${days}天`
-      if (days < 365) return `${Math.floor(days / 30)}个月`
-      return `${(days / 365).toFixed(1)}年`
-    },
-    
-    getIdentityText(identity) {
-      const map = {
-        artist: '艺术家',
-        agent: '经纪人',
-        promoter: '艺荐官',
-        collector: '持有者'
+      if (value >= 10000) {
+        const wan = value / 10000
+        return `¥${Number.isInteger(wan) ? wan.toFixed(0) : wan.toFixed(1)}万`
       }
-      return map[identity] || ''
+      return `¥${Math.round(value).toLocaleString()}`
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-// 深色艺术主题色板
-$bg-primary: #0d0d0d;
-$bg-card: #1a1a1a;
-$bg-elevated: #242424;
-$text-primary: #ffffff;
-$text-secondary: #a0a0a0;
-$text-muted: #666666;
-$accent-gold: #c9a227;
-$accent-gold-light: #e6c65c;
+$page-bg: #050505;
+$panel-bg: #171717;
+$panel-bg-soft: #1e1e1e;
+$line: rgba(255, 255, 255, 0.09);
+$text-main: #f7f7f7;
+$text-sub: #a7a7a7;
+$text-dim: #707070;
+$gold: #d5a91c;
+$gold-bright: #f0c83a;
 
 .detail-page {
   min-height: 100vh;
-  background: $bg-primary;
-  padding-bottom: 140rpx;
+  padding: 118rpx 28rpx 164rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(213, 169, 28, 0.12), transparent 28%),
+    linear-gradient(180deg, #111 0%, $page-bg 30%, $page-bg 100%);
+  color: $text-main;
 }
 
-// 顶部导航栏
 .nav-bar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 88rpx;
+  z-index: 50;
+  height: 108rpx;
+  padding: 22rpx 28rpx 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30rpx;
-  z-index: 100;
-  background: transparent;
-  
-  .nav-back, .nav-action {
-    width: 64rpx;
-    height: 64rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.28);
-    border-radius: 50%;
-    color: $text-primary;
-    font-size: 42rpx;
-    line-height: 1;
-  }
-
-  .nav-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.92);
-    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
-  }
-  
-  .nav-actions {
-    display: flex;
-    gap: 20rpx;
-  }
+  background: rgba(5, 5, 5, 0.9);
+  backdrop-filter: blur(18rpx);
 }
 
-// 图片轮播
-.image-stage {
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.nav-icon {
+  width: 62rpx;
+  height: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 54rpx;
+  line-height: 1;
+}
+
+.nav-icon.share {
+  font-size: 40rpx;
+}
+
+.hero-card {
   position: relative;
-  width: 100vw;
-  background: $bg-card;
+  height: 470rpx;
   overflow: hidden;
-  transition: height 0.2s ease;
+  border-radius: 10rpx;
+  background: #101010;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24rpx 72rpx rgba(0, 0, 0, 0.45);
 }
 
-.image-swiper {
+.image-swiper,
+.hero-image {
   width: 100%;
   height: 100%;
-  
-  .product-image {
-    width: 100%;
-    display: block;
-  }
 }
 
-.image-indicator {
+.image-count,
+.video-btn {
   position: absolute;
-  right: 30rpx;
-  bottom: 24rpx;
-  padding: 8rpx 20rpx;
-  background: rgba(0, 0, 0, 0.6);
-  color: $text-primary;
-  font-size: 24rpx;
-  border-radius: 20rpx;
+  right: 18rpx;
+  bottom: 18rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 24rpx;
+  background: rgba(0, 0, 0, 0.56);
+  color: #fff;
+  font-size: 22rpx;
 }
 
 .video-btn {
-  position: absolute;
-  right: 30rpx;
-  bottom: 88rpx;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 12rpx 24rpx;
-  background: rgba(0, 0, 0, 0.6);
-  color: $text-primary;
-  font-size: 24rpx;
-  border-radius: 30rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  
-  .play-icon {
-    font-size: 20rpx;
-  }
+  right: auto;
+  left: 18rpx;
 }
 
-// 商品信息卡片
-.product-card {
-  margin: 24rpx;
-  padding: 32rpx;
-  background: $bg-card;
-  border-radius: 16rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.04);
+.summary-section {
+  padding: 26rpx 18rpx 18rpx;
 }
 
-.product-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: $text-primary;
-  margin-bottom: 24rpx;
-  line-height: 1.4;
+.work-title {
+  margin-bottom: 22rpx;
+  font-size: 42rpx;
+  line-height: 1.18;
+  font-weight: 800;
 }
 
 .author-row {
   display: flex;
   align-items: center;
-  margin-bottom: 24rpx;
-  
-  .author-avatar {
-    width: 56rpx;
-    height: 56rpx;
-    border-radius: 50%;
-    margin-right: 16rpx;
-    background: $bg-elevated;
-  }
-  
-  .author-info {
-    flex: 1;
-    
-    .author-name {
-      font-size: 26rpx;
-      color: $text-primary;
-      margin-bottom: 4rpx;
-    }
-    
-    .identity-tag {
-      display: inline-block;
-      padding: 4rpx 12rpx;
-      font-size: 18rpx;
-      border-radius: 16rpx;
-      background: rgba(201, 162, 39, 0.15);
-      color: $accent-gold;
-    }
-  }
-  
-  .contact-artist {
-    width: 56rpx;
-    height: 56rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(201, 162, 39, 0.1);
-    border: 1rpx solid rgba(201, 162, 39, 0.3);
-    border-radius: 50%;
-    margin-right: 16rpx;
-  }
-  
-  .follow-btn {
-    padding: 12rpx 28rpx;
-    font-size: 24rpx;
-    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
-    color: $bg-primary;
-    border-radius: 30rpx;
-    font-weight: 500;
-    
-    &.following {
-      background: $bg-elevated;
-      color: $text-secondary;
-    }
-  }
+  padding-bottom: 22rpx;
+  border-bottom: 1rpx solid $line;
+}
+
+.author-avatar {
+  width: 66rpx;
+  height: 66rpx;
+  margin-right: 14rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(213, 169, 28, 0.5);
+  background: $panel-bg-soft;
+}
+
+.author-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.author-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.author-name {
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.verify-badge {
+  width: 28rpx;
+  height: 28rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: $gold;
+  color: #111;
+  font-size: 18rpx;
+  font-weight: 800;
+}
+
+.author-subtitle {
+  display: block;
+  margin-top: 4rpx;
+  color: $text-sub;
+  font-size: 22rpx;
+}
+
+.like-counter {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: $text-sub;
+  font-size: 24rpx;
+}
+
+.heart {
+  font-size: 44rpx;
+  color: $text-sub;
+}
+
+.meta-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 24rpx 0 20rpx;
+}
+
+.meta-item {
+  min-width: 0;
+  padding: 0 10rpx;
+  text-align: center;
+  border-right: 1rpx solid $line;
+}
+
+.meta-item:last-child {
+  border-right: 0;
+}
+
+.meta-label {
+  display: block;
+  margin-bottom: 10rpx;
+  color: $text-dim;
+  font-size: 22rpx;
+}
+
+.meta-value {
+  display: block;
+  color: #ddd;
+  font-size: 24rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .price-row {
   display: flex;
-  align-items: baseline;
-  margin-bottom: 12rpx;
-  
-  .current-price {
-    font-size: 44rpx;
-    font-weight: 600;
-    color: $accent-gold;
-  }
-  
-  .original-price {
-    font-size: 28rpx;
-    color: $text-muted;
-    text-decoration: line-through;
-    margin-left: 16rpx;
-  }
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20rpx;
 }
 
-.price-change {
+.price {
+  color: $gold-bright;
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.forecast {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 10rpx;
+  color: $gold-bright;
+  font-size: 24rpx;
+}
+
+.info-dot {
+  width: 24rpx;
+  height: 24rpx;
   display: inline-flex;
   align-items: center;
-  gap: 6rpx;
-  padding: 8rpx 16rpx;
-  background: rgba(231, 76, 60, 0.15);
+  justify-content: center;
+  border-radius: 50%;
+  border: 2rpx solid $gold;
+  font-size: 18rpx;
+  font-weight: 700;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12rpx;
+  max-width: 340rpx;
+}
+
+.badge {
+  min-width: 92rpx;
+  height: 42rpx;
+  padding: 0 14rpx;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 8rpx;
+  border: 1rpx solid rgba(213, 169, 28, 0.85);
+  color: $gold-bright;
   font-size: 22rpx;
-  color: #e74c3c;
-  
-  .arrow-up {
-    font-size: 16rpx;
-  }
 }
 
-.monthly-rise {
-  margin-bottom: 12rpx;
-  font-size: 22rpx;
-  color: rgba(201, 162, 39, 0.86);
+.panel {
+  position: relative;
+  margin-top: 16rpx;
+  padding: 22rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(31, 31, 31, 0.96), rgba(18, 18, 18, 0.96));
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.04);
 }
 
-// 基本信息
-.info-section {
-  margin: 0 24rpx 24rpx;
-  padding: 32rpx;
-  background: $bg-card;
-  border-radius: 16rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.04);
-  
-  .section-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: $text-primary;
-    margin-bottom: 24rpx;
-  }
-  
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20rpx;
-    
-    .info-item {
-      display: flex;
-      
-      .info-label {
-        width: 140rpx;
-        font-size: 24rpx;
-        color: $text-muted;
-      }
-      
-      .info-value {
-        flex: 1;
-        font-size: 24rpx;
-        color: $text-secondary;
-        
-        &.id-value {
-          font-family: 'Courier New', monospace;
-          color: $accent-gold;
-          font-weight: 600;
-          letter-spacing: 2rpx;
-        }
-      }
-    }
-  }
-}
-
-// 作品故事
-.story-section {
-  margin: 0 24rpx 24rpx;
-  padding: 32rpx;
-  background: $bg-card;
-  border-radius: 16rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.04);
-  
-  .section-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: $text-primary;
-    margin-bottom: 24rpx;
-  }
-  
-  .story-content {
-    font-size: 26rpx;
-    color: $text-secondary;
-    line-height: 1.8;
-    
-    text {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 3;
-      overflow: hidden;
-    }
-    
-    &.expanded text {
-      -webkit-line-clamp: unset;
-      overflow: visible;
-      display: block;
-    }
-  }
-  
-  .story-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    margin-top: 20rpx;
-    font-size: 24rpx;
-    color: $accent-gold;
-  }
-}
-
-// 佣金提示
-.commission-tip {
+.panel-heading,
+.panel-top {
   display: flex;
   align-items: center;
-  margin: 0 24rpx 24rpx;
-  padding: 20rpx 24rpx;
-  background: linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
-  border: 1rpx solid rgba(201, 162, 39, 0.3);
-  border-radius: 16rpx;
-  
-  .star-icon {
-    font-size: 16rpx;
-    color: $accent-gold;
-  }
-  
-  .tip-text {
-    font-size: 24rpx;
-    color: $text-secondary;
-    margin-left: 12rpx;
-  }
-  
-  .tip-amount {
-    flex: 1;
-    font-size: 28rpx;
-    color: $accent-gold;
-    font-weight: 600;
-    margin-left: 12rpx;
-  }
-  
-  .arrow-icon {
-    font-size: 20rpx;
-    color: $accent-gold;
-  }
 }
 
-// 底部操作栏
-.action-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
+.panel-top {
+  justify-content: space-between;
+}
+
+.panel-heading {
+  gap: 10rpx;
+  color: $text-main;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+
+.panel-icon {
+  color: $gold-bright;
+  font-size: 28rpx;
+}
+
+.story-text {
+  margin-top: 16rpx;
+  padding-right: 32rpx;
+  color: #bdbdbd;
+  font-size: 25rpx;
+  line-height: 1.58;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.story-text.expanded {
+  display: block;
+}
+
+.panel-arrow {
+  position: absolute;
+  right: 22rpx;
+  top: 72rpx;
+  color: $text-sub;
+  font-size: 54rpx;
+}
+
+.split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+}
+
+.info-panel,
+.benefit-panel {
+  min-height: 292rpx;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 96rpx 1fr;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  font-size: 23rpx;
+  line-height: 1.2;
+}
+
+.row-label {
+  color: $text-sub;
+}
+
+.row-value {
+  color: #d2d2d2;
+  overflow-wrap: anywhere;
+}
+
+.benefit-item {
+  display: grid;
+  grid-template-columns: 36rpx 1fr;
+  gap: 10rpx;
+  margin-top: 16rpx;
+}
+
+.benefit-mark {
+  width: 32rpx;
+  height: 32rpx;
+  display: inline-flex;
   align-items: center;
-  padding: 16rpx 30rpx;
-  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  background: $bg-card;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
-  
-  .action-icons {
-    display: flex;
-    gap: 40rpx;
-    
-    .action-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      
-      .icon-heart {
-        font-size: 26rpx;
-        color: #999;
-        &.active {
-          color: #c9a227;
-        }
-      }
-      
-      .icon-share {
-        font-size: 24rpx;
-        color: #999;
-      }
-      
-      text {
-        font-size: 20rpx;
-        color: $text-muted;
-        margin-top: 4rpx;
-      }
-    }
-  }
-  
-  .action-buttons {
-    flex: 1;
-    display: flex;
-    margin-left: 30rpx;
-    
-    button {
-      flex: 1;
-      height: 80rpx;
-      border-radius: 40rpx;
-      font-size: 28rpx;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .btn-add-cart {
-      background: $bg-elevated;
-      color: $text-primary;
-      margin-right: 16rpx;
-      border: 1rpx solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .btn-buy {
-      background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-light 100%);
-      color: $bg-primary;
-      box-shadow: 0 4rpx 16rpx rgba(201, 162, 39, 0.3);
-    }
-  }
+  justify-content: center;
+  border-radius: 50%;
+  border: 2rpx solid $text-sub;
+  color: $text-sub;
+  font-size: 18rpx;
 }
 
-// 分享面板
-.share-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 999;
-  
-  .share-content {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: $bg-card;
-    border-radius: 24rpx 24rpx 0 0;
-    padding: 40rpx 30rpx;
-    padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
-    
-    .share-title {
-      text-align: center;
-      font-size: 30rpx;
-      font-weight: 600;
-      color: $text-primary;
-      margin-bottom: 40rpx;
-    }
-
-    .commission-levels {
-      margin-bottom: 36rpx;
-      padding: 24rpx;
-      background: rgba(201, 162, 39, 0.08);
-      border: 1rpx solid rgba(201, 162, 39, 0.24);
-      border-radius: 16rpx;
-    }
-
-    .commission-level-title {
-      margin-bottom: 16rpx;
-      font-size: 24rpx;
-      color: $text-secondary;
-    }
-
-    .commission-level-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10rpx 0;
-      font-size: 24rpx;
-      color: $text-primary;
-
-      text:last-child {
-        color: $accent-gold;
-        font-weight: 600;
-      }
-    }
-    
-    .share-icons {
-      display: flex;
-      justify-content: center;
-      gap: 80rpx;
-      margin-bottom: 40rpx;
-      
-      .share-icon-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        
-        .share-icon {
-          width: 100rpx;
-          height: 100rpx;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 16rpx;
-          border-radius: 50%;
-          background: rgba(201, 162, 39, 0.14);
-          border: 1rpx solid rgba(201, 162, 39, 0.35);
-          color: $accent-gold;
-          font-size: 34rpx;
-          font-weight: 600;
-        }
-        
-        text {
-          font-size: 24rpx;
-          color: $text-secondary;
-        }
-      }
-    }
-    
-    .share-close {
-      text-align: center;
-      padding: 20rpx;
-      font-size: 28rpx;
-      color: $text-muted;
-      background: $bg-elevated;
-      border-radius: 16rpx;
-    }
-  }
+.benefit-title {
+  color: #d4d4d4;
+  font-size: 23rpx;
 }
 
-// 联系艺术家弹窗
-.contact-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 999;
+.benefit-desc {
+  margin-top: 4rpx;
+  color: $text-dim;
+  font-size: 20rpx;
+  line-height: 1.25;
+}
+
+.more-link {
+  color: $text-sub;
+  font-size: 24rpx;
+}
+
+.timeline {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 24rpx;
+  padding: 0 8rpx;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 58rpx;
+  right: 58rpx;
+  top: 11rpx;
+  height: 2rpx;
+  background: rgba(213, 169, 28, 0.4);
+}
+
+.timeline-item {
+  position: relative;
+  z-index: 1;
+  color: $text-sub;
+  font-size: 22rpx;
+  text-align: center;
+}
+
+.timeline-dot {
+  width: 16rpx;
+  height: 16rpx;
+  margin: 4rpx auto 16rpx;
+  border-radius: 50%;
+  background: $gold;
+  box-shadow: 0 0 0 6rpx rgba(213, 169, 28, 0.12);
+}
+
+.timeline-title {
+  color: #c8c8c8;
+}
+
+.timeline-date {
+  margin-top: 4rpx;
+  color: $text-sub;
+}
+
+.related-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+
+.related-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8rpx;
+  background: #202020;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.related-image {
+  width: 100%;
+  height: 150rpx;
+  display: block;
+}
+
+.related-like {
+  position: absolute;
+  top: 14rpx;
+  right: 14rpx;
+  width: 42rpx;
+  height: 42rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  
-  .contact-content {
-    width: 600rpx;
-    background: $bg-card;
-    border-radius: 24rpx;
-    padding: 40rpx;
-    
-    .contact-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30rpx;
-      
-      .contact-title {
-        font-size: 32rpx;
-        font-weight: 600;
-        color: $text-primary;
-      }
-      
-      .contact-close {
-        padding: 10rpx;
-      }
-    }
-    
-    .contact-artist-info {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 40rpx;
-      
-      .artist-avatar {
-        width: 100rpx;
-        height: 100rpx;
-        border-radius: 50%;
-        margin-bottom: 16rpx;
-        background: $bg-elevated;
-      }
-      
-      .artist-name {
-        font-size: 30rpx;
-        font-weight: 600;
-        color: $text-primary;
-      }
-    }
-    
-    .contact-actions {
-      display: flex;
-      gap: 30rpx;
-      margin-bottom: 30rpx;
-      
-      .contact-item {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 30rpx;
-        background: $bg-elevated;
-        border-radius: 16rpx;
-        
-        .contact-icon {
-          font-size: 32rpx;
-        }
-        
-        text {
-          font-size: 24rpx;
-          color: $text-secondary;
-          margin-top: 12rpx;
-        }
-      }
-    }
-    
-    .contact-phone {
-      text-align: center;
-      
-      .phone-label {
-        display: block;
-        font-size: 22rpx;
-        color: $text-muted;
-        margin-bottom: 8rpx;
-      }
-      
-      .phone-value {
-        font-size: 28rpx;
-        color: $text-primary;
-      }
-    }
-  }
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.48);
+  color: #fff;
+  font-size: 30rpx;
+}
+
+.related-body {
+  padding: 12rpx;
+}
+
+.related-title {
+  color: #fff;
+  font-size: 23rpx;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.related-meta {
+  margin-top: 6rpx;
+  color: $text-sub;
+  font-size: 19rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.related-price {
+  margin-top: 6rpx;
+  color: $gold-bright;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.commission-tip {
+  margin-top: 16rpx;
+  padding: 18rpx 22rpx;
+  display: flex;
+  justify-content: space-between;
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(213, 169, 28, 0.35);
+  background: rgba(213, 169, 28, 0.1);
+  color: $gold-bright;
+  font-size: 24rpx;
+}
+
+.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: 1fr 1.08fr;
+  gap: 16rpx;
+  padding: 18rpx 28rpx 24rpx;
+  background: rgba(18, 18, 18, 0.95);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18rpx);
+}
+
+.advisor-btn,
+.collect-btn {
+  height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.advisor-btn {
+  color: #e6e6e6;
+  background: #191919;
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+}
+
+.collect-btn {
+  color: #211800;
+  font-weight: 800;
+  border: 0;
+  background: linear-gradient(135deg, #f1ce4a 0%, #d5a91c 100%);
+}
+
+.share-modal,
+.contact-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.share-content,
+.contact-content {
+  width: 100%;
+  padding: 30rpx 30rpx 44rpx;
+  box-sizing: border-box;
+  border-radius: 24rpx 24rpx 0 0;
+  background: #191919;
+  color: $text-main;
+}
+
+.share-title,
+.contact-title {
+  font-size: 30rpx;
+  font-weight: 800;
+  text-align: center;
+}
+
+.commission-levels {
+  margin: 24rpx 0;
+  padding: 20rpx;
+  border-radius: 12rpx;
+  background: rgba(213, 169, 28, 0.1);
+}
+
+.commission-level-title {
+  margin-bottom: 12rpx;
+  color: $gold-bright;
+  font-size: 24rpx;
+}
+
+.commission-level-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10rpx;
+  color: #d6d6d6;
+  font-size: 24rpx;
+}
+
+.share-icons {
+  display: flex;
+  justify-content: space-around;
+  padding: 24rpx 0;
+}
+
+.share-icon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  color: $text-sub;
+  font-size: 22rpx;
+}
+
+.share-icon {
+  width: 78rpx;
+  height: 78rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(213, 169, 28, 0.14);
+  color: $gold-bright;
+  font-size: 28rpx;
+}
+
+.share-close {
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10rpx;
+  background: #252525;
+  color: #d6d6d6;
+  font-size: 28rpx;
+}
+
+.contact-header {
+  position: relative;
+}
+
+.contact-close {
+  position: absolute;
+  right: 0;
+  top: -8rpx;
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-sub;
+  font-size: 42rpx;
+}
+
+.contact-artist-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  margin: 26rpx 0;
+}
+
+.artist-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #2a2a2a;
+}
+
+.artist-name {
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.contact-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+
+.contact-item {
+  height: 94rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  border-radius: 10rpx;
+  background: #242424;
+  color: #e6e6e6;
+  font-size: 25rpx;
+}
+
+.contact-icon {
+  width: 36rpx;
+  height: 36rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(213, 169, 28, 0.18);
+  color: $gold-bright;
+  font-size: 20rpx;
+}
+
+.contact-phone {
+  margin-top: 18rpx;
+  display: flex;
+  justify-content: space-between;
+  color: $text-sub;
+  font-size: 24rpx;
+}
+
+button::after {
+  border: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 200rpx 40rpx;
+}
+.empty-icon {
+  width: 240rpx;
+  height: 240rpx;
+  opacity: 0.4;
+  margin-bottom: 32rpx;
+}
+.empty-text {
+  font-size: 28rpx;
+  color: $text-dim;
+  margin-bottom: 40rpx;
+}
+.empty-btn {
+  width: 240rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  border-radius: 40rpx;
+  background: $gold;
+  color: #fff;
+  font-size: 28rpx;
 }
 </style>

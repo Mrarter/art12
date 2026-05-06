@@ -84,7 +84,7 @@
             {{ index + 1 }}
           </view>
           <text class="rank-number" v-else>{{ index + 1 }}</text>
-          <image class="rank-avatar" :src="item.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+          <image class="rank-avatar" :src="item.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
           <view class="rank-info">
             <text class="rank-name">{{ item.nickname }}</text>
             <text class="rank-count">{{ item.orderCount }}单</text>

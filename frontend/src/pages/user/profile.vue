@@ -7,7 +7,7 @@
         <!-- 头像 -->
         <view class="avatar-section">
           <view class="avatar-wrapper" @click="changeAvatar">
-            <image class="avatar" :src="userInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+            <image class="avatar" :src="userInfo.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
             <view class="avatar-edit">
               
             </view>
@@ -260,6 +260,7 @@
 
 <script>
 import { useUserStore } from '@/store/modules/user.js'
+import { openCropper } from '@/api/file.js'
 
 export default {
   data() {
@@ -299,8 +300,15 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.userInfo.avatar = res.tempFilePaths[0]
-          uni.showToast({ title: '头像已更新', icon: 'success' })
+          const path = res.tempFilePaths[0]
+          openCropper(path, { ratio: '1:1', shape: 'circle' }).then(cropped => {
+            this.userInfo.avatar = cropped
+            uni.showToast({ title: '头像已更新', icon: 'success' })
+          }).catch(() => {
+            // 用户取消或裁剪失败时，直接使用原图
+            this.userInfo.avatar = path
+            uni.showToast({ title: '头像已更新', icon: 'success' })
+          })
         }
       })
     },

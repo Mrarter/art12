@@ -1,0 +1,10 @@
+{
+  "pages": [
+    "pages/work/circulation-detail/index",
+    "pages/work/certificate-detail/index"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#000000"
+  }
+}

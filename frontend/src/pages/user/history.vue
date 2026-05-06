@@ -113,7 +113,7 @@ export default {
       this.worksGrouped = groups
       this.artistsList = (uni.getStorageSync('browseHistoryArtists') || []).map(item => ({
         ...item,
-        avatar: item.avatar || '/static/avatar/default.png',
+        avatar: item.avatar || '/static/images/avatar.png',
         tags: item.tags && item.tags.length ? item.tags : ['艺术家']
       }))
     },

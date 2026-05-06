@@ -1,0 +1,21 @@
+<view class="page">
+  <view class="header">
+    <text>←</text>
+    <text>收藏证书详情</text>
+    <text>⋯</text>
+  </view>
+
+  <view class="certificate">
+    <text>艺术品收藏证书</text>
+    <text>编号：YB20240001</text>
+  </view>
+
+  <view class="card">
+    <text>晨曦·归航</text>
+    <text>孟儒</text>
+  </view>
+
+  <view class="footer">
+    <button class="btn primary">下载证书</button>
+  </view>
+</view>

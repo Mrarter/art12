@@ -99,6 +99,11 @@ export default defineConfig({
         target: 'http://localhost:8087',
         changeOrigin: true
       },
+      // 默认头像静态资源 -> admin服务(8090)
+      '/images': {
+        target: 'http://localhost:8090',
+        changeOrigin: true
+      },
       // 兼容旧路径 /uploads
       '/uploads': {
         target: 'http://localhost:8087',

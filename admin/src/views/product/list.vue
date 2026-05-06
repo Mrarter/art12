@@ -174,7 +174,6 @@
                 :preview-src-list="row.cover ? [row.cover] : []" 
                 style="width: 80px; height: 80px" 
                 fit="cover"
-                :preview-teleported="true"
               >
                 <template #error>
                   <div class="image-placeholder">
@@ -437,7 +436,7 @@
               <img v-if="editForm.cover" :src="editForm.cover" class="avatar" />
               <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
             </el-upload>
-            <div class="upload-tip">支持 JPG/PNG，大小不超过 5MB</div>
+            <div class="upload-tip">支持 JPG/PNG，大小不超过 10MB</div>
           </div>
         </el-form-item>
         <el-form-item label="价格" prop="price">
@@ -624,6 +623,14 @@
         <el-button type="primary" :loading="artistEditLoading" @click="saveArtistInfo">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 图片裁剪对话框 -->
+    <ImageCropper
+      :visible="cropperVisible"
+      :file="cropperFile"
+      @close="cropperVisible = false"
+      @confirm="handleCropperConfirm"
+    />
   </div>
 </template>
 
@@ -635,6 +642,7 @@ import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
 import { uploadFile } from '@/api/request'
+import ImageCropper from '@/components/ImageCropper.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -1144,14 +1152,14 @@ const handleAdd = () => {
 
 const beforeImageUpload = (file) => {
   const isImage = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/jpg'
-  const isLt5M = file.size / 1024 / 1024 < 5
+  const isLt10M = file.size / 1024 / 1024 < 10
   
   if (!isImage) {
     ElMessage.error('只能上传 JPG/PNG 格式的图片')
     return false
   }
-  if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB')
+  if (!isLt10M) {
+    ElMessage.error('图片大小不能超过 10MB')
     return false
   }
   return true

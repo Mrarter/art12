@@ -25,7 +25,7 @@
     <!-- 商品列表 -->
     <view class="goods-section">
       <view class="goods-header">
-        <image class="shop-logo" :src="orderInfo.sellerAvatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+        <image class="shop-logo" :src="orderInfo.sellerAvatar || '/static/images/avatar.png'" mode="aspectFill"></image>
         <text class="shop-name">{{ orderInfo.sellerName || '拾艺局旗舰店' }}</text>
       </view>
       <view class="goods-list">

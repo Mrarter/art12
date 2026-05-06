@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "艺术家评分",
-  "usingComponents": {
-    "artist-level-badge": "../../components/artist-level-badge/artist-level-badge"
-  }
-}

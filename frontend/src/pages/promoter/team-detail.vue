@@ -2,7 +2,7 @@
   <view class="team-detail-page">
     <!-- 成员信息 -->
     <view class="member-header">
-      <image class="member-avatar" :src="memberInfo.avatar || '/static/avatar/default.jpg'" mode="aspectFill"></image>
+      <image class="member-avatar" :src="memberInfo.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
       <view class="member-info">
         <text class="member-name">{{ memberInfo.nickname || '未知用户' }}</text>
         <text class="member-level">{{ memberInfo.level === 1 ? '一级成员' : '二级成员' }}</text>

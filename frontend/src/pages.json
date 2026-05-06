@@ -347,7 +347,49 @@
     {
       "path": "pages/artist/home",
       "style": {
-        "navigationBarTitleText": "艺术家主页"
+        "navigationBarTitleText": "艺术家主页",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
+      }
+    },
+    {
+      "path": "pages/artist/detail/index",
+      "style": {
+        "navigationBarTitleText": "艺术家主页",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
+      }
+    },
+    {
+      "path": "pages/artist/gallery/index",
+      "style": {
+        "navigationBarTitleText": "个人美术馆",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
+      }
+    },
+    {
+      "path": "pages/artist/circulation/index",
+      "style": {
+        "navigationBarTitleText": "作品流通",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
+      }
+    },
+    {
+      "path": "pages/artist/trust/index",
+      "style": {
+        "navigationBarTitleText": "收藏信任",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
+      }
+    },
+    {
+      "path": "pages/artist/works/index",
+      "style": {
+        "navigationBarTitleText": "艺术家全部作品",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
       }
     },
     {
@@ -378,6 +420,49 @@
       "path": "pages/artist/apply",
       "style": {
         "navigationBarTitleText": "艺术家入驻申请"
+      }
+    },
+    {
+      "path": "pages/artist/score",
+      "style": {
+        "navigationBarTitleText": "评分详情"
+      }
+    },
+    {
+      "path": "pages/common/cropper",
+      "style": {
+        "navigationBarTitleText": "裁剪图片",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#000000"
+      }
+    },
+    {
+      "path": "pages/order/intent",
+      "style": {
+        "navigationBarTitleText": "收藏意向单"
+      }
+    },
+    {
+      "path": "pages/order/intent-result",
+      "style": {
+        "navigationBarTitleText": "提交成功",
+        "navigationBarBackgroundColor": "#f7f3eb"
+      }
+    },
+    {
+      "path": "pages/order/certificate-detail",
+      "style": {
+        "navigationBarTitleText": "收藏证书详情",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0b0b0b"
+      }
+    },
+    {
+      "path": "pages/order/circulation-detail",
+      "style": {
+        "navigationBarTitleText": "流通记录详情",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0b0b0b"
       }
     },
     {
