@@ -1,16 +1,16 @@
 <template>
   <view class="custom-tab-bar">
     <view
-      v-for="(item, index) in tabList"
-      :key="index"
+      v-for="item in visibleTabList"
+      :key="item.pagePath"
       class="tab-item"
-      :class="{ active: currentIndex === index }"
-      @click="switchTab(item, index)"
+      :class="{ active: currentIndex === item.index }"
+      @click="switchTab(item)"
     >
       <view class="tab-icon-wrap">
         <image
           class="tab-icon"
-          :src="currentIndex === index ? item.selectedIcon : item.icon"
+          :src="currentIndex === item.index ? item.selectedIcon : item.icon"
           mode="aspectFit"
         ></image>
         <view class="tab-badge" v-if="item.badge > 0">
@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import { useUserStore } from '@/store/modules/user.js'
+
 export default {
   name: 'CustomTabBar',
   props: {
@@ -44,14 +46,44 @@ export default {
       ]
     }
   },
+  computed: {
+    userStore() {
+      return useUserStore()
+    },
+    isLoggedIn() {
+      return this.userStore.isAuthenticated || this.userStore.isLogin
+    },
+    identities() {
+      const raw = this.userStore.identities || this.userStore.userInfo?.identities || this.userStore.userInfo?.identity || this.userStore.userInfo?.currentIdentity
+      if (Array.isArray(raw)) return raw.length ? raw : ['collector']
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw)
+          return Array.isArray(parsed) ? parsed : raw.split(',').filter(Boolean)
+        } catch (e) {
+          return raw.split(',').filter(Boolean)
+        }
+      }
+      return ['collector']
+    },
+    canShowPublish() {
+      const identities = this.identities.map(item => String(item).toLowerCase())
+      return identities.some(item => ['collector', 'artist', '藏家', '收藏者', '艺术家'].includes(item)) || this.userStore.isArtist
+    },
+    visibleTabList() {
+      return this.tabList
+        .map((item, index) => ({ ...item, index }))
+        .filter(item => item.text !== '发布' || this.canShowPublish)
+    }
+  },
   methods: {
-    switchTab(item, index) {
+    switchTab(item) {
       if (item.navigateType === 'navigateTo') {
         uni.navigateTo({ url: item.pagePath })
         return
       }
 
-      if (this.currentIndex !== index) {
+      if (this.currentIndex !== item.index) {
         uni.switchTab({ url: item.pagePath })
       }
     }

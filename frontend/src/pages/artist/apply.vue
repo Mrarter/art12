@@ -774,4 +774,124 @@ export default {
     }
   }
 }
+
+/* 身份入口二级页：暗色重构覆盖层 */
+.apply-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+  padding: 24rpx;
+  padding-bottom: calc(150rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.card,
+.notice-section,
+.form-section {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.notice-section {
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.2), rgba(23, 23, 25, 0.96)),
+    #171719;
+
+  .notice-header text {
+    color: #f6f2e8;
+    margin-left: 0;
+    font-size: 34rpx;
+    line-height: 42rpx;
+    font-weight: 800;
+  }
+
+  .notice-content .notice-item {
+    color: #9b958a;
+  }
+}
+
+.form-section {
+  .form-title {
+    color: #f6f2e8;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .form-item {
+    .form-label {
+      color: #f6f2e8;
+    }
+
+    .form-input,
+    .picker-value,
+    .form-textarea {
+      background: #202024;
+      color: #f6f2e8;
+    }
+
+    .radio-group .radio-item {
+      background: #202024;
+      color: #9b958a;
+
+      &.active {
+        color: #16130b;
+        background: #c9a227;
+        border-color: #c9a227;
+      }
+    }
+
+    .word-count {
+      color: #68645c;
+    }
+  }
+
+  .avatar-upload,
+  .works-upload .work-add,
+  .idcard-upload {
+    background: #202024;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .avatar-upload .upload-placeholder text,
+  .works-upload .work-add text,
+  .idcard-upload .upload-placeholder text,
+  .upload-tip,
+  .idcard-tip {
+    color: #9b958a;
+  }
+
+  .code-input .code-btn {
+    color: #c9a227;
+    background: rgba(201, 162, 39, 0.14);
+
+    &.disabled {
+      color: #68645c;
+      background: #202024;
+    }
+  }
+}
+
+.agreement-section {
+  .agreement-check text {
+    color: #9b958a;
+  }
+
+  .agreement-link {
+    color: #c9a227;
+  }
+}
+
+.submit-section {
+  background: rgba(11, 11, 12, 0.96);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+
+  .submit-btn {
+    background: #c9a227;
+    color: #16130b;
+
+    &.disabled {
+      background: #343436;
+      color: #68645c;
+    }
+  }
+}
 </style>

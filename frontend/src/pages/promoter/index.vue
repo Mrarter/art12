@@ -639,4 +639,171 @@ export default {
     }
   }
 }
+
+/* 身份入口二级页：暗色重构覆盖层 */
+.promoter-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+  padding: 24rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.earnings-header {
+  border-radius: 18rpx;
+  padding: 34rpx 30rpx;
+  background:
+    linear-gradient(135deg, rgba(95, 143, 199, 0.22), rgba(201, 162, 39, 0.18)),
+    #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  color: #f6f2e8;
+}
+
+.total-earnings {
+  .label {
+    color: #9b958a;
+    opacity: 1;
+  }
+
+  .value {
+    color: #f6f2e8;
+    font-weight: 800;
+  }
+}
+
+.earnings-detail {
+  gap: 28rpx;
+
+  .detail-item {
+    flex: 1;
+    min-height: 92rpx;
+    border-radius: 12rpx;
+    background: rgba(255, 255, 255, 0.045);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .item-label {
+      color: #9b958a;
+      opacity: 1;
+    }
+
+    .item-value {
+      color: #f6f2e8;
+    }
+
+    .item-value.highlight {
+      color: #c9a227;
+    }
+  }
+}
+
+.withdraw-btn {
+  background: #c9a227;
+  color: #16130b;
+  border-radius: 12rpx;
+}
+
+.stats-cards {
+  padding: 0;
+  margin-top: 16rpx;
+}
+
+.stat-card,
+.card {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.stat-card {
+  .card-value {
+    color: #f6f2e8;
+  }
+
+  .card-label {
+    color: #9b958a;
+  }
+}
+
+.card {
+  margin: 20rpx 0 0;
+}
+
+.card-title {
+  color: #f6f2e8;
+}
+
+.more-link,
+.chart-empty,
+.legend-item,
+.bar-item .bar-label,
+.team-list .team-info .team-level,
+.team-list .team-earnings .earnings-text,
+.invite-content .invite-code .code-label {
+  color: #9b958a;
+}
+
+.period-tab {
+  color: #9b958a;
+  background: #202024;
+
+  &.active {
+    background: #c9a227;
+    color: #16130b;
+  }
+}
+
+.bar-item .bar {
+  background: linear-gradient(180deg, #c9a227, rgba(201, 162, 39, 0.24));
+}
+
+.team-list {
+  .team-item {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .team-info .team-name {
+    color: #f6f2e8;
+  }
+
+  .team-earnings .earnings-value {
+    color: #c9a227;
+  }
+
+  .team-empty {
+    color: #68645c;
+  }
+}
+
+.invite-content {
+  .invite-code .code-box {
+    background: #202024;
+
+    .code-value {
+      color: #c9a227;
+    }
+
+    .copy-btn {
+      background: rgba(201, 162, 39, 0.14);
+      color: #c9a227;
+    }
+  }
+
+  .invite-btn {
+    background: #c9a227;
+    color: #16130b;
+    border-radius: 12rpx;
+  }
+}
+
+.menu-section {
+  .menu-item {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+
+    text {
+      color: #f6f2e8;
+    }
+  }
+}
 </style>

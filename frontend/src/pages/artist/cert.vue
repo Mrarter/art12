@@ -591,4 +591,129 @@ onMounted(async () => {
     }
   }
 }
+
+/* 身份入口二级页：暗色重构覆盖层 */
+.cert-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+  padding: 24rpx 24rpx calc(160rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.cert-header {
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+  border-radius: 18rpx;
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.24), rgba(23, 23, 25, 0.96)),
+    #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+
+  .header-icon {
+    background: rgba(201, 162, 39, 0.16);
+  }
+
+  .header-text {
+    .title {
+      color: #f6f2e8;
+      font-size: 36rpx;
+      line-height: 44rpx;
+      font-weight: 800;
+    }
+
+    .desc {
+      color: #9b958a;
+      opacity: 1;
+    }
+  }
+}
+
+.cert-status,
+.form-section {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.cert-status {
+  margin: 0 0 20rpx;
+  color: #f6f2e8;
+
+  .status-detail {
+    color: #9b958a;
+  }
+}
+
+.cert-form {
+  padding: 0;
+}
+
+.form-section {
+  .section-title {
+    color: #f6f2e8;
+    border-left-color: #c9a227;
+  }
+
+  .section-hint,
+  .upload-tips {
+    color: #68645c;
+  }
+}
+
+.form-item {
+  .item-label {
+    color: #f6f2e8;
+  }
+
+  .item-input,
+  .item-picker,
+  .item-textarea {
+    background: #202024;
+    color: #f6f2e8;
+  }
+
+  .item-picker .picker-content {
+    color: #f6f2e8;
+  }
+}
+
+.placeholder,
+.upload-group .upload-title {
+  color: #9b958a;
+}
+
+.upload-grid .upload-item,
+.works-uploader .works-list .work-add {
+  background: #202024;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.works-uploader .works-list .work-add text,
+.upload-grid .upload-item .upload-placeholder .upload-text {
+  color: #9b958a;
+}
+
+.form-footer {
+  background: rgba(11, 11, 12, 0.96);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+
+  .submit-btn {
+    background: #c9a227;
+    color: #16130b;
+
+    &.disabled {
+      background: #343436;
+      color: #68645c;
+    }
+  }
+
+  .submit-tips {
+    color: #9b958a;
+
+    .link {
+      color: #c9a227;
+    }
+  }
+}
 </style>

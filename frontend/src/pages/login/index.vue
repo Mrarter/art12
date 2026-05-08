@@ -6,7 +6,7 @@
       <text class="app-name">拾艺局</text>
       <text class="app-slogan">高端艺术品社交电商平台</text>
     </view>
-    
+
     <!-- 身份选择入口 -->
     <view class="identity-intro">
       <text class="intro-title">选择您的身份</text>
@@ -34,7 +34,7 @@
         </view>
       </view>
     </view>
-    
+
     <!-- 功能特色 -->
     <view class="features-section">
       <view class="feature-item">
@@ -85,7 +85,7 @@
       </button>
       
       <!-- 手机号登录 -->
-      <button class="btn-phone" @click="showPhoneLogin = true">
+      <button class="btn-phone" @click="openPhoneLogin">
         <text class="iconfont icon-phone"></text>
         <text>手机号登录</text>
       </button>
@@ -97,14 +97,14 @@
     </view>
     
     <!-- 手机号登录弹窗 -->
-    <uni-popup ref="phonePopup" type="bottom">
+    <view v-if="showPhoneLogin" class="popup-mask" @click="closePhoneLogin">
       <view class="phone-login-popup">
         <view class="popup-header">
           <text class="popup-title">手机号登录</text>
-          <text class="popup-close iconfont icon-close" @click="phonePopup.close()"></text>
+          <text class="popup-close iconfont icon-close" @click.stop="closePhoneLogin"></text>
         </view>
         
-        <view class="phone-form">
+        <view class="phone-form" @click.stop>
           <view class="form-item">
             <input class="phone-input" type="number" v-model="phoneForm.phone" placeholder="请输入手机号" maxlength="11" />
           </view>
@@ -124,7 +124,7 @@
           <text>登录后将同步获取您的微信昵称、头像等信息</text>
         </view>
       </view>
-    </uni-popup>
+    </view>
   </view>
 </template>
 
@@ -138,8 +138,8 @@ export default {
     return {
       loading: false,
       showPhoneLogin: false,
-      phonePopup: null,
       selectedIdentity: 'collector', // 默认收藏家
+      redirect: '',
       phoneForm: {
         phone: '',
         captcha: ''
@@ -155,17 +155,22 @@ export default {
     }
   },
   
-  onLoad() {
-    this.initLogin()
+  onLoad(options = {}) {
+    this.initLogin(options)
   },
   
   methods: {
     // 初始化登录状态检查
-    initLogin() {
+    initLogin(options = {}) {
+      const identities = ['collector', 'artist', 'promoter']
+      if (identities.includes(options.identity)) {
+        this.selectedIdentity = options.identity
+      }
+      this.redirect = options.redirect ? decodeURIComponent(options.redirect) : ''
       const userStore = useUserStore()
       // 如果已登录，直接跳转
       if (userStore.isAuthenticated) {
-        uni.switchTab({ url: '/pages/index/index' })
+        this.afterLogin()
       }
     },
     
@@ -192,9 +197,7 @@ export default {
               }
             },
             fail: (err) => {
-              // 小程序环境外或未配置微信登录时，模拟登录
-              console.log('微信登录不可用，使用模拟登录')
-              resolve({ code: 'mock_code_' + Date.now() })
+              reject(err || new Error('微信登录不可用'))
             }
           })
         })
@@ -222,41 +225,23 @@ export default {
         
         uni.showToast({ title: '登录成功', icon: 'success' })
         
-        // 返回上一页或首页
         setTimeout(() => {
-          uni.navigateBack() || uni.switchTab({ url: '/pages/index/index' })
+          this.afterLogin()
         }, 1500)
       } catch (e) {
         console.error('微信登录失败', e)
-        // 模拟登录成功（开发环境）
-        this.mockLogin()
+        uni.showToast({ title: '微信登录失败，请重试', icon: 'none' })
       } finally {
         this.loading = false
       }
     },
-    
-    // 模拟登录（开发环境使用）
-    mockLogin() {
-      const userStore = useUserStore()
-      const mockUser = {
-        id: 10001,
-        nickname: '艺术品爱好者',
-        avatar: '',
-        phone: '138****8888',
-        isArtist: this.selectedIdentity === 'artist',
-        isPromoter: this.selectedIdentity === 'promoter',
-        currentIdentity: this.selectedIdentity,
-        level: 1,
-        vipLevel: 0
-      }
-      
-      userStore.setToken('mock_token_' + Date.now())
-      userStore.setUserInfo(mockUser)
-      
-      uni.showToast({ title: '登录成功（模拟）', icon: 'success' })
-      setTimeout(() => {
-        uni.navigateBack() || uni.switchTab({ url: '/pages/index/index' })
-      }, 1500)
+
+    openPhoneLogin() {
+      this.showPhoneLogin = true
+    },
+
+    closePhoneLogin() {
+      this.showPhoneLogin = false
     },
     
     // 手机号登录
@@ -278,10 +263,10 @@ export default {
         })
         
         uni.showToast({ title: '登录成功', icon: 'success' })
-        this.phonePopup.close()
+        this.closePhoneLogin()
         
         setTimeout(() => {
-          uni.navigateBack() || uni.switchTab({ url: '/pages/index/index' })
+          this.afterLogin()
         }, 1500)
       } catch (e) {
         console.error('手机号登录失败', e)
@@ -297,11 +282,11 @@ export default {
       }
       
       try {
-        await sendSmsCode({ phone: this.phoneForm.phone, type: 'login' })
+        await sendSmsCode(this.phoneForm.phone, 'login')
         uni.showToast({ title: '验证码已发送', icon: 'success' })
       } catch (e) {
-        // 模拟发送成功
-        uni.showToast({ title: '验证码已发送', icon: 'success' })
+        uni.showToast({ title: '验证码发送失败', icon: 'none' })
+        return
       }
       
       // 开始倒计时
@@ -329,10 +314,18 @@ export default {
       uni.showToast({ title: '已进入游客模式', icon: 'success' })
       
       setTimeout(() => {
-        uni.switchTab({ url: '/pages/index/index' })
+        this.afterLogin()
       }, 1500)
     },
     
+    afterLogin() {
+      if (this.redirect) {
+        uni.navigateTo({ url: this.redirect })
+        return
+      }
+      uni.switchTab({ url: '/pages/index/index' })
+    },
+
     // 查看协议
     viewAgreement(type) {
       const urls = {
@@ -593,7 +586,20 @@ export default {
 }
 
 /* 手机号登录弹窗 */
+.popup-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 99;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+}
+
 .phone-login-popup {
+  width: 100%;
   background: #fff;
   border-radius: 32rpx 32rpx 0 0;
   padding: 40rpx;

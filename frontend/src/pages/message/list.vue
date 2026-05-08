@@ -1,34 +1,30 @@
 <template>
   <view class="message-page">
-    <!-- 消息分类标签 -->
-    <view class="message-tabs">
-      <view 
-        class="tab-item" 
-        :class="{ active: currentTab === 'system' }"
-        @click="switchTab('system')"
-      >
-        <text>系统消息</text>
-        <view class="tab-badge" v-if="unreadCount.system > 0">{{ unreadCount.system > 99 ? '99+' : unreadCount.system }}</view>
+    <view class="page-glow"></view>
+
+    <view class="page-header">
+      <view>
+        <text class="page-title">消息中心</text>
+        <text class="page-desc">订单、系统通知和私信集中查看</text>
       </view>
-      <view 
-        class="tab-item" 
-        :class="{ active: currentTab === 'order' }"
-        @click="switchTab('order')"
-      >
-        <text>订单通知</text>
-        <view class="tab-badge" v-if="unreadCount.order > 0">{{ unreadCount.order > 99 ? '99+' : unreadCount.order }}</view>
-      </view>
-      <view 
-        class="tab-item" 
-        :class="{ active: currentTab === 'chat' }"
-        @click="switchTab('chat')"
-      >
-        <text>私信</text>
-        <view class="tab-badge" v-if="unreadCount.chat > 0">{{ unreadCount.chat > 99 ? '99+' : unreadCount.chat }}</view>
+      <view class="header-action" @click="goMessageSettings">
+        <image class="header-icon" src="/static/icons/gear.svg" mode="aspectFit"></image>
       </view>
     </view>
 
-    <!-- 系统/订单消息列表 -->
+    <view class="message-tabs">
+      <view
+        class="tab-item"
+        v-for="item in tabs"
+        :key="item.value"
+        :class="{ active: currentTab === item.value }"
+        @click="switchTab(item.value)"
+      >
+        <text>{{ item.label }}</text>
+        <view class="tab-badge" v-if="unreadCount[item.value] > 0">{{ formatBadge(unreadCount[item.value]) }}</view>
+      </view>
+    </view>
+
     <scroll-view 
       class="message-list" 
       scroll-y 
@@ -41,9 +37,7 @@
         :key="item.id"
         @click="goMessageDetail(item)"
       >
-        <view class="message-icon" :class="item.type">
-          
-        </view>
+        <view class="message-icon" :class="item.type">{{ getIconName(item.type) }}</view>
         <view class="message-content">
           <view class="message-header">
             <text class="message-title">{{ item.title }}</text>
@@ -54,24 +48,19 @@
             <view class="tag" v-for="(tag, index) in item.tags" :key="index">{{ tag }}</view>
           </view>
         </view>
-        <view class="message-arrow">
-          
-        </view>
+        <text class="message-arrow">›</text>
       </view>
 
-      <!-- 空状态 -->
       <view class="empty-state" v-if="messageList.length === 0 && !loading">
-        <image src="/static/empty/message.png" mode="aspectFit" class="empty-icon"></image>
+        <view class="empty-icon">息</view>
         <text class="empty-text">暂无消息</text>
       </view>
 
-      <!-- 加载更多 -->
       <view class="load-more" v-if="loading">
         <text class="loading-text">加载中...</text>
       </view>
     </scroll-view>
 
-    <!-- 私信列表 -->
     <scroll-view 
       class="message-list chat-list" 
       scroll-y 
@@ -100,9 +89,8 @@
         </view>
       </view>
 
-      <!-- 空状态 -->
       <view class="empty-state" v-if="chatList.length === 0 && !loading">
-        <image src="/static/empty/chat.png" mode="aspectFit" class="empty-icon"></image>
+        <view class="empty-icon">私</view>
         <text class="empty-text">暂无私信</text>
       </view>
     </scroll-view>
@@ -116,6 +104,12 @@ const currentTab = ref('system')
 const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
+
+const tabs = [
+  { value: 'system', label: '系统' },
+  { value: 'order', label: '订单' },
+  { value: 'chat', label: '私信' }
+]
 
 const unreadCount = ref({
   system: 0,
@@ -194,12 +188,16 @@ const chatList = ref([
 
 const getIconName = (type) => {
   const icons = {
-    order: 'file-text',
-    promotion: 'gift',
-    auction: 'hammer',
-    system: 'info-circle'
+    order: '单',
+    promotion: '券',
+    auction: '拍',
+    system: '系'
   }
-  return icons[type] || 'bell'
+  return icons[type] || '息'
+}
+
+const formatBadge = (count) => {
+  return count > 99 ? '99+' : count
 }
 
 const formatTime = (timestamp) => {
@@ -251,6 +249,10 @@ const goChat = (item) => {
   uni.navigateTo({ url: `/pages/message/chat?userId=${item.userId}&name=${item.name}` })
 }
 
+const goMessageSettings = () => {
+  uni.navigateTo({ url: '/pages/setting/message-settings' })
+}
+
 onMounted(() => {
   // 获取消息列表
   // getMessageList()
@@ -259,51 +261,99 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .message-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f6f8;
+  background: #0b0b0c;
+  color: #f6f2e8;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.page-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 320rpx;
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.18), transparent);
+  pointer-events: none;
+}
+
+.page-header {
+  position: relative;
+  z-index: 1;
+  padding: 28rpx 24rpx 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-title,
+.page-desc {
+  display: block;
+}
+
+.page-title {
+  font-size: 38rpx;
+  line-height: 48rpx;
+  font-weight: 800;
+}
+
+.page-desc {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #9b958a;
+}
+
+.header-action {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon {
+  width: 34rpx;
+  height: 34rpx;
 }
 
 .message-tabs {
+  position: relative;
+  z-index: 1;
   display: flex;
-  padding: 0 20rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #eee;
+  gap: 12rpx;
+  padding: 0 24rpx 20rpx;
 
   .tab-item {
     flex: 1;
-    height: 96rpx;
+    height: 66rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8rpx;
-    font-size: 28rpx;
-    color: #666;
+    border-radius: 12rpx;
+    font-size: 25rpx;
+    color: #9b958a;
+    background: #202024;
     position: relative;
 
     &.active {
-      color: #667eea;
-      font-weight: 600;
-
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 48rpx;
-        height: 4rpx;
-        background: #667eea;
-        border-radius: 2rpx;
-      }
+      color: #16130b;
+      background: #c9a227;
+      font-weight: 700;
     }
 
     .tab-badge {
       min-width: 32rpx;
       height: 32rpx;
       padding: 0 8rpx;
-      background: #ff4d4f;
+      background: #c96262;
       color: #fff;
       font-size: 20rpx;
       border-radius: 16rpx;
@@ -315,19 +365,23 @@ onMounted(() => {
 }
 
 .message-list {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  padding: 20rpx;
+  padding: 0 24rpx 24rpx;
+  box-sizing: border-box;
 
   &.chat-list {
-    padding: 0;
+    padding: 0 24rpx 24rpx;
   }
 }
 
 .message-item {
   display: flex;
   align-items: flex-start;
-  padding: 30rpx;
-  background: #fff;
+  padding: 24rpx;
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
   border-radius: 16rpx;
   margin-bottom: 16rpx;
 
@@ -339,26 +393,34 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     margin-right: 20rpx;
+    color: #f6f2e8;
+    font-size: 28rpx;
+    font-weight: 800;
 
     &.order {
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: rgba(95, 143, 199, 0.22);
+      color: #5f8fc7;
     }
 
     &.promotion {
-      background: linear-gradient(135deg, #f093fb, #f5576c);
+      background: rgba(201, 162, 39, 0.18);
+      color: #c9a227;
     }
 
     &.auction {
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      background: rgba(201, 98, 98, 0.2);
+      color: #c96262;
     }
 
     &.system {
-      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      background: rgba(88, 185, 130, 0.18);
+      color: #58b982;
     }
   }
 
   .message-content {
     flex: 1;
+    min-width: 0;
 
     .message-header {
       display: flex;
@@ -369,18 +431,24 @@ onMounted(() => {
       .message-title {
         font-size: 28rpx;
         font-weight: 600;
-        color: #333;
+        color: #f6f2e8;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .message-time {
         font-size: 22rpx;
-        color: #999;
+        color: #68645c;
+        flex-shrink: 0;
+        margin-left: 16rpx;
       }
     }
 
     .message-desc {
       font-size: 26rpx;
-      color: #666;
+      color: #9b958a;
       line-height: 1.5;
       display: block;
     }
@@ -392,8 +460,8 @@ onMounted(() => {
 
       .tag {
         padding: 6rpx 16rpx;
-        background: #f0f2f5;
-        color: #666;
+        background: rgba(201, 162, 39, 0.13);
+        color: #c9a227;
         font-size: 22rpx;
         border-radius: 6rpx;
       }
@@ -403,15 +471,19 @@ onMounted(() => {
   .message-arrow {
     margin-left: 16rpx;
     align-self: center;
+    color: #68645c;
+    font-size: 34rpx;
   }
 }
 
 .chat-item {
   display: flex;
   align-items: center;
-  padding: 30rpx 20rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #f0f0f0;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
 
   .chat-avatar {
     position: relative;
@@ -429,8 +501,8 @@ onMounted(() => {
       right: 4rpx;
       width: 20rpx;
       height: 20rpx;
-      background: #4caf50;
-      border: 4rpx solid #fff;
+      background: #58b982;
+      border: 4rpx solid #171719;
       border-radius: 50%;
     }
   }
@@ -448,18 +520,18 @@ onMounted(() => {
       .chat-name {
         font-size: 30rpx;
         font-weight: 600;
-        color: #333;
+        color: #f6f2e8;
       }
 
       .chat-time {
         font-size: 22rpx;
-        color: #999;
+        color: #68645c;
       }
     }
 
     .chat-preview {
       font-size: 26rpx;
-      color: #999;
+      color: #9b958a;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -471,7 +543,7 @@ onMounted(() => {
     min-width: 36rpx;
     height: 36rpx;
     padding: 0 10rpx;
-    background: #ff4d4f;
+    background: #c96262;
     color: #fff;
     font-size: 22rpx;
     border-radius: 18rpx;
@@ -490,15 +562,22 @@ onMounted(() => {
   padding: 120rpx 0;
 
   .empty-icon {
-    width: 200rpx;
-    height: 200rpx;
-    opacity: 0.5;
+    width: 112rpx;
+    height: 112rpx;
+    border-radius: 28rpx;
+    background: rgba(201, 162, 39, 0.14);
+    color: #c9a227;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42rpx;
+    font-weight: 800;
   }
 
   .empty-text {
     margin-top: 30rpx;
     font-size: 28rpx;
-    color: #999;
+    color: #9b958a;
   }
 }
 
@@ -506,5 +585,6 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 30rpx;
+  color: #9b958a;
 }
 </style>
