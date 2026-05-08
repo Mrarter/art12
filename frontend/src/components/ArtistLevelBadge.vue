@@ -1,5 +1,5 @@
 <template>
-  <view class="level-badge" :class="'level-' + level">
+  <view class="level-badge" :class="levelClass">
     <view class="level-inner">
       <view class="level-main">{{ level || 'D' }}</view>
       <view class="level-text">艺术家等级</view>
@@ -17,6 +17,11 @@ export default {
   props: {
     level: { type: String, default: 'D' },
     score: { type: Number, default: 0 }
+  },
+  computed: {
+    levelClass() {
+      return `level-${this.level === 'A+' ? 'Aplus' : (this.level || 'D')}`
+    }
   }
 }
 </script>
@@ -31,7 +36,7 @@ export default {
   background: #1a1a1a;
   border: 1rpx solid rgba(255, 255, 255, 0.06);
 
-  &.level-A\+ { .level-main { background: linear-gradient(135deg, #d4af37, #f0d68a); } }
+  &.level-Aplus { .level-main { background: linear-gradient(135deg, #d4af37, #f0d68a); } }
   &.level-A  { .level-main { background: linear-gradient(135deg, #c9a227, #e6c65c); } }
   &.level-B  { .level-main { background: linear-gradient(135deg, #8a8a8a, #b8b8b8); } }
   &.level-C  { .level-main { background: linear-gradient(135deg, #a67c52, #c9a87c); } }
