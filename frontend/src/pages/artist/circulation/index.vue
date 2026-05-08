@@ -77,7 +77,7 @@ export default {
       steps: ['确认作品权属与证书信息', '平台审核作品状态与估值区间', '进入流通展示并由顾问撮合收藏'],
       works: [
         { id: 49, title: '晨曦·归航', material: '布面油画', size: '100×80cm', year: '2024', priceText: '¥8,000', status: 'ON_SALE', statusText: '在售', cover: '/static/artist-ui/personal-gallery.png' },
-        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥1.2万', status: 'COLLECTED', statusText: '已收藏', cover: '/static/artist-ui/artist-homepage-dark.png' },
+        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥12,000', status: 'COLLECTED', statusText: '已收藏', cover: '/static/artist-ui/artist-homepage-dark.png' },
         { id: 46, title: '静物 No.0751', material: '布面油画', size: '40×40cm', year: '2024', priceText: '¥3,200', status: 'CIRCULATING', statusText: '流通中', cover: '/static/artist-ui/collection-trust.png' },
         { id: 45, title: '海边风景', material: '布面油画', size: '60×60cm', year: '2023', priceText: '待估值', status: 'CAN_APPLY', statusText: '可申请流通', cover: '/static/artist-ui/artist-homepage-alt.png' }
       ]

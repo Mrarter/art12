@@ -215,7 +215,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 
 // 状态
 const keyword = ref('')
@@ -281,7 +282,7 @@ const artistResults = ref([
     badge: '认证艺术家',
     desc: '当代艺术，油画，水墨',
     worksCount: 128,
-    fansCount: '2.3万',
+    fansCount: '23,000',
     isFollowed: false
   },
   {
@@ -291,7 +292,7 @@ const artistResults = ref([
     badge: '签约艺术家',
     desc: '油画，风景，抽象',
     worksCount: 86,
-    fansCount: '1.8万',
+    fansCount: '18,000',
     isFollowed: true
   }
 ])
@@ -320,10 +321,7 @@ const auctionResults = ref([
 // 格式化价格
 const formatPrice = (price) => {
   if (!price) return '0'
-  const yuan = price / 100  // 分转元
-  if (yuan >= 10000) {
-    return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-  }
+  const yuan = Math.round(price / 100)
   return yuan.toLocaleString()
 }
 

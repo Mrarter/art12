@@ -128,7 +128,7 @@ export const getFavorites = (params) => {
  * GET /product/recommend
  */
 export const getRecommend = (params) => {
-  return request.get('/product/recommend', params).then(normalizeArtworkPage)
+  return getProductList(params)
 }
 
 /**

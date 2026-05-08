@@ -118,3 +118,105 @@ More info: https://sass-lang.com/d/legacy-js-api
 12:39:30 PM [vite] hmr update /src/views/artist-score/ArtistScoreList.vue, /src/views/artist-score/ArtistScoreList.vue?vue&type=style&index=0&scoped=d2c15faf&lang.css
 12:39:31 PM [vite] hmr update /src/views/artist-score/ArtistIdentityAudit.vue, /src/views/artist-score/ArtistIdentityAudit.vue?vue&type=style&index=0&scoped=f76ef78f&lang.css
 12:39:52 PM [vite] page reload src/router/index.js
+1:42:17 PM [vite] page reload src/router/index.js
+1:42:30 PM [vite] hmr update /src/views/Layout.vue
+1:42:36 PM [vite] hmr update /src/views/Layout.vue
+1:55:08 PM [vite] hmr update /src/views/user/artist.vue
+1:55:14 PM [vite] hmr update /src/views/user/artist.vue
+1:55:20 PM [vite] hmr update /src/views/user/artist.vue?vue&type=style&index=0&scoped=b2e14e46&lang.css
+1:55:32 PM [vite] page reload src/router/index.js
+1:55:37 PM [vite] hmr update /src/views/Layout.vue
+5:12:20 PM [vite] hmr update /src/views/user/artist.vue
+5:12:26 PM [vite] hmr update /src/views/user/artist.vue
+5:12:36 PM [vite] hmr update /src/views/user/artist.vue
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+5:12:38 PM [vite] ✨ new dependencies optimized: element-plus/es/components/statistic/style/css
+5:12:38 PM [vite] ✨ optimized dependencies changed. reloading
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+5:13:05 PM [vite] hmr update /src/views/user/artist.vue?vue&type=style&index=0&scoped=b2e14e46&lang.css
+[1m[33m[@vue/compiler-sfc][0m[33m ::v-deep usage as a combinator has been deprecated. Use :deep(<inner-selector>) instead of ::v-deep <inner-selector>.[0m
+
+8:21:44 PM [vite] hmr update /src/views/product/list.vue
+8:27:02 PM [vite] hmr update /src/views/user/user-profile.vue
+8:27:02 PM [vite] Internal server error: Invalid end tag.
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/user-profile.vue:20:7
+  18 |            <i class="el-icon-refresh"></i> 刷新
+  19 |          </el-button>
+  20 |        </view>
+     |         ^
+  21 |      </view>
+  22 |  
+      at createCompilerError (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:1378:17)
+      at emitError (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:3014:5)
+      at Object.onclosetag (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:2391:9)
+      at Tokenizer.stateInClosingTagName (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:799:16)
+      at Tokenizer.parse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:1157:16)
+      at Object.baseParse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:3053:13)
+      at Object.parse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.js:910:23)
+      at Object.parse$1 [as parse] (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-sfc/dist/compiler-sfc.cjs.js:1824:24)
+      at createDescriptor (/Users/master/CodeBuddy/art12/admin/node_modules/@vitejs/plugin-vue/dist/index.cjs:86:43)
+      at handleHotUpdate (/Users/master/CodeBuddy/art12/admin/node_modules/@vitejs/plugin-vue/dist/index.cjs:2167:26)
+8:27:07 PM [vite] hmr update /src/views/user/user-profile.vue
+8:27:07 PM [vite] Internal server error: Invalid end tag.
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/user-profile.vue:285:3
+  283|        </div>
+  284|      </el-dialog>
+  285|    </view>
+     |     ^
+  286|  </template>
+  287|  
+      at createCompilerError (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:1378:17)
+      at emitError (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:3014:5)
+      at Object.onclosetag (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:2391:9)
+      at Tokenizer.stateInClosingTagName (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:799:16)
+      at Tokenizer.parse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:1157:16)
+      at Object.baseParse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:3053:13)
+      at Object.parse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.js:910:23)
+      at Object.parse$1 [as parse] (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-sfc/dist/compiler-sfc.cjs.js:1824:24)
+      at createDescriptor (/Users/master/CodeBuddy/art12/admin/node_modules/@vitejs/plugin-vue/dist/index.cjs:86:43)
+      at handleHotUpdate (/Users/master/CodeBuddy/art12/admin/node_modules/@vitejs/plugin-vue/dist/index.cjs:2167:26)
+8:27:24 PM [vite] hmr update /src/views/user/user-profile.vue
+8:27:24 PM [vite] Internal server error: Invalid end tag.
+  Plugin: vite:vue
+  File: /Users/master/CodeBuddy/art12/admin/src/views/user/user-profile.vue:285:3
+  283|        </div>
+  284|      </el-dialog>
+  285|    </view>
+     |     ^
+  286|  </template>
+  287|  
+      at createCompilerError (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:1378:17)
+      at emitError (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:3014:5)
+      at Object.onclosetag (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:2391:9)
+      at Tokenizer.stateInClosingTagName (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:799:16)
+      at Tokenizer.parse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:1157:16)
+      at Object.baseParse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-core/dist/compiler-core.cjs.js:3053:13)
+      at Object.parse (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.js:910:23)
+      at Object.parse$1 [as parse] (/Users/master/CodeBuddy/art12/admin/node_modules/@vue/compiler-sfc/dist/compiler-sfc.cjs.js:1824:24)
+      at createDescriptor (/Users/master/CodeBuddy/art12/admin/node_modules/@vitejs/plugin-vue/dist/index.cjs:86:43)
+      at handleHotUpdate (/Users/master/CodeBuddy/art12/admin/node_modules/@vitejs/plugin-vue/dist/index.cjs:2167:26)
+8:27:28 PM [vite] hmr update /src/views/user/user-profile.vue
+[1m[33m[@vue/compiler-sfc][0m[33m ::v-deep usage as a combinator has been deprecated. Use :deep(<inner-selector>) instead of ::v-deep <inner-selector>.[0m
+
+10:45:02 PM [vite] vite.config.js changed, restarting server...
+10:45:03 PM [vite] server restarted.
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+

@@ -33,10 +33,7 @@ export default {
   methods: {
     formatPrice(price) {
       if (!price) return '0'
-      const yuan = price / 100
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
+      const yuan = Math.round(price / 100)
       return yuan.toLocaleString()
     }
   }

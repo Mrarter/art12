@@ -162,6 +162,9 @@ public class UserService {
         if (userUpdate.getBio() != null) {
             user.setBio(userUpdate.getBio());
         }
+        if (userUpdate.getGender() != null) {
+            user.setGender(userUpdate.getGender());
+        }
         if (userUpdate.getRegion() != null) {
             user.setRegion(userUpdate.getRegion());
         }

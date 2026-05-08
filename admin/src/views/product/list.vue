@@ -201,9 +201,9 @@
       </el-table-column>
       <el-table-column label="价格" width="150">
         <template #default="{ row }">
-          <p>¥{{ row.price }}</p>
+          <p>¥{{ row.price ? Number(row.price).toLocaleString() : 0 }}</p>
           <p class="size-year" v-if="formatSizeYear(row)">{{ formatSizeYear(row) }}</p>
-          <p class="original" v-if="row.originalPrice">原价: ¥{{ row.originalPrice }}</p>
+          <p class="original" v-if="row.originalPrice">原价: ¥{{ Number(row.originalPrice).toLocaleString() }}</p>
           <p class="price-rise" v-if="row.priceRise > 0" style="color: #ff4d4f; font-size: 12px;">
             涨幅 +{{ (row.priceRise * 100).toFixed(1) }}%
           </p>
@@ -441,9 +441,11 @@
         </el-form-item>
         <el-form-item label="价格" prop="price">
           <el-input-number v-model="editForm.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
+          <span style="color: #999; font-size: 12px;">单位：元</span>
         </el-form-item>
         <el-form-item label="原价" prop="originalPrice">
           <el-input-number v-model="editForm.originalPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
+          <span style="color: #999; font-size: 12px;">单位：元</span>
         </el-form-item>
         <el-form-item label="作品类型" prop="ownershipType">
           <el-radio-group v-model="editForm.ownershipType">
@@ -1095,7 +1097,7 @@ const handleEdit = async (row) => {
     size: row.size || '',
     year: row.year || null,
     cover: row.cover || '',
-    price: row.price,
+    price: row.price || 0,
     originalPrice: row.originalPrice || 0,
     ownershipType: row.ownershipType || 1,
     description: row.description || '',
@@ -1218,8 +1220,8 @@ const handleSave = async () => {
       size: editForm.size || null,
       year: editForm.year || null,
       cover: editForm.cover || null,
-      price: editForm.price != null ? Number(editForm.price) : null,
-      originalPrice: editForm.originalPrice != null ? Number(editForm.originalPrice) : null,
+      price: editForm.price != null ? Math.round(Number(editForm.price) * 100) : null,
+      originalPrice: editForm.originalPrice != null ? Math.round(Number(editForm.originalPrice) * 100) : null,
       ownershipType: editForm.ownershipType || 1,
       description: editForm.description,
       status: editForm.status,

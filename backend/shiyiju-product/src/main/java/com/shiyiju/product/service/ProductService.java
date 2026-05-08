@@ -86,7 +86,7 @@ public class ProductService {
         Page<Artwork> result = artworkMapper.selectPage(page, wrapper);
 
         List<ArtworkVO> voList = result.getRecords().stream()
-                .map(a -> convertToVO(a, userId))
+                .map(a -> convertToListVO(a, userId))
                 .collect(Collectors.toList());
 
         long total = result.getTotal() > 0 ? result.getTotal() : voList.size();
@@ -509,7 +509,7 @@ public class ProductService {
         Page<Artwork> result = artworkMapper.selectPage(page, wrapper);
 
         List<ArtworkVO> voList = result.getRecords().stream()
-                .map(a -> convertToVO(a, userId))
+                .map(a -> convertToListVO(a, userId))
                 .collect(Collectors.toList());
 
         long total = result.getTotal() > 0 ? result.getTotal() : voList.size();
@@ -687,6 +687,86 @@ public class ProductService {
         vo.setTomorrowIncreaseMin(priceGrowthService.calculateTomorrowIncreaseMin(artwork));
         vo.setTomorrowIncreaseMax(priceGrowthService.calculateTomorrowIncreaseMax(artwork));
 
+        return vo;
+    }
+
+    /** 转换为列表VO：首页瀑布流不阻塞等待用户服务补艺术家资料 */
+    private ArtworkVO convertToListVO(Artwork artwork, Long userId) {
+        ArtworkVO vo = convertToSimpleVO(artwork);
+        vo.setDisplayArtworkId(String.format("%04d", artwork.getId()));
+        if (artwork.getAuthorId() != null) {
+            vo.setDisplayAuthorId(artwork.getAuthorUid() != null
+                    ? artwork.getAuthorUid()
+                    : String.format("%04d", artwork.getAuthorId()));
+            vo.setAuthorUid(artwork.getAuthorUid() != null
+                    ? artwork.getAuthorUid()
+                    : "USR" + String.format("%012d", artwork.getAuthorId()));
+        }
+        vo.setAuthorAvatar(artwork.getAuthorAvatar());
+        vo.setAuthorBadge(artwork.getAuthorBadge());
+        vo.setAuthorBio(artwork.getAuthorBio());
+        vo.setAuthorPhone(artwork.getAuthorPhone());
+        vo.setAuthorIdentity(getAuthorIdentity(artwork.getAuthorBadge()));
+        vo.setSource(artwork.getSource());
+        vo.setSourceText(switch (artwork.getSource()) {
+            case 1 -> "艺术家发布";
+            case 2 -> "经纪人代理";
+            case 3 -> "持有者转售";
+            case 4 -> "平台自营";
+            default -> "未知";
+        });
+        vo.setOwnershipType(artwork.getOwnershipType() != null ? artwork.getOwnershipType() : 1);
+        vo.setOwnershipTypeText(switch (artwork.getOwnershipType()) {
+            case 1 -> "原创";
+            case 2 -> "收藏";
+            default -> "原创";
+        });
+        vo.setStatusText(switch (artwork.getStatus()) {
+            case 0 -> "已下架";
+            case 1 -> "上架中";
+            case 2 -> "已售罄";
+            default -> "未知";
+        });
+        vo.setPriceRise(artwork.getPriceRise() != null ? artwork.getPriceRise() : BigDecimal.ZERO);
+        vo.setCurrentPrice(priceGrowthService.calculateCurrentPrice(artwork));
+        vo.setIsNew(artwork.getCreateTime() != null
+                && artwork.getCreateTime().isAfter(LocalDateTime.now().minusDays(30)));
+        vo.setIsHot((artwork.getSaleCount() != null && artwork.getSaleCount() > 0)
+                || (vo.getDisplayLikeCount() != null && vo.getDisplayLikeCount() > 5));
+        vo.setIsFavorited(false);
+        if (userId != null) {
+            try {
+                ArtworkFavorite fav = favoriteMapper.selectOne(
+                        new LambdaQueryWrapper<ArtworkFavorite>()
+                                .eq(ArtworkFavorite::getUserId, userId)
+                                .eq(ArtworkFavorite::getArtworkId, artwork.getId())
+                );
+                vo.setIsFavorited(fav != null);
+            } catch (Exception e) {
+                log.warn("检查作品收藏状态失败，使用默认未收藏: artworkId={}, userId={}",
+                        artwork.getId(), userId, e);
+            }
+        }
+        vo.setIsFollowing(false);
+        if (artwork.getCreateTime() != null) {
+            long daysSinceCreation = java.time.Duration.between(
+                    artwork.getCreateTime(), LocalDateTime.now()).toDays();
+            vo.setHoldDuration((int) daysSinceCreation);
+        }
+        vo.setDistributionEnabled(artwork.getDistributionEnabled());
+        vo.setCommissionRate(artwork.getCommissionRate());
+        vo.setDistributionOrders(artwork.getDistributionOrders());
+        vo.setDistributionEarnings(artwork.getDistributionEarnings());
+        vo.setDistributionUsers(artwork.getDistributionUsers());
+        vo.setCustomPriceGrowthEnabled(artwork.getCustomPriceGrowthEnabled());
+        vo.setCustomBaseDailyRate(artwork.getCustomBaseDailyRate());
+        vo.setCustomMatureDailyRate(artwork.getCustomMatureDailyRate());
+        vo.setCustomMatureDays(artwork.getCustomMatureDays());
+        vo.setCustomViewRate(artwork.getCustomViewRate());
+        vo.setCustomFavoriteRate(artwork.getCustomFavoriteRate());
+        vo.setCustomMaxGrowthMultiple(artwork.getCustomMaxGrowthMultiple());
+        vo.setTomorrowIncreaseMin(priceGrowthService.calculateTomorrowIncreaseMin(artwork));
+        vo.setTomorrowIncreaseMax(priceGrowthService.calculateTomorrowIncreaseMax(artwork));
         return vo;
     }
 

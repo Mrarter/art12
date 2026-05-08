@@ -431,7 +431,7 @@ export default {
           cover: this.images[1] || cover,
           title: '小女孩',
           meta: `${this.artworkMaterial} · 100 × 80 cm · ${this.artworkYear}`,
-          price: '¥1.2万'
+          price: '¥12,000'
         }
       ]
     }
@@ -812,17 +812,14 @@ export default {
 
     formatPrice(price) {
       if (!price) return '¥0'
-      const yuan = Number(price) / 100
-      return this.formatYuanAmount(yuan)
+      const yuan = Math.round(Number(price) / 100)
+      return `¥${yuan.toLocaleString()}`
     },
 
     formatYuanAmount(amount) {
       const value = Number(amount || 0)
-      if (value >= 10000) {
-        const wan = value / 10000
-        return `¥${Number.isInteger(wan) ? wan.toFixed(0) : wan.toFixed(1)}万`
-      }
-      return `¥${Math.round(value).toLocaleString()}`
+      const yuan = Math.round(value)
+      return `¥${yuan.toLocaleString()}`
     }
   }
 }

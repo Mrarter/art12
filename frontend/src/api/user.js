@@ -28,8 +28,8 @@ export const getUserInfo = () => {
 // 更新用户信息
 export const updateUserInfo = (data) => {
   return request({
-    url: '/user/update',
-    method: 'POST',
+    url: '/user/user/update',
+    method: 'PUT',
     data
   })
 }
@@ -84,15 +84,24 @@ export const getUserCenter = () => {
 // 获取收货地址列表
 export const getAddressList = () => {
   return request({
-    url: '/user/addresses'
+    url: '/order/user/addresses'
   })
 }
 
 // 添加收货地址
 export const addAddress = (data) => {
   return request({
-    url: '/user/address',
+    url: '/order/user/addresses',
     method: 'POST',
+    data
+  })
+}
+
+// 更新收货地址
+export const updateAddress = (id, data) => {
+  return request({
+    url: `/order/user/addresses/${id}`,
+    method: 'PUT',
     data
   })
 }
@@ -100,7 +109,7 @@ export const addAddress = (data) => {
 // 删除收货地址
 export const deleteAddress = (id) => {
   return request({
-    url: `/user/address/${id}`,
+    url: `/order/user/addresses/${id}`,
     method: 'DELETE'
   })
 }
@@ -150,11 +159,11 @@ export const phoneLogin = (data) => {
 }
 
 // 发送短信验证码
-export const sendSmsCode = (phone) => {
+export const sendSmsCode = (phone, type = 'login') => {
   return request({
     url: '/user/sms-code',
     method: 'POST',
-    data: { phone }
+    data: { phone, type }
   })
 }
 

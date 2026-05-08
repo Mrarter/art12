@@ -227,7 +227,7 @@ export default {
       this.artist.intro = '孟儒长期关注日常光线与空间关系的变化'
       this.works = [
         { id: 49, title: '晨曦·归航', material: '布面油画', size: '100×80cm', year: '2024', priceText: '¥8,000', cover: '/static/images/museum-v12-work-boat.png' },
-        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥1.2万', cover: '/static/images/museum-v12-work-girl.png' },
+        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥12,000', cover: '/static/images/museum-v12-work-girl.png' },
         { id: 46, title: '静物 No.0751', material: '布面油画', size: '40×40cm', year: '2024', priceText: '¥3,200', cover: '/static/images/museum-v12-work-still.png' }
       ]
       this.stats = [

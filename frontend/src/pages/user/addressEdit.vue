@@ -99,6 +99,8 @@
 </template>
 
 <script>
+import { addAddress, updateAddress, deleteAddress as deleteAddressApi, getAddressList } from '@/api/user.js'
+
 export default {
   data() {
     return {
@@ -150,21 +152,58 @@ export default {
       this.form.isDefault = e.detail.value
     },
 
-    loadAddress(id) {
-      // 模拟加载地址数据
-      console.log('加载地址:', id)
+    async loadAddress(id) {
+      try {
+        uni.showLoading({ title: '加载中...' })
+        const list = await getAddressList()
+        const address = (list || []).find(item => String(item.id) === String(id))
+        if (!address) {
+          uni.showToast({ title: '地址不存在', icon: 'none' })
+          return
+        }
+        this.form = {
+          consignee: address.consignee || address.receiverName || '',
+          phone: address.phone || address.receiverPhone || '',
+          province: address.province || '',
+          city: address.city || '',
+          district: address.district || '',
+          detail: address.detail || address.address || address.detailAddress || '',
+          postCode: address.postCode || '',
+          isDefault: address.isDefault === true || address.isDefault === 1
+        }
+        this.region = [this.form.province, this.form.city, this.form.district].filter(Boolean)
+        this.regionText = this.region.join('')
+      } catch (e) {
+        uni.showToast({ title: '地址加载失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
     },
 
     selectOnMap() {
       uni.chooseLocation({
-        success: (res) => {
+        success: async (res) => {
           console.log('选择位置:', res)
           uni.showToast({ title: '位置已选择', icon: 'success' })
         }
       })
     },
 
-    saveAddress() {
+    buildPayload() {
+      return {
+        receiverName: this.form.consignee,
+        receiverPhone: this.form.phone,
+        phone: this.form.phone,
+        province: this.form.province,
+        city: this.form.city,
+        district: this.form.district,
+        detailAddress: this.form.detail,
+        postCode: this.form.postCode,
+        isDefault: this.form.isDefault ? 1 : 0
+      }
+    },
+
+    async saveAddress() {
       if (!this.canSave) {
         uni.showToast({ title: '请填写完整信息', icon: 'none' })
         return
@@ -175,30 +214,43 @@ export default {
         return
       }
 
-      uni.showLoading({ title: '保存中...' })
-      setTimeout(() => {
+      try {
+        uni.showLoading({ title: '保存中...' })
+        const payload = this.buildPayload()
+        if (this.addressId) {
+          await updateAddress(this.addressId, payload)
+        } else {
+          await addAddress(payload)
+        }
         uni.hideLoading()
         uni.showToast({ title: '保存成功', icon: 'success' })
         setTimeout(() => {
           uni.navigateBack()
         }, 1000)
-      }, 800)
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: '保存失败', icon: 'none' })
+      }
     },
 
     deleteAddress() {
       uni.showModal({
         title: '确认删除',
         content: '确定要删除该地址吗？',
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
-            uni.showLoading({ title: '删除中...' })
-            setTimeout(() => {
+            try {
+              uni.showLoading({ title: '删除中...' })
+              await deleteAddressApi(this.addressId)
               uni.hideLoading()
               uni.showToast({ title: '删除成功', icon: 'success' })
               setTimeout(() => {
                 uni.navigateBack()
               }, 1000)
-            }, 500)
+            } catch (e) {
+              uni.hideLoading()
+              uni.showToast({ title: '删除失败', icon: 'none' })
+            }
           }
         }
       })

@@ -3,14 +3,16 @@
  */
 import request from './request'
 
-const DEV_LAN_HOST = '192.168.1.109'
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+const MP_GATEWAY_ORIGIN = import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `http://${DEV_LAN_HOST}:8080`
+const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN_HOST}:8087`
 const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8082`
+  ? MP_GATEWAY_ORIGIN
   : ''
-const BASE_URL = API_ORIGIN + '/api'
+const BASE_URL = API_ORIGIN
 const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
 const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8087`
+  ? MP_FILE_ORIGIN
   : ''
 
 const normalizeFileUrl = (url) => {

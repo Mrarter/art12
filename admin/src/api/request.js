@@ -151,11 +151,16 @@ export const getFullImageUrl = (url) => {
     return CDN_URL + url
   }
 
-  // 本地上传文件统一走 Vite 的 /upload 代理，避免数据库里旧局域网 IP 失效。
+  // 本地上传文件：如果是带域名的 /upload/ 路径，去掉域名换成相对路径
+  // admin 后端已通过 ResourceHandler 映射 /upload/** → 本地 uploads 目录
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       const parsed = new URL(url)
       if (parsed.pathname.startsWith('/upload/')) {
+        // 如果 CDN_URL 不为空且有 /upload/ 前缀，则用 CDN_URL + path
+        if (CDN_URL) {
+          return CDN_URL + parsed.pathname
+        }
         return parsed.pathname
       }
     } catch (e) {

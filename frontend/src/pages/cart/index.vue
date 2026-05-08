@@ -123,7 +123,7 @@
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { useCartStore } from '@/store/modules/cart.js'
-import { removeFromCart, updateCartNum, lockCartItems } from '@/api/cart.js'
+import { removeFromCart, lockCartItems } from '@/api/cart.js'
 
 export default {
   components: {
@@ -162,8 +162,8 @@ export default {
   },
   
   methods: {
-    initCart() {
-      this.cartStore.initFromStorage()
+    async initCart() {
+      await this.cartStore.fetchCartList()
       this.groupCartList()
     },
     
@@ -231,19 +231,19 @@ export default {
     
     async decreaseNum(item) {
       if (item.num > 1) {
-        item.num--
-        this.cartStore.updateQuantity(item.id, item.num)
+        const nextNum = item.num - 1
         try {
-          await updateCartNum({ id: item.id, num: item.num })
+          await this.cartStore.updateQuantity(item.id, nextNum)
+          this.groupCartList()
         } catch (e) {}
       }
     },
     
     async increaseNum(item) {
-      item.num++
-      this.cartStore.updateQuantity(item.id, item.num)
+      const nextNum = item.num + 1
       try {
-        await updateCartNum({ id: item.id, num: item.num })
+        await this.cartStore.updateQuantity(item.id, nextNum)
+        this.groupCartList()
       } catch (e) {}
     },
     
@@ -333,10 +333,7 @@ export default {
     
     formatPrice(price) {
       if (!price) return '0'
-      const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
+      const yuan = Math.round(price / 100)
       return yuan.toLocaleString()
     }
   }

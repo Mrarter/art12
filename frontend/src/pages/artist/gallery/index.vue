@@ -146,9 +146,9 @@ export default {
       ],
       works: [
         { id: 37, title: '晨曦·归航', material: '布面油画', size: '100×80cm', priceText: '¥8,000', cover: '/static/images/museum-v12-work-boat.png' },
-        { id: 38, title: '秋日', material: '布面油画', size: '80×60cm', priceText: '¥1.2万', cover: '/static/images/museum-v12-work-girl.png' },
+        { id: 38, title: '秋日', material: '布面油画', size: '80×60cm', priceText: '¥12,000', cover: '/static/images/museum-v12-work-girl.png' },
         { id: 39, title: '静物 No.0751', material: '布面油画', size: '40×40cm', priceText: '¥3,200', cover: '/static/images/museum-v12-work-still.png' },
-        { id: 40, title: '湖畔·微光', material: '布面油画', size: '60×80cm', priceText: '¥1.2万', cover: '/static/images/profile-v12-work-boat.png' }
+        { id: 40, title: '湖畔·微光', material: '布面油画', size: '60×80cm', priceText: '¥12,000', cover: '/static/images/profile-v12-work-boat.png' }
       ]
     }
   },

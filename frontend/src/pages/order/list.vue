@@ -276,13 +276,9 @@ const getStatusText = (status) => {
 
 // 格式化价格（后端返回分为单位，需除以100）
 const formatPrice = (price) => {
-  if (!price && price !== 0) return '0.00'
-  // 分转元
-  const yuan = Number(price) / 100
-  if (yuan >= 10000) {
-    return (yuan / 10000).toFixed(1) + '万'
-  }
-  return yuan.toFixed(2)
+  if (!price && price !== 0) return '0'
+  const yuan = Math.round(Number(price) / 100)
+  return yuan.toLocaleString()
 }
 
 // 格式化时间

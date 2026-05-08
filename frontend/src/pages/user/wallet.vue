@@ -1,138 +1,60 @@
 <template>
   <view class="wallet-page">
-    <!-- 头部余额卡片 -->
     <view class="balance-card">
-      <view class="balance-bg"></view>
-      <view class="balance-content">
-        <view class="balance-header">
-          <text class="balance-label">我的余额</text>
-          <text class="balance-value">¥{{ formatAmount(balance) }}</text>
+      <view class="balance-head">
+        <text class="balance-label">可用余额</text>
+        <text class="balance-value">¥{{ formatAmount(balance) }}</text>
+        <text class="balance-desc">余额可用于收藏作品、保证金和服务支付</text>
+      </view>
+
+      <view class="balance-metrics">
+        <view class="metric">
+          <text class="metric-value">¥{{ formatAmount(frozen) }}</text>
+          <text class="metric-label">冻结中</text>
         </view>
-        <view class="balance-hint">可提现余额</view>
-        
-        <!-- 账户概览 -->
-        <view class="account-overview">
-          <view class="overview-item">
-            <text class="overview-value">¥{{ formatAmount(frozen) }}</text>
-            <text class="overview-label">冻结中</text>
-          </view>
-          <view class="overview-divider"></view>
-          <view class="overview-item">
-            <text class="overview-value">¥{{ formatAmount(totalIncome) }}</text>
-            <text class="overview-label">累计收益</text>
-          </view>
+        <view class="metric">
+          <text class="metric-value">¥{{ formatAmount(totalIncome) }}</text>
+          <text class="metric-label">累计收益</text>
         </view>
-        
-        <!-- 操作按钮 -->
-        <view class="action-buttons">
-          <view class="action-btn recharge" @click="goRecharge">
-            
-            <text>充值</text>
-          </view>
-          <view class="action-btn withdraw" @click="goWithdraw">
-            
-            <text>提现</text>
-          </view>
+      </view>
+
+      <view class="balance-actions">
+        <view class="primary-btn" @click="goRecharge">充值</view>
+        <view class="ghost-btn" @click="goWithdraw">提现</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">账户工具</view>
+      <view class="tool-grid">
+        <view class="tool-card" v-for="item in walletTools" :key="item.label" @click="goPage(item.path)">
+          <view class="tool-icon" :class="item.tone">{{ item.icon }}</view>
+          <text class="tool-title">{{ item.label }}</text>
+          <text class="tool-desc">{{ item.desc }}</text>
         </view>
       </view>
     </view>
-    
-    <!-- 功能列表 -->
-    <view class="menu-section">
-      <view class="menu-item" @click="goCoupon">
-        <view class="menu-left">
-          <view class="mencoupon-icon">
-            <text>🎫</text>
-          </view>
-          <view class="menu-info">
-            <text class="menu-title">我的优惠券</text>
-            <text class="menu-count">{{ couponCount }}张可用</text>
-          </view>
-        </view>
-        
-      </view>
-      
-      <view class="menu-item" @click="goPoints">
-        <view class="menu-left">
-          <view class="menpoints-icon">
-            <text>⭐</text>
-          </view>
-          <view class="menu-info">
-            <text class="menu-title">我的积分</text>
-            <text class="menu-count">{{ points }}积分</text>
-          </view>
-        </view>
-        
-      </view>
-      
-      <view class="menu-item" @click="goCards">
-        <view class="menu-left">
-          <view class="mencard-icon">
-            <text>💳</text>
-          </view>
-          <view class="menu-info">
-            <text class="menu-title">银行卡</text>
-            <text class="menu-count">已绑定 {{ cardCount }}张</text>
-          </view>
-        </view>
-        
-      </view>
-      
-      <view class="menu-item" @click="goInvoice">
-        <view class="menu-left">
-          <view class="meninvoice-icon">
-            <text>📄</text>
-          </view>
-          <view class="menu-info">
-            <text class="menu-title">发票管理</text>
-            <text class="menu-count">申请发票</text>
-          </view>
-        </view>
-        
-      </view>
-    </view>
-    
-    <!-- 交易记录 -->
-    <view class="transaction-section">
-      <view class="section-header">
+
+    <view class="section">
+      <view class="section-head">
         <text class="section-title">交易记录</text>
-        <text class="more-btn" @click="goTransactionList">查看全部 ></text>
+        <text class="section-link" @click="goTransactionList">查看全部</text>
       </view>
-      
-      <view class="transaction-tabs">
-        <view 
-          class="tab-item" 
-          :class="{ active: transactionTab === 'all' }"
-          @click="switchTransactionTab('all')"
-        >
-          全部
-        </view>
-        <view 
-          class="tab-item" 
-          :class="{ active: transactionTab === 'income' }"
-          @click="switchTransactionTab('income')"
-        >
-          收入
-        </view>
-        <view 
-          class="tab-item" 
-          :class="{ active: transactionTab === 'expense' }"
-          @click="switchTransactionTab('expense')"
-        >
-          支出
-        </view>
+
+      <view class="segmented">
+        <view
+          class="segment"
+          v-for="item in transactionTabs"
+          :key="item.value"
+          :class="{ active: transactionTab === item.value }"
+          @click="switchTransactionTab(item.value)"
+        >{{ item.label }}</view>
       </view>
-      
+
       <view class="transaction-list">
-        <view 
-          class="transaction-item"
-          v-for="item in filteredTransactions"
-          :key="item.id"
-        >
-          <view class="transaction-icon" :class="item.type">
-            <text>{{ item.type === 'income' ? '+' : '-' }}</text>
-          </view>
-          <view class="transaction-info">
+        <view class="transaction-row" v-for="item in filteredTransactions" :key="item.id">
+          <view class="transaction-icon" :class="item.type">{{ item.type === 'income' ? '入' : '出' }}</view>
+          <view class="transaction-main">
             <text class="transaction-title">{{ item.title }}</text>
             <text class="transaction-time">{{ item.time }}</text>
           </view>
@@ -140,70 +62,46 @@
             {{ item.type === 'income' ? '+' : '-' }}¥{{ formatAmount(item.amount) }}
           </text>
         </view>
-        
-        <view class="empty-transaction" v-if="filteredTransactions.length === 0">
-          <text>暂无交易记录</text>
-        </view>
+
+        <view class="empty-state" v-if="filteredTransactions.length === 0">暂无交易记录</view>
       </view>
     </view>
-    
-    <!-- 充值/提现弹窗 -->
-    <!-- 弹窗开始 -->
-      <view class="recharge-popup">
-        <view class="popup-title">充值金额</view>
+
+    <view class="sheet-mask" v-if="showRecharge" @click="showRecharge = false">
+      <view class="amount-sheet" @click.stop>
+        <text class="sheet-title">充值金额</text>
         <view class="amount-input">
-          <text class="currency">¥</text>
+          <text>¥</text>
           <input type="digit" v-model="rechargeAmount" placeholder="请输入金额" />
         </view>
         <view class="quick-amounts">
-          <view 
-            class="quick-item" 
-            :class="{ active: rechargeAmount === '100' }"
-            @click="rechargeAmount = '100'"
-          >100</view>
-          <view 
-            class="quick-item" 
-            :class="{ active: rechargeAmount === '500' }"
-            @click="rechargeAmount = '500'"
-          >500</view>
-          <view 
-            class="quick-item" 
-            :class="{ active: rechargeAmount === '1000' }"
-            @click="rechargeAmount = '1000'"
-          >1000</view>
-          <view 
-            class="quick-item" 
-            :class="{ active: rechargeAmount === '5000' }"
-            @click="rechargeAmount = '5000'"
-          >5000</view>
+          <view
+            v-for="amount in quickAmounts"
+            :key="amount"
+            class="quick-item"
+            :class="{ active: rechargeAmount === amount }"
+            @click="rechargeAmount = amount"
+          >{{ amount }}</view>
         </view>
-        <button class="confirm-btn" @click="confirmRecharge">确认充值</button>
+        <view class="sheet-confirm" @click="confirmRecharge">确认充值</view>
       </view>
-<!-- 弹窗结束 -->
-    
-    <!-- 弹窗开始 -->
-      <view class="withdraw-popup">
-        <view class="popup-title">提现金额</view>
-        <view class="withdraw-tip">
-          <text>可提现余额：¥{{ formatAmount(balance) }}</text>
-        </view>
+    </view>
+
+    <view class="sheet-mask" v-if="showWithdraw" @click="showWithdraw = false">
+      <view class="amount-sheet" @click.stop>
+        <text class="sheet-title">提现金额</text>
+        <text class="sheet-desc">可提现余额：¥{{ formatAmount(balance) }}</text>
         <view class="amount-input">
-          <text class="currency">¥</text>
+          <text>¥</text>
           <input type="digit" v-model="withdrawAmount" placeholder="请输入金额" />
         </view>
-        <view class="withdraw-fee">
+        <view class="withdraw-info">
           <text>手续费：¥0.00</text>
           <text>实际到账：¥{{ formatAmount(withdrawAmount || 0) }}</text>
         </view>
-        <button class="confirm-btn" @click="confirmWithdraw">确认提现</button>
-        <view class="withdraw-rules">
-          <text class="rules-title">提现规则：</text>
-          <text>1. 提现需实名认证</text>
-          <text>2. 提现到账时间1-3个工作日</text>
-          <text>3. 每日限提现3次</text>
-        </view>
+        <view class="sheet-confirm" @click="confirmWithdraw">确认提现</view>
       </view>
-<!-- 弹窗结束 -->
+    </view>
   </view>
 </template>
 
@@ -218,6 +116,12 @@ export default {
       points: 12680,
       cardCount: 2,
       transactionTab: 'all',
+      quickAmounts: ['100', '500', '1000', '5000'],
+      transactionTabs: [
+        { label: '全部', value: 'all' },
+        { label: '收入', value: 'income' },
+        { label: '支出', value: 'expense' }
+      ],
       transactions: [
         { id: 1, type: 'income', title: '作品销售分成', amount: 1280.00, time: '2026-04-21 14:30' },
         { id: 2, type: 'expense', title: '购买《山水长卷》', amount: 12800.00, time: '2026-04-20 10:15' },
@@ -234,6 +138,14 @@ export default {
   },
 
   computed: {
+    walletTools() {
+      return [
+        { label: '优惠券', desc: `${this.couponCount} 张可用`, icon: '券', tone: 'gold', path: '/pages/user/coupon' },
+        { label: '积分', desc: `${this.points} 积分`, icon: '积', tone: 'green', path: '/pages/user/points' },
+        { label: '银行卡', desc: `已绑定 ${this.cardCount} 张`, icon: '卡', tone: 'blue', path: '/pages/user/bankcard' },
+        { label: '发票管理', desc: '申请发票', icon: '票', tone: 'purple', path: '/pages/user/invoice' }
+      ]
+    },
     filteredTransactions() {
       if (this.transactionTab === 'all') return this.transactions
       return this.transactions.filter(t => t.type === this.transactionTab)
@@ -244,21 +156,17 @@ export default {
     formatAmount(amount) {
       return Number(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
     },
-
     switchTransactionTab(tab) {
       this.transactionTab = tab
     },
-
     goRecharge() {
       this.rechargeAmount = ''
       this.showRecharge = true
     },
-
     goWithdraw() {
       this.withdrawAmount = ''
       this.showWithdraw = true
     },
-
     confirmRecharge() {
       if (!this.rechargeAmount) {
         uni.showToast({ title: '请输入金额', icon: 'none' })
@@ -267,7 +175,6 @@ export default {
       uni.showToast({ title: '充值功能开发中', icon: 'none' })
       this.showRecharge = false
     },
-
     confirmWithdraw() {
       if (!this.withdrawAmount) {
         uni.showToast({ title: '请输入金额', icon: 'none' })
@@ -280,23 +187,9 @@ export default {
       uni.showToast({ title: '提现功能开发中', icon: 'none' })
       this.showWithdraw = false
     },
-
-    goCoupon() {
-      uni.navigateTo({ url: '/pages/user/coupon' })
+    goPage(url) {
+      uni.navigateTo({ url })
     },
-
-    goPoints() {
-      uni.navigateTo({ url: '/pages/user/points' })
-    },
-
-    goCards() {
-      uni.navigateTo({ url: '/pages/user/bankcard' })
-    },
-
-    goInvoice() {
-      uni.navigateTo({ url: '/pages/user/invoice' })
-    },
-
     goTransactionList() {
       uni.navigateTo({ url: '/pages/common/coming-soon?title=交易明细&desc=钱包流水页正在开发中，后续会补充充值、提现与消费记录。' })
     }
@@ -305,404 +198,330 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+$bg: #0b0b0c;
+$panel: #171719;
+$panel2: #202024;
+$line: rgba(255, 255, 255, 0.08);
+$text: #f6f2e8;
+$muted: #9b958a;
+$dim: #68645c;
+$gold: #c9a227;
+$green: #58b982;
+$blue: #5f8fc7;
+$red: #c96262;
+$purple: #8c73c9;
+
 .wallet-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 40rpx;
+  background: $bg;
+  color: $text;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.balance-card,
+.section {
+  background: $panel;
+  border: 1rpx solid $line;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
 }
 
 .balance-card {
-  position: relative;
-  margin: 20rpx;
-  border-radius: 24rpx;
-  overflow: hidden;
-
-  .balance-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 300rpx;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  .balance-content {
-    position: relative;
-    padding: 40rpx 30rpx;
-
-    .balance-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 8rpx;
-
-      .balance-label {
-        font-size: 28rpx;
-        color: rgba(255, 255, 255, 0.8);
-        margin-bottom: 16rpx;
-      }
-
-      .balance-value {
-        font-size: 72rpx;
-        font-weight: 700;
-        color: #fff;
-      }
-    }
-
-    .balance-hint {
-      text-align: center;
-      font-size: 24rpx;
-      color: rgba(255, 255, 255, 0.7);
-      margin-bottom: 40rpx;
-    }
-
-    .account-overview {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 16rpx;
-      padding: 24rpx 40rpx;
-      margin-bottom: 30rpx;
-
-      .overview-item {
-        flex: 1;
-        text-align: center;
-
-        .overview-value {
-          font-size: 32rpx;
-          font-weight: 600;
-          color: #fff;
-          display: block;
-          margin-bottom: 8rpx;
-        }
-
-        .overview-label {
-          font-size: 24rpx;
-          color: rgba(255, 255, 255, 0.7);
-        }
-      }
-
-      .overview-divider {
-        width: 1rpx;
-        height: 60rpx;
-        background: rgba(255, 255, 255, 0.3);
-        margin: 0 40rpx;
-      }
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 24rpx;
-
-      .action-btn {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8rpx;
-        height: 80rpx;
-        border-radius: 40rpx;
-        font-size: 30rpx;
-        color: #fff;
-
-        &.recharge {
-          background: #fff;
-          color: #667eea;
-        }
-
-        &.withdraw {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      }
-    }
-  }
-}
-
-.menu-section {
-  background: #fff;
-  margin: 0 20rpx 20rpx;
-  border-radius: 16rpx;
-  overflow: hidden;
-
-  .menu-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 28rpx 24rpx;
-    border-bottom: 1rpx solid #f5f5f5;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .menu-left {
-      display: flex;
-      align-items: center;
-
-      .men{
-        width: 72rpx;
-        height: 72rpx;
-        border-radius: 16rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 20rpx;
-        font-size: 32rpx;
-
-        &.coupon-icon {
-          background: rgba(230, 126, 34, 0.1);
-        }
-
-        &.points-icon {
-          background: rgba(241, 196, 15, 0.1);
-        }
-
-        &.card-icon {
-          background: rgba(52, 152, 219, 0.1);
-        }
-
-        &.invoice-icon {
-          background: rgba(155, 89, 182, 0.1);
-        }
-      }
-
-      .menu-info {
-        .menu-title {
-          font-size: 30rpx;
-          color: #333;
-          display: block;
-          margin-bottom: 4rpx;
-        }
-
-        .menu-count {
-          font-size: 24rpx;
-          color: #999;
-        }
-      }
-    }
-  }
-}
-
-.transaction-section {
-  background: #fff;
-  margin: 0 20rpx;
-  border-radius: 16rpx;
-  overflow: hidden;
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24rpx;
-    border-bottom: 1rpx solid #f5f5f5;
-
-    .section-title {
-      font-size: 30rpx;
-      font-weight: 600;
-      color: #333;
-    }
-
-    .more-btn {
-      font-size: 24rpx;
-      color: #999;
-    }
-  }
-
-  .transaction-tabs {
-    display: flex;
-    padding: 0 24rpx;
-    border-bottom: 1rpx solid #f5f5f5;
-
-    .tab-item {
-      flex: 1;
-      text-align: center;
-      padding: 20rpx 0;
-      font-size: 28rpx;
-      color: #666;
-      position: relative;
-
-      &.active {
-        color: #667eea;
-        font-weight: 500;
-
-        &::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 48rpx;
-          height: 4rpx;
-          background: #667eea;
-          border-radius: 2rpx;
-        }
-      }
-    }
-  }
-
-  .transaction-list {
-    .transaction-item {
-      display: flex;
-      align-items: center;
-      padding: 24rpx;
-
-      .transaction-icon {
-        width: 64rpx;
-        height: 64rpx;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 16rpx;
-        font-size: 28rpx;
-        font-weight: 600;
-
-        &.income {
-          background: rgba(7, 193, 96, 0.1);
-          color: #07c160;
-        }
-
-        &.expense {
-          background: rgba(231, 76, 60, 0.1);
-          color: #e74c3c;
-        }
-      }
-
-      .transaction-info {
-        flex: 1;
-
-        .transaction-title {
-          font-size: 28rpx;
-          color: #333;
-          display: block;
-          margin-bottom: 6rpx;
-        }
-
-        .transaction-time {
-          font-size: 24rpx;
-          color: #999;
-        }
-      }
-
-      .transaction-amount {
-        font-size: 30rpx;
-        font-weight: 600;
-
-        &.income {
-          color: #07c160;
-        }
-
-        &.expense {
-          color: #333;
-        }
-      }
-    }
-
-    .empty-transaction {
-      text-align: center;
-      padding: 60rpx 0;
-      font-size: 26rpx;
-      color: #999;
-    }
-  }
-}
-
-.recharge-popup,
-.withdraw-popup {
   padding: 30rpx;
+  background:
+    radial-gradient(circle at 20% 0%, rgba($gold, 0.28), transparent 42%),
+    linear-gradient(135deg, #1c1810 0%, #171719 70%);
+}
 
-  .popup-title {
-    font-size: 34rpx;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 30rpx;
+.balance-label,
+.balance-desc,
+.metric-label,
+.tool-desc,
+.transaction-time {
+  color: $muted;
+  font-size: 23rpx;
+}
+
+.balance-value {
+  display: block;
+  margin: 14rpx 0 8rpx;
+  font-size: 64rpx;
+  line-height: 74rpx;
+  font-weight: 800;
+  color: $text;
+}
+
+.balance-desc {
+  display: block;
+}
+
+.balance-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14rpx;
+  margin-top: 30rpx;
+}
+
+.metric {
+  padding: 22rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.metric-value {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.balance-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+  margin-top: 28rpx;
+}
+
+.primary-btn,
+.ghost-btn,
+.sheet-confirm {
+  height: 82rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.primary-btn,
+.sheet-confirm {
+  background: $gold;
+  color: #16130b;
+}
+
+.ghost-btn {
+  background: rgba($gold, 0.14);
+  color: $gold;
+}
+
+.section {
+  padding: 24rpx;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 22rpx;
+}
+
+.section-head .section-title {
+  margin-bottom: 0;
+}
+
+.section-link {
+  color: $gold;
+  font-size: 24rpx;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14rpx;
+}
+
+.tool-card {
+  min-height: 150rpx;
+  background: $panel2;
+  border-radius: 12rpx;
+  padding: 18rpx;
+  box-sizing: border-box;
+}
+
+.tool-icon,
+.transaction-icon {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: $gold;
+  background: rgba($gold, 0.15);
+  margin-bottom: 14rpx;
+
+  &.green { color: $green; background: rgba($green, 0.15); }
+  &.blue { color: $blue; background: rgba($blue, 0.15); }
+  &.purple { color: $purple; background: rgba($purple, 0.15); }
+  &.income { color: $green; background: rgba($green, 0.15); }
+  &.expense { color: $red; background: rgba($red, 0.15); }
+}
+
+.tool-title {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 700;
+  margin-bottom: 6rpx;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10rpx;
+  padding: 10rpx;
+  background: $panel2;
+  border-radius: 12rpx;
+  margin: 22rpx 0 8rpx;
+}
+
+.segment {
+  height: 58rpx;
+  border-radius: 9rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $muted;
+  font-size: 24rpx;
+
+  &.active {
+    background: $gold;
+    color: #16130b;
+    font-weight: 700;
   }
+}
 
-  .withdraw-tip {
-    text-align: center;
-    font-size: 26rpx;
-    color: #999;
-    margin-bottom: 20rpx;
+.transaction-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  min-height: 104rpx;
+  border-bottom: 1rpx solid $line;
+
+  &:last-child {
+    border-bottom: none;
   }
+}
 
-  .amount-input {
-    display: flex;
-    align-items: center;
-    border-bottom: 2rpx solid #eee;
-    padding-bottom: 20rpx;
-    margin-bottom: 30rpx;
+.transaction-icon {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
 
-    .currency {
-      font-size: 48rpx;
-      font-weight: 600;
-      color: #333;
-      margin-right: 8rpx;
-    }
+.transaction-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
 
-    input {
-      flex: 1;
-      font-size: 48rpx;
-      font-weight: 600;
-    }
+.transaction-title {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.transaction-amount {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: $red;
+
+  &.income {
+    color: $green;
   }
+}
 
-  .quick-amounts {
-    display: flex;
-    gap: 16rpx;
-    margin-bottom: 40rpx;
+.empty-state {
+  padding: 50rpx 0 28rpx;
+  text-align: center;
+  color: $dim;
+  font-size: 25rpx;
+}
 
-    .quick-item {
-      flex: 1;
-      height: 72rpx;
-      background: #f5f5f5;
-      border-radius: 12rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28rpx;
-      color: #666;
+.sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.58);
+  display: flex;
+  align-items: flex-end;
+}
 
-      &.active {
-        background: rgba(102, 126, 234, 0.1);
-        color: #667eea;
-        border: 1rpx solid #667eea;
-      }
-    }
+.amount-sheet {
+  width: 100%;
+  padding: 38rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  background: $panel;
+  border-radius: 24rpx 24rpx 0 0;
+  border-top: 1rpx solid $line;
+  box-sizing: border-box;
+}
+
+.sheet-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  margin-bottom: 18rpx;
+}
+
+.sheet-desc,
+.withdraw-info {
+  color: $muted;
+  font-size: 24rpx;
+}
+
+.amount-input {
+  height: 96rpx;
+  margin: 20rpx 0;
+  border-radius: 12rpx;
+  background: $panel2;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 0 24rpx;
+  color: $gold;
+  font-size: 34rpx;
+}
+
+.amount-input input {
+  flex: 1;
+  color: $text;
+  font-size: 34rpx;
+}
+
+.quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+  margin-bottom: 22rpx;
+}
+
+.quick-item {
+  height: 68rpx;
+  border-radius: 10rpx;
+  background: $panel2;
+  color: $muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.active {
+    background: rgba($gold, 0.18);
+    color: $gold;
   }
+}
 
-  .withdraw-fee {
-    display: flex;
-    justify-content: space-between;
-    font-size: 24rpx;
-    color: #999;
-    margin-bottom: 30rpx;
-  }
-
-  .confirm-btn {
-    width: 100%;
-    height: 88rpx;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-    font-size: 32rpx;
-    border-radius: 44rpx;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20rpx;
-  }
-
-  .withdraw-rules {
-    font-size: 24rpx;
-    color: #999;
-    line-height: 1.8;
-
-    .rules-title {
-      color: #333;
-      display: block;
-      margin-bottom: 8rpx;
-    }
-  }
+.withdraw-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 22rpx;
 }
 </style>

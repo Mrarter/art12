@@ -17,6 +17,7 @@ export const useUserStore = defineStore('user', {
   
   getters: {
     isLogin: (state) => !!state.token,
+    isAuthenticated: (state) => !!state.token,
     currentIdentity: (state) => state.userInfo?.identity || 'collector',
     avatar: (state) => state.userInfo?.avatar || '/static/images/avatar.png',
     nickname: (state) => state.userInfo?.nickname || '未登录'
@@ -38,12 +39,20 @@ export const useUserStore = defineStore('user', {
     
     // 更新身份信息
     updateIdentities(info) {
-      const identityJson = info?.identity_json || info?.identity || '["collector"]'
-      try {
-        this.identities = typeof identityJson === 'string' ? JSON.parse(identityJson) : identityJson
-      } catch (e) {
+      const rawIdentities = info?.identities || info?.identity_json || info?.identity || ['collector']
+      if (Array.isArray(rawIdentities)) {
+        this.identities = rawIdentities
+      } else if (typeof rawIdentities === 'string') {
+        try {
+          const parsed = JSON.parse(rawIdentities)
+          this.identities = Array.isArray(parsed) ? parsed : [String(parsed)]
+        } catch (e) {
+          this.identities = rawIdentities.split(',').map(item => item.trim()).filter(Boolean)
+        }
+      } else {
         this.identities = ['collector']
       }
+      if (!this.identities.length) this.identities = ['collector']
       this.isArtist = this.identities.includes('artist')
       this.isPromoter = this.identities.includes('promoter')
       this.isAgent = this.identities.includes('agent')

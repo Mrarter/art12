@@ -11,8 +11,8 @@
         <view class="item-info">
           <view class="info-header">
             <text class="name">{{ item.consignee || item.receiverName }}</text>
-            <text class="phone">{{ item.phone }}</text>
-            <view class="default-tag" v-if="item.isDefault">默认</view>
+            <text class="phone">{{ item.phone || item.receiverPhone }}</text>
+            <view class="default-tag" v-if="item.isDefault === true || item.isDefault === 1">默认</view>
           </view>
           <text class="address-text">{{ item.province }}{{ item.city }}{{ item.district }}{{ item.address || item.detailAddress }}</text>
         </view>
@@ -77,33 +77,7 @@ export default {
       } catch (e) {
         uni.hideLoading()
         console.error('获取地址列表失败', e)
-        // 使用模拟数据
-        this.addresses = [
-          {
-            id: 1,
-            consignee: '张三',
-            receiverName: '张三',
-            phone: '13800138000',
-            province: '北京市',
-            city: '北京市',
-            district: '朝阳区',
-            address: '建国路88号',
-            detailAddress: '建国路88号',
-            isDefault: true
-          },
-          {
-            id: 2,
-            consignee: '李四',
-            receiverName: '李四',
-            phone: '13900139000',
-            province: '上海市',
-            city: '上海市',
-            district: '黄浦区',
-            address: '南京东路100号',
-            detailAddress: '南京东路100号',
-            isDefault: false
-          }
-        ]
+        this.addresses = []
       }
     },
 

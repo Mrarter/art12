@@ -32,43 +32,48 @@ export const getCirculationDetail = (artworkId) => {
 // ===== 以下为 confirm.vue 等已有页面依赖的 API =====
 
 export const getCartList = (params) => {
-  return request({ url: '/cart/list', data: params })
+  return request({ url: '/order/cart/list', data: params })
 }
 
 export const getAddressList = () => {
-  return request({ url: '/user/address/list' })
+  return request({ url: '/order/user/addresses' })
 }
 
 export const createOrderFromCart = (data) => {
-  return request({ url: '/order/create', method: 'POST', data })
+  return request({ url: '/order/orders/create', method: 'POST', data })
 }
 
 export const directBuy = (data) => {
-  return request({ url: '/order/direct', method: 'POST', data })
+  return request({ url: '/order/orders/direct', method: 'POST', data })
 }
 
 export const getOrderList = (params) => {
-  return request({ url: '/order/list', data: params })
+  return request({ url: '/order/orders', data: params })
 }
 
 export const getOrderDetail = (orderNo) => {
-  return request({ url: `/order/detail/${orderNo}` })
+  return request({ url: `/order/orders/${orderNo}` })
 }
 
 export const getOrderCounts = () => {
-  return request({ url: '/order/counts' })
+  return getOrderList({ page: 1, pageSize: 1 }).then((result) => result?.counts || {
+    pendingPayment: result?.pendingPayCount || 0,
+    paid: 0,
+    shipped: 0,
+    completed: 0
+  })
 }
 
 export const cancelOrder = (orderId) => {
-  return request({ url: `/order/cancel/${orderId}`, method: 'POST' })
+  return request({ url: `/order/orders/${orderId}/cancel`, method: 'PUT' })
 }
 
 export const confirmReceive = (orderId) => {
-  return request({ url: `/order/confirm/${orderId}`, method: 'POST' })
+  return request({ url: `/order/orders/${orderId}/confirm`, method: 'PUT' })
 }
 
 export const refundApply = (data) => {
-  return request({ url: '/order/refund', method: 'POST', data })
+  return request({ url: `/order/orders/${data.orderId}/refund`, method: 'POST', data })
 }
 
 export const submitReview = (data) => {

@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "pages/artwork/detail/index"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#0F0F10",
+    "backgroundTextStyle": "dark"
+  },
+  "sitemapLocation": "sitemap.json"
+}

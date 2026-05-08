@@ -719,7 +719,7 @@ public class UserAdminPersistenceService {
         String sql = """
             SELECT a.id, %s AS user_id, %s AS user_uid, %s AS real_name, %s AS id_card, %s AS artist_resume,
                    %s AS artist_works, %s AS artist_exhibits,
-                   %s AS artist_status, %s AS review_time,
+                   a.%s AS artist_status, %s AS review_time,
                    %s AS reject_reason,
                    u.nickname, %s AS phone, %s AS avatar, %s AS artist_level_value,
                    a.%s AS create_time, %s AS artist_code%s
@@ -1112,16 +1112,13 @@ public class UserAdminPersistenceService {
             // artist_profile 表结构
             jdbcTemplate.update(
                 """
-                INSERT INTO artist_profile (user_id, user_uid, artist_name, avatar_url, bio, style_tags, slogan, status, created_at, updated_at, artist_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                INSERT INTO artist_profile (user_id, user_uid, artist_name, bio, status, created_at, updated_at, artist_code)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
                 """,
                 userId,
                 userUid,
                 realName,
-                finalAvatar,
                 nullableText(params.get("resume")),
-                null,
-                nullableText(params.get("slogan")),
                 LocalDateTime.now(),
                 LocalDateTime.now(),
                 artistCode
@@ -2079,16 +2076,13 @@ public class UserAdminPersistenceService {
 
         if ("artist_profile".equals(artistTable)) {
             jdbcTemplate.update("""
-                INSERT INTO artist_profile (user_id, user_uid, artist_name, avatar_url, bio, style_tags, slogan, status, created_at, updated_at, artist_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                INSERT INTO artist_profile (user_id, user_uid, artist_name, bio, status, created_at, updated_at, artist_code)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
                 """,
                 userId,
                 nullableText(authorUid),
                 authorName,
-                nullableText(finalAvatar),
                 nullableText(bio),
-                null,
-                null,
                 now,
                 now,
                 artistCode
@@ -2213,21 +2207,21 @@ public class UserAdminPersistenceService {
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else if ("user_account".equals(userTable)) {
-            // user_account 表：存储到 user_uid 列，user_no 作为兼容
-            String userNo = "U" + System.currentTimeMillis() + String.format("%04d", new Random().nextInt(10000));
+            // user_account 表：存储到 user_uid 列
             String avatarColumn = avatarColumn(userTable);
             String safeNickname = nickname.length() > 100 ? nickname.substring(0, 100) : nickname;
+            String tempOpenid = "synced_" + System.currentTimeMillis() + "_" + new Random().nextInt(10000);
             jdbcTemplate.update("""
-                INSERT INTO user_account (nickname, mobile, %s, status, register_source, created_at, updated_at, user_uid, user_no)
-                VALUES (?, ?, ?, 'ENABLED', 'ADMIN', ?, ?, ?, ?)
+                INSERT INTO user_account (openid, nickname, phone, %s, status, create_time, update_time, user_uid)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
                 """.formatted(avatarColumn),
+                tempOpenid,
                 safeNickname,
                 phone,
                 finalAvatar,
                 now,
                 now,
-                userUid,
-                userNo
+                userUid
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else {
@@ -2674,7 +2668,9 @@ public class UserAdminPersistenceService {
     }
 
     private String artistStatusColumn(String tableName) {
-        return schemaInspector.firstExistingColumn(tableName, "is_signed", "status", "cert_status");
+        String col = schemaInspector.firstExistingColumn(tableName, "is_signed", "status", "cert_status");
+        // 返回不带前缀的列名，由调用方决定是否加前缀
+        return col != null ? col : "status";
     }
 
     private String artistResumeColumn(String tableName) {

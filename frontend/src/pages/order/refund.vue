@@ -212,12 +212,9 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0.00'
-      const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(2) + '万'
-      }
-      return yuan.toFixed(2)
+      if (!price) return '0'
+      const yuan = Math.round(price / 100)
+      return yuan.toLocaleString()
     }
   }
 }

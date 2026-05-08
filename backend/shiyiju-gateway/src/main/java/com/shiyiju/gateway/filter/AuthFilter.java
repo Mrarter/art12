@@ -74,6 +74,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/order/aftersale/list",
             "/user/artist/list",
             "/user/artist/search",
+            "/user/artist/",
             "/user/promoter/list",
             "/auction/session/list",
             "/auction/session/detail",

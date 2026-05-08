@@ -1,96 +1,73 @@
 <template>
   <view class="login-page">
-    <!-- Logo区域 -->
-    <view class="logo-section">
-      <image class="logo" src="/static/images/logo.png" mode="aspectFit"></image>
-      <text class="app-name">拾艺局</text>
-      <text class="app-slogan">高端艺术品社交电商平台</text>
-    </view>
+    <image class="hero-bg" src="/static/images/museum-v12-hero-bg.png" mode="aspectFill"></image>
+    <view class="page-shade"></view>
 
-    <!-- 身份选择入口 -->
-    <view class="identity-intro">
-      <text class="intro-title">选择您的身份</text>
-      <view class="identity-options">
-        <view class="identity-option" @click="selectIdentity('collector')">
-          <view class="option-icon collector">
-            <image src="/static/icons/collector.png" mode="aspectFit"></image>
-          </view>
-          <text class="option-name">收藏家</text>
-          <text class="option-desc">探索艺术，购买收藏</text>
-        </view>
-        <view class="identity-option" @click="selectIdentity('artist')">
-          <view class="option-icon artist">
-            <image src="/static/icons/artist.png" mode="aspectFit"></image>
-          </view>
-          <text class="option-name">艺术家</text>
-          <text class="option-desc">展示作品，分享创意</text>
-        </view>
-        <view class="identity-option" @click="selectIdentity('promoter')">
-          <view class="option-icon promoter">
-            <image src="/static/icons/promoter.png" mode="aspectFit"></image>
-          </view>
-          <text class="option-name">艺荐官</text>
-          <text class="option-desc">推广艺术，赚取佣金</text>
-        </view>
+    <view class="brand-section">
+      <view class="brand-mark">
+        <image class="brand-logo" src="/static/images/logo.png" mode="aspectFit"></image>
+      </view>
+      <view class="brand-copy">
+        <text class="app-name">拾艺局</text>
+        <text class="app-slogan">艺术收藏、发布与分享的一站式入口</text>
       </view>
     </view>
 
-    <!-- 功能特色 -->
-    <view class="features-section">
-      <view class="feature-item">
-        <view class="feature-icon">
-          <image src="/static/icons/feature-auction.png" mode="aspectFit"></image>
-        </view>
-        <view class="feature-text">
-          <text class="feature-title">精品拍卖</text>
-          <text class="feature-desc">参与艺术品竞拍</text>
-        </view>
+    <view class="identity-panel">
+      <view class="panel-head">
+        <text class="panel-title">选择登录身份</text>
+        <text class="panel-subtitle">{{ selectedIdentityInfo.hint }}</text>
       </view>
-      <view class="feature-item">
-        <view class="feature-icon">
-          <image src="/static/icons/feature-social.png" mode="aspectFit"></image>
-        </view>
-        <view class="feature-text">
-          <text class="feature-title">艺术社交</text>
-          <text class="feature-desc">关注艺术家，交流心得</text>
-        </view>
-      </view>
-      <view class="feature-item">
-        <view class="feature-icon">
-          <image src="/static/icons/feature-reward.png" mode="aspectFit"></image>
-        </view>
-        <view class="feature-text">
-          <text class="feature-title">分享赚佣</text>
-          <text class="feature-desc">推荐作品获得收益</text>
+      <view class="identity-list">
+        <view
+          v-for="item in identityOptions"
+          :key="item.value"
+          class="identity-option"
+          :class="{ active: selectedIdentity === item.value }"
+          @click="selectIdentity(item.value)"
+        >
+          <view class="option-icon" :class="item.tone">
+            <image :src="item.icon" mode="aspectFit"></image>
+          </view>
+          <view class="option-copy">
+            <text class="option-name">{{ item.label }}</text>
+            <text class="option-desc">{{ item.desc }}</text>
+          </view>
+          <view class="option-check">
+            <text v-if="selectedIdentity === item.value">✓</text>
+          </view>
         </view>
       </view>
     </view>
-    
-    <!-- 协议说明 -->
-    <view class="agreement-section">
+
+    <view class="feature-strip">
+      <view class="feature-item" v-for="item in featureItems" :key="item.title">
+        <view class="feature-icon">
+          <image :src="item.icon" mode="aspectFit"></image>
+        </view>
+        <view class="feature-text">
+          <text class="feature-title">{{ item.title }}</text>
+          <text class="feature-desc">{{ item.desc }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="login-section">
       <view class="agreement-text">
         登录即表示同意
         <text class="link" @click="viewAgreement('user')">《用户协议》</text>
         和
         <text class="link" @click="viewAgreement('privacy')">《隐私政策》</text>
       </view>
-    </view>
-    
-    <!-- 登录按钮 -->
-    <view class="login-section">
-      <!-- 微信登录 -->
+
       <button class="btn-wechat" @click="onWechatLogin" :loading="loading">
-        <text class="iconfont icon-wechat"></text>
-        <text>微信一键登录</text>
+        <text>微信登录</text>
       </button>
-      
-      <!-- 手机号登录 -->
+
       <button class="btn-phone" @click="openPhoneLogin">
-        <text class="iconfont icon-phone"></text>
         <text>手机号登录</text>
       </button>
-      
-      <!-- 游客体验 -->
+
       <button class="btn-guest" @click="onGuestLogin">
         <text>游客体验</text>
       </button>
@@ -129,7 +106,6 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
 import { wxLogin, phoneLogin, sendSmsCode } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
 
@@ -149,6 +125,44 @@ export default {
   },
   
   computed: {
+    identityOptions() {
+      return [
+        {
+          value: 'collector',
+          label: '收藏家',
+          desc: '管理收藏、订单与关注的艺术家',
+          hint: '以收藏者身份进入，探索作品与拍卖',
+          icon: '/static/art-icons/icon-collector.svg',
+          tone: 'gold'
+        },
+        {
+          value: 'artist',
+          label: '艺术家',
+          desc: '发布作品、完善认证与维护主页',
+          hint: '以艺术家身份进入，管理创作与展陈',
+          icon: '/static/art-icons/icon-artist.svg',
+          tone: 'green'
+        },
+        {
+          value: 'promoter',
+          label: '艺荐官',
+          desc: '分享作品、查看团队与佣金收益',
+          hint: '以艺荐官身份进入，跟踪推广收益',
+          icon: '/static/art-icons/icon-share.svg',
+          tone: 'blue'
+        }
+      ]
+    },
+    selectedIdentityInfo() {
+      return this.identityOptions.find(item => item.value === this.selectedIdentity) || this.identityOptions[0]
+    },
+    featureItems() {
+      return [
+        { title: '精品拍卖', desc: '竞拍与订单统一管理', icon: '/static/art-icons/icon-payment.svg' },
+        { title: '艺术社交', desc: '关注艺术家与创作动态', icon: '/static/art-icons/icon-follow.svg' },
+        { title: '分享收益', desc: '推广作品获得佣金', icon: '/static/art-icons/icon-budget.svg' }
+      ]
+    },
     canSubmitPhone() {
       return /^1[3-9]\d{9}$/.test(this.phoneForm.phone) && 
              this.phoneForm.captcha.length === 6
@@ -341,251 +355,315 @@ export default {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  padding: 0 40rpx;
+  position: relative;
+  padding: 64rpx 28rpx calc(34rpx + env(safe-area-inset-bottom));
+  background: #0b0b0c;
+  color: #f6f2e8;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.logo-section {
-  padding-top: 120rpx;
+.hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 470rpx;
+  opacity: 0.42;
+}
+
+.page-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(11, 11, 12, 0.25) 0%, #0b0b0c 44%, #0b0b0c 100%),
+    radial-gradient(circle at 18% 8%, rgba(201, 162, 39, 0.18), transparent 38%);
+}
+
+.brand-section,
+.identity-panel,
+.feature-strip,
+.login-section {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-section {
+  min-height: 310rpx;
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  gap: 24rpx;
+  padding-bottom: 26rpx;
+}
+
+.brand-mark {
+  width: 118rpx;
+  height: 118rpx;
+  border-radius: 30rpx;
+  background: rgba(246, 242, 232, 0.92);
+  border: 2rpx solid rgba(201, 162, 39, 0.42);
+  display: flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.logo {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 40rpx;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+.brand-logo {
+  width: 92rpx;
+  height: 92rpx;
+}
+
+.brand-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
 }
 
 .app-name {
   font-size: 52rpx;
-  font-weight: 600;
-  color: #fff;
-  margin-top: 30rpx;
-  letter-spacing: 8rpx;
+  line-height: 60rpx;
+  font-weight: 800;
+  color: #f6f2e8;
 }
 
 .app-slogan {
-  font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 16rpx;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  color: #b9b1a5;
 }
 
-/* 身份选择 */
-.identity-intro {
-  margin-top: 80rpx;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  border-radius: 24rpx;
-  padding: 40rpx;
+.identity-panel {
+  padding: 24rpx;
+  border-radius: 18rpx;
+  background: rgba(23, 23, 25, 0.94);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
-.intro-title {
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.9);
-  text-align: center;
+.panel-head {
+  margin-bottom: 20rpx;
+}
+
+.panel-title {
   display: block;
-  margin-bottom: 30rpx;
+  font-size: 30rpx;
+  line-height: 38rpx;
+  color: #f6f2e8;
+  font-weight: 700;
 }
 
-.identity-options {
-  display: flex;
-  justify-content: space-between;
+.panel-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  color: #8f887e;
+}
+
+.identity-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14rpx;
 }
 
 .identity-option {
-  flex: 1;
+  min-height: 112rpx;
+  padding: 18rpx;
+  border-radius: 14rpx;
+  background: #202024;
+  border: 1rpx solid transparent;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 20rpx;
-  border-radius: 16rpx;
-  transition: all 0.3s;
+  gap: 16rpx;
+  box-sizing: border-box;
 }
 
-.identity-option:active {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(0.95);
+.identity-option.active {
+  background: rgba(201, 162, 39, 0.12);
+  border-color: rgba(201, 162, 39, 0.48);
 }
 
 .option-icon {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 14rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16rpx;
+  flex-shrink: 0;
+  background: rgba(201, 162, 39, 0.15);
+}
+
+.option-icon.green {
+  background: rgba(88, 185, 130, 0.16);
+}
+
+.option-icon.blue {
+  background: rgba(95, 143, 199, 0.16);
 }
 
 .option-icon image {
-  width: 60rpx;
-  height: 60rpx;
+  width: 34rpx;
+  height: 34rpx;
 }
 
-.option-icon.collector {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.option-icon.artist {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.option-icon.promoter {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+.option-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
 }
 
 .option-name {
   font-size: 28rpx;
-  color: #fff;
-  font-weight: 500;
-  margin-bottom: 6rpx;
+  line-height: 36rpx;
+  color: #f6f2e8;
+  font-weight: 700;
 }
 
 .option-desc {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.6);
+  line-height: 32rpx;
+  color: #8f887e;
 }
 
-/* 功能特色 */
-.features-section {
-  margin-top: 40rpx;
+.option-check {
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
   display: flex;
-  justify-content: space-around;
-  padding: 30rpx 0;
+  align-items: center;
+  justify-content: center;
+  color: #c9a227;
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+.feature-strip {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
 }
 
 .feature-item {
+  min-height: 142rpx;
+  padding: 16rpx 12rpx;
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.045);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.feature-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 12rpx;
+  background: rgba(201, 162, 39, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10rpx;
+}
+
+.feature-icon image {
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.feature-text {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.feature-icon {
-  width: 80rpx;
-  height: 80rpx;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12rpx;
-}
-
-.feature-icon image {
-  width: 48rpx;
-  height: 48rpx;
-}
-
 .feature-title {
-  font-size: 26rpx;
-  color: #fff;
-  font-weight: 500;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  color: #f6f2e8;
+  font-weight: 700;
 }
 
 .feature-desc {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.6);
   margin-top: 4rpx;
+  font-size: 19rpx;
+  line-height: 28rpx;
+  color: #777166;
 }
 
-/* 协议说明 */
-.agreement-section {
+.login-section {
   margin-top: auto;
-  padding: 30rpx 0;
+  padding-top: 34rpx;
 }
 
 .agreement-text {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 18rpx;
+  font-size: 22rpx;
+  color: #8f887e;
   text-align: center;
-  line-height: 1.6;
+  line-height: 34rpx;
 }
 
 .link {
-  color: #4facfe;
+  color: #c9a227;
 }
 
-/* 登录按钮 */
-.login-section {
-  padding-bottom: 60rpx;
+.btn-wechat,
+.btn-phone,
+.btn-guest,
+.btn-submit {
+  width: 100%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-wechat::after,
+.btn-phone::after,
+.btn-guest::after,
+.btn-submit::after,
+.captcha-btn::after {
+  border: none;
 }
 
 .btn-wechat {
-  width: 100%;
-  height: 96rpx;
-  background: linear-gradient(135deg, #07c160 0%, #06ad56 100%);
-  border-radius: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 500;
-  border: none;
-  margin-bottom: 24rpx;
-}
-
-.btn-wechat::after {
-  border: none;
+  height: 92rpx;
+  border-radius: 46rpx;
+  background: #c9a227;
+  color: #16130b;
+  font-size: 30rpx;
+  font-weight: 800;
+  margin-bottom: 18rpx;
 }
 
 .btn-phone {
-  width: 100%;
-  height: 96rpx;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 500;
-  border: 2rpx solid rgba(255, 255, 255, 0.3);
-}
-
-.btn-phone::after {
-  border: none;
-}
-
-.btn-ghost {
-  width: 100%;
-  height: 80rpx;
-  background: transparent;
-  border-radius: 40rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 28rpx;
-  border: none;
-  margin-top: 16rpx;
+  height: 90rpx;
+  border-radius: 45rpx;
+  color: #f6f2e8;
+  font-size: 29rpx;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1rpx solid rgba(255, 255, 255, 0.16);
 }
 
 .btn-guest {
-  width: 100%;
-  height: 80rpx;
+  height: 72rpx;
+  margin-top: 14rpx;
+  color: #8f887e;
+  font-size: 24rpx;
   background: transparent;
-  border-radius: 40rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 26rpx;
-  border: none;
-  margin-top: 20rpx;
 }
 
-.btn-guest::after {
-  border: none;
-}
-
-/* 手机号登录弹窗 */
 .popup-mask {
   position: fixed;
   left: 0;
@@ -595,55 +673,60 @@ export default {
   z-index: 99;
   display: flex;
   align-items: flex-end;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.62);
 }
 
 .phone-login-popup {
   width: 100%;
-  background: #fff;
-  border-radius: 32rpx 32rpx 0 0;
-  padding: 40rpx;
+  padding: 34rpx 28rpx calc(34rpx + env(safe-area-inset-bottom));
+  border-radius: 24rpx 24rpx 0 0;
+  background: #171719;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
 }
 
 .popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 50rpx;
+  margin-bottom: 28rpx;
 }
 
 .popup-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #333;
+  font-size: 34rpx;
+  line-height: 42rpx;
+  font-weight: 800;
+  color: #f6f2e8;
 }
 
 .popup-close {
-  font-size: 40rpx;
-  color: #999;
+  font-size: 34rpx;
+  color: #8f887e;
 }
 
 .phone-form {
-  padding: 0 20rpx;
+  padding: 0;
 }
 
 .form-item {
-  margin-bottom: 30rpx;
+  margin-bottom: 20rpx;
 }
 
 .phone-input,
 .captcha-input {
   width: 100%;
-  height: 96rpx;
-  background: #f5f5f5;
-  border-radius: 16rpx;
-  padding: 0 30rpx;
-  font-size: 30rpx;
+  height: 88rpx;
+  background: #202024;
+  border-radius: 14rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #f6f2e8;
+  box-sizing: border-box;
 }
 
 .captcha-item {
   display: flex;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
 .captcha-input {
@@ -651,47 +734,46 @@ export default {
 }
 
 .captcha-btn {
-  width: 220rpx;
-  height: 96rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
-  color: #fff;
-  font-size: 28rpx;
+  width: 200rpx;
+  height: 88rpx;
+  border-radius: 14rpx;
+  color: #16130b;
+  background: #c9a227;
+  font-size: 25rpx;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
+}
+
+.captcha-btn[disabled],
+.btn-submit[disabled] {
+  background: #343436;
+  color: #777166;
 }
 
 .btn-submit {
-  width: 100%;
-  height: 96rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 48rpx;
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 20rpx;
-  border: none;
-}
-
-.btn-submit[disabled] {
-  background: #ccc;
+  height: 90rpx;
+  margin-top: 14rpx;
+  border-radius: 45rpx;
+  background: #c9a227;
+  color: #16130b;
+  font-size: 30rpx;
+  font-weight: 800;
 }
 
 .wechat-tip {
-  margin-top: 30rpx;
-  padding: 20rpx;
-  background: #f5f5f5;
+  margin-top: 22rpx;
+  padding: 18rpx;
   border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .wechat-tip text {
-  font-size: 24rpx;
-  color: #999;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  color: #8f887e;
   text-align: center;
   display: block;
 }

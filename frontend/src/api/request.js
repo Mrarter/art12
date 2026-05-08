@@ -1,17 +1,19 @@
 // API 地址
-// H5/模拟器：使用相对路径走 Vite 代理 (/api -> localhost:8082)
+// H5/模拟器：默认使用相对路径走 Vite 代理 (/api -> localhost:8080)
 // 微信真机调试：必须使用电脑在同一 Wi-Fi 下的局域网 IP
 // 生产预览/上传版：需要在微信公众平台配置 HTTPS 合法域名
-const DEV_LAN_HOST = '192.168.1.109'
-const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8082`
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+const MP_GATEWAY_ORIGIN = import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `http://${DEV_LAN_HOST}:8080`
+const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN_HOST}:8087`
+const GATEWAY_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
+  ? MP_GATEWAY_ORIGIN
   : ''
 const BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? API_ORIGIN
+  ? GATEWAY_ORIGIN
   : '/api'
 const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
 const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8087`
+  ? MP_FILE_ORIGIN
   : ''
 
 // 增加超时时间到 30 秒
@@ -31,6 +33,9 @@ const buildQueryString = (data) => {
 
 const normalizeResourceUrls = (value) => {
   if (typeof value === 'string') {
+    if (value.startsWith('/upload/')) {
+      return FILE_BASE_URL + value
+    }
     if (value.startsWith(LOCAL_FILE_ORIGIN)) {
       return FILE_BASE_URL + value.slice(LOCAL_FILE_ORIGIN.length)
     }
@@ -39,7 +44,7 @@ const normalizeResourceUrls = (value) => {
     }
     if (value.startsWith('http://192.168.')) {
       return value.replace(/^http:\/\/192\.168\.\d+\.\d+:(8080|8087)/, (_, port) => {
-        return port === '8087' ? FILE_BASE_URL : API_ORIGIN
+        return port === '8087' ? FILE_BASE_URL : GATEWAY_ORIGIN
       })
     }
     return value
@@ -74,7 +79,7 @@ const request = (options) => {
     uni.request({
       url: url,
       method: options.method || 'GET',
-      data: options.method === 'POST' || options.method === 'PUT' ? options.data : undefined,
+      data: options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE' ? options.data : undefined,
       header: {
         'Content-Type': 'application/json',
         'Authorization': uni.getStorageSync('token') ? 'Bearer ' + uni.getStorageSync('token') : '',

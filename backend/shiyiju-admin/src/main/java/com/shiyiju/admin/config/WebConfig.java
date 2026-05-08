@@ -22,5 +22,11 @@ public class WebConfig implements WebMvcConfigurer {
         // 默认头像静态资源映射：/images/** → classpath:/static/images/
         registry.addResourceHandler("/images/**")
                 .addResourceLocations("classpath:/static/images/");
+
+        // 上传文件映射：/upload/** → 本地 uploads 目录
+        // 前端 getFullImageUrl 会将 /upload/ 路径的图片URL转换为相对路径，
+        // 需要在此处代理到文件服务或本地目录
+        registry.addResourceHandler("/upload/**")
+                .addResourceLocations("file:/Users/master/CodeBuddy/art12/uploads/");
     }
 }

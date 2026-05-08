@@ -244,19 +244,21 @@ const fetchProductList = async (reset = false) => {
     const params = { page: page.value, pageSize }
     let list = []
 
-    if (currentTab.value === 'recommend') {
-      const result = await getRecommend(params)
+    if (currentTab.value === 'recommend' && isH5Browser()) {
+      list = await fetchProductListByBrowser()
+    } else if (currentTab.value === 'recommend') {
+      const result = await withTimeout(getRecommend(params), 8000)
       // 处理 PageResult 格式：{ records: [], total: xxx, page: xxx }
       list = result?.records || result || []
       if (!list.length) {
-        const fallback = await getProductList(params)
+        const fallback = await withTimeout(getProductList(params), 8000)
         list = fallback?.records || fallback || []
       }
     } else {
-      const result = await getFollowingWorks(params)
+      const result = await withTimeout(getFollowingWorks(params), 8000)
       list = result?.records || result || []
       if (!list.length) {
-        const fallback = await getProductList(params)
+        const fallback = await withTimeout(getProductList(params), 8000)
         list = fallback?.records || fallback || []
       }
     }
@@ -275,9 +277,53 @@ const fetchProductList = async (reset = false) => {
     }
   } catch (e) {
     console.error('获取作品列表失败:', e)
+    try {
+      const fallbackList = await fetchProductListByBrowser()
+      if (fallbackList.length) {
+        if (reset) {
+          productList.value = fallbackList
+        } else {
+          productList.value = [...productList.value, ...fallbackList]
+        }
+        noMore.value = fallbackList.length < pageSize
+        if (!noMore.value) page.value++
+      }
+    } catch (fallbackError) {
+      console.error('浏览器兜底获取作品列表失败:', fallbackError)
+    }
   } finally {
     loading.value = false
   }
+}
+
+const withTimeout = (promise, timeoutMs) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`请求超时 ${timeoutMs}ms`)), timeoutMs)
+    })
+  ])
+}
+
+const isH5Browser = () => {
+  return process.env.UNI_PLATFORM !== 'mp-weixin' && typeof fetch === 'function'
+}
+
+const fetchProductListByBrowser = async () => {
+  // H5 下直接使用同源 fetch，避免 uni.request 在本地代理场景偶发等待超时。
+  if (!isH5Browser()) return []
+  const response = await fetch(`/api/product/list?page=${page.value}&pageSize=${pageSize}`)
+  if (!response.ok) return []
+  const payload = await response.json()
+  const data = payload?.data || payload
+  const list = data?.records || data?.list || (Array.isArray(data) ? data : [])
+  return list.map(item => ({
+    ...item,
+    cover: item.coverImage || item.cover,
+    artistName: item.artistName || item.authorName,
+    artistId: item.artistId || item.authorId,
+    artistUid: item.artistUid || item.authorUid || item.displayAuthorId
+  }))
 }
 
 // 刷新
@@ -364,13 +410,10 @@ const goArtistHome = (userId) => {
   uni.navigateTo({ url: `/pages/artist/home?userId=${userId}` })
 }
 
-// 格式化价格
+// 格式化价格（精确到个位数）
 const formatPrice = (price) => {
   if (!price) return '0'
-  const yuan = price / 100  // 分转元
-  if (yuan >= 10000) {
-    return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-  }
+  const yuan = Math.round(price / 100)  // 分转元，取整
   return yuan.toLocaleString()
 }
 

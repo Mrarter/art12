@@ -16,12 +16,15 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8082',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true
+      },
+      '/product': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true
       },
       '/upload': {
-        target: 'http://localhost:8087',
+        target: 'http://127.0.0.1:8087',
         changeOrigin: true
       }
     }

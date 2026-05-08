@@ -9,9 +9,9 @@ spring:
         enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: jdbc:mysql://sh-cynosdbmysql-grp-89g78r02.sql.tencentcdb.com:25694/shiyiju-9g4pxbgh603bf08b?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: admin
+    password: '@admin123'
   data:
     redis:
       host: 127.0.0.1
