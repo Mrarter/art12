@@ -102,6 +102,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/message/list",
             "/message/template/list",
             "/file/upload",
+            "/pay/callback/notify",
             "/health",
             "/actuator"
     );

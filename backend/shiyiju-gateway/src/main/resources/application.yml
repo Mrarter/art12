@@ -166,6 +166,13 @@ spring:
             - Path=/api/admin/**
           filters:
             - RewritePath=/api/admin(?<segment>/?.*), /admin$\{segment}
+        # 微信支付回调 - 直接路由到 order 服务（不走 /api 前缀）
+        - id: shiyiju-pay-callback
+          uri: http://localhost:8083
+          predicates:
+            - Path=/pay/callback/**
+          filters:
+            - StripPrefix=0
       globalcors:
         cors-configurations:
           '[/**]':
