@@ -9,14 +9,38 @@ spring:
         enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://sh-cynosdbmysql-grp-89g78r02.sql.tencentcdb.com:25694/shiyiju-9g4pxbgh603bf08b?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: admin
-    password: '@admin123'
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
   data:
     redis:
       host: 127.0.0.1
       port: 6379
       database: 0
+
+# 微信支付配置
+wxpay:
+  # 小程序AppID（在微信公众平台获取）
+  app-id: ${WXPAY_APP_ID:wx_your_app_id}
+  # 小程序AppID（用于JSAPI支付，与appId相同）
+  mini-app-id: ${WXPAY_MINI_APP_ID:wx_your_app_id}
+  # 商户号（在微信支付商户平台获取）
+  mch-id: ${WXPAY_MCH_ID:your_mch_id}
+  # 商户API密钥（在商户平台 -> 账户中心 -> API安全 设置）
+  mch-key: ${WXPAY_MCH_KEY:your_mch_key}
+  # 商户API证书路径（退款等操作需要，apiclient_cert.p12）
+  key-path: ${WXPAY_KEY_PATH:}
+  # 支付回调通知地址（必须为外网可访问的HTTPS地址）
+  notify-url: ${WXPAY_NOTIFY_URL:https://api.shiyiju.com/order/pay/callback/notify}
+  # 交易类型: JSAPI(小程序/公众号) / NATIVE(扫码) / APP(APP支付)
+  trade-type: JSAPI
+  # API版本: v2 或 v3
+  version: v2
+  # V2 API密钥
+  api-key: ${WXPAY_API_KEY:your_api_key}
+  # V3 证书序列号
+  serial-no: ${WXPAY_SERIAL_NO:}
+
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.shiyiju.order.entity

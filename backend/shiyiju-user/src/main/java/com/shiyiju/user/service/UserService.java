@@ -47,6 +47,12 @@ public class UserService {
     private final ArtistCertificationMapper artistCertMapper;
     private final ArtistProfileMapper artistProfileMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    
+    @org.springframework.beans.factory.annotation.Value("${wechat.appid:}")
+    private String wechatAppId;
+    
+    @org.springframework.beans.factory.annotation.Value("${wechat.secret:}")
+    private String wechatSecret;
 
     /**
      * 微信登录
@@ -104,6 +110,7 @@ public class UserService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setIdentities(user.getIdentities());
+        vo.setOpenId(openid);
 
         // 将 Token 存入 Redis
         redisTemplate.opsForValue().set("token:" + user.getId(), token, 7, TimeUnit.DAYS);
@@ -261,12 +268,44 @@ public class UserService {
     }
 
     /**
-     * 模拟获取微信 OpenID（实际应调用微信接口）
+     * 调用微信接口获取 openId
+     * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
      */
     private String getOpenidFromWx(String code) {
-        // TODO: 实际实现中调用微信接口
-        // https://api.weixin.qq.com/sns/jscode2session?appid=APPID&secret=SECRET&js_code=CODE&grant_type=authorization_code
-        return "mock_openid_" + code;
+        if (code == null || code.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "微信授权码不能为空");
+        }
+        
+        // 如果未配置微信密钥，使用mock模式（开发环境）
+        if (wechatSecret == null || wechatSecret.isEmpty() || "your-wechat-secret".equals(wechatSecret)) {
+            log.warn("微信小程序密钥未配置，使用mock模式获取openId");
+            return "mock_openid_" + code;
+        }
+        
+        try {
+            String url = String.format(
+                "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                wechatAppId, wechatSecret, code
+            );
+            
+            String response = cn.hutool.http.HttpUtil.get(url, 5000);
+            log.debug("微信code2Session响应: {}", response);
+            
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            
+            if (json.containsKey("openid")) {
+                return json.getString("openid");
+            } else {
+                log.error("微信code2Session失败: errcode={}, errmsg={}", 
+                    json.getInteger("errcode"), json.getString("errmsg"));
+                throw new BusinessException(ResultCode.PARAM_ERROR, "微信登录失败: " + json.getString("errmsg"));
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用微信code2Session异常", e);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "微信登录服务异常");
+        }
     }
 
     /**

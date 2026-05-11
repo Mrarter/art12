@@ -88,13 +88,17 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { getOrderDetail, getJsApiPayParams } from '@/api/order'
+import { useUserStore } from '@/store/modules/user'
+
+const userStore = useUserStore()
 
 const orderInfo = ref({
-  orderNo: 'ORD202401011234567890',
-  goodsAmount: 8888,
+  orderNo: '',
+  goodsAmount: 0,
   freight: 0,
-  couponAmount: 100,
-  payAmount: 8788
+  couponAmount: 0,
+  payAmount: 0
 })
 
 const payMethods = ref([
@@ -103,39 +107,72 @@ const payMethods = ref([
     name: '微信支付',
     desc: '推荐',
     icon: '/static/icons/wechat.png'
-  },
-  {
-    id: 'balance',
-    name: '余额支付',
-    desc: '可用余额 ¥1000.00',
-    icon: '/static/icons/balance.png'
   }
 ])
 
 const selectedPay = ref('wechat')
 const paying = ref(false)
 const showSuccess = ref(false)
+const orderId = ref(null)
 
 const selectPay = (item) => {
   selectedPay.value = item.id
 }
 
+/**
+ * 调起微信支付
+ */
 const doPay = async () => {
   if (paying.value) return
-  
+  if (selectedPay.value !== 'wechat') {
+    uni.showToast({ title: '暂只支持微信支付', icon: 'none' })
+    return
+  }
+  if (!orderId.value) {
+    uni.showToast({ title: '订单信息异常', icon: 'none' })
+    return
+  }
+
   paying.value = true
-  
+
   try {
-    // 模拟支付过程
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    paying.value = false
-    showSuccess.value = true
-    
-    // 更新订单状态（实际应该调用API）
+    // 获取用户 openId
+    const openId = userStore.openId || uni.getStorageSync('openId') || ''
+    if (!openId) {
+      uni.showToast({ title: '请先登录', icon: 'none' })
+      paying.value = false
+      return
+    }
+
+    // 1. 请求后端获取JSAPI支付参数
+    const payParams = await getJsApiPayParams(orderId.value, openId)
+
+    // 2. 调起微信支付
+    uni.requestPayment({
+      provider: 'wxpay',
+      timeStamp: payParams.timeStamp,
+      nonceStr: payParams.nonceStr,
+      package: payParams.package,
+      signType: payParams.signType || 'MD5',
+      paySign: payParams.paySign,
+      success: () => {
+        paying.value = false
+        showSuccess.value = true
+      },
+      fail: (err) => {
+        paying.value = false
+        if (err.errMsg?.includes('cancel')) {
+          uni.showToast({ title: '支付已取消', icon: 'none' })
+        } else {
+          uni.showToast({ title: '支付失败，请重试', icon: 'none' })
+          console.error('微信支付失败:', err)
+        }
+      }
+    })
   } catch (e) {
     paying.value = false
-    uni.showToast({ title: '支付失败，请重试', icon: 'none' })
+    console.error('获取支付参数失败:', e)
+    uni.showToast({ title: e.message || '支付下单失败', icon: 'none' })
   }
 }
 
@@ -147,15 +184,32 @@ const goHome = () => {
   uni.switchTab({ url: '/pages/index/index' })
 }
 
-onMounted(() => {
-  // 获取订单信息
+onMounted(async () => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
   const options = currentPage.options || {}
-  
+
   if (options.orderId) {
-    // 实际应该从API获取订单详情
-    orderInfo.value.orderNo = options.orderId
+    orderId.value = options.orderId
+    try {
+      const detail = await getOrderDetail(options.orderId)
+      if (detail) {
+        orderInfo.value = {
+          orderNo: detail.orderNo || detail.order_no || options.orderId,
+          goodsAmount: detail.goodsAmount || detail.goods_amount || detail.totalAmount || 0,
+          freight: detail.freightAmount || detail.freight_amount || 0,
+          couponAmount: detail.discountAmount || detail.discount_amount || 0,
+          payAmount: detail.payAmount || detail.pay_amount || 0
+        }
+      }
+    } catch (e) {
+      console.warn('获取订单详情失败:', e)
+      orderInfo.value.orderNo = options.orderId
+    }
+  }
+
+  if (options.amount) {
+    orderInfo.value.payAmount = Number(options.amount)
   }
 })
 </script>

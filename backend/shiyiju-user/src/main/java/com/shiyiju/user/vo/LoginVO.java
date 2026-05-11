@@ -29,4 +29,7 @@ public class LoginVO implements Serializable {
 
     /** 身份列表 */
     private String identities;
+    
+    /** 微信openId（用于JSAPI支付） */
+    private String openId;
 }

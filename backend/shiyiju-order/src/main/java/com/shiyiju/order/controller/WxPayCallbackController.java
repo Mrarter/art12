@@ -1,10 +1,14 @@
 package com.shiyiju.order.controller;
 
 import com.shiyiju.common.service.WxPayService;
+import com.shiyiju.order.entity.Order;
+import com.shiyiju.order.mapper.OrderMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -21,6 +25,7 @@ import java.util.Map;
 public class WxPayCallbackController {
 
     private final WxPayService wxPayService;
+    private final OrderMapper orderMapper;
 
     /**
      * 微信支付回调通知 (V2版本)
@@ -115,23 +120,57 @@ public class WxPayCallbackController {
     }
 
     /**
-     * 支付成功业务处理
+     * 支付成功业务处理 - 更新订单状态
      */
     private void handlePaySuccess(String orderNo, String transactionId, String totalFee, String openid) {
-        // 此处调用订单服务更新订单状态
-        // 由于在order模块中，可以通过Feign调用或直接注入服务
-        log.info("订单 {} 支付成功，微信交易号: {}", orderNo, transactionId);
-        
-        // TODO: 调用订单服务更新状态
-        // orderService.updateOrderStatus(orderNo, transactionId);
+        try {
+            Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
+            );
+            if (order == null) {
+                log.error("支付回调：订单不存在, orderNo={}", orderNo);
+                return;
+            }
+            
+            // 幂等检查：如果订单已经是已支付状态，不重复处理
+            String currentStatus = order.getStatus();
+            if (!"PENDING_PAYMENT".equals(currentStatus) && !"pending_payment".equals(currentStatus)) {
+                log.info("订单 {} 已处理，当前状态: {}", orderNo, currentStatus);
+                return;
+            }
+            
+            // 更新订单状态为已支付
+            order.setStatus("PAID");
+            order.setPaymentStatus("PAID");
+            order.setPayTime(LocalDateTime.now());
+            orderMapper.updateById(order);
+            
+            log.info("订单 {} 状态已更新为已支付, 微信交易号: {}", orderNo, transactionId);
+        } catch (Exception e) {
+            log.error("更新订单支付状态失败, orderNo={}", orderNo, e);
+        }
     }
 
     /**
      * 退款成功业务处理
      */
     private void handleRefundSuccess(String orderNo, String refundId) {
-        log.info("订单 {} 退款成功，退款ID: {}", orderNo, refundId);
-        
-        // TODO: 调用订单服务更新退款状态
+        try {
+            Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
+            );
+            if (order == null) {
+                log.error("退款回调：订单不存在, orderNo={}", orderNo);
+                return;
+            }
+            
+            order.setStatus("REFUNDED");
+            order.setPaymentStatus("REFUNDED");
+            orderMapper.updateById(order);
+            
+            log.info("订单 {} 状态已更新为已退款", orderNo);
+        } catch (Exception e) {
+            log.error("更新订单退款状态失败, orderNo={}", orderNo, e);
+        }
     }
 }

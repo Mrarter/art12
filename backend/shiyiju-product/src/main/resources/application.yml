@@ -13,9 +13,9 @@ spring:
         enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://sh-cynosdbmysql-grp-89g78r02.sql.tencentcdb.com:25694/shiyiju-9g4pxbgh603bf08b?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: admin
-    password: '@admin123'
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
   data:
     redis:
       host: 127.0.0.1

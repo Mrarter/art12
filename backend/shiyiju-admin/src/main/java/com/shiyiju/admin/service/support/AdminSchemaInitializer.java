@@ -29,6 +29,7 @@ public class AdminSchemaInitializer {
         seedRoles();
         seedSuperAdmin();
         seedMessageTemplates();
+        alignAdminUserSchema();
         alignUserSchema();
     }
 
@@ -147,6 +148,13 @@ public class AdminSchemaInitializer {
                 phone = IFNULL(phone, VALUES(phone)),
                 role_code = role_code
             """);
+    }
+
+    private void alignAdminUserSchema() {
+        addColumnIfMissing("admin_user", "avatar", "ALTER TABLE admin_user ADD COLUMN avatar VARCHAR(255) DEFAULT NULL AFTER phone");
+        addColumnIfMissing("admin_user", "role_id", "ALTER TABLE admin_user ADD COLUMN role_id BIGINT DEFAULT NULL AFTER avatar");
+        addColumnIfMissing("admin_user", "last_login_time", "ALTER TABLE admin_user ADD COLUMN last_login_time DATETIME DEFAULT NULL AFTER status");
+        addColumnIfMissing("admin_user", "update_time", "ALTER TABLE admin_user ADD COLUMN update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER create_time");
     }
 
     private void seedMessageTemplates() {

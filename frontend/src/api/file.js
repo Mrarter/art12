@@ -3,20 +3,26 @@
  */
 import request from './request'
 
-const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '127.0.0.1'
 const MP_GATEWAY_ORIGIN = import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `http://${DEV_LAN_HOST}:8080`
 const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN_HOST}:8087`
 const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
   ? MP_GATEWAY_ORIGIN
   : ''
 const BASE_URL = API_ORIGIN
-const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
+const LOCAL_FILE_ORIGIN = 'http://127.0.0.1:8087'
 const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
   ? MP_FILE_ORIGIN
   : ''
 
 const normalizeFileUrl = (url) => {
-  return typeof url === 'string' && url.startsWith(LOCAL_FILE_ORIGIN)
+  if (typeof url !== 'string') {
+    return url
+  }
+  if (url.startsWith('http://localhost:8087')) {
+    return FILE_BASE_URL + url.slice('http://localhost:8087'.length)
+  }
+  return url.startsWith(LOCAL_FILE_ORIGIN)
     ? FILE_BASE_URL + url.slice(LOCAL_FILE_ORIGIN.length)
     : url
 }

@@ -20,6 +20,8 @@ import com.shiyiju.common.vo.ArtistInfoVO;
 import com.shiyiju.common.vo.ArtworkVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.BadSqlGrammarException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -42,6 +44,7 @@ public class ProductService {
     private final BannerMapper bannerMapper;
     private final PriceGrowthService priceGrowthService;
     private final RestTemplate restTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
     /** 获取艺术门类列表（按权重降序，权重大的在前） */
     public List<Category> getCategoryList() {
@@ -82,15 +85,20 @@ public class ProductService {
             wrapper.orderByDesc(Artwork::getWeight).orderByDesc(Artwork::getCreateTime);
         }
 
-        Page<Artwork> page = new Page<>(query.getPage(), query.getPageSize());
-        Page<Artwork> result = artworkMapper.selectPage(page, wrapper);
+        try {
+            Page<Artwork> page = new Page<>(query.getPage(), query.getPageSize());
+            Page<Artwork> result = artworkMapper.selectPage(page, wrapper);
 
-        List<ArtworkVO> voList = result.getRecords().stream()
-                .map(a -> convertToListVO(a, userId))
-                .collect(Collectors.toList());
+            List<ArtworkVO> voList = result.getRecords().stream()
+                    .map(a -> convertToListVO(a, userId))
+                    .collect(Collectors.toList());
 
-        long total = result.getTotal() > 0 ? result.getTotal() : voList.size();
-        return PageResult.of(total, query.getPage(), query.getPageSize(), voList);
+            long total = result.getTotal() > 0 ? result.getTotal() : voList.size();
+            return PageResult.of(total, query.getPage(), query.getPageSize(), voList);
+        } catch (BadSqlGrammarException e) {
+            log.warn("作品列表查询命中旧库结构，降级到兼容查询: {}", e.getMessage());
+            return getProductListFallback(query, userId);
+        }
     }
 
     /** 获取我的作品列表（艺术家自己的作品） */
@@ -288,16 +296,288 @@ public class ProductService {
 
     /** 获取首页Banner */
     public List<Banner> getBanners() {
-        LambdaQueryWrapper<Banner> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Banner::getStatus, 1);
-        // 处理时间条件：(start_time IS NULL OR start_time <= now) AND (end_time IS NULL OR end_time >= now)
-        LocalDateTime now = LocalDateTime.now();
-        wrapper.and(w -> w
-            .and(n -> n.isNull(Banner::getStartTime).or().le(Banner::getStartTime, now))
-            .and(n -> n.isNull(Banner::getEndTime).or().ge(Banner::getEndTime, now))
+        try {
+            LambdaQueryWrapper<Banner> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Banner::getStatus, 1);
+            // 处理时间条件：(start_time IS NULL OR start_time <= now) AND (end_time IS NULL OR end_time >= now)
+            LocalDateTime now = LocalDateTime.now();
+            wrapper.and(w -> w
+                .and(n -> n.isNull(Banner::getStartTime).or().le(Banner::getStartTime, now))
+                .and(n -> n.isNull(Banner::getEndTime).or().ge(Banner::getEndTime, now))
+            );
+            wrapper.orderByAsc(Banner::getSort);
+            return bannerMapper.selectList(wrapper);
+        } catch (BadSqlGrammarException e) {
+            log.warn("Banner 查询命中旧库结构，降级到兼容查询: {}", e.getMessage());
+            return getBannersFallback();
+        }
+    }
+
+    private PageResult<ArtworkVO> getProductListFallback(ArtworkQueryDTO query, Long userId) {
+        List<Object> whereArgs = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" FROM artwork WHERE 1=1");
+
+        if (columnExists("artwork", "deleted")) {
+            where.append(" AND deleted = 0");
+        }
+        if (query.getStatus() != null && columnExists("artwork", "status")) {
+            where.append(" AND status = ?");
+            whereArgs.add(query.getStatus());
+        }
+        if (query.getId() != null) {
+            where.append(" AND id = ?");
+            whereArgs.add(query.getId());
+        }
+        if (query.getTitle() != null && !query.getTitle().isEmpty()) {
+            where.append(" AND title LIKE ?");
+            whereArgs.add("%" + query.getTitle() + "%");
+        }
+        if (query.getAuthorName() != null && !query.getAuthorName().isEmpty()) {
+            where.append(" AND author_name LIKE ?");
+            whereArgs.add("%" + query.getAuthorName() + "%");
+        }
+        if (query.getKeyword() != null && !query.getKeyword().isEmpty()) {
+            where.append(" AND (title LIKE ? OR description LIKE ?)");
+            whereArgs.add("%" + query.getKeyword() + "%");
+            whereArgs.add("%" + query.getKeyword() + "%");
+        }
+        if (query.getCategoryId() != null && columnExists("artwork", "category_id")) {
+            where.append(" AND category_id = ?");
+            whereArgs.add(query.getCategoryId());
+        }
+        if (query.getArtType() != null && !query.getArtType().isEmpty() && columnExists("artwork", "art_type")) {
+            where.append(" AND art_type = ?");
+            whereArgs.add(query.getArtType());
+        }
+        if (query.getMinPrice() != null && columnExists("artwork", "price")) {
+            where.append(" AND price >= ?");
+            whereArgs.add(query.getMinPrice() * 100L);
+        }
+        if (query.getMaxPrice() != null && columnExists("artwork", "price")) {
+            where.append(" AND price <= ?");
+            whereArgs.add(query.getMaxPrice() * 100L);
+        }
+        if (query.getYearFrom() != null && columnExists("artwork", "year")) {
+            where.append(" AND year >= ?");
+            whereArgs.add(query.getYearFrom());
+        }
+        if (query.getYearTo() != null && columnExists("artwork", "year")) {
+            where.append(" AND year <= ?");
+            whereArgs.add(query.getYearTo());
+        }
+
+        Long total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*)" + where,
+                Long.class,
+                whereArgs.toArray()
         );
-        wrapper.orderByAsc(Banner::getSort);
-        return bannerMapper.selectList(wrapper);
+
+        String coverExpr = columnExists("artwork", "cover_image")
+                ? "cover_image"
+                : (columnExists("artwork", "cover") ? "cover" : "NULL");
+        String artworkCodeExpr = columnExists("artwork", "artwork_code")
+                ? "artwork_code"
+                : (columnExists("artwork", "artwork_uid") ? "artwork_uid" : "NULL");
+        String authorUidExpr = columnExists("artwork", "author_uid") ? "author_uid" : "NULL";
+        String categoryExpr = columnExists("artwork", "category_id") ? "category_id"
+                : (columnExists("artwork", "category_name") ? "NULL" : "NULL");
+        String artTypeExpr = columnExists("artwork", "art_type") ? "art_type"
+                : (columnExists("artwork", "category_name") ? "category_name" : "NULL");
+        String originalPriceExpr = columnExists("artwork", "original_price") ? "original_price" : "price";
+        String stockExpr = columnExists("artwork", "stock") ? "stock" : "1";
+        String sourceExpr = columnExists("artwork", "source") ? "source" : "1";
+        String dailyViewExpr = columnExists("artwork", "daily_view_count") ? "daily_view_count" : "0";
+        String dailyLikeExpr = columnExists("artwork", "daily_like_count") ? "daily_like_count" : "0";
+        String saleCountExpr = columnExists("artwork", "sale_count") ? "sale_count" : "0";
+        String createTimeExpr = columnExists("artwork", "create_time") ? "create_time" : "NOW()";
+        String weightExpr = columnExists("artwork", "weight") ? "weight" : "0";
+        String ownershipExpr = columnExists("artwork", "ownership_type") ? "ownership_type" : "1";
+
+        String orderBy = buildFallbackArtworkOrderBy(query);
+        int offset = Math.max((query.getPage() - 1) * query.getPageSize(), 0);
+        List<Object> listArgs = new ArrayList<>(whereArgs);
+        listArgs.add(query.getPageSize());
+        listArgs.add(offset);
+
+        String sql = """
+                SELECT id,
+                       title,
+                       author_id,
+                       %s AS author_uid,
+                       author_name,
+                       %s AS category_id,
+                       %s AS art_type,
+                       size,
+                       year,
+                       description,
+                       %s AS cover_image,
+                       price,
+                       %s AS original_price,
+                       %s AS stock,
+                       status,
+                       %s AS weight,
+                       %s AS ownership_type,
+                       %s AS artwork_code,
+                       %s AS source,
+                       view_count,
+                       favorite_count,
+                       %s AS daily_view_count,
+                       %s AS daily_like_count,
+                       %s AS sale_count,
+                       %s AS create_time
+                %s
+                %s
+                LIMIT ? OFFSET ?
+                """.formatted(
+                authorUidExpr,
+                categoryExpr,
+                artTypeExpr,
+                coverExpr,
+                originalPriceExpr,
+                stockExpr,
+                weightExpr,
+                ownershipExpr,
+                artworkCodeExpr,
+                sourceExpr,
+                dailyViewExpr,
+                dailyLikeExpr,
+                saleCountExpr,
+                createTimeExpr,
+                where,
+                orderBy
+        );
+
+        List<ArtworkVO> records = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Artwork artwork = new Artwork();
+            artwork.setId(rs.getLong("id"));
+            artwork.setTitle(rs.getString("title"));
+            artwork.setAuthorId(getLongOrNull(rs, "author_id"));
+            artwork.setAuthorUid(rs.getString("author_uid"));
+            artwork.setAuthorName(rs.getString("author_name"));
+            artwork.setCategoryId(getLongOrNull(rs, "category_id"));
+            artwork.setArtType(rs.getString("art_type"));
+            artwork.setSize(rs.getString("size"));
+            artwork.setYear(getIntOrNull(rs, "year"));
+            artwork.setDescription(rs.getString("description"));
+            artwork.setCoverImage(rs.getString("cover_image"));
+            artwork.setPrice(getLongOrDefault(rs, "price", 0L));
+            artwork.setOriginalPrice(getLongOrNull(rs, "original_price"));
+            artwork.setStock(getIntOrNull(rs, "stock"));
+            artwork.setStatus(getIntOrDefault(rs, "status", 1));
+            artwork.setWeight(getIntOrDefault(rs, "weight", 0));
+            artwork.setOwnershipType(getIntOrDefault(rs, "ownership_type", 1));
+            artwork.setArtworkCode(rs.getString("artwork_code"));
+            artwork.setSource(getIntOrDefault(rs, "source", 1));
+            artwork.setViewCount(getIntOrDefault(rs, "view_count", 0));
+            artwork.setFavoriteCount(getIntOrDefault(rs, "favorite_count", 0));
+            artwork.setDailyViewCount(getIntOrDefault(rs, "daily_view_count", 0));
+            artwork.setDailyLikeCount(getIntOrDefault(rs, "daily_like_count", 0));
+            artwork.setSaleCount(getIntOrDefault(rs, "sale_count", 0));
+            artwork.setCreateTime(rs.getTimestamp("create_time") != null
+                    ? rs.getTimestamp("create_time").toLocalDateTime()
+                    : null);
+            return convertToListVO(artwork, userId);
+        }, listArgs.toArray());
+
+        return PageResult.of(total != null ? total : (long) records.size(), query.getPage(), query.getPageSize(), records);
+    }
+
+    private String buildFallbackArtworkOrderBy(ArtworkQueryDTO query) {
+        if (query.getSort() != null) {
+            return switch (query.getSort()) {
+                case "price_asc" -> "ORDER BY price ASC, id DESC";
+                case "price_desc" -> "ORDER BY price DESC, id DESC";
+                case "time", "new" -> "ORDER BY create_time DESC, id DESC";
+                default -> "ORDER BY weight DESC, create_time DESC, id DESC";
+            };
+        }
+        if ("price".equals(query.getSortBy())) {
+            return "asc".equalsIgnoreCase(query.getSortOrder())
+                    ? "ORDER BY price ASC, id DESC"
+                    : "ORDER BY price DESC, id DESC";
+        }
+        if ("saleCount".equals(query.getSortBy())) {
+            return "ORDER BY sale_count DESC, id DESC";
+        }
+        return "ORDER BY weight DESC, create_time DESC, id DESC";
+    }
+
+    private List<Banner> getBannersFallback() {
+        String typeColumn = columnExists("banner", "link_type") ? "link_type"
+                : (columnExists("banner", "type") ? "type" : "NULL");
+        String valueColumn = columnExists("banner", "link_value") ? "link_value"
+                : (columnExists("banner", "target") ? "target" : "NULL");
+        String sortColumn = columnExists("banner", "sort") ? "sort"
+                : (columnExists("banner", "sort_no") ? "sort_no" : "0");
+        String statusCondition = columnExists("banner", "status")
+                ? " AND (status = 1 OR status = 'ENABLED')"
+                : "";
+        String startCondition = columnExists("banner", "start_time")
+                ? " AND (start_time IS NULL OR start_time <= NOW())"
+                : "";
+        String endCondition = columnExists("banner", "end_time")
+                ? " AND (end_time IS NULL OR end_time >= NOW())"
+                : "";
+
+        String sql = """
+                SELECT id,
+                       title,
+                       image_url,
+                       %s AS link_type,
+                       %s AS link_value,
+                       %s AS sort
+                FROM banner
+                WHERE 1=1%s%s%s
+                ORDER BY sort ASC, id ASC
+                """.formatted(typeColumn, valueColumn, sortColumn, statusCondition, startCondition, endCondition);
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Banner banner = new Banner();
+            banner.setId(rs.getLong("id"));
+            banner.setTitle(rs.getString("title"));
+            banner.setImageUrl(rs.getString("image_url"));
+            banner.setLinkType(rs.getString("link_type"));
+            banner.setLinkValue(rs.getString("link_value"));
+            banner.setSort(getIntOrDefault(rs, "sort", 0));
+            banner.setStatus(1);
+            return banner;
+        });
+    }
+
+    private boolean columnExists(String tableName, String columnName) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = ?
+                  AND column_name = ?
+                """,
+                Integer.class,
+                tableName,
+                columnName
+        );
+        return count != null && count > 0;
+    }
+
+    private Long getLongOrNull(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private Long getLongOrDefault(java.sql.ResultSet rs, String column, Long defaultValue) throws java.sql.SQLException {
+        Long value = getLongOrNull(rs, column);
+        return value != null ? value : defaultValue;
+    }
+
+    private Integer getIntOrNull(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private Integer getIntOrDefault(java.sql.ResultSet rs, String column, Integer defaultValue) throws java.sql.SQLException {
+        Integer value = getIntOrNull(rs, column);
+        return value != null ? value : defaultValue;
     }
 
     /** 创建作品 */

@@ -5,7 +5,14 @@
 </template>
 
 <script>
+// 文件服务器和网关地址（与 request.js 保持一致）
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+
 export default {
+  globalData: {
+    fileDomain: `http://${DEV_LAN_HOST}:8087`,
+    domain: `http://${DEV_LAN_HOST}:8080`
+  },
   onLaunch() {
     console.log('App Launch - 拾艺局')
   },

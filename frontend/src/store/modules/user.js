@@ -8,6 +8,7 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     token: uni.getStorageSync('token') || '',
     userInfo: uni.getStorageSync('userInfo') || null,
+    openId: uni.getStorageSync('openId') || '',
     centerData: null, // 个人中心聚合数据
     identities: [], // 身份数组 ['artist', 'collector', 'promoter']
     isArtist: false,
@@ -35,6 +36,17 @@ export const useUserStore = defineStore('user', {
       this.userInfo = info
       uni.setStorageSync('userInfo', info)
       this.updateIdentities(info)
+      // 提取 openId
+      if (info?.openId || info?.openid) {
+        this.openId = info.openId || info.openid
+        uni.setStorageSync('openId', this.openId)
+      }
+    },
+    
+    // 设置 openId
+    setOpenId(openId) {
+      this.openId = openId
+      uni.setStorageSync('openId', openId)
     },
     
     // 更新身份信息

@@ -1,0 +1,3 @@
+INSERT IGNORE INTO artwork_category (id, name, weight, status) VALUES (1, '油画', 1, 1),(2, '水墨画', 2, 1),(3, '雕塑', 3, 1);
+INSERT IGNORE INTO banner (id, title, image_url, sort, status) VALUES (1, '春季艺术展', '/upload/images/banner1.jpg', 1, 1),(2, '新锐艺术家', '/upload/images/banner2.jpg', 2, 1);
+INSERT IGNORE INTO artwork (id, title, price, author_id, author_name, category_id, category_name, cover_image, images, status, artwork_code) VALUES (1, '春日的晨曦', 88800, 1, '艺术家A', 1, '油画', '/upload/images/artwork1.jpg', '[]', 1, 'ART00001'),(2, '山水之间', 66600, 1, '艺术家B', 2, '水墨画', '/upload/images/artwork2.jpg', '[]', 1, 'ART00002'),(3, '静思', 128800, 1, '艺术家C', 3, '雕塑', '/upload/images/artwork3.jpg', '[]', 1, 'ART00003');

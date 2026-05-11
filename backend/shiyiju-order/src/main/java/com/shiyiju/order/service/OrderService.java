@@ -568,12 +568,10 @@ public class OrderService {
                     description
             );
             
-            String prepayId = jsApiResult.get("prepay_id");
-            
             redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
             
-            Map<String, Object> payParams = new HashMap<>();
-            payParams.put("prepay_id", prepayId);
+            // 直接返回微信支付所需的完整参数（含 appId, timeStamp, nonceStr, package, signType, paySign）
+            Map<String, Object> payParams = new HashMap<>(jsApiResult);
             payParams.put("order_no", order.getOrderNo());
             payParams.put("pay_amount", order.getPayAmount());
             payParams.put("description", description);

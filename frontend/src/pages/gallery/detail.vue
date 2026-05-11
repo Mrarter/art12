@@ -739,23 +739,21 @@ export default {
       if (!url || typeof url !== 'string') return ''
       const text = url.trim()
       if (!text || text === '[]' || text === '{}' || text === 'null' || text === 'undefined') return ''
-      if (text.startsWith('/')) return text
-      if (text.startsWith('http://localhost:8087')) {
-        const path = text.slice('http://localhost:8087'.length)
-        return path.startsWith('/upload') ? path : `/upload${path}`
+      // 已经是完整 URL（http/https），直接返回
+      if (text.startsWith('http://') || text.startsWith('https://')) return text
+      // 本地静态资源（/static/），直接返回
+      if (text.startsWith('/static/')) return text
+      // /upload/ 开头的相对路径，拼接文件服务器地址
+      if (text.startsWith('/upload/')) {
+        const app = getApp()
+        const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
+        return domain ? `${domain}${text}` : text
       }
-      if (text.startsWith('http://127.0.0.1:8087')) {
-        const path = text.slice('http://127.0.0.1:8087'.length)
-        return path.startsWith('/upload') ? path : `/upload${path}`
-      }
-      const lanFileMatch = text.match(/^http:\/\/192\.168\.\d+\.\d+:8087(\/.*)$/)
-      if (lanFileMatch) {
-        return lanFileMatch[1].startsWith('/upload') ? lanFileMatch[1] : `/upload${lanFileMatch[1]}`
-      }
-      const app = getApp()
-      const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
-      if (!text.startsWith('http')) {
-        return domain ? `${domain}${text.startsWith('/') ? '' : '/'}${text}` : text
+      // 其他相对路径
+      if (text.startsWith('/')) {
+        const app = getApp()
+        const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
+        return domain ? `${domain}${text}` : text
       }
       return text
     },

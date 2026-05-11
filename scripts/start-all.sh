@@ -47,10 +47,10 @@ if check_service "mvn -version" "Maven"; then
 fi
 
 # 检查MySQL
-if check_service "mysqladmin ping -u root -proot123456" "MySQL"; then
+if check_service "mysqladmin ping -u root -p123456" "MySQL"; then
     echo ""
     echo "📊 数据库状态:"
-    mysql -u root -proot123456 -e "SELECT COUNT(*) as 表数量 FROM information_schema.tables WHERE table_schema = 'shiyiju';" 2>/dev/null | grep -v "mysql:"
+    mysql -u root -p123456 -e "SELECT COUNT(*) as 表数量 FROM information_schema.tables WHERE table_schema = 'shiyiju_local';" 2>/dev/null | grep -v "mysql:"
 fi
 
 # 检查Redis
@@ -64,7 +64,7 @@ echo ""
 
 # 2. 启动MySQL（如果未运行）
 echo "🚀 检查MySQL服务..."
-if ! mysqladmin ping -u root -proot123456 > /dev/null 2>&1; then
+if ! mysqladmin ping -u root -p123456 > /dev/null 2>&1; then
     echo "  MySQL未运行，尝试启动..."
     brew services start mysql@8.0 > /dev/null 2>&1 || echo "  请手动启动MySQL: brew services start mysql@8.0"
     sleep 3
@@ -97,31 +97,61 @@ fi
 # 启动网关服务
 echo -e "${YELLOW}→${NC} 启动 API网关 (端口 8080)..."
 cd "$BACKEND_DIR"
-nohup java -jar shiyiju-gateway/target/shiyiju-gateway-1.0.0-SNAPSHOT.jar > logs/gateway.log 2>&1 &
+nohup java -jar shiyiju-gateway/target/shiyiju-gateway-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/gateway.log 2>&1 &
 echo "  PID: $!"
 sleep 3
 
 # 启动用户服务
 echo -e "${YELLOW}→${NC} 启动 用户服务 (端口 8081)..."
-nohup java -jar shiyiju-user/target/shiyiju-user-1.0.0-SNAPSHOT.jar > logs/user.log 2>&1 &
+nohup java -jar shiyiju-user/target/shiyiju-user-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/user.log 2>&1 &
 echo "  PID: $!"
 sleep 3
 
 # 启动商品服务
 echo -e "${YELLOW}→${NC} 启动 商品服务 (端口 8082)..."
-nohup java -jar shiyiju-product/target/shiyiju-product-1.0.0-SNAPSHOT.jar > logs/product.log 2>&1 &
+nohup java -jar shiyiju-product/target/shiyiju-product-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/product.log 2>&1 &
 echo "  PID: $!"
 sleep 3
 
 # 启动订单服务
 echo -e "${YELLOW}→${NC} 启动 订单服务 (端口 8083)..."
-nohup java -jar shiyiju-order/target/shiyiju-order-1.0.0-SNAPSHOT.jar > logs/order.log 2>&1 &
+nohup java -jar shiyiju-order/target/shiyiju-order-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/order.log 2>&1 &
+echo "  PID: $!"
+sleep 2
+
+# 启动拍卖服务
+echo -e "${YELLOW}→${NC} 启动 拍卖服务 (端口 8084)..."
+nohup java -jar shiyiju-auction/target/shiyiju-auction-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/auction.log 2>&1 &
+echo "  PID: $!"
+sleep 2
+
+# 启动分销服务
+echo -e "${YELLOW}→${NC} 启动 分销服务 (端口 8085)..."
+nohup java -jar shiyiju-promotion/target/shiyiju-promotion-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/promotion.log 2>&1 &
+echo "  PID: $!"
+sleep 2
+
+# 启动社区服务
+echo -e "${YELLOW}→${NC} 启动 社区服务 (端口 8086)..."
+nohup java -jar shiyiju-community/target/shiyiju-community-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/community.log 2>&1 &
+echo "  PID: $!"
+sleep 2
+
+# 启动消息服务
+echo -e "${YELLOW}→${NC} 启动 消息服务 (端口 8088)..."
+nohup java -jar shiyiju-message/target/shiyiju-message-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/message.log 2>&1 &
 echo "  PID: $!"
 sleep 2
 
 # 启动文件服务
 echo -e "${YELLOW}→${NC} 启动 文件服务 (端口 8087)..."
-nohup java -jar shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar > logs/file.log 2>&1 &
+nohup java -jar shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/file.log 2>&1 &
+echo "  PID: $!"
+sleep 2
+
+# 启动管理后台
+echo -e "${YELLOW}→${NC} 启动 管理后台 (端口 8090)..."
+nohup java -jar shiyiju-admin/target/shiyiju-admin-1.0.0-SNAPSHOT.jar --spring.profiles.active=local > logs/admin.log 2>&1 &
 echo "  PID: $!"
 sleep 2
 

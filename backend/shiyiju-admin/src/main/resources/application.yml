@@ -5,9 +5,9 @@ spring:
   application:
     name: shiyiju-admin
   datasource:
-    url: jdbc:mysql://sh-cynosdbmysql-grp-89g78r02.sql.tencentcdb.com:25694/shiyiju-9g4pxbgh603bf08b?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useLocalSessionState=true&cacheServerConfiguration=true
-    username: admin
-    password: '@admin123'
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
   data:
     redis:
       host: localhost

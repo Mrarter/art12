@@ -1,6 +1,26 @@
-# 本地开发配置 - 禁用Nacos
+# 本地开发数据库配置
 spring:
-  cloud:
-    nacos:
-      discovery:
-        enabled: false
+  datasource:
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+
+# JWT 配置
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing
+  expiration: 604800000
+
+# 微信小程序配置
+wechat:
+  appid: ${WECHAT_APPID:wx4b7015f42a4fa49c}
+  secret: ${WECHAT_SECRET:your-wechat-secret}
+
+# 日志配置
+logging:
+  level:
+    com.shiyiju: DEBUG

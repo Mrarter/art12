@@ -1,8 +1,8 @@
 export const config = {
   /** 是否使用mock代替api返回 */
   useMock: false,
-  /** API 接口地址（用户服务端口8081） */
-  apiBase: 'http://localhost:8081',
+  /** API 接口地址（服务器网关端口8080） */
+  apiBase: 'http://yiben.asia:8080',
 };
 
 export const cdnBase =

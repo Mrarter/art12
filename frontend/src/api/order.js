@@ -79,3 +79,26 @@ export const refundApply = (data) => {
 export const submitReview = (data) => {
   return request({ url: '/order/review', method: 'POST', data })
 }
+
+// ===== 微信支付 API =====
+
+/**
+ * 获取JSAPI支付参数（小程序调起支付）
+ * @param {number} orderId - 订单ID
+ * @param {string} openId - 用户openId
+ */
+export const getJsApiPayParams = (orderId, openId) => {
+  return request({
+    url: '/order/pay/jsapi-params',
+    method: 'POST',
+    data: { orderId, openId }
+  })
+}
+
+/**
+ * 查询支付状态
+ * @param {number} orderId - 订单ID
+ */
+export const queryPayStatus = (orderId) => {
+  return request({ url: `/order/pay/query/${orderId}` })
+}

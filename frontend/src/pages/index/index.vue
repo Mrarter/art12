@@ -202,6 +202,11 @@ const hasMessage = ref(false)
 const page = ref(1)
 const pageSize = 10
 
+const normalizeListResult = (result) => {
+  if (Array.isArray(result)) return result
+  return result?.records || result?.list || []
+}
+
 // 金刚区配置 - 深色主题
 const navItems = [
   { id: 1, text: '画廊', icon: '/static/icons/nav-gallery.svg', path: '/pages/gallery/index' },
@@ -245,21 +250,32 @@ const fetchProductList = async (reset = false) => {
     let list = []
 
     if (currentTab.value === 'recommend' && isH5Browser()) {
-      list = await fetchProductListByBrowser()
-    } else if (currentTab.value === 'recommend') {
-      const result = await withTimeout(getRecommend(params), 8000)
-      // 处理 PageResult 格式：{ records: [], total: xxx, page: xxx }
-      list = result?.records || result || []
+      try {
+        list = await fetchProductListByBrowser()
+      } catch (browserError) {
+        console.warn('浏览器直连获取作品列表失败，准备回退到 uni.request:', browserError)
+      }
+      if (!list.length) {
+        const result = await withTimeout(getRecommend(params), 8000)
+        list = normalizeListResult(result)
+      }
       if (!list.length) {
         const fallback = await withTimeout(getProductList(params), 8000)
-        list = fallback?.records || fallback || []
+        list = normalizeListResult(fallback)
+      }
+    } else if (currentTab.value === 'recommend') {
+      const result = await withTimeout(getRecommend(params), 8000)
+      list = normalizeListResult(result)
+      if (!list.length) {
+        const fallback = await withTimeout(getProductList(params), 8000)
+        list = normalizeListResult(fallback)
       }
     } else {
       const result = await withTimeout(getFollowingWorks(params), 8000)
-      list = result?.records || result || []
+      list = normalizeListResult(result)
       if (!list.length) {
         const fallback = await withTimeout(getProductList(params), 8000)
-        list = fallback?.records || fallback || []
+        list = normalizeListResult(fallback)
       }
     }
 
@@ -313,10 +329,12 @@ const fetchProductListByBrowser = async () => {
   // H5 下直接使用同源 fetch，避免 uni.request 在本地代理场景偶发等待超时。
   if (!isH5Browser()) return []
   const response = await fetch(`/api/product/list?page=${page.value}&pageSize=${pageSize}`)
-  if (!response.ok) return []
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
   const payload = await response.json()
   const data = payload?.data || payload
-  const list = data?.records || data?.list || (Array.isArray(data) ? data : [])
+  const list = normalizeListResult(data)
   return list.map(item => ({
     ...item,
     cover: item.coverImage || item.cover,

@@ -10,11 +10,8 @@ import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 /**
@@ -52,7 +49,7 @@ public class WxPayService {
     }
 
     /**
-     * 统一下单 (JSAPI支付 - 返回预支付交易会话标识)
+     * 统一下单 (JSAPI支付 - 返回小程序调起支付所需的全部参数)
      * 适用于微信小程序和公众号支付
      */
     public Map<String, String> unifiedOrderJsApi(String orderNo, String totalAmount, String openId, String description) {
@@ -63,13 +60,41 @@ public class WxPayService {
         log.info("微信JSAPI支付统一下单结果: {}", result);
         
         if ("SUCCESS".equals(result.get("return_code")) && "SUCCESS".equals(result.get("result_code"))) {
-            Map<String, String> payResult = new HashMap<>();
-            payResult.put("prepay_id", result.get("prepay_id"));
-            payResult.put("sign", generateJsApiSign(result.get("prepay_id")));
-            return payResult;
+            String prepayId = result.get("prepay_id");
+            return buildMiniProgramPayParams(prepayId);
         } else {
             throw new RuntimeException("微信JSAPI支付下单失败: " + result.get("err_code_des"));
         }
+    }
+
+    /**
+     * 构建小程序调起支付所需的参数
+     * 返回前端 wx.requestPayment 需要的 5 个参数
+     */
+    private Map<String, String> buildMiniProgramPayParams(String prepayId) {
+        String appId = wxPayConfig.getAppId();
+        String timeStamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String nonceStr = IdUtil.simpleUUID();
+        String packageStr = "prepay_id=" + prepayId;
+        
+        // 按照微信文档签名：appId, nonceStr, package, signType, timeStamp
+        Map<String, String> signParams = new TreeMap<>();
+        signParams.put("appId", appId);
+        signParams.put("nonceStr", nonceStr);
+        signParams.put("package", packageStr);
+        signParams.put("signType", "MD5");
+        signParams.put("timeStamp", timeStamp);
+        String paySign = generateSignature(signParams, wxPayConfig.getMchKey());
+        
+        Map<String, String> payResult = new HashMap<>();
+        payResult.put("appId", appId);
+        payResult.put("timeStamp", timeStamp);
+        payResult.put("nonceStr", nonceStr);
+        payResult.put("package", packageStr);
+        payResult.put("signType", "MD5");
+        payResult.put("paySign", paySign);
+        payResult.put("prepay_id", prepayId);
+        return payResult;
     }
 
     /**
@@ -204,31 +229,6 @@ public class WxPayService {
             return sb.toString().toUpperCase();
         } catch (Exception e) {
             throw new RuntimeException("MD5加密失败", e);
-        }
-    }
-
-    /**
-     * 生成JSAPI支付签名
-     */
-    private String generateJsApiSign(String prepayId) {
-        try {
-            String appId = wxPayConfig.getAppId();
-            String timeStamp = String.valueOf(System.currentTimeMillis() / 1000);
-            String nonceStr = IdUtil.simpleUUID();
-            
-            String signStr = String.format("%s\n%s\n%s\n%s\n", appId, timeStamp, nonceStr, prepayId);
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec keySpec = new SecretKeySpec(wxPayConfig.getMchKey().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(keySpec);
-            byte[] result = mac.doFinal(signStr.getBytes(StandardCharsets.UTF_8));
-            
-            StringBuilder sb = new StringBuilder();
-            for (byte b : result) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString().toUpperCase();
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("生成JSAPI签名失败", e);
         }
     }
 
