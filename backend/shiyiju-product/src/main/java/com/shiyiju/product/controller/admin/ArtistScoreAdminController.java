@@ -25,6 +25,15 @@ public class ArtistScoreAdminController {
     private final ArtistScoreAdjustLogMapper adjustLogMapper;
     private final JdbcTemplate jdbcTemplate;
 
+    /**
+     * 重新计算艺术家评分
+     */
+    @PostMapping("/recalculate/{artistId}")
+    public Result<ArtistScore> recalculate(@PathVariable Long artistId) {
+        ArtistScore score = artistScoreService.recalculateScore(artistId);
+        return Result.success(score);
+    }
+
     private String getArtistName(Long userId) {
         try {
             return jdbcTemplate.queryForObject(

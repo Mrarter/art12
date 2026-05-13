@@ -36,7 +36,10 @@ public class Artwork implements Serializable {
     private Integer year;
     private String edition;
     private String description;
-    private String coverImage;
+    @TableField("cover")
+    private String cover;  // 优先使用 cover 字段
+    @TableField("cover_image")
+    private String coverImage;  // 备选字段
     private String images;
     private Integer source;
     private Long holderId;
@@ -55,28 +58,42 @@ public class Artwork implements Serializable {
     @TableField("daily_like_count")
     private Integer dailyLikeCount;
     private Integer favoriteCount;
+    @TableField(exist = false)  // 数据库中无此列
     private Integer saleCount;
     // 评价相关
     private Integer rating; // 平均评分（1-5星）
+    @TableField("review_count")
     private Integer reviewCount; // 评价数量
     // 分销相关
+    @TableField(exist = false)  // 数据库中无此列
     private Boolean distributionEnabled;
+    @TableField(exist = false)  // 数据库中无此列
     private Integer commissionRate;
+    @TableField(exist = false)  // 数据库中无此列
     private Integer distributionOrders;
+    @TableField(exist = false)  // 数据库中无此列
     private Long distributionEarnings;
+    @TableField(exist = false)  // 数据库中无此列
     private Integer distributionUsers;
     // 单个作品价格增长配置
+    @TableField(exist = false)  // 数据库中无此列
     private Boolean customPriceGrowthEnabled; // 是否启用自定义价格增长
+    @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customBaseDailyRate; // 自定义基础日增长率
+    @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customMatureDailyRate; // 自定义成熟期日增长率
+    @TableField(exist = false)  // 数据库中无此列
     private Integer customMatureDays; // 自定义成熟期天数
+    @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customViewRate; // 自定义浏览量加成系数
+    @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customFavoriteRate; // 自定义收藏量加成系数
+    @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customMaxGrowthMultiple; // 自定义最大涨幅倍数
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
-    @TableLogic
+    @TableField(exist = false)  // 数据库中无此列
     private Integer deleted;
 }

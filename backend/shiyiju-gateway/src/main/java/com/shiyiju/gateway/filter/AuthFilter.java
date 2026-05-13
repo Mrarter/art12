@@ -26,6 +26,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
     private static final List<String> WHITE_LIST = Arrays.asList(
             "/user/login",
             "/user/auth/wx-login",
+            "/user/wxlogin",
             "/admin/login",
             "/admin/info",
             "/admin/dashboard",
@@ -69,6 +70,14 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/product/",  // 匹配 /product/{id} 详情接口
             "/product/favorite",  // 收藏作品
             "/product/favorites",  // 我的收藏
+            "/artist/score/",  // 艺术家评分
+            "/artist/score",  // 艺术家评分
+            "/artist/identity/",  // 艺术家资质
+            "/artist/identity",  // 艺术家资质
+            "/admin/artist/score/",  // 艺术家评分管理
+            "/admin/artist/score",  // 艺术家评分管理
+            "/admin/artist/identity/",  // 艺术家资质管理
+            "/admin/artist/identity",  // 艺术家资质管理
             "/config/priceGrowth",  // 价格增长配置
             "/order/list",
             "/order/aftersale/list",

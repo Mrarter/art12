@@ -6,6 +6,7 @@ import com.shiyiju.product.entity.Artwork;
 import com.shiyiju.product.mapper.ArtworkMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,7 @@ public class PriceGrowthService {
 
     private final ArtworkMapper artworkMapper;
     private final PriceGrowthConfig config;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * 计算价格增长率
@@ -237,7 +239,18 @@ public class PriceGrowthService {
 
     public int calculateDisplayViewCount(Artwork artwork) {
         if (artwork == null) return 0;
-        return calculateDisplayCount(artwork.getViewCount(), artwork.getDailyViewCount(), artwork.getCreateTime());
+        int displayCount = calculateDisplayCount(artwork.getViewCount(), artwork.getDailyViewCount(), artwork.getCreateTime());
+        if (!Boolean.TRUE.equals(config.getViewAutoGrowthEnabled())) {
+            return displayCount;
+        }
+        int onlineDays = getInclusiveOnlineDays(artwork.getCreateTime());
+        int dailyGrowth = config.getDailyViewGrowth() != null ? config.getDailyViewGrowth() : 0;
+        int weeklyGrowth = config.getWeeklyViewGrowth() != null ? config.getWeeklyViewGrowth() : 0;
+        int monthlyGrowth = config.getMonthlyViewGrowth() != null ? config.getMonthlyViewGrowth() : 0;
+        return displayCount
+            + dailyGrowth * onlineDays
+            + weeklyGrowth * (onlineDays / 7)
+            + monthlyGrowth * (onlineDays / 30);
     }
 
     public int calculateDisplayLikeCount(Artwork artwork) {
@@ -327,6 +340,7 @@ public class PriceGrowthService {
 
             for (Artwork artwork : artworks) {
                 try {
+                    hydrateCustomPriceGrowthConfig(artwork);
                     BigDecimal priceRise = calculatePriceRise(artwork);
                     Long currentPrice = calculateCurrentPrice(artwork);
                     
@@ -362,6 +376,7 @@ public class PriceGrowthService {
         if (artwork == null || artwork.getOriginalPrice() == null) {
             return;
         }
+        hydrateCustomPriceGrowthConfig(artwork);
 
         BigDecimal priceRise = calculatePriceRise(artwork);
         Long currentPrice = calculateCurrentPrice(artwork);
@@ -377,5 +392,64 @@ public class PriceGrowthService {
      */
     public PriceGrowthConfig getConfig() {
         return config;
+    }
+
+    private void hydrateCustomPriceGrowthConfig(Artwork artwork) {
+        if (artwork == null || !hasAllCustomPriceGrowthColumns()) {
+            return;
+        }
+        try {
+            jdbcTemplate.query("""
+                    SELECT custom_price_growth_enabled,
+                           custom_base_daily_rate,
+                           custom_mature_daily_rate,
+                           custom_mature_days,
+                           custom_view_rate,
+                           custom_favorite_rate,
+                           custom_max_growth_multiple
+                    FROM artwork
+                    WHERE id = ?
+                    """, rs -> {
+                if (rs.next()) {
+                    artwork.setCustomPriceGrowthEnabled(rs.getInt("custom_price_growth_enabled") == 1);
+                    artwork.setCustomBaseDailyRate(rs.getBigDecimal("custom_base_daily_rate"));
+                    artwork.setCustomMatureDailyRate(rs.getBigDecimal("custom_mature_daily_rate"));
+                    int matureDays = rs.getInt("custom_mature_days");
+                    artwork.setCustomMatureDays(rs.wasNull() || matureDays <= 0 ? null : matureDays);
+                    artwork.setCustomViewRate(rs.getBigDecimal("custom_view_rate"));
+                    artwork.setCustomFavoriteRate(rs.getBigDecimal("custom_favorite_rate"));
+                    artwork.setCustomMaxGrowthMultiple(rs.getBigDecimal("custom_max_growth_multiple"));
+                }
+                return null;
+            }, artwork.getId());
+        } catch (Exception e) {
+            log.warn("加载作品自定义涨价配置失败: artworkId={}, error={}", artwork.getId(), e.getMessage());
+        }
+    }
+
+    private boolean columnExists(String tableName, String columnName) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = ?
+                  AND column_name = ?
+                """,
+                Integer.class,
+                tableName,
+                columnName
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean hasAllCustomPriceGrowthColumns() {
+        return columnExists("artwork", "custom_price_growth_enabled")
+                && columnExists("artwork", "custom_base_daily_rate")
+                && columnExists("artwork", "custom_mature_daily_rate")
+                && columnExists("artwork", "custom_mature_days")
+                && columnExists("artwork", "custom_view_rate")
+                && columnExists("artwork", "custom_favorite_rate")
+                && columnExists("artwork", "custom_max_growth_multiple");
     }
 }

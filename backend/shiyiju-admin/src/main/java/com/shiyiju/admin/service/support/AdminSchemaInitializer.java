@@ -31,6 +31,7 @@ public class AdminSchemaInitializer {
         seedMessageTemplates();
         alignAdminUserSchema();
         alignUserSchema();
+        alignArtistProfileSchema();
     }
 
     private void createAdminRoleTable() {
@@ -181,6 +182,15 @@ public class AdminSchemaInitializer {
             addColumnIfMissing(userTable, "promoter_level", "ALTER TABLE " + userTable + " ADD COLUMN promoter_level VARCHAR(20) DEFAULT NULL");
             addColumnIfMissing(userTable, "total_commission", "ALTER TABLE " + userTable + " ADD COLUMN total_commission DECIMAL(12,2) DEFAULT 0");
             addColumnIfMissing(userTable, "available_commission", "ALTER TABLE " + userTable + " ADD COLUMN available_commission DECIMAL(12,2) DEFAULT 0");
+        }
+    }
+
+    private void alignArtistProfileSchema() {
+        String artistTable = schemaInspector.resolveTable("artist-profile-alignment", "artist_profile", "artist_certifications");
+        if (!schemaInspector.getColumns(artistTable).isEmpty()) {
+            addColumnIfMissing(artistTable, "artist_title", "ALTER TABLE " + artistTable + " ADD COLUMN artist_title VARCHAR(128) DEFAULT NULL");
+            addColumnIfMissing(artistTable, "homepage_cover", "ALTER TABLE " + artistTable + " ADD COLUMN homepage_cover VARCHAR(512) DEFAULT NULL");
+            addColumnIfMissing(artistTable, "artist_tags", "ALTER TABLE " + artistTable + " ADD COLUMN artist_tags VARCHAR(255) DEFAULT NULL");
         }
     }
 

@@ -21,11 +21,17 @@ public class LoginVO implements Serializable {
     /** 用户ID */
     private Long userId;
 
+    /** 用户标准UID */
+    private String uid;
+
     /** 昵称 */
     private String nickname;
 
     /** 头像 */
     private String avatar;
+
+    /** 手机号 */
+    private String phone;
 
     /** 身份列表 */
     private String identities;

@@ -28,6 +28,13 @@ spring:
             - Path=/api/product/**
           filters:
             - StripPrefix=1
+        # 艺术家服务 - 艺术家评分等API路由到product服务
+        - id: shiyiju-artist
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/artist/**
+          filters:
+            - RewritePath=/api/artist(?<segment>/?.*), /artist$\{segment}
         # 订单服务
         - id: shiyiju-order
           uri: http://localhost:8083
@@ -159,7 +166,14 @@ spring:
             - Path=/message/list,/message/send,/message/template/list
           filters:
             - RewritePath=/message(?<segment>/?.*), /admin/message$\{segment}
-        # 运营后台 - 带 /api 前缀的管理接口
+        # 艺术家评分&资质管理接口 - 路由到 product 服务
+        - id: shiyiju-admin-artist-manage
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/admin/artist/**
+          filters:
+            - RewritePath=/api/admin/artist(?<segment>/?.*), /admin/artist$\{segment}
+        # 运营后台 - 带 /api 前缀的其他管理接口
         - id: shiyiju-admin
           uri: http://localhost:8090
           predicates:

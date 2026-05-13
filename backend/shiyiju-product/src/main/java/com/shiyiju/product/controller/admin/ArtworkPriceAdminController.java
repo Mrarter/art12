@@ -7,6 +7,7 @@ import com.shiyiju.product.mapper.ArtworkMapper;
 import com.shiyiju.product.mapper.ArtworkPriceLogMapper;
 import com.shiyiju.product.service.ArtworkPriceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -22,6 +23,7 @@ public class ArtworkPriceAdminController {
     private final ArtworkMapper artworkMapper;
     private final ArtworkPriceLogMapper priceLogMapper;
     private final ArtworkPriceService artworkPriceService;
+    private final JdbcTemplate jdbcTemplate;
 
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> listPrices(
@@ -43,6 +45,7 @@ public class ArtworkPriceAdminController {
 
     @PostMapping("/manual-adjust")
     public Result<Long> manualAdjust(@RequestBody Map<String, Object> params) {
+        ensurePriceLogTable();
         Long artworkId = Long.valueOf(params.get("artworkId").toString());
         Long newPrice = Long.valueOf(params.get("newPrice").toString());
         String reason = (String) params.get("reason");
@@ -53,6 +56,7 @@ public class ArtworkPriceAdminController {
     public Result<List<ArtworkPriceLog>> logs(
             @RequestParam(required = false) Long artworkId,
             @RequestParam(required = false) String changeReason) {
+        ensurePriceLogTable();
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ArtworkPriceLog> wrapper =
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
         if (artworkId != null) wrapper.eq(ArtworkPriceLog::getArtworkId, artworkId);
@@ -60,5 +64,24 @@ public class ArtworkPriceAdminController {
         wrapper.orderByDesc(ArtworkPriceLog::getCreatedAt);
         List<ArtworkPriceLog> logs = priceLogMapper.selectList(wrapper);
         return Result.success(logs);
+    }
+
+    private void ensurePriceLogTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS artwork_price_log (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                artwork_id BIGINT NOT NULL,
+                artist_id BIGINT NULL,
+                old_price BIGINT NULL,
+                new_price BIGINT NULL,
+                change_rate DECIMAL(12, 6) NULL,
+                change_reason VARCHAR(32) NULL,
+                remark VARCHAR(255) NULL,
+                operator_id BIGINT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_artwork_price_log_artwork_id (artwork_id),
+                INDEX idx_artwork_price_log_created_at (created_at)
+            )
+            """);
     }
 }

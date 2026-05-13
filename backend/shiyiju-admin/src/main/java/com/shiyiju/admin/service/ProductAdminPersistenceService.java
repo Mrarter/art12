@@ -32,13 +32,23 @@ public class ProductAdminPersistenceService {
     public List<Map<String, Object>> listCategories() {
         String categoryTable = categoryTable();
         String weightColumn = categoryWeightColumn();
+        String artworkCountExpr;
+        if (schemaInspector.hasColumn("artwork", "category_id")) {
+            artworkCountExpr = "COALESCE((SELECT COUNT(*) FROM artwork a WHERE a.category_id = c.id), 0)";
+        } else if (schemaInspector.hasColumn("artwork", "category_name")) {
+            artworkCountExpr = "COALESCE((SELECT COUNT(*) FROM artwork a WHERE a.category_name = c.name), 0)";
+        } else if (schemaInspector.hasColumn(categoryTable, "artwork_count")) {
+            artworkCountExpr = "COALESCE(c.artwork_count, 0)";
+        } else {
+            artworkCountExpr = "0";
+        }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
             SELECT c.id, c.name, %s AS weight_value, %s AS icon_value, c.status, c.create_time,
-                   COALESCE((SELECT COUNT(*) FROM artwork a WHERE a.category_id = c.id), 0) AS artwork_count
+                   %s AS artwork_count
             FROM %s c
             ORDER BY %s DESC, c.id DESC
-            """.formatted(weightColumn, categoryIconColumn(), categoryTable, weightColumn)
+            """.formatted(weightColumn, categoryIconColumn(), artworkCountExpr, categoryTable, weightColumn)
         );
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> row : rows) {
@@ -95,7 +105,18 @@ public class ProductAdminPersistenceService {
     @Transactional
     public void deleteCategory(Long id) {
         String categoryTable = categoryTable();
-        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artwork WHERE category_id = ?", Integer.class, id);
+        Integer count;
+        if (schemaInspector.hasColumn("artwork", "category_id")) {
+            count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artwork WHERE category_id = ?", Integer.class, id);
+        } else if (schemaInspector.hasColumn("artwork", "category_name")) {
+            count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM artwork WHERE category_name = (SELECT name FROM " + categoryTable + " WHERE id = ?)",
+                Integer.class,
+                id
+            );
+        } else {
+            count = 0;
+        }
         if (count != null && count > 0) {
             throw new IllegalArgumentException("该分类下仍有关联作品，无法删除");
         }
@@ -157,6 +178,7 @@ public class ProductAdminPersistenceService {
         appendBigDecimalUpdate(assignments, args, params, "originalPrice", "original_price");
         appendNumericUpdate(assignments, args, params, "ownershipType", "ownership_type");
         appendNumericUpdate(assignments, args, params, "status", "status");
+        appendNumericUpdate(assignments, args, params, "favoriteCount", "favorite_count");
         appendNumericUpdate(assignments, args, params, "dailyViewCount", "daily_view_count");
         appendNumericUpdate(assignments, args, params, "dailyLikeCount", "daily_like_count");
         appendNumericUpdate(assignments, args, params, "weight", "weight");
@@ -530,6 +552,12 @@ public class ProductAdminPersistenceService {
             args.add(Math.max(toInt(params.get("dailyLikeCount"), 0), 0));
         }
 
+        if (schemaInspector.hasColumn("artwork", "favorite_count")) {
+            sql.append(", favorite_count");
+            values.append(", ?");
+            args.add(Math.max(toInt(params.get("favoriteCount"), 0), 0));
+        }
+
         if (schemaInspector.hasColumn("artwork", "price")) {
             sql.append(", price");
             values.append(", ?");
@@ -628,10 +656,11 @@ public class ProductAdminPersistenceService {
 
         // 2. 再通过用户昵称精确查找，找到后补齐艺术家列表
         String userTable = authorLookupUserTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (schemaInspector.hasColumn(userTable, "nickname")) {
             try {
                 Long userId = jdbcTemplate.queryForObject(
-                    "SELECT id FROM " + userTable + " WHERE BINARY nickname = BINARY ? ORDER BY id DESC LIMIT 1",
+                    "SELECT " + userIdColumn + " FROM " + userTable + " WHERE BINARY nickname = BINARY ? ORDER BY " + userIdColumn + " DESC LIMIT 1",
                     Long.class,
                     artistName
                 );
@@ -653,8 +682,10 @@ public class ProductAdminPersistenceService {
         if (userId == null || userId <= 0) {
             return false;
         }
+        String userTable = authorLookupUserTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         Integer count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + authorLookupUserTable() + " WHERE id = ?",
+            "SELECT COUNT(*) FROM " + userTable + " WHERE " + userIdColumn + " = ?",
             Integer.class,
             userId
         );
@@ -668,12 +699,13 @@ public class ProductAdminPersistenceService {
         try {
             String artistTable = schemaInspector.resolveTable("product_artist_profile", "artist_profile", "artist_certifications");
             String userTable = authorLookupUserTable();
+            String userIdColumn = userPrimaryKeyColumn(userTable);
             String nameExpr = schemaInspector.hasColumn(artistTable, "real_name") && schemaInspector.hasColumn(artistTable, "artist_name")
                 ? "COALESCE(ap.real_name, ap.artist_name)"
                 : (schemaInspector.hasColumn(artistTable, "real_name") ? "ap.real_name" : "ap.artist_name");
             String sql =
                 "SELECT ap.user_id FROM " + artistTable + " ap " +
-                "LEFT JOIN " + userTable + " u ON ap.user_id = u.id " +
+                "LEFT JOIN " + userTable + " u ON ap.user_id = u." + userIdColumn + " " +
                 "WHERE BINARY " + nameExpr + " = BINARY ? OR BINARY u.nickname = BINARY ? " +
                 "ORDER BY ap.id DESC LIMIT 1";
             return jdbcTemplate.queryForObject(sql, Long.class, artistName, artistName);
@@ -692,13 +724,14 @@ public class ProductAdminPersistenceService {
     private void ensureUserHasArtistIdentity(Long userId) {
         String userTable = authorLookupUserTable();
         String identityColumn = identityColumn(userTable);
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (!schemaInspector.hasColumn(userTable, identityColumn)) {
             return;
         }
 
         // 获取当前身份
         String currentIdentity = jdbcTemplate.queryForObject(
-            "SELECT " + identityColumn + " FROM " + userTable + " WHERE id = ?",
+            "SELECT " + identityColumn + " FROM " + userTable + " WHERE " + userIdColumn + " = ?",
             String.class, userId
         );
 
@@ -708,10 +741,18 @@ public class ProductAdminPersistenceService {
                 ? "artist"
                 : currentIdentity + ",artist";
 
-            jdbcTemplate.update(
-                "UPDATE " + userTable + " SET " + identityColumn + " = ?, update_time = ? WHERE id = ?",
-                newIdentity, LocalDateTime.now(), userId
-            );
+            String updateTimeColumn = firstAvailableColumn(userTable, "updated_at", "update_time");
+            StringBuilder sql = new StringBuilder("UPDATE ").append(userTable)
+                .append(" SET ").append(identityColumn).append(" = ?");
+            List<Object> args = new ArrayList<>();
+            args.add(newIdentity);
+            if (updateTimeColumn != null) {
+                sql.append(", ").append(updateTimeColumn).append(" = ?");
+                args.add(LocalDateTime.now());
+            }
+            sql.append(" WHERE ").append(userIdColumn).append(" = ?");
+            args.add(userId);
+            jdbcTemplate.update(sql.toString(), args.toArray());
         }
     }
 
@@ -921,6 +962,7 @@ public class ProductAdminPersistenceService {
 
     private String findAuthorUidByUserId(Long userId) {
         String userTable = authorLookupUserTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         List<String> uidColumns = new ArrayList<>();
         for (String candidate : List.of("user_uid", "uid", "user_no")) {
             if (schemaInspector.hasColumn(userTable, candidate)) {
@@ -933,13 +975,18 @@ public class ProductAdminPersistenceService {
         String uidExpression = uidColumns.size() == 1 ? uidColumns.get(0) : "COALESCE(" + String.join(", ", uidColumns) + ")";
         try {
             return jdbcTemplate.queryForObject(
-                "SELECT " + uidExpression + " FROM " + userTable + " WHERE id = ? LIMIT 1",
+                "SELECT " + uidExpression + " FROM " + userTable + " WHERE " + userIdColumn + " = ? LIMIT 1",
                 String.class,
                 userId
             );
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return null;
         }
+    }
+
+    private String userPrimaryKeyColumn(String userTable) {
+        String column = firstAvailableColumn(userTable, "id", "user_id");
+        return column == null ? "id" : column;
     }
 
     /**
@@ -950,7 +997,7 @@ public class ProductAdminPersistenceService {
     }
 
     private String authorLookupUserTable() {
-        return schemaInspector.resolveTable("author_lookup_user", "user_account", "sys_user");
+        return schemaInspector.resolveTable("author_lookup_user", "user_account", "sys_user", "users");
     }
 
     private String userUidColumn() {
@@ -1019,8 +1066,13 @@ public class ProductAdminPersistenceService {
         }
         
         if (categoryId != null) {
-            where.append(" AND a.category_id = ?");
-            args.add(categoryId);
+            if (schemaInspector.hasColumn("artwork", "category_id")) {
+                where.append(" AND a.category_id = ?");
+                args.add(categoryId);
+            } else if (!schemaInspector.getColumns(categoryTable()).isEmpty()) {
+                where.append(" AND c.id = ?");
+                args.add(categoryId);
+            }
         }
 
         if (artType != null && !artType.isBlank()) {
@@ -1041,11 +1093,14 @@ public class ProductAdminPersistenceService {
         String artistProfileUidSelect = hasArtistProfileUid ? "ap.user_uid" : "NULL";
         String authorUserTable = authorLookupUserTable();
         boolean hasAuthorUserTable = !schemaInspector.getColumns(authorUserTable).isEmpty();
+        String authorUserIdColumn = hasAuthorUserTable
+            ? firstAvailableColumn(authorUserTable, "id", "user_id")
+            : null;
         String authorUserUidColumn = hasAuthorUserTable
             ? firstAvailableColumn(authorUserTable, "user_uid", "uid", "user_no")
             : null;
         String authorUserJoin = hasAuthorUserTable
-            ? " LEFT JOIN " + authorUserTable + " au ON au.id = a.author_id"
+            ? " LEFT JOIN " + authorUserTable + " au ON au." + authorUserIdColumn + " = a.author_id"
             : "";
         String authorUserUidSelect = authorUserUidColumn != null ? "au." + authorUserUidColumn : "NULL";
         boolean hasArtistCertifications = !schemaInspector.getColumns("artist_certifications").isEmpty();
@@ -1055,7 +1110,15 @@ public class ProductAdminPersistenceService {
         String artistCodeSelect = hasArtistCertifications && schemaInspector.hasColumn("artist_certifications", "artist_code")
             ? "ac.artist_code"
             : "NULL";
-        String authorJoins = artistProfileJoin + authorUserJoin + artistCertificationJoin;
+        String categoryJoin = "";
+        if (!schemaInspector.getColumns(categoryTable()).isEmpty()) {
+            if (schemaInspector.hasColumn("artwork", "category_id")) {
+                categoryJoin = " LEFT JOIN " + categoryTable() + " c ON a.category_id = c.id";
+            } else if (schemaInspector.hasColumn("artwork", "category_name")) {
+                categoryJoin = " LEFT JOIN " + categoryTable() + " c ON a.category_name = c.name";
+            }
+        }
+        String authorJoins = artistProfileJoin + authorUserJoin + artistCertificationJoin + categoryJoin;
 
         Long total = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM artwork a" + authorJoins + where,
@@ -1082,6 +1145,13 @@ public class ProductAdminPersistenceService {
         String descriptionSelect = schemaInspector.hasColumn("artwork", "description") ? "a.description" : "NULL";
         String dailyViewCountSelect = schemaInspector.hasColumn("artwork", "daily_view_count") ? "a.daily_view_count" : "0";
         String dailyLikeCountSelect = schemaInspector.hasColumn("artwork", "daily_like_count") ? "a.daily_like_count" : "0";
+        boolean hasCoverImageColumn = schemaInspector.hasColumn("artwork", "cover_image");
+        boolean hasCoverColumn = schemaInspector.hasColumn("artwork", "cover");
+        String coverImageSelect = hasCoverImageColumn && hasCoverColumn
+            ? "COALESCE(NULLIF(a.cover_image, ''), NULLIF(a.cover, ''))"
+            : (hasCoverImageColumn ? "a.cover_image" : (hasCoverColumn ? "a.cover" : "NULL"));
+        String categoryNameSelect = schemaInspector.hasColumn("artwork", "category_name") ? "a.category_name" :
+            (!schemaInspector.getColumns(categoryTable()).isEmpty() ? "c.name" : "NULL");
         boolean hasWeightColumn = schemaInspector.hasColumn("artwork", "weight");
         String weightSelect = hasWeightColumn ? "a.weight" : "0";
         String ownershipTypeSelect = schemaInspector.hasColumn("artwork", "ownership_type") ? "a.ownership_type" : "1";
@@ -1091,16 +1161,16 @@ public class ProductAdminPersistenceService {
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
-            SELECT a.id, a.title, a.author_name, a.cover_image, a.price, a.status,
+            SELECT a.id, a.title, a.author_name, %s AS cover_image, a.price, a.status,
                    a.author_id, %s AS artwork_code, %s AS author_uid, a.size, %s AS artwork_year,
                    a.art_type, %s AS favorite_count, %s AS weight_value, %s AS ownership_type,
                    %s AS distribution_enabled, %s AS commission_rate, %s AS view_count,
                    %s AS description, %s AS daily_view_count, %s AS daily_like_count,
-                   a.create_time, c.name AS category_name
+                   a.create_time, %s AS category_name
             FROM artwork a
             %s
-            LEFT JOIN %s c ON a.category_id = c.id
             """.formatted(
+                coverImageSelect,
                 artworkCodeSelect,
                 authorUidSelect,
                 yearSelect,
@@ -1113,8 +1183,8 @@ public class ProductAdminPersistenceService {
                 descriptionSelect,
                 dailyViewCountSelect,
                 dailyLikeCountSelect,
-                authorJoins,
-                categoryTable()
+                categoryNameSelect,
+                authorJoins
             ) + where + " ORDER BY " + (hasWeightColumn ? "a.weight DESC, " : "") + "a.create_time DESC, a.id DESC LIMIT ?, ?",
             queryArgs.toArray()
         );
@@ -1139,13 +1209,17 @@ public class ProductAdminPersistenceService {
             item.put("artType", row.get("art_type"));
             item.put("size", row.get("size"));
             item.put("year", row.get("artwork_year"));
-            item.put("favoriteCount", toInt(row.get("favorite_count"), 0));
+            int realFavoriteCount = toInt(row.get("favorite_count"), 0);
+            int configuredFavoriteCount = toInt(row.get("daily_like_count"), 0);
+            item.put("favoriteCount", realFavoriteCount);
+            item.put("realFavoriteCount", realFavoriteCount);
+            item.put("configuredFavoriteCount", configuredFavoriteCount);
             item.put("viewCount", toInt(row.get("view_count"), 0));
             item.put("description", row.get("description"));
             item.put("dailyViewCount", toInt(row.get("daily_view_count"), 0));
-            item.put("dailyLikeCount", toInt(row.get("daily_like_count"), 0));
+            item.put("dailyLikeCount", configuredFavoriteCount);
             item.put("displayViewCount", toInt(row.get("view_count"), 0) + toInt(row.get("daily_view_count"), 0));
-            item.put("displayLikeCount", toInt(row.get("favorite_count"), 0) + toInt(row.get("daily_like_count"), 0));
+            item.put("displayLikeCount", realFavoriteCount + configuredFavoriteCount);
             item.put("weight", toInt(row.get("weight_value"), 0));
             item.put("ownershipType", toInt(row.get("ownership_type"), 1));
             item.put("status", toInt(row.get("status"), 0));

@@ -130,7 +130,9 @@ public class ProductService {
         vo.setMaterial(artwork.getMedium());
         vo.setSize(artwork.getSize());
         vo.setDescription(artwork.getDescription());
-        vo.setCoverImage(artwork.getCoverImage());
+        // 优先使用 cover 字段，备选 coverImage
+        String coverUrl = artwork.getCover() != null ? artwork.getCover() : artwork.getCoverImage();
+        vo.setCoverImage(coverUrl);
         if (artwork.getImages() != null) {
             vo.setImages(Arrays.asList(artwork.getImages().split(",")));
         }
@@ -813,7 +815,9 @@ public class ProductService {
         vo.setYear(artwork.getYear());
         vo.setEdition(artwork.getEdition());
         vo.setDescription(artwork.getDescription());
-        vo.setCoverImage(artwork.getCoverImage());
+        // 优先使用 cover 字段，备选 coverImage
+        String coverUrl = artwork.getCover() != null ? artwork.getCover() : artwork.getCoverImage();
+        vo.setCoverImage(coverUrl);
         if (artwork.getImages() != null) {
             vo.setImages(Arrays.asList(artwork.getImages().split(",")));
         }
@@ -1094,10 +1098,12 @@ public class ProductService {
      * 获取单个作品价格增长配置
      */
     public Map<String, Object> getArtworkPriceGrowth(Long artworkId) {
+        ensureArtworkPriceGrowthColumns();
         Artwork artwork = artworkMapper.selectById(artworkId);
         if (artwork == null) {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
         }
+        loadArtworkPriceGrowthConfig(artwork);
         
         Map<String, Object> result = new HashMap<>();
         result.put("artworkId", artwork.getId());
@@ -1105,7 +1111,7 @@ public class ProductService {
         result.put("customPriceGrowthEnabled", artwork.getCustomPriceGrowthEnabled() != null ? artwork.getCustomPriceGrowthEnabled() : false);
         result.put("customBaseDailyRate", artwork.getCustomBaseDailyRate() != null ? artwork.getCustomBaseDailyRate() : new BigDecimal("0.0002"));
         result.put("customMatureDailyRate", artwork.getCustomMatureDailyRate() != null ? artwork.getCustomMatureDailyRate() : new BigDecimal("0.0003"));
-        result.put("customMatureDays", artwork.getCustomMatureDays() != null ? artwork.getCustomMatureDays() : 30);
+        result.put("customMatureDays", artwork.getCustomMatureDays() != null && artwork.getCustomMatureDays() > 0 ? artwork.getCustomMatureDays() : 30);
         result.put("customViewRate", artwork.getCustomViewRate() != null ? artwork.getCustomViewRate() : new BigDecimal("1.1"));
         result.put("customFavoriteRate", artwork.getCustomFavoriteRate() != null ? artwork.getCustomFavoriteRate() : new BigDecimal("1.1"));
         result.put("customMaxGrowthMultiple", artwork.getCustomMaxGrowthMultiple() != null ? artwork.getCustomMaxGrowthMultiple() : new BigDecimal("5.0"));
@@ -1122,6 +1128,7 @@ public class ProductService {
      */
     @Transactional
     public void updateArtworkPriceGrowth(Long artworkId, Map<String, Object> config) {
+        ensureArtworkPriceGrowthColumns();
         Artwork artwork = artworkMapper.selectById(artworkId);
         if (artwork == null) {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
@@ -1155,11 +1162,126 @@ public class ProductService {
             artwork.setDailyLikeCount(Math.max(Integer.parseInt(config.get("dailyLikeCount").toString()), 0));
         }
         
-        artwork.setUpdateTime(LocalDateTime.now());
-        artworkMapper.updateById(artwork);
+        List<String> assignments = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        if (config.get("customPriceGrowthEnabled") != null) {
+            assignments.add("custom_price_growth_enabled = ?");
+            args.add(Boolean.TRUE.equals(config.get("customPriceGrowthEnabled")) ? 1 : 0);
+        }
+        if (config.get("customBaseDailyRate") != null) {
+            assignments.add("custom_base_daily_rate = ?");
+            args.add(new BigDecimal(config.get("customBaseDailyRate").toString()));
+        }
+        if (config.get("customMatureDailyRate") != null) {
+            assignments.add("custom_mature_daily_rate = ?");
+            args.add(new BigDecimal(config.get("customMatureDailyRate").toString()));
+        }
+        if (config.get("customMatureDays") != null) {
+            assignments.add("custom_mature_days = ?");
+            args.add(Integer.parseInt(config.get("customMatureDays").toString()));
+        }
+        if (config.get("customViewRate") != null) {
+            assignments.add("custom_view_rate = ?");
+            args.add(new BigDecimal(config.get("customViewRate").toString()));
+        }
+        if (config.get("customFavoriteRate") != null) {
+            assignments.add("custom_favorite_rate = ?");
+            args.add(new BigDecimal(config.get("customFavoriteRate").toString()));
+        }
+        if (config.get("customMaxGrowthMultiple") != null) {
+            assignments.add("custom_max_growth_multiple = ?");
+            args.add(new BigDecimal(config.get("customMaxGrowthMultiple").toString()));
+        }
+        if (config.get("dailyViewCount") != null) {
+            assignments.add("daily_view_count = ?");
+            args.add(Math.max(Integer.parseInt(config.get("dailyViewCount").toString()), 0));
+        }
+        if (config.get("dailyLikeCount") != null) {
+            assignments.add("daily_like_count = ?");
+            args.add(Math.max(Integer.parseInt(config.get("dailyLikeCount").toString()), 0));
+        }
+        if (columnExists("artwork", "update_time")) {
+            assignments.add("update_time = ?");
+            args.add(LocalDateTime.now());
+        }
+        if (!assignments.isEmpty()) {
+            String sql = "UPDATE artwork SET " + String.join(", ", assignments) + " WHERE id = ?";
+            args.add(artworkId);
+            jdbcTemplate.update(sql, args.toArray());
+        }
         
         // 重新计算价格
         priceGrowthService.updateSinglePrice(artworkId);
+    }
+
+    private void ensureArtworkPriceGrowthColumns() {
+        addColumnIfMissing("artwork", "custom_price_growth_enabled", "TINYINT(1) DEFAULT 0 COMMENT '是否启用单作品自定义涨价配置'");
+        addColumnIfMissing("artwork", "custom_base_daily_rate", "DECIMAL(10,6) DEFAULT NULL COMMENT '自定义基础日增长率'");
+        addColumnIfMissing("artwork", "custom_mature_daily_rate", "DECIMAL(10,6) DEFAULT NULL COMMENT '自定义成熟期日增长率'");
+        addColumnIfMissing("artwork", "custom_mature_days", "INT DEFAULT NULL COMMENT '自定义成熟期天数'");
+        addColumnIfMissing("artwork", "custom_view_rate", "DECIMAL(10,4) DEFAULT NULL COMMENT '自定义浏览量加成系数'");
+        addColumnIfMissing("artwork", "custom_favorite_rate", "DECIMAL(10,4) DEFAULT NULL COMMENT '自定义收藏量加成系数'");
+        addColumnIfMissing("artwork", "custom_max_growth_multiple", "DECIMAL(10,2) DEFAULT NULL COMMENT '自定义最大涨幅倍数'");
+    }
+
+    private void addColumnIfMissing(String tableName, String columnName, String definition) {
+        if (columnExists(tableName, columnName)) {
+            return;
+        }
+        jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
+    }
+
+    private void loadArtworkPriceGrowthConfig(Artwork artwork) {
+        if (artwork == null || !columnExists("artwork", "custom_price_growth_enabled")) {
+            return;
+        }
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap("""
+                    SELECT custom_price_growth_enabled,
+                           custom_base_daily_rate,
+                           custom_mature_daily_rate,
+                           custom_mature_days,
+                           custom_view_rate,
+                           custom_favorite_rate,
+                           custom_max_growth_multiple
+                    FROM artwork
+                    WHERE id = ?
+                    """, artwork.getId());
+            artwork.setCustomPriceGrowthEnabled(toInt(row.get("custom_price_growth_enabled"), 0) == 1);
+            artwork.setCustomBaseDailyRate(toBigDecimal(row.get("custom_base_daily_rate")));
+            artwork.setCustomMatureDailyRate(toBigDecimal(row.get("custom_mature_daily_rate")));
+            Integer matureDays = row.get("custom_mature_days") != null ? toInt(row.get("custom_mature_days"), 30) : null;
+            artwork.setCustomMatureDays(matureDays != null && matureDays > 0 ? matureDays : null);
+            artwork.setCustomViewRate(toBigDecimal(row.get("custom_view_rate")));
+            artwork.setCustomFavoriteRate(toBigDecimal(row.get("custom_favorite_rate")));
+            artwork.setCustomMaxGrowthMultiple(toBigDecimal(row.get("custom_max_growth_multiple")));
+        } catch (Exception e) {
+            log.warn("加载作品价格增长配置失败: artworkId={}, error={}", artwork.getId(), e.getMessage());
+        }
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        return new BigDecimal(value.toString());
+    }
+
+    private int toInt(Object value, int defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     /**

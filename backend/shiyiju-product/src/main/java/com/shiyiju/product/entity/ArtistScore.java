@@ -38,6 +38,9 @@ public class ArtistScore implements Serializable {
     @TableField("internet_score")
     private Integer internetScore;
 
+    @TableField("adjustment_score")
+    private Integer adjustmentScore;
+
     private String level;
 
     @TableField("created_at")

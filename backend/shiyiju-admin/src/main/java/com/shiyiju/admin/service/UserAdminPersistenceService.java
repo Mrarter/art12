@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,11 +49,12 @@ public class UserAdminPersistenceService {
         String endDate
     ) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         String identityColumn = identityColumn(userTable);
         String createTimeColumn = createTimeColumn(userTable);
         String avatarCol = schemaInspector.firstExistingColumn(userTable, "avatar", "avatar_url");
         String phoneCol = schemaInspector.firstExistingColumn(userTable, "phone", "mobile");
-        String uidSelect = "CAST(id AS CHAR)";
+        String uidSelect = "CAST(" + userIdColumn + " AS CHAR)";
         if (schemaInspector.hasColumn(userTable, "uid")) {
             uidSelect = "uid";
         }
@@ -66,7 +68,7 @@ public class UserAdminPersistenceService {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         if (userId != null && !userId.isBlank()) {
-            where.append(" AND id = ?");
+            where.append(" AND ").append(userIdColumn).append(" = ?");
             args.add(Long.parseLong(userId.trim()));
         }
         if (nickname != null && !nickname.isBlank()) {
@@ -98,12 +100,13 @@ public class UserAdminPersistenceService {
         queryArgs.add(size);
         
         String baseSql = """
-            SELECT id, %s AS uid, nickname, %s AS avatar, %s AS phone, status, %s AS register_time, %s AS identities_value,
+            SELECT %s AS id, %s AS uid, nickname, %s AS avatar, %s AS phone, status, %s AS register_time, %s AS identities_value,
                    %s AS promoter_level_value,
                    %s AS available_commission_value,
                    %s AS total_commission_value
             FROM %s
             """.formatted(
+                userIdColumn,
                 uidSelect,
                 avatarCol,
                 phoneCol,
@@ -114,7 +117,7 @@ public class UserAdminPersistenceService {
                 columnOrZero(userTable, "total_commission"),
                 userTable
             );
-        String orderByClause = " ORDER BY " + createTimeColumn + " DESC, id DESC LIMIT ?, ?";
+        String orderByClause = " ORDER BY " + createTimeColumn + " DESC, " + userIdColumn + " DESC LIMIT ?, ?";
         String finalSql = baseSql + where + orderByClause;
         log.info("【DEBUG】listUsers SQL: {}, args: {}", finalSql, queryArgs);
         
@@ -295,10 +298,11 @@ public class UserAdminPersistenceService {
     @Transactional
     public void batchUpdateUserUids(List<Long> userIds, List<String> uids) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         
         for (int i = 0; i < userIds.size(); i++) {
             jdbcTemplate.update(
-                "UPDATE " + userTable + " SET uid = ?, update_time = NOW() WHERE id = ?",
+                "UPDATE " + userTable + " SET uid = ?, update_time = NOW() WHERE " + userIdColumn + " = ?",
                 uids.get(i),
                 userIds.get(i)
             );
@@ -314,8 +318,9 @@ public class UserAdminPersistenceService {
     @Transactional
     public void updateUserUid(Long userId, String uid) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         jdbcTemplate.update(
-            "UPDATE " + userTable + " SET uid = ?, update_time = NOW() WHERE id = ?",
+            "UPDATE " + userTable + " SET uid = ?, update_time = NOW() WHERE " + userIdColumn + " = ?",
             uid,
             userId
         );
@@ -325,6 +330,7 @@ public class UserAdminPersistenceService {
     @Transactional
     public void updateUser(Long userId, Map<String, Object> params) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         List<String> identities = normalizeIdentities(params.get("identities"));
         if (!identities.contains("collector") && identities.isEmpty()) {
             identities = List.of("collector");
@@ -371,7 +377,7 @@ public class UserAdminPersistenceService {
         // identities
         if (schemaInspector.hasColumn(userTable, "identities")) {
             setClauses.add("identities = ?");
-            args.add(String.join(",", identities));
+            args.add(serializeIdentitiesValue(userTable, identities));
         }
         if (schemaInspector.hasColumn(userTable, "identity_json")) {
             setClauses.add("identity_json = ?");
@@ -411,7 +417,7 @@ public class UserAdminPersistenceService {
 
         // Build final SQL
         sql.append(String.join(", ", setClauses));
-        sql.append(" WHERE id = ?");
+        sql.append(" WHERE ").append(userIdColumn).append(" = ?");
         args.add(userId);
 
         jdbcTemplate.update(sql.toString(), args.toArray());
@@ -424,11 +430,15 @@ public class UserAdminPersistenceService {
         String realName = Objects.toString(params.get("realName"), null);
         String idCard = Objects.toString(params.get("idCard"), null);
         String resume = Objects.toString(params.get("resume"), null);
+        String artistTitle = Objects.toString(params.get("artistTitle"), null);
+        String artistTags = normalizeTagPayload(params.get("artistTags"));
+        String homepageCover = Objects.toString(params.get("homepageCover"), null);
         String certImages = Objects.toString(params.get("certImages"), null);
         String certExhibits = Objects.toString(params.get("certExhibits"), null);
 
         // 如果没有需要更新的艺术家字段，直接返回
-        if (realName == null && idCard == null && resume == null && certImages == null && certExhibits == null) {
+        if (realName == null && idCard == null && resume == null && artistTitle == null && artistTags == null
+            && homepageCover == null && certImages == null && certExhibits == null) {
             return;
         }
 
@@ -442,8 +452,11 @@ public class UserAdminPersistenceService {
                 userId
             );
         } catch (Exception e) {
-            // 记录不存在，不需要更新
-            return;
+            certId = null;
+        }
+
+        if (certId == null && "artist_profile".equals(artistTable)) {
+            certId = createArtistProfileRecord(userId, realName, resume);
         }
 
         if (certId == null) {
@@ -469,6 +482,18 @@ public class UserAdminPersistenceService {
         if (resume != null && schemaInspector.hasColumn(artistTable, resumeCol)) {
             setClauses.add(resumeCol + " = ?");
             args.add(resume.isEmpty() ? null : resume);
+        }
+        if (artistTitle != null && schemaInspector.hasColumn(artistTable, "artist_title")) {
+            setClauses.add("artist_title = ?");
+            args.add(artistTitle.isEmpty() ? null : artistTitle);
+        }
+        if (artistTags != null && schemaInspector.hasColumn(artistTable, "artist_tags")) {
+            setClauses.add("artist_tags = ?");
+            args.add(artistTags.isEmpty() ? null : artistTags);
+        }
+        if (homepageCover != null && schemaInspector.hasColumn(artistTable, "homepage_cover")) {
+            setClauses.add("homepage_cover = ?");
+            args.add(homepageCover.isEmpty() ? null : homepageCover);
         }
         // 认证材料图片
         if (certImages != null && schemaInspector.hasColumn(artistTable, "cert_images")) {
@@ -497,12 +522,63 @@ public class UserAdminPersistenceService {
         jdbcTemplate.update(updateSql, args.toArray());
     }
 
+    private Long createArtistProfileRecord(Long userId, String realName, String resume) {
+        if (userId == null) {
+            return null;
+        }
+        String userUid = getUserUidById(userId);
+        String artistName = firstNonBlank(realName, lookupUserNickname(userId), "艺术家");
+        String artistCode = generateArtistCode();
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update(
+            """
+            INSERT INTO artist_profile (user_id, user_uid, artist_name, bio, status, created_at, updated_at, artist_code)
+            VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+            """,
+            userId,
+            userUid,
+            artistName,
+            nullableText(resume),
+            now,
+            now,
+            artistCode
+        );
+        return jdbcTemplate.queryForObject(
+            "SELECT id FROM artist_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+            Long.class,
+            userId
+        );
+    }
+
+    private String lookupUserNickname(Long userId) {
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        String nicknameColumn = schemaInspector.firstExistingColumn(userTable, "nickname", "name");
+        if (!schemaInspector.hasColumn(userTable, nicknameColumn)) {
+            return "";
+        }
+        try {
+            return Objects.toString(
+                jdbcTemplate.queryForObject(
+                    "SELECT " + nicknameColumn + " FROM " + userTable + " WHERE " + userIdColumn + " = ?",
+                    Object.class,
+                    userId
+                ),
+                ""
+            );
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     @Transactional
     public void updateUserStatus(Long userId, int status) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         jdbcTemplate.update(
-            "UPDATE " + userTable + " SET status = ?, " + updateTimeAssignment(userTable) + " WHERE id = ?",
+            "UPDATE " + userTable + " SET status = ?, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " = ?",
             status,
+            LocalDateTime.now(),
             userId
         );
     }
@@ -518,8 +594,9 @@ public class UserAdminPersistenceService {
             return;
         }
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         String updateTimeCol = updateTimeAssignment(userTable);
-        String sql = "UPDATE " + userTable + " SET status = ?, " + updateTimeCol + " WHERE id IN (";
+        String sql = "UPDATE " + userTable + " SET status = ?, " + updateTimeCol + " WHERE " + userIdColumn + " IN (";
         String placeholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
         sql += placeholders + ")";
         
@@ -541,18 +618,19 @@ public class UserAdminPersistenceService {
             return;
         }
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         String placeholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
         
         if (schemaInspector.hasColumn(userTable, "deleted")) {
             // 逻辑删除
-            String sql = "UPDATE " + userTable + " SET deleted = 1, " + updateTimeAssignment(userTable) + " WHERE id IN (" + placeholders + ")";
+            String sql = "UPDATE " + userTable + " SET deleted = 1, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " IN (" + placeholders + ")";
             List<Object> args = new ArrayList<>();
             args.add(LocalDateTime.now()); // updateTimeAssignment 的 ? 占位符
             args.addAll(userIds);
             jdbcTemplate.update(sql, args.toArray());
         } else {
             // 物理删除
-            String sql = "DELETE FROM " + userTable + " WHERE id IN (" + placeholders + ")";
+            String sql = "DELETE FROM " + userTable + " WHERE " + userIdColumn + " IN (" + placeholders + ")";
             jdbcTemplate.update(sql, userIds.toArray());
         }
         log.info("批量删除用户：{} 个", userIds.size());
@@ -569,6 +647,7 @@ public class UserAdminPersistenceService {
             return;
         }
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         
         // 获取实际的身份列名
         String identityCol = identityColumn(userTable);
@@ -583,9 +662,9 @@ public class UserAdminPersistenceService {
             newIdentities.add("collector");
         }
         
-        String identitiesStr = String.join(",", newIdentities);
+        String identitiesStr = serializeIdentitiesValue(userTable, newIdentities);
         String placeholders = userIds.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
-        String sql = "UPDATE " + userTable + " SET " + identityCol + " = ?, " + updateTimeAssignment(userTable) + " WHERE id IN (" + placeholders + ")";
+        String sql = "UPDATE " + userTable + " SET " + identityCol + " = ?, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " IN (" + placeholders + ")";
         
         List<Object> args = new ArrayList<>();
         args.add(identitiesStr);
@@ -607,6 +686,9 @@ public class UserAdminPersistenceService {
         syncArtworkArtists();
 
         String artistTable = artistTable();
+        if (schemaInspector.getColumns(artistTable).isEmpty()) {
+            return listArtistsByUserFallback(page, size, status, keyword, phone, userId, startDate, endDate, sortField, sortOrder, categoryId);
+        }
         // 艺术家列表需要关联 user_account 表（非 users 表），因为 artist_profile 的 user_id 对应的是 user_account.id
         String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
         String artistStatusColumn = artistStatusColumn(artistTable);
@@ -720,7 +802,7 @@ public class UserAdminPersistenceService {
             SELECT a.id, %s AS user_id, %s AS user_uid, %s AS real_name, %s AS id_card, %s AS artist_resume,
                    %s AS artist_works, %s AS artist_exhibits,
                    a.%s AS artist_status, %s AS review_time,
-                   %s AS reject_reason,
+                   %s AS reject_reason, %s AS artist_title, %s AS homepage_cover, %s AS artist_tags,
                    u.nickname, %s AS phone, %s AS avatar, %s AS artist_level_value,
                    a.%s AS create_time, %s AS artist_code%s
             FROM %s a
@@ -736,6 +818,9 @@ public class UserAdminPersistenceService {
                 artistStatusColumn(artistTable),
                 reviewTimeColumn(artistTable),
                 rejectReasonColumn(artistTable),
+                artistColumnOrNull("artist_title"),
+                artistColumnOrNull("homepage_cover"),
+                artistColumnOrNull("artist_tags"),
                 "u." + schemaInspector.firstExistingColumn(userTable, "mobile", "phone"),
                 "u." + schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar"),
                 schemaInspector.hasColumn(userTable, "artist_level") ? "u.artist_level" : "NULL",
@@ -1172,6 +1257,9 @@ public class UserAdminPersistenceService {
                                                 String startDate, String endDate, String sortField, String sortOrder) {
         String userTable = userTable();
         String promoterTable = promoterTable();
+        if (schemaInspector.getColumns(promoterTable).isEmpty()) {
+            return listPromotersByUserFallback(page, size, userId, status, keyword, phone, startDate, endDate, sortField, sortOrder);
+        }
         
         String statusCol = schemaInspector.firstExistingColumn(promoterTable, "status", "agreement_status", "cert_status");
         String levelCol = schemaInspector.firstExistingColumn(promoterTable, "team_level", "level", "promoter_level");
@@ -1303,6 +1391,305 @@ public class UserAdminPersistenceService {
         result.put("pendingCount", pendingCountVal == null ? 0 : pendingCountVal);
         result.put("approvedCount", approvedCountVal == null ? 0 : approvedCountVal);
         result.put("rejectedCount", rejectedCountVal == null ? 0 : rejectedCountVal);
+        return result;
+    }
+
+    private Map<String, Object> listArtistsByUserFallback(int page, int size, String status,
+                                                          String keyword, String phone, String userId,
+                                                          String startDate, String endDate,
+                                                          String sortField, String sortOrder,
+                                                          String categoryId) {
+        if (status != null && !status.isBlank() && !"all".equals(status) && !"approved".equals(status)) {
+            return emptyArtistResult(page, size);
+        }
+
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        String phoneColumn = schemaInspector.firstExistingColumn(userTable, "mobile", "phone");
+        String avatarColumn = schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar");
+        String createTimeColumn = createTimeColumn(userTable);
+        String identityColumn = identityColumn(userTable);
+        String userUidColumn = schemaInspector.firstExistingColumn(userTable, "uid", "user_uid", "user_no");
+        String artworkTable = schemaInspector.resolveTable("artist_fallback_artwork", "artwork", "artworks", "products", "product");
+
+        List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        where.append(" AND (");
+        List<String> artistMarkers = new ArrayList<>();
+        if (schemaInspector.hasColumn(userTable, "is_artist")) {
+            artistMarkers.add("u.is_artist = 1");
+        }
+        if (!"NULL".equals(identityColumn)) {
+            artistMarkers.add(identityColumn + " LIKE '%artist%'");
+        }
+        where.append(artistMarkers.isEmpty() ? "1 = 0" : String.join(" OR ", artistMarkers)).append(")");
+
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND (u.nickname LIKE ? OR CAST(u.").append(userIdColumn).append(" AS CHAR) LIKE ?");
+            args.add("%" + keyword.trim() + "%");
+            args.add("%" + keyword.trim() + "%");
+            if (schemaInspector.hasColumn(userTable, userUidColumn)) {
+                where.append(" OR u.").append(userUidColumn).append(" LIKE ?");
+                args.add("%" + keyword.trim() + "%");
+            }
+            where.append(")");
+        }
+        if (phone != null && !phone.isBlank()) {
+            where.append(" AND u.").append(phoneColumn).append(" = ?");
+            args.add(phone.trim());
+        }
+        if (userId != null && !userId.isBlank()) {
+            where.append(" AND (CAST(u.").append(userIdColumn).append(" AS CHAR) = ?");
+            args.add(userId.trim());
+            if (schemaInspector.hasColumn(userTable, userUidColumn)) {
+                where.append(" OR u.").append(userUidColumn).append(" = ?");
+                args.add(userId.trim());
+            }
+            where.append(")");
+        }
+        if (startDate != null && !startDate.isBlank()) {
+            where.append(" AND u.").append(createTimeColumn).append(" >= ?");
+            args.add(startDate.trim() + " 00:00:00");
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            where.append(" AND u.").append(createTimeColumn).append(" <= ?");
+            args.add(endDate.trim() + " 23:59:59");
+        }
+
+        String artworkJoin = "";
+        String categoryJoin = "";
+        if (!schemaInspector.getColumns(artworkTable).isEmpty() && schemaInspector.hasColumn(artworkTable, "author_id")) {
+            if (categoryId != null && !categoryId.isBlank() && schemaInspector.hasColumn("artwork", "category_name")) {
+                categoryJoin = " LEFT JOIN artwork_category cat ON art.category_name = cat.name";
+                where.append(" AND cat.id = ?");
+                try { args.add(Long.parseLong(categoryId.trim())); } catch (Exception e) { args.add(-1L); }
+            }
+            artworkJoin = " LEFT JOIN " + artworkTable + " art ON art.author_id = u." + userIdColumn;
+        }
+
+        Long total = jdbcTemplate.queryForObject(
+            "SELECT COUNT(DISTINCT u." + userIdColumn + ") FROM " + userTable + " u" + artworkJoin + categoryJoin + where,
+            Long.class,
+            args.toArray()
+        );
+
+        String uidExpr = schemaInspector.hasColumn(userTable, userUidColumn)
+            ? "u." + userUidColumn
+            : "CAST(u." + userIdColumn + " AS CHAR)";
+        String avatarExpr = schemaInspector.hasColumn(userTable, avatarColumn) ? "u." + avatarColumn : "NULL";
+        String phoneExpr = schemaInspector.hasColumn(userTable, phoneColumn) ? "u." + phoneColumn : "NULL";
+        String artworkCountExpr = !schemaInspector.getColumns(artworkTable).isEmpty() && schemaInspector.hasColumn(artworkTable, "author_id")
+            ? "COUNT(art.id)"
+            : "0";
+        String createExpr = "COALESCE(u." + createTimeColumn + ", u.create_time)";
+        String orderBy = " ORDER BY " + ("create_time".equals(sortField) ? createExpr : artworkCountExpr) + ("asc".equalsIgnoreCase(sortOrder) ? " ASC" : " DESC")
+            + ", u." + userIdColumn + " DESC";
+
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+            SELECT u.%s AS id,
+                   CAST(u.%s AS CHAR) AS user_id,
+                   %s AS user_uid,
+                   u.nickname AS real_name,
+                   NULL AS id_card,
+                   NULL AS artist_resume,
+                   NULL AS artist_works,
+                   NULL AS artist_exhibits,
+                   1 AS artist_status,
+                   NULL AS review_time,
+                   NULL AS reject_reason,
+                   u.nickname,
+                   %s AS phone,
+                   %s AS avatar,
+                   NULL AS artist_level_value,
+                   %s AS create_time,
+                   NULL AS artist_code,
+                   %s AS artwork_count
+            FROM %s u
+            %s
+            %s
+            GROUP BY u.%s, %s, u.nickname, %s, %s, %s
+            %s
+            """.formatted(
+                userIdColumn,
+                userIdColumn,
+                uidExpr,
+                phoneExpr,
+                avatarExpr,
+                createExpr,
+                artworkCountExpr,
+                userTable,
+                artworkJoin,
+                categoryJoin + where,
+                userIdColumn,
+                uidExpr,
+                phoneExpr,
+                avatarExpr,
+                createExpr,
+                orderBy + " LIMIT ?, ?"
+            ),
+            queryArgs.toArray()
+        );
+
+        List<Map<String, Object>> list = rows.stream().map(this::mapArtistRow).collect(Collectors.toList());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", list);
+        result.put("total", total == null ? 0 : total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("pendingCount", 0);
+        result.put("approvedCount", total == null ? 0 : total);
+        result.put("rejectedCount", 0);
+        result.put("hiddenCount", 0);
+        return result;
+    }
+
+    private Map<String, Object> listPromotersByUserFallback(int page, int size, String userId, String status,
+                                                            String keyword, String phone,
+                                                            String startDate, String endDate,
+                                                            String sortField, String sortOrder) {
+        if (status != null && !status.isBlank() && !"all".equals(status) && !"approved".equals(status)) {
+            return emptyPromoterResult(page, size);
+        }
+
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        String phoneColumn = schemaInspector.firstExistingColumn(userTable, "mobile", "phone");
+        String avatarColumn = schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar");
+        String createTimeColumn = createTimeColumn(userTable);
+        String identityColumn = identityColumn(userTable);
+        String userUidColumn = schemaInspector.firstExistingColumn(userTable, "uid", "user_uid", "user_no");
+
+        List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        where.append(" AND (");
+        List<String> promoterMarkers = new ArrayList<>();
+        if (schemaInspector.hasColumn(userTable, "is_promoter")) {
+            promoterMarkers.add("u.is_promoter = 1");
+        }
+        if (!"NULL".equals(identityColumn)) {
+            promoterMarkers.add(identityColumn + " LIKE '%promoter%'");
+        }
+        where.append(promoterMarkers.isEmpty() ? "1 = 0" : String.join(" OR ", promoterMarkers)).append(")");
+
+        if (userId != null && !userId.isBlank()) {
+            where.append(" AND CAST(u.").append(userIdColumn).append(" AS CHAR) = ?");
+            args.add(userId.trim());
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND u.nickname LIKE ?");
+            args.add("%" + keyword.trim() + "%");
+        }
+        if (phone != null && !phone.isBlank()) {
+            where.append(" AND u.").append(phoneColumn).append(" = ?");
+            args.add(phone.trim());
+        }
+        if (startDate != null && !startDate.isBlank()) {
+            where.append(" AND u.").append(createTimeColumn).append(" >= ?");
+            args.add(startDate.trim() + " 00:00:00");
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            where.append(" AND u.").append(createTimeColumn).append(" <= ?");
+            args.add(endDate.trim() + " 23:59:59");
+        }
+
+        Long total = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + userTable + " u" + where,
+            Long.class,
+            args.toArray()
+        );
+
+        String uidExpr = schemaInspector.hasColumn(userTable, userUidColumn)
+            ? "u." + userUidColumn
+            : "CAST(u." + userIdColumn + " AS CHAR)";
+        String phoneExpr = schemaInspector.hasColumn(userTable, phoneColumn) ? "u." + phoneColumn : "NULL";
+        String avatarExpr = schemaInspector.hasColumn(userTable, avatarColumn) ? "u." + avatarColumn : "NULL";
+        String promoterLevelExpr = schemaInspector.hasColumn(userTable, "promoter_level") ? "u.promoter_level" : "NULL";
+        String totalCommissionExpr = schemaInspector.hasColumn(userTable, "total_commission") ? "u.total_commission" : "0";
+        String availableCommissionExpr = schemaInspector.hasColumn(userTable, "available_commission") ? "u.available_commission" : "0";
+        String orderBy = " ORDER BY " + ("sign_time".equals(sortField) ? "u." + createTimeColumn : "u." + userIdColumn)
+            + ("asc".equalsIgnoreCase(sortOrder) ? " ASC" : " DESC");
+
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add((page - 1) * size);
+        queryArgs.add(size);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+            SELECT u.%s AS id,
+                   CAST(u.%s AS CHAR) AS user_id,
+                   %s AS uid_value,
+                   1 AS level,
+                   0 AS team_size,
+                   1 AS status,
+                   NULL AS inviter_uid,
+                   %s AS phone,
+                   %s AS avatar,
+                   NULL AS promoter_code,
+                   %s AS promoter_level_value,
+                   %s AS total_commission_value,
+                   %s AS available_commission_value,
+                   NULL AS parent_name,
+                   NULL AS parent_uid,
+                   0 AS direct_count,
+                   u.nickname,
+                   u.%s AS create_time
+            FROM %s u
+            %s
+            """.formatted(
+                userIdColumn,
+                userIdColumn,
+                uidExpr,
+                phoneExpr,
+                avatarExpr,
+                promoterLevelExpr,
+                totalCommissionExpr,
+                availableCommissionExpr,
+                createTimeColumn,
+                userTable,
+                where + orderBy + " LIMIT ?, ?"
+            ),
+            queryArgs.toArray()
+        );
+
+        List<Map<String, Object>> list = rows.stream().map(this::mapPromoterRow).collect(Collectors.toList());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", list);
+        result.put("records", list);
+        result.put("total", total == null ? 0 : total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("pendingCount", 0);
+        result.put("approvedCount", total == null ? 0 : total);
+        result.put("rejectedCount", 0);
+        return result;
+    }
+
+    private Map<String, Object> emptyArtistResult(int page, int size) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", List.of());
+        result.put("total", 0);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("pendingCount", 0);
+        result.put("approvedCount", 0);
+        result.put("rejectedCount", 0);
+        result.put("hiddenCount", 0);
+        return result;
+    }
+
+    private Map<String, Object> emptyPromoterResult(int page, int size) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", List.of());
+        result.put("records", List.of());
+        result.put("total", 0);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("pendingCount", 0);
+        result.put("approvedCount", 0);
+        result.put("rejectedCount", 0);
         return result;
     }
 
@@ -1872,14 +2259,14 @@ public class UserAdminPersistenceService {
         // 处理 user_id 可能是字符串 uid 或数字 id 的情况
         Object userIdValue = row.get("user_id");
         String userIdStr = userIdValue != null ? userIdValue.toString() : "0";
-        String artistCode = String.valueOf(row.get("artist_code"));
+        String userUid = Objects.toString(row.get("user_uid"), "").trim();
+        String displayId = !userUid.isBlank() ? userUid : userIdStr;
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", toLong(row.get("id")));
-        // 返回字符串形式的 uid
+        // userId 保持用户数字ID，uid/displayId 优先展示用户UID
         item.put("userId", userIdStr);
-        item.put("uid", userIdStr);
-        // 显示 user_uid（用户UID）
-        item.put("displayId", userIdStr);
+        item.put("uid", displayId);
+        item.put("displayId", displayId);
         item.put("nickname", row.get("nickname"));
         item.put("phone", row.get("phone"));
         // 支持 avatar 或 avatar_url 列名
@@ -1891,6 +2278,9 @@ public class UserAdminPersistenceService {
         item.put("badge", normalizeBadge(row.get("artist_level_value")));
         item.put("resume", row.get("artist_resume"));
         item.put("bio", row.get("artist_resume"));
+        item.put("artistTitle", row.get("artist_title"));
+        item.put("homepageCover", row.get("homepage_cover"));
+        item.put("artistTags", normalizeTagList(row.get("artist_tags")));
         item.put("images", normalizeAttachmentField(row.get("artist_works")));
         item.put("artworks", normalizeAttachmentField(row.get("artist_works")));
         item.put("exhibits", normalizeAttachmentField(row.get("artist_exhibits")));
@@ -2169,7 +2559,9 @@ public class UserAdminPersistenceService {
         if (userId == null || userId <= 0) {
             return false;
         }
-        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + userTable() + " WHERE id = ?", Long.class, userId);
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + userTable + " WHERE " + userIdColumn + " = ?", Long.class, userId);
         return count != null && count > 0;
     }
 
@@ -2254,10 +2646,11 @@ public class UserAdminPersistenceService {
             return;
         }
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         String avatarColumn = avatarColumn(userTable);
         if (schemaInspector.hasColumn(userTable, avatarColumn)) {
             jdbcTemplate.update(
-                "UPDATE " + userTable + " SET " + avatarColumn + " = ?, " + updateTimeAssignment(userTable) + " WHERE id = ?",
+                "UPDATE " + userTable + " SET " + avatarColumn + " = ?, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " = ?",
                 avatar,
                 LocalDateTime.now(),
                 userId
@@ -2267,12 +2660,13 @@ public class UserAdminPersistenceService {
 
     public Long findUserIdByPhone(String phone) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         String phoneCol = schemaInspector.firstExistingColumn(userTable, "phone", "mobile");
         if (phoneCol == null) {
             return null;
         }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT id FROM " + userTable + " WHERE " + phoneCol + " = ? LIMIT 1", 
+            "SELECT " + userIdColumn + " AS id FROM " + userTable + " WHERE " + phoneCol + " = ? LIMIT 1", 
             phone
         );
         return rows.isEmpty() ? null : toLong(rows.get(0).get("id"));
@@ -2287,15 +2681,21 @@ public class UserAdminPersistenceService {
     }
 
     private Map<String, Object> findUserRow(Long userId) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT id FROM " + userTable() + " WHERE id = ? LIMIT 1", userId);
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "SELECT " + userIdColumn + " AS id FROM " + userTable + " WHERE " + userIdColumn + " = ? LIMIT 1",
+            userId
+        );
         return rows.isEmpty() ? null : rows.get(0);
     }
 
     public void setArtistBadge(Long userId, String badge) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (schemaInspector.hasColumn(userTable, "artist_level")) {
             jdbcTemplate.update(
-                "UPDATE " + userTable + " SET artist_level = ?, " + updateTimeAssignment(userTable) + " WHERE id = ?",
+                "UPDATE " + userTable + " SET artist_level = ?, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " = ?",
                 badge,
                 LocalDateTime.now(),
                 userId
@@ -2305,9 +2705,10 @@ public class UserAdminPersistenceService {
 
     private void setPromoterLevel(Long userId, int level) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (schemaInspector.hasColumn(userTable, "promoter_level")) {
             jdbcTemplate.update(
-                "UPDATE " + userTable + " SET promoter_level = ?, " + updateTimeAssignment(userTable) + " WHERE id = ?",
+                "UPDATE " + userTable + " SET promoter_level = ?, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " = ?",
                 "level_" + level,
                 LocalDateTime.now(),
                 userId
@@ -2317,8 +2718,9 @@ public class UserAdminPersistenceService {
 
     private void appendIdentity(Long userId, String identity) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         Map<String, Object> row = jdbcTemplate.queryForMap(
-            "SELECT " + identityColumn(userTable) + " AS identities_value FROM " + userTable + " WHERE id = ?",
+            "SELECT " + identityColumn(userTable) + " AS identities_value FROM " + userTable + " WHERE " + userIdColumn + " = ?",
             userId
         );
         List<String> identities = normalizeIdentities(row.get("identities_value"));
@@ -2331,8 +2733,9 @@ public class UserAdminPersistenceService {
 
     private void removeIdentity(Long userId, String identity) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         Map<String, Object> row = jdbcTemplate.queryForMap(
-            "SELECT " + identityColumn(userTable) + " AS identities_value FROM " + userTable + " WHERE id = ?",
+            "SELECT " + identityColumn(userTable) + " AS identities_value FROM " + userTable + " WHERE " + userIdColumn + " = ?",
             userId
         );
         List<String> identities = new ArrayList<>(normalizeIdentities(row.get("identities_value")));
@@ -2345,12 +2748,13 @@ public class UserAdminPersistenceService {
 
     private void writeIdentities(Long userId, List<String> identities) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("UPDATE " + userTable + " SET ");
         List<String> assignments = new ArrayList<>();
         if (schemaInspector.hasColumn(userTable, "identities")) {
             assignments.add("identities = ?");
-            args.add(String.join(",", identities));
+            args.add(serializeIdentitiesValue(userTable, identities));
         }
         if (schemaInspector.hasColumn(userTable, "identity_json")) {
             assignments.add("identity_json = ?");
@@ -2362,13 +2766,16 @@ public class UserAdminPersistenceService {
         }
         assignments.add(updateTimeAssignment(userTable));
         args.add(LocalDateTime.now());
-        sql.append(String.join(", ", assignments)).append(" WHERE id = ?");
+        sql.append(String.join(", ", assignments)).append(" WHERE ").append(userIdColumn).append(" = ?");
         args.add(userId);
         jdbcTemplate.update(sql.toString(), args.toArray());
     }
 
     private void syncPromoterIdentity(Long userId, List<String> identities) {
         String promoterTable = promoterTable();
+        if (promoterTable == null || schemaInspector.getColumns(promoterTable).isEmpty() || !schemaInspector.hasColumn(promoterTable, "user_id")) {
+            return;
+        }
         boolean hasPromoter = identities.contains("promoter");
         Integer existing = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM " + promoterTable + " WHERE user_id = ?",
@@ -2472,6 +2879,13 @@ public class UserAdminPersistenceService {
             .collect(Collectors.joining(",", "[", "]"));
     }
 
+    private String serializeIdentitiesValue(String userTable, List<String> identities) {
+        if ("sys_user".equals(userTable)) {
+            return toIdentityJson(identities);
+        }
+        return String.join(",", identities);
+    }
+
     private String primaryIdentity(List<String> identities) {
         if (identities.contains("artist")) {
             return "artist";
@@ -2488,6 +2902,33 @@ public class UserAdminPersistenceService {
     private String normalizeBadge(Object badgeValue) {
         String badge = Objects.toString(badgeValue, "").trim();
         return badge.isEmpty() ? "" : badge;
+    }
+
+    private List<String> normalizeTagList(Object rawValue) {
+        String raw = Objects.toString(rawValue, "").trim();
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+        String cleaned = raw.replace("[", "").replace("]", "").replace("\"", "");
+        return Arrays.stream(cleaned.split("[,，|\\n]"))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .collect(Collectors.toList());
+    }
+
+    private String normalizeTagPayload(Object rawValue) {
+        List<String> tags;
+        if (rawValue instanceof Collection<?> collection) {
+            tags = collection.stream()
+                .map(item -> Objects.toString(item, "").trim())
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        } else {
+            tags = normalizeTagList(rawValue);
+        }
+        return tags.isEmpty() ? "" : String.join(",", tags);
     }
 
     /**
@@ -2521,13 +2962,14 @@ public class UserAdminPersistenceService {
     private String getUserUidById(Long userId) {
         if (userId == null) return null;
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (schemaInspector.hasColumn(userTable, "user_uid")) {
-            return jdbcTemplate.queryForObject("SELECT user_uid FROM " + userTable + " WHERE id = ?", String.class, userId);
+            return jdbcTemplate.queryForObject("SELECT user_uid FROM " + userTable + " WHERE " + userIdColumn + " = ?", String.class, userId);
         } else if (schemaInspector.hasColumn(userTable, "uid")) {
-            return jdbcTemplate.queryForObject("SELECT uid FROM " + userTable + " WHERE id = ?", String.class, userId);
+            return jdbcTemplate.queryForObject("SELECT uid FROM " + userTable + " WHERE " + userIdColumn + " = ?", String.class, userId);
         } else {
             // 如果没有uid字段，使用旧式user_no
-            return jdbcTemplate.queryForObject("SELECT user_no FROM " + userTable + " WHERE id = ?", String.class, userId);
+            return jdbcTemplate.queryForObject("SELECT user_no FROM " + userTable + " WHERE " + userIdColumn + " = ?", String.class, userId);
         }
     }
 
@@ -2541,11 +2983,12 @@ public class UserAdminPersistenceService {
             return null;
         }
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         try {
             // 尝试 uid 列
             if (schemaInspector.hasColumn(userTable, "uid")) {
                 List<Long> results = jdbcTemplate.queryForList(
-                    "SELECT id FROM " + userTable + " WHERE uid = ?", Long.class, uid);
+                    "SELECT " + userIdColumn + " FROM " + userTable + " WHERE uid = ?", Long.class, uid);
                 if (!results.isEmpty()) {
                     return results.get(0);
                 }
@@ -2553,7 +2996,7 @@ public class UserAdminPersistenceService {
             // 尝试 user_uid 列
             if (schemaInspector.hasColumn(userTable, "user_uid")) {
                 List<Long> results = jdbcTemplate.queryForList(
-                    "SELECT id FROM " + userTable + " WHERE user_uid = ?", Long.class, uid);
+                    "SELECT " + userIdColumn + " FROM " + userTable + " WHERE user_uid = ?", Long.class, uid);
                 if (!results.isEmpty()) {
                     return results.get(0);
                 }
@@ -2561,7 +3004,7 @@ public class UserAdminPersistenceService {
             // 尝试 user_no 列
             if (schemaInspector.hasColumn(userTable, "user_no")) {
                 List<Long> results = jdbcTemplate.queryForList(
-                    "SELECT id FROM " + userTable + " WHERE user_no = ?", Long.class, uid);
+                    "SELECT " + userIdColumn + " FROM " + userTable + " WHERE user_no = ?", Long.class, uid);
                 if (!results.isEmpty()) {
                     return results.get(0);
                 }
@@ -2623,6 +3066,15 @@ public class UserAdminPersistenceService {
         return raw.replace("[", "").replace("]", "").replace("\"", "");
     }
 
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     /**
      * 获取用户表名
      * 优先使用 users 表（shiyiju-user 服务使用的表，有正确的 uid），
@@ -2638,15 +3090,22 @@ public class UserAdminPersistenceService {
         if (schemaInspector.hasColumn("users", "uid")) {
             return "users";
         }
-        return schemaInspector.resolveTable("user", "user_account", "users");
+        if (schemaInspector.hasColumn("sys_user", "uid")) {
+            return "sys_user";
+        }
+        return schemaInspector.resolveTable("user", "user_account", "users", "sys_user");
     }
 
     private String artistTable() {
-        return schemaInspector.resolveTable("artist", "artist_profile", "artist_certifications", "artist_certification");
+        return schemaInspector.resolveTable("artist_profile", "artist", "artist_certifications", "artist_certification");
     }
 
     private String promoterTable() {
         return schemaInspector.resolveTable("promoter", "distributor_profile", "promoter_record");
+    }
+
+    private String userPrimaryKeyColumn(String tableName) {
+        return schemaInspector.firstExistingColumn(tableName, "id", "user_id");
     }
 
     private String commissionTable() {
@@ -2858,12 +3317,13 @@ public class UserAdminPersistenceService {
     @Transactional
     public void deleteUser(Long userId) {
         String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         // 删除用户（逻辑删除）
         if (schemaInspector.hasColumn(userTable, "deleted")) {
-            jdbcTemplate.update("UPDATE " + userTable + " SET deleted = 1, " + updateTimeAssignment(userTable) + " WHERE id = ?",
+            jdbcTemplate.update("UPDATE " + userTable + " SET deleted = 1, " + updateTimeAssignment(userTable) + " WHERE " + userIdColumn + " = ?",
                 LocalDateTime.now(), userId);
         } else {
-            jdbcTemplate.update("DELETE FROM " + userTable + " WHERE id = ?", userId);
+            jdbcTemplate.update("DELETE FROM " + userTable + " WHERE " + userIdColumn + " = ?", userId);
         }
     }
 

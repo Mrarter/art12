@@ -75,6 +75,29 @@ public class ArtistIdentityAdminController {
         return Result.success(identity);
     }
 
+    @PostMapping("/save")
+    public Result<Void> saveIdentity(@RequestBody ArtistIdentity identity) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ArtistIdentity> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(ArtistIdentity::getArtistId, identity.getArtistId());
+        ArtistIdentity existing = artistIdentityMapper.selectOne(wrapper);
+        if (existing != null) {
+            identity.setId(existing.getId());
+            identity.setAuditStatus(existing.getAuditStatus());
+            identity.setVerified(existing.getVerified());
+            identity.setCreatedAt(existing.getCreatedAt());
+            identity.setUpdatedAt(LocalDateTime.now());
+            artistIdentityMapper.updateById(identity);
+        } else {
+            identity.setVerified(0);
+            identity.setAuditStatus("PENDING");
+            identity.setCreatedAt(LocalDateTime.now());
+            identity.setUpdatedAt(LocalDateTime.now());
+            artistIdentityMapper.insert(identity);
+        }
+        return Result.success();
+    }
+
     @PostMapping("/audit")
     public Result<Void> audit(@RequestBody Map<String, Object> params) {
         Long artistId = Long.valueOf(params.get("artistId").toString());

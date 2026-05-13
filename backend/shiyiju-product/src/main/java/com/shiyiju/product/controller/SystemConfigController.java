@@ -160,6 +160,10 @@ public class SystemConfigController {
         result.put("masterBadgeRate", priceGrowthConfig.getMasterBadgeRate());
         result.put("viewThreshold", priceGrowthConfig.getViewThreshold());
         result.put("viewRate", priceGrowthConfig.getViewRate());
+        result.put("viewAutoGrowthEnabled", priceGrowthConfig.getViewAutoGrowthEnabled());
+        result.put("dailyViewGrowth", priceGrowthConfig.getDailyViewGrowth());
+        result.put("weeklyViewGrowth", priceGrowthConfig.getWeeklyViewGrowth());
+        result.put("monthlyViewGrowth", priceGrowthConfig.getMonthlyViewGrowth());
         result.put("favoriteThreshold", priceGrowthConfig.getFavoriteThreshold());
         result.put("favoriteRate", priceGrowthConfig.getFavoriteRate());
         result.put("saleRate", priceGrowthConfig.getSaleRate());
@@ -204,6 +208,18 @@ public class SystemConfigController {
             }
             if (config.containsKey("viewRate")) {
                 priceGrowthConfig.setViewRate(new java.math.BigDecimal(String.valueOf(config.get("viewRate"))));
+            }
+            if (config.containsKey("viewAutoGrowthEnabled")) {
+                priceGrowthConfig.setViewAutoGrowthEnabled(Boolean.parseBoolean(String.valueOf(config.get("viewAutoGrowthEnabled"))));
+            }
+            if (config.containsKey("dailyViewGrowth")) {
+                priceGrowthConfig.setDailyViewGrowth(Math.max(((Number) config.get("dailyViewGrowth")).intValue(), 0));
+            }
+            if (config.containsKey("weeklyViewGrowth")) {
+                priceGrowthConfig.setWeeklyViewGrowth(Math.max(((Number) config.get("weeklyViewGrowth")).intValue(), 0));
+            }
+            if (config.containsKey("monthlyViewGrowth")) {
+                priceGrowthConfig.setMonthlyViewGrowth(Math.max(((Number) config.get("monthlyViewGrowth")).intValue(), 0));
             }
             if (config.containsKey("favoriteThreshold")) {
                 priceGrowthConfig.setFavoriteThreshold(((Number) config.get("favoriteThreshold")).intValue());

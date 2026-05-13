@@ -47,6 +47,7 @@ public class UserService {
     private final ArtistCertificationMapper artistCertMapper;
     private final ArtistProfileMapper artistProfileMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final JdbcTemplate jdbcTemplate;
     
     @org.springframework.beans.factory.annotation.Value("${wechat.appid:}")
     private String wechatAppId;
@@ -107,8 +108,10 @@ public class UserService {
         vo.setToken(token);
         vo.setIsNewUser(isNewUser);
         vo.setUserId(user.getId());
+        vo.setUid(user.getUid());
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
+        vo.setPhone(user.getPhone());
         vo.setIdentities(user.getIdentities());
         vo.setOpenId(openid);
 
@@ -461,41 +464,10 @@ public class UserService {
      * 获取艺术家主页信息
      */
     public Map<String, Object> getArtistHomepage(Long artistId) {
-        User artist = userMapper.selectById(artistId);
-        if (artist == null) {
+        Map<String, Object> data = buildArtistPublicData(artistId);
+        if (data == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("userId", artist.getId());
-        data.put("nickname", artist.getNickname());
-        data.put("avatar", artist.getAvatar());
-        data.put("bio", artist.getBio());
-        data.put("region", artist.getRegion());
-        
-        // 身份
-        List<String> identityList = Arrays.asList(artist.getIdentities().split(","));
-        data.put("identities", identityList);
-        data.put("isArtist", identityList.contains(UserConstant.IDENTITY_ARTIST));
-        
-        data.put("followerCount", artist.getFollowerCount());
-        data.put("followingCount", artist.getFollowingCount());
-        
-        // 获取艺术家认证信息
-        ArtistCertification cert = artistCertMapper.selectOne(
-                new LambdaQueryWrapper<ArtistCertification>()
-                        .eq(ArtistCertification::getUserId, artistId)
-                        .eq(ArtistCertification::getStatus, UserConstant.ARTIST_CERT_APPROVED)
-        );
-        if (cert != null) {
-            data.put("resume", cert.getResume());
-            data.put("artworks", cert.getArtworks() != null ? 
-                    Arrays.asList(cert.getArtworks().split(",")) : List.of());
-            data.put("artistStatus", "已认证");
-        } else {
-            data.put("artistStatus", "未认证");
-        }
-        
         return data;
     }
 
@@ -504,63 +476,303 @@ public class UserService {
      * 返回完整的艺术家信息供作品服务使用
      */
     public Map<String, Object> getArtistInfo(Long artistId) {
+        return buildArtistPublicData(artistId);
+    }
+
+    private Map<String, Object> buildArtistPublicData(Long artistId) {
         User artist = userMapper.selectById(artistId);
         if (artist == null) {
             return null;
         }
 
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> profile = loadArtistProfile(artistId);
+        Map<String, Object> account = loadArtistAccount(artistId, firstNonBlank(stringValue(profile.get("userUid")), artist.getUid()));
+        List<String> identityList = splitToList(firstNonBlank(stringValue(account.get("identities")), artist.getIdentities()));
+        List<Map<String, Object>> works = loadArtistWorks(artistId, 6);
+        int favoriteCount = works.stream()
+            .map(item -> item.get("favoriteCount"))
+            .filter(Number.class::isInstance)
+            .map(Number.class::cast)
+            .mapToInt(Number::intValue)
+            .sum();
+
+        String profileResume = stringValue(profile.get("resume"));
+        String profileBio = stringValue(profile.get("bio"));
+        boolean profileApproved = toInt(profile.get("status"), 0) == UserConstant.ARTIST_CERT_APPROVED;
+        boolean isArtist = profileApproved || identityList.contains(UserConstant.IDENTITY_ARTIST);
+        String nickname = firstNonBlank(stringValue(account.get("nickname")), stringValue(profile.get("realName")), artist.getNickname(), "艺术家");
+        String avatar = firstNonBlank(stringValue(account.get("avatar")), artist.getAvatar(), "/static/images/artist-avatar.png");
+        String phone = firstNonBlank(stringValue(account.get("phone")), artist.getPhone());
+        String intro = firstNonBlank(profileBio, profileResume, artist.getBio(), "暂未补充艺术家介绍");
+        String artistTitle = firstNonBlank(stringValue(profile.get("artistTitle")), stringValue(profile.get("artistLevel")), isArtist ? "认证艺术家" : "");
+        List<String> tags = mergeTags(profile.get("artistTags"), determinePublicTags(identityList, profile, works));
+        String homepageCover = firstNonBlank(stringValue(profile.get("homepageCover")), works.isEmpty() ? "" : stringValue(works.get(0).get("cover")), avatar);
+
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("userId", artist.getId());
-        data.put("uid", artist.getUid());
-        data.put("nickname", artist.getNickname());
-        data.put("realName", null); // 真实姓名需要关联认证表
-        data.put("avatar", artist.getAvatar());
-        data.put("phone", artist.getPhone());
-        data.put("bio", artist.getBio());
+        data.put("id", artist.getId());
+        data.put("uid", firstNonBlank(stringValue(account.get("uid")), artist.getUid()));
+        data.put("nickname", nickname);
+        data.put("realName", firstNonBlank(stringValue(profile.get("realName")), nickname));
+        data.put("avatar", avatar);
+        data.put("phone", phone);
+        data.put("bio", intro);
+        data.put("resume", profileResume);
         data.put("region", artist.getRegion());
-
-        // 身份信息
-        List<String> identityList = artist.getIdentities() != null ?
-                Arrays.asList(artist.getIdentities().split(",")) : List.of();
         data.put("identities", identityList);
-        data.put("isArtist", identityList.contains(UserConstant.IDENTITY_ARTIST));
-
-        // 推断艺术家身份类型
-        String identityType = "artist";
-        if (identityList.contains("collector")) {
-            identityType = "collector";
-        } else if (identityList.contains("gallery")) {
-            identityType = "gallery";
-        }
-        data.put("identityType", identityType);
-
+        data.put("isArtist", isArtist);
+        data.put("identityType", isArtist ? "artist" : "collector");
+        data.put("artistTitle", artistTitle);
+        data.put("title", artistTitle);
+        data.put("artistTags", tags);
+        data.put("tags", tags);
+        data.put("homepageCover", homepageCover);
+        data.put("cover", homepageCover);
         data.put("followerCount", artist.getFollowerCount() != null ? artist.getFollowerCount() : 0);
-        data.put("artworkCount", 0); // TODO: 从作品服务获取
+        data.put("followingCount", artist.getFollowingCount() != null ? artist.getFollowingCount() : 0);
+        data.put("collectCount", favoriteCount);
+        data.put("favoriteCount", favoriteCount);
+        data.put("fansCount", artist.getFollowerCount() != null ? artist.getFollowerCount() : 0);
+        data.put("artworkCount", works.size());
+        data.put("workCount", works.size());
+        data.put("works", works);
+        data.put("artworks", works);
+        data.put("quote", "");
 
-        // 获取艺术家认证信息
-        ArtistCertification cert = artistCertMapper.selectOne(
+        ArtistCertification cert = null;
+        if (tableExists("artist_certifications")) {
+            cert = artistCertMapper.selectOne(
                 new LambdaQueryWrapper<ArtistCertification>()
-                        .eq(ArtistCertification::getUserId, artistId)
-                        .eq(ArtistCertification::getStatus, UserConstant.ARTIST_CERT_APPROVED)
-        );
-
+                    .eq(ArtistCertification::getUserId, artistId)
+                    .eq(ArtistCertification::getStatus, UserConstant.ARTIST_CERT_APPROVED)
+            );
+        }
         if (cert != null) {
             data.put("certStatus", cert.getStatus());
-            data.put("realName", cert.getRealName());
-            data.put("resume", cert.getResume());
-            data.put("artworks", cert.getArtworks() != null ?
-                    Arrays.asList(cert.getArtworks().split(",")).stream().filter(s -> !s.isEmpty()).toList() : List.of());
-            data.put("exhibits", cert.getExhibits() != null ?
-                    Arrays.asList(cert.getExhibits().split(",")).stream().filter(s -> !s.isEmpty()).toList() : List.of());
-            data.put("badge", determineBadge(cert.getRealName(), identityList));
-            // 添加艺术家认证编号
             data.put("artistCode", cert.getArtistCode());
+            data.put("certified", true);
+            data.put("badge", determineBadge(firstNonBlank(cert.getRealName(), artist.getNickname()), identityList));
         } else {
-            data.put("certStatus", null);
-            data.put("badge", determineBadge(artist.getNickname(), identityList));
+            boolean certified = profileApproved
+                || identityList.contains(UserConstant.IDENTITY_ARTIST)
+                || tags.contains("平台认证");
+            data.put("certStatus", certified ? UserConstant.ARTIST_CERT_APPROVED : null);
+            data.put("artistCode", profile.get("artistCode"));
+            data.put("certified", certified);
+            data.put("badge", firstNonBlank(artistTitle, determineBadge(artist.getNickname(), identityList)));
         }
 
         return data;
+    }
+
+    private Map<String, Object> loadArtistProfile(Long artistId) {
+        if (!tableExists("artist_profile")) {
+            return Map.of();
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+                SELECT user_id,
+                       COALESCE(real_name, artist_name) AS real_name,
+                       COALESCE(bio, resume) AS bio,
+                       resume,
+                       user_uid,
+                       status,
+                       artist_level,
+                       artist_code,
+                       artist_title,
+                       homepage_cover,
+                       artist_tags
+                FROM artist_profile
+                WHERE user_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+            artistId
+        );
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> row = rows.get(0);
+        Map<String, Object> profile = new LinkedHashMap<>();
+        profile.put("realName", row.get("real_name"));
+        profile.put("bio", row.get("bio"));
+        profile.put("resume", row.get("resume"));
+        profile.put("userUid", row.get("user_uid"));
+        profile.put("status", row.get("status"));
+        profile.put("artistLevel", row.get("artist_level"));
+        profile.put("artistCode", row.get("artist_code"));
+        profile.put("artistTitle", row.get("artist_title"));
+        profile.put("homepageCover", row.get("homepage_cover"));
+        profile.put("artistTags", splitToList(stringValue(row.get("artist_tags"))));
+        return profile;
+    }
+
+    private Map<String, Object> loadArtistAccount(Long artistId, String userUid) {
+        String accountTable = firstExistingTable("sys_user", "user_account");
+        if (accountTable == null) {
+            return Map.of();
+        }
+
+        String idColumn = Objects.requireNonNullElse(firstExistingColumn(accountTable, "user_id", "id"), "id");
+        String uidColumn = firstExistingColumn(accountTable, "user_uid", "uid");
+        String nicknameColumn = firstExistingColumn(accountTable, "nickname", "name");
+        String avatarColumn = firstExistingColumn(accountTable, "avatar", "avatar_url");
+        String phoneColumn = firstExistingColumn(accountTable, "phone", "mobile");
+        String identitiesColumn = firstExistingColumn(accountTable, "identities", "identity_json", "identity");
+
+        StringBuilder sql = new StringBuilder("SELECT ");
+        sql.append(uidColumn != null ? uidColumn : "NULL").append(" AS uid, ");
+        sql.append(nicknameColumn != null ? nicknameColumn : "NULL").append(" AS nickname, ");
+        sql.append(avatarColumn != null ? avatarColumn : "NULL").append(" AS avatar, ");
+        sql.append(phoneColumn != null ? phoneColumn : "NULL").append(" AS phone, ");
+        sql.append(identitiesColumn != null ? identitiesColumn : "NULL").append(" AS identities ");
+        sql.append("FROM ").append(accountTable).append(" WHERE ").append(idColumn).append(" = ?");
+
+        List<Object> args = new ArrayList<>();
+        args.add(artistId);
+        if (uidColumn != null && userUid != null && !userUid.isBlank()) {
+            sql.append(" OR ").append(uidColumn).append(" = ?");
+            args.add(userUid);
+        }
+        sql.append(" ORDER BY ").append(idColumn).append(" DESC LIMIT 1");
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        return rows.isEmpty() ? Map.of() : rows.get(0);
+    }
+
+    private List<Map<String, Object>> loadArtistWorks(Long artistId, int limit) {
+        String artworkTable = firstExistingTable("artwork", "artworks");
+        if (artworkTable == null) {
+            return List.of();
+        }
+        String coverColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "cover", "cover_image", "image", "thumbnail"), "NULL");
+        String materialColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "art_type", "medium"), "NULL");
+        String favoriteColumn = firstExistingColumn(artworkTable, "favorite_count");
+        String sizeColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "size"), "NULL");
+        String yearColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "year"), "NULL");
+        String orderColumn = firstExistingColumn(artworkTable, "weight", "create_time", "id");
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            ("SELECT id, title, " + coverColumn + " AS cover, " + materialColumn + " AS material, "
+                + sizeColumn + " AS size, " + yearColumn + " AS year, price, "
+                + (favoriteColumn != null ? favoriteColumn : "0") + " AS favorite_count "
+                + "FROM " + artworkTable + " WHERE author_id = ? ORDER BY " + orderColumn + " DESC LIMIT ?"),
+            artistId,
+            limit
+        );
+        List<Map<String, Object>> works = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row.get("id"));
+            item.put("title", row.get("title"));
+            item.put("cover", row.get("cover"));
+            item.put("material", row.get("material"));
+            item.put("size", row.get("size"));
+            item.put("year", row.get("year"));
+            item.put("price", row.get("price"));
+            item.put("priceText", row.get("price") == null ? "" : "¥" + formatFen(row.get("price")));
+            item.put("favoriteCount", toInt(row.get("favorite_count"), 0));
+            works.add(item);
+        }
+        return works;
+    }
+
+    private List<String> determinePublicTags(List<String> identities, Map<String, Object> profile, List<Map<String, Object>> works) {
+        List<String> tags = new ArrayList<>();
+        if (identities.contains(UserConstant.IDENTITY_ARTIST)) {
+            tags.add("平台认证");
+        }
+        String level = stringValue(profile.get("artistLevel"));
+        if (!level.isBlank()) {
+            tags.add(level);
+        }
+        if (!works.isEmpty()) {
+            String material = stringValue(works.get(0).get("material"));
+            if (!material.isBlank()) {
+                tags.add(material);
+            }
+        }
+        return tags;
+    }
+
+    private List<String> mergeTags(Object primary, List<String> fallback) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>(splitToList(primary));
+        merged.addAll(fallback);
+        return new ArrayList<>(merged);
+    }
+
+    private List<String> splitToList(Object rawValue) {
+        String raw = stringValue(rawValue);
+        if (raw.isBlank()) {
+            return new ArrayList<>();
+        }
+        String cleaned = raw.replace("[", "").replace("]", "").replace("\"", "");
+        return Arrays.stream(cleaned.split("[,，|\\n]"))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private String firstExistingTable(String... tableNames) {
+        for (String tableName : tableNames) {
+            if (tableExists(tableName)) {
+                return tableName;
+            }
+        }
+        return null;
+    }
+
+    private boolean tableExists(String tableName) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+            Integer.class,
+            tableName
+        );
+        return count != null && count > 0;
+    }
+
+    private String firstExistingColumn(String tableName, String... columnNames) {
+        for (String columnName : columnNames) {
+            Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?",
+                Integer.class,
+                tableName,
+                columnName
+            );
+            if (count != null && count > 0) {
+                return columnName;
+            }
+        }
+        return null;
+    }
+
+    private String formatFen(Object value) {
+        long amount = value instanceof Number number ? number.longValue() : 0L;
+        return String.format("%,d", Math.round(amount / 100.0d));
+    }
+
+    private int toInt(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? fallback : Integer.parseInt(String.valueOf(value).trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     /**

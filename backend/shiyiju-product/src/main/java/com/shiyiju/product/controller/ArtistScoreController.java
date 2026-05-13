@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/artist/score")
+@RequestMapping("/artist/score")
 @RequiredArgsConstructor
 public class ArtistScoreController {
 
