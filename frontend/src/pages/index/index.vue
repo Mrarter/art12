@@ -97,7 +97,8 @@
               <view class="holder-line" v-if="getHolderName(item)">作品发布人/持有者：{{ getHolderName(item) }}</view>
               <view class="artwork-footer">
                 <view class="price-info">
-                  <text class="price-value">{{ formatPrice(item.price) }}</text>
+                  <text class="price-value">{{ formatPrice(getDisplayPrice(item)) }}</text>
+                  <text class="rise-badge" v-if="getRiseBadgeText(item)">{{ getRiseBadgeText(item) }}</text>
                   <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
                   <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
@@ -135,7 +136,8 @@
               <view class="holder-line" v-if="getHolderName(item)">作品发布人/持有者：{{ getHolderName(item) }}</view>
               <view class="artwork-footer">
                 <view class="price-info">
-                  <text class="price-value">{{ formatPrice(item.price) }}</text>
+                  <text class="price-value">{{ formatPrice(getDisplayPrice(item)) }}</text>
+                  <text class="rise-badge" v-if="getRiseBadgeText(item)">{{ getRiseBadgeText(item) }}</text>
                   <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
                   <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
                 </view>
@@ -435,6 +437,12 @@ const formatPrice = (price) => {
   return yuan.toLocaleString()
 }
 
+const getDisplayPrice = (item) => {
+  const currentPrice = Number(item.currentPrice || 0)
+  if (currentPrice > 0) return currentPrice
+  return Number(item.price || 0)
+}
+
 const getCardTitle = (item) => {
   const artist = item.artistName || item.authorName || '未知艺术家'
   const title = item.title || item.name || '未命名作品'
@@ -464,15 +472,49 @@ const getHolderName = (item) => {
 }
 
 const showRiseTip = (item) => {
-  return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
+  return !!getRiseTipText(item)
 }
 
 const getRiseTipText = (item) => {
   if (!item.tomorrowIncreaseMin && !item.tomorrowIncreaseMax) return ''
-  const min = (item.tomorrowIncreaseMin || 0) / 100
-  const max = (item.tomorrowIncreaseMax || 0) / 100
-  const fmt = (v) => Number.isInteger(v) ? v.toString() : v.toFixed(1)
-  return `预估上涨￥${fmt(min)}--￥${fmt(max)}`
+  return `预估上涨 ${formatRiseRange(item)}`
+}
+
+const getRiseBadgeText = (item) => {
+  const min = Number(item.tomorrowIncreaseMin || 0)
+  const max = Number(item.tomorrowIncreaseMax || 0)
+  if (min > 0 || max > 0) {
+    return formatRiseRange(item, true)
+  }
+
+  const rise = Number(item.priceRise || item.dailyIncreaseRate || 0)
+  if (rise > 0) {
+    return `+${(rise * 100).toFixed(rise < 0.1 ? 1 : 0)}%`
+  }
+
+  return ''
+}
+
+const formatRiseAmount = (fen) => {
+  const yuan = Number(fen || 0) / 100
+  if (yuan <= 0) return '¥0'
+  if (yuan < 1) return `¥${yuan.toFixed(2)}`
+  if (yuan < 100) {
+    const fixed = yuan.toFixed(1)
+    return `¥${fixed.endsWith('.0') ? Math.round(yuan) : fixed}`
+  }
+  return `¥${Math.round(yuan).toLocaleString()}`
+}
+
+const formatRiseRange = (item, compact = false) => {
+  const min = Number(item.tomorrowIncreaseMin || 0)
+  const max = Number(item.tomorrowIncreaseMax || 0)
+  const low = Math.min(min || max, max || min)
+  const high = Math.max(min, max)
+  if (low <= 0 && high <= 0) return ''
+  const prefix = compact ? '+' : ''
+  if (low === high) return `${prefix}${formatRiseAmount(low)}`
+  return `${prefix}${formatRiseAmount(low)}-${formatRiseAmount(high)}`
 }
 
 // 计算左右列数据
@@ -750,11 +792,13 @@ $price-down: #4CAF50;
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: $accent-orange;
+      background-color: rgba(13, 13, 13, 0.18);
+      border: 1rpx solid rgba(212, 175, 55, 0.78);
       border-radius: 8rpx;
       font-size: 22rpx;
-      color: $bg-primary;
+      color: $accent-gold;
       font-weight: 600;
+      backdrop-filter: blur(8rpx);
       
       &.hot-tag {
         top: 16rpx;
@@ -764,7 +808,6 @@ $price-down: #4CAF50;
       &.new-tag {
         top: 16rpx;
         right: 16rpx;
-        background-color: $accent-gold;
       }
     }
   }
@@ -841,6 +884,8 @@ $price-down: #4CAF50;
   .price-info {
     display: flex;
     align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8rpx;
     
     .price-value {
       font-size: 32rpx;
@@ -853,10 +898,23 @@ $price-down: #4CAF50;
         margin-right: 2rpx;
       }
     }
+
+    .rise-badge {
+      height: 28rpx;
+      padding: 0 9rpx;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999rpx;
+      border: 1rpx solid rgba(255, 107, 107, 0.28);
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.14), rgba(212, 175, 55, 0.08));
+      color: #ff9a8a;
+      font-size: 18rpx;
+      line-height: 1;
+      font-weight: 700;
+    }
     
     .price-change {
       font-size: 22rpx;
-      margin-left: 10rpx;
       
       &.up {
         color: $price-up;

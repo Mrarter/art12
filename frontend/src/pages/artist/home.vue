@@ -4,35 +4,29 @@
       <view class="nav-icon" @click="goBack">
         <image src="/static/art-icons/icon-back.svg" mode="aspectFit"></image>
       </view>
-      <view class="nav-title">{{ artist.name }}</view>
+      <view class="nav-title"></view>
       <view class="nav-icon external" @click="shareArtist">
         <image src="/static/art-icons/icon-share.svg" mode="aspectFit"></image>
       </view>
     </view>
 
     <view class="profile-hero">
-      <image class="cover-image" :src="artist.cover" mode="aspectFill"></image>
+      <image v-if="artist.cover" class="cover-image" :src="artist.cover" mode="aspectFill"></image>
       <view class="cover-shade"></view>
 
       <view class="profile-core">
         <view class="avatar-wrap">
           <image class="avatar" :src="artist.avatar" mode="aspectFill"></image>
-          <view class="avatar-cert">✓</view>
+        <view v-if="artist.certified" class="avatar-cert">✓</view>
         </view>
         <view class="identity-block">
           <view class="artist-name">{{ artist.name }}</view>
-          <view class="artist-title">{{ artist.title }}</view>
-          <view class="tag-row">
-            <view class="tag">
+          <view v-if="artist.title" class="artist-title">{{ artist.title }}</view>
+          <view v-if="displayTags.length" class="tag-row">
+            <view class="tag" v-for="tag in displayTags" :key="tag">
               <image class="tag-icon-img" src="/static/art-icons/icon-verify.svg" mode="aspectFit"></image>
-              <text>平台认证</text>
+              <text>{{ tag }}</text>
             </view>
-            <view class="tag">
-              <image class="tag-icon-img" src="/static/art-icons/icon-star.svg" mode="aspectFit"></image>
-              <text>签约艺术家</text>
-            </view>
-            <view class="tag">青年艺术家</view>
-            <view class="tag">布面油画</view>
           </view>
         </view>
       </view>
@@ -56,18 +50,18 @@
       <view class="intro-text" :class="{ expanded: introExpanded }">
         {{ artist.intro }}
       </view>
-      <view class="quote">“ 我试图用色彩记录内心的风景，让观者在画面中找到属于自己的记忆。 ”</view>
-      <view class="expand" @click="introExpanded = !introExpanded">
+      <view v-if="artist.quote" class="quote">“ {{ artist.quote }} ”</view>
+      <view v-if="artist.intro && artist.intro.length > 42" class="expand" @click="introExpanded = !introExpanded">
         {{ introExpanded ? '收起' : '展开' }} <text>{{ introExpanded ? '⌃' : '⌄' }}</text>
       </view>
     </view>
 
     <view class="section works-section">
-      <view class="section-head">
+      <view class="section-head" v-if="works.length">
         <view class="section-title">代表作品</view>
         <view class="more-link" @click="goWorks">查看全部 ›</view>
       </view>
-      <view class="work-scroll">
+      <view v-if="works.length" class="work-scroll">
         <view class="work-row">
           <view class="work-card" v-for="work in works" :key="work.id" @click="goWork(work.id)">
             <view class="work-image-wrap">
@@ -85,9 +79,10 @@
           </view>
         </view>
       </view>
+      <view v-else class="empty-block">该艺术家暂未上架作品</view>
     </view>
 
-    <view class="section circulation-section">
+    <view v-if="flowWorks.length" class="section circulation-section">
       <view class="section-title">作品流通入口</view>
       <view class="flow-list">
         <view class="flow-item" v-for="work in flowWorks" :key="work.id" @click="goWork(work.id)">
@@ -129,7 +124,9 @@
     <view class="bottom-actions">
       <button class="all-works-btn" @click="goWorks">查看全部作品</button>
       <button class="consult-btn" @click="consult">
-        <image src="/static/art-icons/icon-consultant.svg" mode="aspectFit"></image>
+        <view class="consult-btn__icon">
+          <image src="/static/art-icons/icon-consultant.svg" mode="aspectFit"></image>
+        </view>
         <text>发起收藏咨询</text>
       </button>
     </view>
@@ -139,6 +136,8 @@
 </template>
 
 <script>
+import * as userApi from '@/api/user'
+
 export default {
   data() {
     return {
@@ -151,15 +150,17 @@ export default {
         title: '',
         avatar: '',
         cover: '',
-        intro: ''
+        intro: '',
+        quote: '',
+        tags: [],
+        certified: false
       },
       works: [],
       trustItems: [
         { icon: '/static/art-icons/icon-verify.svg', title: '平台认证', desc: '严格审核' },
         { icon: '/static/art-icons/icon-certificate.svg', title: '收藏证书', desc: '权威出具' },
         { icon: '/static/art-icons/icon-circulation.svg', title: '流通记录', desc: '全程可查' },
-        { icon: '/static/art-icons/icon-platform-custody.svg', title: '保管支持', desc: '专业保管' },
-        { icon: '/static/art-icons/icon-consultant.svg', title: '顾问服务', desc: '专属顾问' }
+        { icon: '/static/art-icons/icon-platform-custody.svg', title: '保管支持', desc: '专业保管' }
       ],
       stats: [
         { label: '作品', value: '0' },
@@ -176,65 +177,90 @@ export default {
       await this.loadArtistData(artistId)
     }
     this.loading = false
+    // H5 右上角分享走浏览器能力，小程序走原生分享菜单
+    // #ifdef MP-WEIXIN
+    uni.showShareMenu({
+      withShareTicket: true,
+      menus: ['shareAppMessage', 'shareTimeline']
+    })
+    // #endif
   },
 
   computed: {
     flowWorks() {
       return this.works.slice(0, 2)
+    },
+    sharePath() {
+      return `/pages/artist/home?userId=${this.artist.id}`
+    },
+    shareTitle() {
+      return `${this.artist.name || '艺术家'}的艺术主页`
+    },
+    displayTags() {
+      const tags = Array.isArray(this.artist.tags) ? this.artist.tags.filter(Boolean) : []
+      if (tags.length) return tags
+      const fallback = []
+      if (this.artist.certified) fallback.push('平台认证')
+      if (this.artist.title) fallback.push(this.artist.title)
+      const firstWork = this.works[0]
+      if (firstWork?.material) fallback.push(firstWork.material)
+      return fallback.slice(0, 4)
     }
   },
 
   methods: {
     async loadArtistData(artistId) {
       try {
-        const res = await getArtistInfo(artistId)
-        if (res) {
-          const data = res.data || res
-          this.artist = {
-            id: data.id || data.userId || artistId,
-            name: data.nickname || data.name || data.realName || '',
-            title: data.title || data.artistTitle || '',
-            avatar: data.avatar || data.avatarUrl || '',
-            cover: data.cover || data.coverUrl || '',
-            intro: data.intro || data.bio || data.resume || ''
-          }
-          this.works = (data.works || data.artworks || []).map(w => ({
-            id: w.id,
-            title: w.title || w.name || '',
-            material: w.material || '',
-            size: w.size || '',
-            year: w.year || w.createYear || '',
-            priceText: w.priceText || (w.price ? '¥' + this.formatPrice(w.price) : ''),
-            cover: w.cover || w.coverImage || w.coverUrl || ''
-          }))
-          this.stats = [
-            { label: '作品', value: String(data.workCount || data.artworkCount || this.works.length || '0') },
-            { label: '收藏', value: String(data.collectCount || data.favoriteCount || '0') },
-            { label: '粉丝', value: String(data.fansCount || data.followerCount || '0') }
-          ]
-        }
+        const data = await userApi.getArtistInfo(artistId)
+        this.applyArtistData(data, artistId)
       } catch (e) {
-        console.error('加载艺术家数据失败，使用本地模拟数据', e)
-        this.loadFromMock()
+        console.error('加载艺术家数据失败', e)
+        this.applyArtistData({}, artistId)
       }
     },
 
-    loadFromMock() {
-      this.artist.name = '孟儒'
-      this.artist.title = '当代油画艺术家'
-      this.artist.avatar = '/static/images/artist-avatar.png'
-      this.artist.cover = ''
-      this.artist.intro = '孟儒长期关注日常光线与空间关系的变化'
-      this.works = [
-        { id: 49, title: '晨曦·归航', material: '布面油画', size: '100×80cm', year: '2024', priceText: '¥8,000', cover: '/static/images/museum-v12-work-boat.png' },
-        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥12,000', cover: '/static/images/museum-v12-work-girl.png' },
-        { id: 46, title: '静物 No.0751', material: '布面油画', size: '40×40cm', year: '2024', priceText: '¥3,200', cover: '/static/images/museum-v12-work-still.png' }
-      ]
+    applyArtistData(data = {}, artistId) {
+      const works = (data.works || data.artworks || []).map(w => ({
+        id: w.id,
+        title: w.title || w.name || '',
+        material: w.material || w.artType || w.medium || '',
+        size: w.size || '',
+        year: w.year || w.createYear || '',
+        priceText: w.priceText || (w.price ? '¥' + this.formatPrice(w.price) : ''),
+        cover: w.cover || w.coverImage || w.coverUrl || '/static/images/museum-v12-work-boat.png'
+      }))
+      const artistTags = this.normalizeTags(data.artistTags || data.tags || data.badges)
+      const intro = data.intro || data.bio || data.resume || '暂未补充艺术家介绍'
+      const cover = data.homepageCover || data.cover || data.coverUrl || works[0]?.cover || data.avatar || '/static/images/museum-v12-hero-bg.png'
+
+      this.artist = {
+        id: data.id || data.userId || artistId,
+        name: data.nickname || data.name || data.realName || '艺术家',
+        title: data.artistTitle || data.title || data.identityTypeLabel || '',
+        avatar: data.avatar || data.avatarUrl || '/static/images/artist-avatar.png',
+        cover,
+        intro,
+        quote: data.quote || '',
+        tags: artistTags,
+        certified: !!(data.certified || data.certStatus === 1 || data.isArtist || artistTags.includes('平台认证'))
+      }
+      this.works = works
+      this.followed = !!data.followed
       this.stats = [
-        { label: '作品', value: '12' },
-        { label: '收藏', value: '86' },
-        { label: '粉丝', value: '233' }
+        { label: '作品', value: String(data.workCount || data.artworkCount || works.length || 0) },
+        { label: '收藏', value: String(data.collectCount || data.favoriteCount || 0) },
+        { label: '粉丝', value: String(data.fansCount || data.followerCount || 0) }
       ]
+    },
+
+    normalizeTags(rawValue) {
+      if (Array.isArray(rawValue)) {
+        return rawValue.map(item => String(item || '').trim()).filter(Boolean)
+      }
+      if (typeof rawValue === 'string' && rawValue.trim()) {
+        return rawValue.split(/[,\n，|]/).map(item => item.trim()).filter(Boolean)
+      }
+      return []
     },
 
     formatPrice(v) {
@@ -252,18 +278,71 @@ export default {
     async followArtist() {
       try {
         if (this.followed) {
-          await unfollowArtist(this.artist.id)
+          await userApi.unfollowArtist(this.artist.id)
           this.followed = false
         } else {
-          await followArtist(this.artist.id)
+          await userApi.followArtist(this.artist.id)
           this.followed = true
         }
       } catch (e) {
         console.error('关注操作失败', e)
       }
     },
-    shareArtist() {
-      uni.showToast({ title: '分享艺术家主页', icon: 'none' })
+    async shareArtist() {
+      const shareUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/#${this.sharePath}`
+        : this.sharePath
+
+      // #ifdef H5
+      if (navigator?.share) {
+        try {
+          await navigator.share({
+            title: this.shareTitle,
+            text: `${this.artist.title || '艺术家主页'}，来看看TA的代表作品`,
+            url: shareUrl
+          })
+          return
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            return
+          }
+        }
+      }
+      if (typeof window !== 'undefined') {
+        uni.showActionSheet({
+          itemList: ['复制链接', '新窗口打开'],
+          success: ({ tapIndex }) => {
+            if (tapIndex === 0) {
+              uni.setClipboardData({
+                data: shareUrl,
+                success: () => {
+                  uni.showToast({ title: '链接已复制，可分享到微信或小红书', icon: 'none' })
+                },
+                fail: () => {
+                  uni.showToast({ title: '当前环境暂不支持复制', icon: 'none' })
+                }
+              })
+              return
+            }
+            window.open(shareUrl, '_blank', 'noopener,noreferrer')
+          },
+          fail: () => {
+            uni.showToast({ title: '当前环境暂不支持系统分享', icon: 'none' })
+          }
+        })
+        return
+      }
+      // #endif
+
+      uni.setClipboardData({
+        data: shareUrl,
+        success: () => {
+          uni.showToast({ title: '分享链接已复制', icon: 'none' })
+        },
+        fail: () => {
+          uni.showToast({ title: '当前环境暂不支持分享', icon: 'none' })
+        }
+      })
     },
     consult() { uni.showToast({ title: '已为你连接收藏顾问', icon: 'none' }) },
     goGallery() { uni.navigateTo({ url: `/pages/artist/gallery/index?id=${this.artist.id}` }) },
@@ -273,6 +352,20 @@ export default {
     goPublish() { uni.navigateTo({ url: '/pages/artist/publish' }) },
     goCart() { uni.navigateTo({ url: '/pages/cart/index' }) },
     goMine() { uni.navigateTo({ url: '/pages/user/index' }) }
+  },
+  onShareAppMessage() {
+    return {
+      title: this.shareTitle,
+      path: this.sharePath,
+      imageUrl: this.artist.cover || this.artist.avatar || ''
+    }
+  },
+  onShareTimeline() {
+    return {
+      title: this.shareTitle,
+      query: `userId=${this.artist.id}`,
+      imageUrl: this.artist.cover || this.artist.avatar || ''
+    }
   }
 }
 </script>
@@ -311,13 +404,11 @@ $gold-line: rgba(215, 165, 29, 0.65);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(5, 5, 5, 0.86);
-  backdrop-filter: blur(18rpx);
+  background: transparent;
 }
 
 .nav-title {
-  font-size: 32rpx;
-  font-weight: 800;
+  flex: 1;
 }
 
 .nav-icon {
@@ -340,6 +431,9 @@ $gold-line: rgba(215, 165, 29, 0.65);
   height: 288rpx;
   overflow: visible;
   border-radius: 10rpx;
+  background:
+    radial-gradient(circle at 72% 20%, rgba(215, 165, 29, 0.16), transparent 28%),
+    linear-gradient(135deg, rgba(8, 36, 68, 0.96), rgba(7, 20, 38, 0.98));
 }
 
 .cover-image,
@@ -572,6 +666,16 @@ $gold-line: rgba(215, 165, 29, 0.65);
 .more-link {
   color: $muted;
   font-size: 24rpx;
+}
+
+.empty-block {
+  padding: 36rpx 28rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.03);
+  color: $muted;
+  font-size: 24rpx;
+  text-align: center;
 }
 
 .work-scroll {
@@ -873,7 +977,7 @@ button::after {
 /* ===== art_profile_page_with_modern_design 1:1 rebuild ===== */
 .artist-home-page {
   min-height: 100vh;
-  padding: 0 20rpx 30rpx;
+  padding: calc(env(safe-area-inset-top) + 12rpx) 20rpx calc(170rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   color: #f7f7f7;
   background:
@@ -882,7 +986,10 @@ button::after {
 }
 
 .top-nav {
-  position: relative;
+  position: absolute;
+  top: env(safe-area-inset-top);
+  left: 20rpx;
+  right: 20rpx;
   z-index: 2;
   height: 76rpx;
   padding: 0 0;
@@ -1207,40 +1314,68 @@ button::after {
 
 .trust-row {
   margin-top: 22rpx;
-  gap: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10rpx;
 }
 
 .trust-item {
-  gap: 12rpx;
-  padding: 0 16rpx 0 0;
-  border-right-color: rgba(255, 255, 255, 0.18);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4rpx;
+  min-height: 94rpx;
+  padding: 12rpx 10rpx;
+  border-right: 0;
+  border-radius: 10rpx;
+  background: linear-gradient(135deg, rgba(28, 28, 28, 0.94), rgba(17, 17, 17, 0.96));
+}
+
+.trust-item:last-child {
+  border-right: 0;
 }
 
 .trust-icon {
-  width: 43rpx;
-  height: 43rpx;
+  width: 32rpx;
+  height: 32rpx;
 }
 
 .trust-title {
-  color: #cfcfcf;
-  font-size: 19rpx;
+  color: #e2e2e2;
+  font-size: 17rpx;
+  line-height: 1.25;
+  font-weight: 700;
 }
 
 .trust-desc {
-  color: #9a9a9a;
-  font-size: 18rpx;
+  color: #999;
+  font-size: 16rpx;
+  line-height: 1.25;
 }
 
 .bottom-actions {
-  margin-top: 30rpx;
-  gap: 18rpx;
+  position: fixed;
+  left: 20rpx;
+  right: 20rpx;
+  bottom: calc(22rpx + env(safe-area-inset-bottom));
+  z-index: 30;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  gap: 16rpx;
+  margin-top: 34rpx;
+  padding: 16rpx;
+  border-radius: 18rpx;
+  background: rgba(6, 6, 6, 0.92);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16rpx);
+  box-shadow: 0 -10rpx 30rpx rgba(0, 0, 0, 0.22);
+  align-items: stretch;
 }
 
 .all-works-btn,
 .consult-btn {
-  height: 72rpx;
-  border-radius: 8rpx;
+  height: 80rpx;
+  border-radius: 10rpx;
   font-size: 24rpx;
+  font-weight: 800;
 }
 
 .all-works-btn {
@@ -1252,11 +1387,29 @@ button::after {
 .consult-btn {
   color: #111;
   background: linear-gradient(180deg, #f6d269, #d9a935);
+  box-shadow: 0 12rpx 28rpx rgba(217, 169, 53, 0.18);
 }
 
-.consult-btn image {
-  width: 30rpx;
-  height: 30rpx;
+.consult-btn__icon {
+  width: 38rpx;
+  height: 38rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(17, 17, 17, 0.16);
+}
+
+.consult-btn__icon image {
+  width: 22rpx;
+  height: 22rpx;
+  filter: brightness(0) saturate(100%);
+}
+
+@media (max-width: 420px) {
+  .bottom-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .tabbar {

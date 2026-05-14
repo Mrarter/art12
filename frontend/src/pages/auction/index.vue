@@ -135,8 +135,7 @@ export default {
       try {
         const res = await getAuctionSessions({
           page: this.page,
-          pageSize: this.pageSize,
-          status: this.currentTab
+          pageSize: this.pageSize
         })
 
         let list = []
@@ -151,15 +150,18 @@ export default {
           }
         }
 
-        if (list.length === 0) {
-          // API 返回空数据，加载 Mock 数据
-          console.warn('API 返回空数据，使用 Mock 数据')
-          this.loadMockData(isReset)
+        const normalizedList = list
+          .map(this.normalizeSession)
+          .filter(item => item.status === this.currentTab)
+
+        if (normalizedList.length === 0) {
+          if (isReset) this.sessionList = []
+          this.noMore = true
         } else {
           if (isReset) {
-            this.sessionList = list
+            this.sessionList = normalizedList
           } else {
-            this.sessionList = [...this.sessionList, ...list]
+            this.sessionList = [...this.sessionList, ...normalizedList]
           }
 
           if (list.length < this.pageSize) {
@@ -169,33 +171,47 @@ export default {
           }
         }
       } catch (e) {
-        console.error('加载拍卖专场失败，使用Mock数据', e)
-        this.loadMockData(isReset)
+        console.error('加载拍卖专场失败', e)
+        if (isReset) this.sessionList = []
+        uni.showToast({ title: '拍卖数据加载失败', icon: 'none' })
       } finally {
         this.loading = false
       }
     },
 
-    loadMockData(isReset = false) {
-      const now = Date.now()
-      const mockData = [
-        { id: 1, name: '当代名家书画专场', description: '汇聚当代一流书画艺术家精品', coverImage: 'https://picsum.photos/300/300?random=1', startTime: new Date(now - 86400000).toISOString(), endTime: new Date(now + 86400000 * 2).toISOString(), status: 1, lotCount: 48, currentPrice: 1280000, remainSeconds: 3600 * 5 },
-        { id: 2, name: '油画精品专场', description: '国内知名油画艺术家作品精选', coverImage: 'https://picsum.photos/300/300?random=2', startTime: new Date(now + 86400000).toISOString(), endTime: new Date(now + 86400000 * 3).toISOString(), status: 0, lotCount: 36, currentPrice: 0, remainSeconds: 0 },
-        { id: 3, name: '瓷杂珍玩专场', description: '明清瓷器、文房雅玩精品', coverImage: 'https://picsum.photos/300/300?random=3', startTime: new Date(now - 86400000 * 5).toISOString(), endTime: new Date(now - 86400000).toISOString(), status: 2, lotCount: 120, currentPrice: 580000, remainSeconds: 0 },
-        { id: 4, name: '当代雕塑专场', description: '学院派雕塑艺术家作品展', coverImage: 'https://picsum.photos/300/300?random=4', startTime: new Date(now - 3600000).toISOString(), endTime: new Date(now + 86400000).toISOString(), status: 1, lotCount: 28, currentPrice: 350000, remainSeconds: 7200 },
-        { id: 5, name: '古籍善本专场', description: '珍稀古籍、名人信札、手稿', coverImage: 'https://picsum.photos/300/300?random=5', startTime: new Date(now - 86400000 * 3).toISOString(), endTime: new Date(now - 86400000 * 2).toISOString(), status: 2, lotCount: 85, currentPrice: 2800000, remainSeconds: 0 },
-        { id: 6, name: '现当代艺术专场', description: '二十世纪至今的现当代艺术精品', coverImage: 'https://picsum.photos/300/300?random=6', startTime: new Date(now + 86400000 * 2).toISOString(), endTime: new Date(now + 86400000 * 4).toISOString(), status: 0, lotCount: 52, currentPrice: 0, remainSeconds: 0 }
-      ]
-
-      let list = mockData.filter(item => item.status === this.currentTab)
-
-      if (isReset) {
-        this.sessionList = list
-      } else {
-        this.sessionList = [...this.sessionList, ...list]
+    normalizeSession(item) {
+      const status = this.getEffectiveStatus(item)
+      return {
+        ...item,
+        status,
+        name: item.name || item.title || '拍卖专场',
+        coverImage: item.coverImage || item.cover || '',
+        lotCount: item.lotCount || item.totalLots || 0,
+        remainSeconds: status === 1 ? this.getRemainSeconds(item.endTime) : 0
       }
+    },
 
-      this.noMore = true
+    getEffectiveStatus(item) {
+      const start = item.startTime || item.auctionStart || item.previewStart
+      const end = item.endTime || item.auctionEnd || item.previewEnd
+      const startTime = start ? new Date(start).getTime() : 0
+      const endTime = end ? new Date(end).getTime() : 0
+      const now = Date.now()
+
+      if (startTime && now < startTime) return 0
+      if (endTime && now > endTime) return 2
+      if (startTime || endTime) return 1
+
+      const status = Number(item.status)
+      if (status === 3) return 2
+      if (status === 2) return 1
+      if (status === 1) return 0
+      return status || 0
+    },
+
+    getRemainSeconds(endTime) {
+      if (!endTime) return 0
+      return Math.max(0, Math.floor((new Date(endTime).getTime() - Date.now()) / 1000))
     },
 
     refresh() {

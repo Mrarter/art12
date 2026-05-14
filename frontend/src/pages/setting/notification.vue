@@ -315,4 +315,69 @@ onMounted(() => {
     color: #ccc;
   }
 }
+
+/* 暗金视觉优化 */
+.setting-page {
+  background: #0b0b0c;
+  padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.setting-section {
+  margin-top: 0;
+  margin-bottom: 24rpx;
+
+  .section-header {
+    padding: 6rpx 4rpx 16rpx;
+
+    .section-title {
+      color: #c9a227;
+      font-size: 26rpx;
+      font-weight: 700;
+    }
+  }
+
+  .setting-list {
+    background: #171719;
+    border: 1rpx solid rgba(255, 255, 255, 0.08);
+    border-radius: 18rpx;
+    overflow: hidden;
+
+    .setting-item {
+      padding: 28rpx 24rpx;
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+
+      &.danger {
+        .item-title {
+          color: #ff6b6b;
+        }
+      }
+
+      .item-info {
+        .item-title {
+          color: #f6f2e8;
+          font-size: 30rpx;
+          font-weight: 700;
+        }
+
+        .item-desc {
+          color: #8f8a80;
+          line-height: 34rpx;
+        }
+      }
+
+      .item-value {
+        color: #9b958a;
+      }
+    }
+  }
+}
+
+.version-info {
+  padding: 40rpx 0 12rpx;
+
+  .version-text {
+    color: #68645c;
+  }
+}
 </style>

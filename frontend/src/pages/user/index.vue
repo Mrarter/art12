@@ -21,22 +21,25 @@
         <view class="profile-info">
           <view class="name-row">
             <text class="nickname">{{ userInfo.nickname || '拾艺局用户' }}</text>
-            <text class="uid">UID {{ displayUid }}</text>
+            <text class="uid" v-if="showCertifiedUid">UID {{ displayUid }}</text>
           </view>
-          <view class="identity-tags">
+          <view class="identity-tags" v-if="identityTags.length">
             <text
               class="identity-tag"
-              v-for="item in profileIdentityOptions"
+              v-for="item in identityTags"
               :key="item.value"
               :class="[item.value, { active: activeWorkspace === item.value }]"
               @click.stop="switchWorkspace(item.value)"
             >{{ item.label }}</text>
           </view>
-          <view class="identity-active-hint">
+          <view class="identity-active-hint" v-if="hasCertifiedIdentity">
             <text>{{ currentWorkspace.title }}</text>
           </view>
         </view>
-        <view class="edit-link" @click.stop="goProfile">编辑</view>
+        <view class="profile-actions">
+          <view class="home-link" v-if="hasCertifiedIdentity" @click.stop="goPersonalHome">个人主页</view>
+          <view class="edit-link" @click.stop="goProfile">编辑</view>
+        </view>
       </view>
 
       <view class="login-main" v-else>
@@ -52,33 +55,6 @@
         <view class="quick-stat" v-for="item in profileStats" :key="item.label" @click.stop="goPage(item.path, item.tab)">
           <text class="stat-value">{{ item.value }}</text>
           <text class="stat-label">{{ item.label }}</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="section identity-entry-section">
-      <view class="section-head">
-        <text class="section-title">身份入口</text>
-      </view>
-      <view class="identity-entry-grid">
-        <view
-          class="identity-entry"
-          v-for="item in identityEntryItems"
-          :key="item.key"
-          @click="handleIdentityEntry(item)"
-        >
-          <view class="entry-icon" :class="item.tone">
-            <image v-if="item.iconPath" class="icon-image" :src="item.iconPath" mode="aspectFit"></image>
-            <text v-else>{{ item.icon }}</text>
-          </view>
-          <view class="entry-copy">
-            <view class="entry-title-row">
-              <text class="entry-title">{{ item.label }}</text>
-              <text class="entry-tag" v-if="item.tag">{{ item.tag }}</text>
-            </view>
-            <text class="entry-desc">{{ item.desc }}</text>
-          </view>
-          <text class="chevron">›</text>
         </view>
       </view>
     </view>
@@ -284,18 +260,27 @@ export default {
     displayUid() {
       return this.userInfo.uid || this.userInfo.userUid || this.userInfo.id || '------'
     },
+    hasCertifiedIdentity() {
+      return this.isArtist || this.isPromoter || this.isAgent
+    },
+    showCertifiedUid() {
+      return this.hasCertifiedIdentity
+    },
     identityTags() {
-      const tags = [{ value: 'collector', label: '收藏者' }]
-      if (this.isArtist) tags.push({ value: 'artist', label: '艺术家' })
+      const tags = []
+      if (this.isArtist) tags.push({ value: 'artist', label: '认证艺术家' })
       if (this.isPromoter) tags.push({ value: 'promoter', label: '艺荐官' })
       if (this.isAgent) tags.push({ value: 'agent', label: '经纪人' })
       return tags
     },
     profileIdentityOptions() {
-      return this.availableWorkspaces.map(item => ({
-        ...item,
-        label: item.value === 'artistApply' ? '艺术家入驻' : item.label
-      }))
+      return this.identityTags
+    },
+    personalHomePath() {
+      if (this.isArtist) return `/pages/artist/home?userId=${this.userInfo.id || ''}`
+      if (this.isPromoter) return '/pages/promoter/index'
+      if (this.isAgent) return this.comingSoon('个人主页', '经纪人个人主页正在规划中。')
+      return '/pages/user/profile'
     },
     profileStats() {
       return [
@@ -323,56 +308,8 @@ export default {
         { label: '优惠券', desc: `${this.assetStats.coupon} 张可用`, icon: '券', iconPath: '/static/art-icons/icon-download.svg', tone: 'purple', path: '/pages/user/coupon' }
       ]
     },
-    identityEntryItems() {
-      return [
-        {
-          key: 'collectorLogin',
-          label: this.isLoggedIn ? '藏家中心' : '藏家登录',
-          desc: this.isLoggedIn ? '管理收藏、订单和个人资料' : '登录后管理收藏、订单和关注',
-          icon: '藏',
-          iconPath: '/static/art-icons/icon-collector.svg',
-          tone: 'gold',
-          path: this.isLoggedIn ? '/pages/user/profile' : '/pages/login/index',
-          identity: 'collector',
-          tag: this.isLoggedIn ? '已登录' : '登录'
-        },
-        {
-          key: 'artistApply',
-          label: '艺术家入驻',
-          desc: '提交入驻资料，开通作品发布能力',
-          icon: '入',
-          iconPath: '/static/art-icons/icon-artist.svg',
-          tone: 'green',
-          path: '/pages/artist/apply',
-          identity: 'artist',
-          tag: this.isArtist ? '已开通' : '申请'
-        },
-        {
-          key: 'artistCert',
-          label: '艺术家认证',
-          desc: '完善认证信息，获得平台认证标识',
-          icon: '认',
-          iconPath: '/static/art-icons/icon-verify.svg',
-          tone: 'purple',
-          path: '/pages/artist/cert',
-          identity: 'artist',
-          tag: '认证'
-        },
-        {
-          key: 'promoterApply',
-          label: '艺荐官加入',
-          desc: '申请推广身份，分享作品获得佣金',
-          icon: '荐',
-          iconPath: '/static/art-icons/icon-share.svg',
-          tone: 'blue',
-          path: '/pages/promoter/index',
-          identity: 'promoter',
-          tag: this.isPromoter ? '已开通' : '加入'
-        }
-      ]
-    },
     availableWorkspaces() {
-      const list = [{ value: 'collector', label: '收藏者' }]
+      const list = [{ value: 'collector', label: '收藏家' }]
       if (this.isArtist) list.push({ value: 'artist', label: '艺术家' })
       if (this.isPromoter) list.push({ value: 'promoter', label: '艺荐官' })
       if (this.isAgent) list.push({ value: 'agent', label: '经纪人' })
@@ -383,7 +320,7 @@ export default {
     currentWorkspace() {
       const configs = {
         collector: {
-          title: '收藏者工作台',
+          title: '收藏家工作台',
           desc: '管理收藏、订单和关注的艺术家',
           status: '默认身份',
           metrics: [
@@ -551,6 +488,9 @@ export default {
     },
     goProfile() {
       this.goPage('/pages/user/profile')
+    },
+    goPersonalHome() {
+      this.goPage(this.personalHomePath)
     },
     goMessage() {
       this.goPage('/pages/message/list')
@@ -807,7 +747,15 @@ $purple: #8c73c9;
   color: $dim;
 }
 
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+
 .edit-link,
+.home-link,
 .login-btn,
 .section-link,
 .workspace-status {
@@ -818,6 +766,12 @@ $purple: #8c73c9;
   font-size: 24rpx;
   font-weight: 600;
   flex-shrink: 0;
+}
+
+.home-link {
+  color: $gold;
+  background: rgba($gold, 0.12);
+  border: 1rpx solid rgba($gold, 0.42);
 }
 
 .quick-stats {
@@ -924,21 +878,27 @@ $purple: #8c73c9;
   gap: 14rpx;
 }
 
-.identity-entry-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14rpx;
+.identity-entry-scroll {
+  width: 100%;
+  white-space: nowrap;
 }
 
 .identity-entry {
-  min-height: 108rpx;
-  padding: 18rpx;
+  width: 520rpx;
+  min-height: 132rpx;
+  margin-right: 16rpx;
+  padding: 20rpx;
   border-radius: 12rpx;
   background: $panel-2;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 16rpx;
   box-sizing: border-box;
+  vertical-align: top;
+
+  &:last-child {
+    margin-right: 0;
+  }
 }
 
 .asset-entry,

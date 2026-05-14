@@ -69,6 +69,7 @@ export default {
       version: '1.0.0',
       cacheSize: '0 KB',
       showAboutPopup: false,
+      localRealNameStatus: null,
       settings: {
         pushEnabled: true,
         soundEnabled: true,
@@ -90,6 +91,10 @@ export default {
     displayUid() {
       return this.userInfo.uid || this.userInfo.id || '------'
     },
+    effectiveRealNameStatus() {
+      if (this.userInfo.realNameStatus === 1) return 1
+      return this.localRealNameStatus ?? this.userInfo.realNameStatus
+    },
     settingSections() {
       return [
         {
@@ -108,9 +113,9 @@ export default {
               desc: '提现、发票等场景需要认证',
               icon: '认',
               tone: 'green',
-              value: this.getRealNameStatus(this.userInfo.realNameStatus),
-              certified: this.userInfo.realNameStatus === 1,
-              path: this.comingSoon('实名认证', '实名认证页正在开发中，后续会补充实名校验流程。')
+              value: this.getRealNameStatus(this.effectiveRealNameStatus),
+              certified: this.effectiveRealNameStatus === 1,
+              path: '/pages/user/realname'
             },
             {
               label: '登录密码',
@@ -158,10 +163,15 @@ export default {
   },
 
   onShow() {
+    this.loadLocalRealNameStatus()
     if (this.isLoggedIn) this.userStore.fetchUserInfo()
   },
 
   methods: {
+    loadLocalRealNameStatus() {
+      const saved = uni.getStorageSync('realname_certification')
+      this.localRealNameStatus = saved?.status ?? null
+    },
     comingSoon(title, desc) {
       return `/pages/common/coming-soon?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`
     },

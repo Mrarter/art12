@@ -43,7 +43,7 @@ public class PriceGrowthService {
             return BigDecimal.ZERO;
         }
         
-        if (artwork == null || artwork.getOriginalPrice() == null || artwork.getOriginalPrice() <= 0) {
+        if (artwork == null || resolveBasePrice(artwork) <= 0) {
             return BigDecimal.ZERO;
         }
 
@@ -156,15 +156,30 @@ public class PriceGrowthService {
      * 计算当前实时价格
      */
     public Long calculateCurrentPrice(Artwork artwork) {
-        if (artwork == null || artwork.getOriginalPrice() == null) {
+        if (artwork == null) {
+            return 0L;
+        }
+
+        long basePrice = resolveBasePrice(artwork);
+        if (basePrice <= 0) {
             return artwork != null ? artwork.getPrice() : 0L;
         }
 
-        BigDecimal originalPrice = BigDecimal.valueOf(artwork.getOriginalPrice());
+        BigDecimal originalPrice = BigDecimal.valueOf(basePrice);
         BigDecimal multiplier = BigDecimal.ONE.add(calculatePriceRise(artwork));
         BigDecimal currentPrice = originalPrice.multiply(multiplier);
 
         return currentPrice.setScale(0, RoundingMode.HALF_UP).longValue();
+    }
+
+    private long resolveBasePrice(Artwork artwork) {
+        if (artwork == null) {
+            return 0L;
+        }
+        if (artwork.getOriginalPrice() != null && artwork.getOriginalPrice() > 0) {
+            return artwork.getOriginalPrice();
+        }
+        return artwork.getPrice() != null ? artwork.getPrice() : 0L;
     }
 
     /**

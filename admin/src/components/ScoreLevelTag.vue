@@ -1,6 +1,6 @@
 <template>
   <el-tag :type="tagType" effect="dark">
-    {{ level || 'D' }}
+    {{ displayLevel }}
   </el-tag>
 </template>
 
@@ -10,15 +10,21 @@ import { computed } from 'vue'
 const props = defineProps({
   level: {
     type: String,
-    default: 'D'
+    default: 'U'
   }
 })
 
+const displayLevel = computed(() => {
+  if (props.level === 'U') return '未认证'
+  return props.level || '未认证'
+})
+
 const tagType = computed(() => {
+  if (props.level === 'S+' || props.level === 'S') return 'danger'
   if (props.level === 'A+') return 'danger'
   if (props.level === 'A') return 'warning'
   if (props.level === 'B') return 'success'
-  if (props.level === 'C') return 'info'
+  if (props.level === 'U') return 'info'
   return ''
 })
 </script>

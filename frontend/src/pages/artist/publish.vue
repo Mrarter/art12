@@ -334,11 +334,15 @@ export default {
   },
 
   mounted() {
-    document.addEventListener('click', this.handleClickOutside)
+    if (typeof document !== 'undefined') {
+      document.addEventListener('click', this.handleClickOutside)
+    }
   },
 
-  beforeDestroy() {
-    document.removeEventListener('click', this.handleClickOutside)
+  beforeUnmount() {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('click', this.handleClickOutside)
+    }
   },
 
   methods: {

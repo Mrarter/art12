@@ -3,8 +3,8 @@
     <div class="page-header">
       <span class="title">作品列表</span>
       <div class="header-actions">
-        <el-button type="warning" @click="showPriceConfig">
-          <el-icon><Setting /></el-icon>价格增长配置
+        <el-button type="warning" @click="goPriceControl">
+          <el-icon><Setting /></el-icon>价格调控
         </el-button>
         <el-button type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon>增加作品
@@ -216,12 +216,20 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="favoriteCount" label="收藏数" width="80" />
+      <el-table-column label="收藏数" width="130">
+        <template #default="{ row }">
+          <div class="favorite-count-cell">
+            <strong>{{ row.displayLikeCount || 0 }}</strong>
+            <span>真实 {{ row.realFavoriteCount || 0 }}</span>
+            <span v-if="row.configuredFavoriteCount">配置 +{{ row.configuredFavoriteCount }}</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="每日热度" width="120">
         <template #default="{ row }">
           <div class="daily-heat-cell">
             <span>浏览 {{ row.dailyViewCount || 0 }}</span>
-            <span>点赞 {{ row.dailyLikeCount || 0 }}</span>
+            <span>收藏 {{ row.dailyLikeCount || 0 }}</span>
           </div>
         </template>
       </el-table-column>
@@ -258,9 +266,10 @@
         </template>
       </el-table-column>
       <el-table-column prop="createTime" label="发布时间" width="180" />
-      <el-table-column label="操作" width="250" fixed="right">
+      <el-table-column label="操作" width="310" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+          <el-button type="info" link @click="openArtworkPriceConfig(row)">价格配置</el-button>
           <el-button type="success" link @click="handleDistribution(row)">分销</el-button>
           <el-button type="warning" link @click="handleToggleStatus(row)">
             {{ row.status === 1 ? '下架' : '上架' }}
@@ -464,99 +473,175 @@
         </el-form-item>
 
       <el-divider content-position="left">每日热度配置</el-divider>
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="每日浏览量">
-            <div class="range-inputs">
-              <el-input-number v-model="editForm.dailyViewMin" :min="0" :max="999999" :precision="0" controls-position="right" />
-              <span class="range-separator">至</span>
-              <el-input-number v-model="editForm.dailyViewMax" :min="0" :max="999999" :precision="0" controls-position="right" />
-            </div>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="每日点赞量">
-            <div class="range-inputs">
-              <el-input-number v-model="editForm.dailyLikeMin" :min="0" :max="999999" :precision="0" controls-position="right" />
-              <span class="range-separator">至</span>
-              <el-input-number v-model="editForm.dailyLikeMax" :min="0" :max="999999" :precision="0" controls-position="right" />
-            </div>
-          </el-form-item>
-        </el-col>
-      </el-row>
+      <div class="heat-config-summary">
+        <div class="heat-summary-item">
+          <span>每日浏览量</span>
+          <b>{{ editForm.dailyViewCount || 0 }}</b>
+          <small>保存时随机：{{ randomRangeText(editForm.dailyViewCount) }}</small>
+        </div>
+        <div class="heat-summary-item">
+          <span>每日收藏量</span>
+          <b>{{ editForm.dailyLikeCount || 0 }}</b>
+          <small>保存时随机：{{ randomRangeText(editForm.dailyLikeCount) }}</small>
+        </div>
+        <div class="heat-summary-item">
+          <span>预计涨价范围</span>
+          <b>{{ editPriceIncreaseRangeText }}</b>
+          <small>预计涨价数目：{{ editPriceIncreaseCountText }}</small>
+        </div>
+        <el-button
+          v-if="editForm.artworkId"
+          type="primary"
+          plain
+          @click="openArtworkPriceConfig(editForm)"
+        >
+          配置热度与涨价
+        </el-button>
+        <span v-else class="tip">新增作品保存后可配置热度与涨价</span>
+      </div>
         
         <!-- 单个作品价格增长配置 -->
         <el-divider content-position="left">价格增长配置</el-divider>
         <div class="price-growth-config">
-          <el-form-item label="自定义配置">
-            <el-switch v-model="editForm.customPriceGrowthEnabled" active-text="启用" inactive-text="使用全局配置" />
+          <el-form-item label="配置方式">
+            <el-tag :type="editForm.customPriceGrowthEnabled ? 'warning' : 'success'">
+              {{ editForm.customPriceGrowthEnabled ? '自定义配置' : '使用全局调控' }}
+            </el-tag>
+            <el-button
+              v-if="editForm.artworkId"
+              class="config-button"
+              type="primary"
+              plain
+              @click="openArtworkPriceConfig(editForm)"
+            >
+              单独配置
+            </el-button>
+            <span v-else class="tip">新增作品保存后可单独配置涨价规则</span>
           </el-form-item>
-          
-          <template v-if="editForm.customPriceGrowthEnabled">
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="基础日增长率">
-                  <div class="range-inputs">
-                    <el-input-number v-model="editForm.customBaseDailyRateMin" :min="0" :precision="4" :step="0.0001" />
-                    <span class="range-separator">至</span>
-                    <el-input-number v-model="editForm.customBaseDailyRateMax" :min="0" :precision="4" :step="0.0001" />
-                  </div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="成熟期天数">
-                  <div class="range-inputs">
-                    <el-input-number v-model="editForm.customMatureDaysMin" :min="0" :max="365" :precision="0" />
-                    <span class="range-separator">至</span>
-                    <el-input-number v-model="editForm.customMatureDaysMax" :min="0" :max="365" :precision="0" />
-                  </div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="成熟期日增长率">
-                  <div class="range-inputs">
-                    <el-input-number v-model="editForm.customMatureDailyRateMin" :min="0" :precision="4" :step="0.0001" />
-                    <span class="range-separator">至</span>
-                    <el-input-number v-model="editForm.customMatureDailyRateMax" :min="0" :precision="4" :step="0.0001" />
-                  </div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="浏览量加成">
-                  <div class="range-inputs">
-                    <el-input-number v-model="editForm.customViewRateMin" :min="1" :max="10" :precision="2" />
-                    <span class="range-separator">至</span>
-                    <el-input-number v-model="editForm.customViewRateMax" :min="1" :max="10" :precision="2" />
-                  </div>
-                  <span class="unit">倍</span>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="收藏量加成">
-                  <div class="range-inputs">
-                    <el-input-number v-model="editForm.customFavoriteRateMin" :min="1" :max="10" :precision="2" />
-                    <span class="range-separator">至</span>
-                    <el-input-number v-model="editForm.customFavoriteRateMax" :min="1" :max="10" :precision="2" />
-                  </div>
-                  <span class="unit">倍</span>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="最大涨幅倍数">
-                  <div class="range-inputs">
-                    <el-input-number v-model="editForm.customMaxGrowthMultipleMin" :min="1" :max="100" :precision="1" />
-                    <span class="range-separator">至</span>
-                    <el-input-number v-model="editForm.customMaxGrowthMultipleMax" :min="1" :max="100" :precision="1" />
-                  </div>
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </template>
+          <div class="price-growth-preview">
+            <div>
+              <span>当前价格</span>
+              <b>{{ formatMoneyYuan(editForm.price) }}</b>
+            </div>
+            <div>
+              <span>预计涨价范围</span>
+              <b>{{ editPriceIncreaseRangeText }}</b>
+            </div>
+            <div>
+              <span>预计涨价数目</span>
+              <b>{{ editPriceIncreaseCountText }}</b>
+            </div>
+          </div>
+          <el-divider content-position="left">涨价记录</el-divider>
+          <div v-loading="priceLogLoading" class="price-log-panel">
+            <template v-if="visiblePriceLogs.length">
+              <div v-for="log in visiblePriceLogs" :key="log.id || `${log.createdAt}-${log.newPrice}-${log.changeReason}`" class="price-log-item">
+                <div>
+                  <b>{{ priceLogReasonText(log.changeReason) }}</b>
+                  <p>{{ log.remark || '系统自动记录价格变化' }}</p>
+                </div>
+                <div class="price-log-meta">
+                  <span>{{ formatPriceLogPrice(log.oldPrice) }} → {{ formatPriceLogPrice(log.newPrice) }}</span>
+                  <em>{{ formatPriceLogRate(log.changeRate) }}</em>
+                  <small>{{ log.createdAt || '-' }}</small>
+                </div>
+              </div>
+            </template>
+            <el-empty v-else description="暂无可计算的涨价记录" :image-size="64" />
+          </div>
         </div>
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSave" :loading="saveLoading">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 单个作品价格增长配置弹窗 -->
+    <el-dialog v-model="artworkPriceVisible" :title="artworkPriceDialogTitle" width="720px" destroy-on-close>
+      <div v-loading="artworkPriceLoading">
+        <el-alert
+          class="price-config-alert"
+          type="info"
+          :closable="false"
+          show-icon
+          title="关闭自定义配置时，作品会使用「交易调控 / 涨价规则」里的全局配置。"
+        />
+        <el-form :model="artworkPriceForm" label-width="130px">
+          <el-form-item label="配置模式">
+            <el-switch
+              v-model="artworkPriceForm.customPriceGrowthEnabled"
+              active-text="自定义配置"
+              inactive-text="使用全局配置"
+            />
+          </el-form-item>
+          <template v-if="artworkPriceForm.customPriceGrowthEnabled">
+            <el-divider content-position="left">时间因素</el-divider>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="基础日增长率">
+                  <el-input-number v-model="artworkPriceForm.customBaseDailyRate" :min="0" :precision="4" :step="0.0001" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="成熟期天数">
+                  <el-input-number v-model="artworkPriceForm.customMatureDays" :min="0" :max="365" :precision="0" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="成熟期日增长率">
+                  <el-input-number v-model="artworkPriceForm.customMatureDailyRate" :min="0" :precision="4" :step="0.0001" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-divider content-position="left">热度与涨幅</el-divider>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="浏览量加成">
+                  <el-input-number v-model="artworkPriceForm.customViewRate" :min="1" :max="10" :precision="2" />
+                  <span class="unit">倍</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="收藏量加成">
+                  <el-input-number v-model="artworkPriceForm.customFavoriteRate" :min="1" :max="10" :precision="2" />
+                  <span class="unit">倍</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="最大涨幅倍数">
+                  <el-input-number v-model="artworkPriceForm.customMaxGrowthMultiple" :min="1" :max="100" :precision="1" />
+                  <span class="unit">倍</span>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </template>
+          <el-divider content-position="left">作品热度</el-divider>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="每日浏览量">
+                <el-input-number v-model="artworkPriceForm.dailyViewCount" :min="0" :max="999999" :precision="0" />
+                <div class="random-tip">保存时随机生成：{{ randomRangeText(artworkPriceForm.dailyViewCount) }}</div>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="每日收藏量">
+                <el-input-number v-model="artworkPriceForm.dailyLikeCount" :min="0" :max="999999" :precision="0" />
+                <div class="random-tip">保存时随机生成：{{ randomRangeText(artworkPriceForm.dailyLikeCount) }}</div>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <div class="price-config-preview">
+            <span>展示浏览量：{{ artworkPriceForm.displayViewCount || 0 }}</span>
+            <span>展示收藏量：{{ artworkPriceForm.displayLikeCount || 0 }}</span>
+            <span>预计涨价范围：{{ artworkPriceIncreaseRangeText }}</span>
+            <span>预计涨价数目：{{ artworkPriceIncreaseCountText }}</span>
+          </div>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="artworkPriceVisible = false">取消</el-button>
+        <el-button type="primary" :loading="artworkPriceSaving" @click="saveArtworkPriceConfig">保存配置</el-button>
       </template>
     </el-dialog>
 
@@ -644,6 +729,7 @@ import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
 import { getFullImageUrl, uploadFile } from '@/api/request'
+import { getArtworkPriceLogs } from '@/api/artworkPrice'
 import ImageCropper from '@/components/ImageCropper.vue'
 
 const router = useRouter()
@@ -676,6 +762,19 @@ const showPriceConfig = async () => {
   } catch (e) {
     console.error('获取配置失败', e)
   }
+}
+
+const loadPriceGrowthConfig = async () => {
+  try {
+    const data = await request.silentGet('/config/priceGrowth')
+    Object.assign(priceConfigForm, data)
+  } catch (e) {
+    console.warn('加载价格增长配置失败，使用默认配置:', e.message)
+  }
+}
+
+const goPriceControl = () => {
+  router.push('/price-control/price-rule')
 }
 
 const savePriceConfig = async () => {
@@ -730,9 +829,14 @@ const editForm = reactive({
   cover: '',
   price: 0,
   originalPrice: 0,
+  currentPrice: 0,
+  priceRise: 0,
+  tomorrowIncreaseMin: 0,
+  tomorrowIncreaseMax: 0,
   ownershipType: 1,  // 默认原创
   description: '',
   status: 1,
+  favoriteCount: 0,
   dailyViewCount: 0,
   dailyLikeCount: 0,
   dailyViewMin: 0,
@@ -759,6 +863,128 @@ const editForm = reactive({
   customMaxGrowthMultiple: 5.0,
   customMaxGrowthMultipleMin: 5.0,
   customMaxGrowthMultipleMax: 5.0
+})
+
+const artworkPriceVisible = ref(false)
+const artworkPriceLoading = ref(false)
+const artworkPriceSaving = ref(false)
+const artworkPriceCurrent = ref(null)
+const priceLogLoading = ref(false)
+const priceLogs = ref([])
+const artworkPriceForm = reactive({
+  artworkId: '',
+  artworkTitle: '',
+  customPriceGrowthEnabled: false,
+  customBaseDailyRate: 0.0002,
+  customMatureDailyRate: 0.0003,
+  customMatureDays: 30,
+  customViewRate: 1.1,
+  customFavoriteRate: 1.1,
+  customMaxGrowthMultiple: 5.0,
+  dailyViewCount: 0,
+  dailyLikeCount: 0,
+  displayViewCount: 0,
+  displayLikeCount: 0
+})
+
+const artworkPriceDialogTitle = computed(() => {
+  const title = artworkPriceForm.artworkTitle || artworkPriceCurrent.value?.title || '作品'
+  return `${title} - 价格增长配置`
+})
+
+const formatMoneyYuan = (value) => {
+  const amount = Number(value || 0)
+  if (!Number.isFinite(amount)) return '¥0'
+  return `¥${amount.toLocaleString(undefined, {
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
+  })}`
+}
+
+const getPriceGrowthConfigFor = (source = {}) => {
+  const customEnabled = Boolean(source.customPriceGrowthEnabled)
+  return {
+    baseDailyRate: customEnabled && source.customBaseDailyRate != null
+      ? Number(source.customBaseDailyRate)
+      : Number(priceConfigForm.baseDailyRate || 0),
+    matureDailyRate: customEnabled && source.customMatureDailyRate != null
+      ? Number(source.customMatureDailyRate)
+      : Number(priceConfigForm.matureDailyRate || priceConfigForm.baseDailyRate || 0)
+  }
+}
+
+const getExpectedIncreaseRange = (source = {}) => {
+  const price = Number(source.price || 0)
+  const explicitMin = Number(source.tomorrowIncreaseMin || 0)
+  const explicitMax = Number(source.tomorrowIncreaseMax || 0)
+  if (explicitMin > 0 || explicitMax > 0) {
+    return {
+      min: Math.min(explicitMin || explicitMax, explicitMax || explicitMin) / 100,
+      max: Math.max(explicitMin, explicitMax) / 100
+    }
+  }
+
+  if (!Number.isFinite(price) || price <= 0) return { min: 0, max: 0 }
+  const { baseDailyRate, matureDailyRate } = getPriceGrowthConfigFor(source)
+  const minRate = Math.min(baseDailyRate || matureDailyRate || 0, matureDailyRate || baseDailyRate || 0)
+  const maxRate = Math.max(baseDailyRate || 0, matureDailyRate || 0)
+  return {
+    min: price * minRate,
+    max: price * maxRate
+  }
+}
+
+const formatIncreaseRange = (range) => {
+  const min = Number(range?.min || 0)
+  const max = Number(range?.max || 0)
+  if (min <= 0 && max <= 0) return '¥0'
+  if (Math.abs(min - max) < 0.005) return formatMoneyYuan(min)
+  return `${formatMoneyYuan(min)} - ${formatMoneyYuan(max)}`
+}
+
+const editPriceIncreaseRangeText = computed(() => formatIncreaseRange(getExpectedIncreaseRange(editForm)))
+const editPriceIncreaseCountText = computed(() => {
+  const range = getExpectedIncreaseRange(editForm)
+  if (range.min <= 0 && range.max <= 0) return '暂无预计'
+  return `最低 ${formatMoneyYuan(range.min)}，最高 ${formatMoneyYuan(range.max)}`
+})
+const artworkPriceIncreaseRangeText = computed(() => {
+  const source = {
+    ...artworkPriceForm,
+    price: artworkPriceCurrent.value?.price || editForm.price,
+    tomorrowIncreaseMin: artworkPriceCurrent.value?.tomorrowIncreaseMin || 0,
+    tomorrowIncreaseMax: artworkPriceCurrent.value?.tomorrowIncreaseMax || 0
+  }
+  return formatIncreaseRange(getExpectedIncreaseRange(source))
+})
+const artworkPriceIncreaseCountText = computed(() => {
+  const source = {
+    ...artworkPriceForm,
+    price: artworkPriceCurrent.value?.price || editForm.price,
+    tomorrowIncreaseMin: artworkPriceCurrent.value?.tomorrowIncreaseMin || 0,
+    tomorrowIncreaseMax: artworkPriceCurrent.value?.tomorrowIncreaseMax || 0
+  }
+  const range = getExpectedIncreaseRange(source)
+  if (range.min <= 0 && range.max <= 0) return '暂无预计'
+  return `最低 ${formatMoneyYuan(range.min)}，最高 ${formatMoneyYuan(range.max)}`
+})
+
+const visiblePriceLogs = computed(() => {
+  if (priceLogs.value.length) return priceLogs.value
+  const range = getExpectedIncreaseRange(editForm)
+  if (range.min <= 0 && range.max <= 0) return []
+  const currentPrice = Number(editForm.currentPrice || editForm.price || 0)
+  const maxIncrease = Math.max(range.min, range.max)
+  const basePrice = Number(editForm.price || 0)
+  return [{
+    id: 'forecast',
+    oldPrice: basePrice,
+    newPrice: currentPrice > 0 ? currentPrice : basePrice + maxIncrease,
+    changeRate: basePrice > 0 ? maxIncrease / basePrice : 0,
+    changeReason: 'FORECAST',
+    remark: `根据当前价格调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
+    createdAt: '实时预估'
+  }]
 })
 
 // 艺术家搜索相关
@@ -838,6 +1064,147 @@ const setPriceGrowthRanges = (config = {}) => {
     customMaxGrowthMultipleMin: maxGrowthMultiple,
     customMaxGrowthMultipleMax: maxGrowthMultiple
   })
+}
+
+const getRowArtworkId = (row) => row?.artworkId || row?.id
+
+const priceLogReasonText = (reason = '') => {
+  const map = {
+    DAILY: '每日涨价',
+    SALE: '成交触发',
+    COLLECT: '收藏触发',
+    SCORE: '评分触发',
+    MANUAL: '人工调价',
+    FORECAST: '预计涨价'
+  }
+  return map[reason] || reason || '价格变化'
+}
+
+const formatPriceLogPrice = (value) => {
+  const amount = Number(value || 0)
+  return `¥${amount.toLocaleString()}`
+}
+
+const formatPriceLogRate = (value) => {
+  const rate = Number(value || 0)
+  if (!Number.isFinite(rate) || rate === 0) return '0%'
+  const normalized = Math.abs(rate) > 1 ? rate : rate * 100
+  return `${normalized > 0 ? '+' : ''}${normalized.toFixed(2)}%`
+}
+
+const loadPriceLogs = async (artworkId) => {
+  priceLogs.value = []
+  if (!artworkId) return
+  priceLogLoading.value = true
+  try {
+    const data = await getArtworkPriceLogs({ artworkId })
+    priceLogs.value = Array.isArray(data) ? data.slice(0, 5) : []
+  } catch (e) {
+    console.warn('加载涨价记录失败:', e)
+  } finally {
+    priceLogLoading.value = false
+  }
+}
+
+const getEightyPercentRange = (value) => {
+  const base = Math.max(Number(value || 0), 0)
+  if (!Number.isFinite(base) || base <= 0) return { min: 0, max: 0 }
+  return {
+    min: Math.max(Math.floor(base * 0.2), 0),
+    max: Math.max(Math.ceil(base * 1.8), 0)
+  }
+}
+
+const randomByEightyPercent = (value) => {
+  const { min, max } = getEightyPercentRange(value)
+  return randomIntInRange(min, max)
+}
+
+const randomRangeText = (value) => {
+  const { min, max } = getEightyPercentRange(value)
+  return `${min} - ${max}`
+}
+
+const openArtworkPriceConfig = async (row) => {
+  const artworkId = getRowArtworkId(row)
+  if (!artworkId) {
+    ElMessage.warning('请先保存作品，再配置价格增长规则')
+    return
+  }
+  artworkPriceCurrent.value = row
+  artworkPriceVisible.value = true
+  artworkPriceLoading.value = true
+  loadPriceGrowthConfig()
+  Object.assign(artworkPriceForm, {
+    artworkId,
+    artworkTitle: row.title || row.artworkTitle || '',
+    customPriceGrowthEnabled: false,
+    customBaseDailyRate: 0.0002,
+    customMatureDailyRate: 0.0003,
+    customMatureDays: 30,
+    customViewRate: 1.1,
+    customFavoriteRate: 1.1,
+    customMaxGrowthMultiple: 5.0,
+    dailyViewCount: row.dailyViewCount || 0,
+    dailyLikeCount: row.dailyLikeCount || 0,
+    displayViewCount: row.displayViewCount || 0,
+    displayLikeCount: row.displayLikeCount || row.favoriteCount || 0
+  })
+  try {
+    const data = await requestApi.silentGet(`/product/${artworkId}/priceGrowth`)
+    Object.assign(artworkPriceForm, {
+      ...data,
+      artworkId,
+      artworkTitle: data.artworkTitle || row.title || '',
+      customPriceGrowthEnabled: Boolean(data.customPriceGrowthEnabled),
+      customBaseDailyRate: Number(data.customBaseDailyRate ?? 0.0002),
+      customMatureDailyRate: Number(data.customMatureDailyRate ?? 0.0003),
+      customMatureDays: Math.max(Number(data.customMatureDays ?? 30), 1),
+      customViewRate: Number(data.customViewRate ?? 1.1),
+      customFavoriteRate: Number(data.customFavoriteRate ?? 1.1),
+      customMaxGrowthMultiple: Number(data.customMaxGrowthMultiple ?? 5.0),
+      dailyViewCount: Number(data.dailyViewCount ?? 0),
+      dailyLikeCount: Number(data.dailyLikeCount ?? 0),
+      displayViewCount: Number(data.displayViewCount ?? 0),
+      displayLikeCount: Number(data.displayLikeCount ?? 0)
+    })
+  } catch (e) {
+    console.warn('加载单作品价格配置失败，使用默认值:', e.message)
+  } finally {
+    artworkPriceLoading.value = false
+  }
+}
+
+const saveArtworkPriceConfig = async () => {
+  const artworkId = artworkPriceForm.artworkId
+  if (!artworkId) return
+  artworkPriceSaving.value = true
+  try {
+    const params = {
+      customPriceGrowthEnabled: artworkPriceForm.customPriceGrowthEnabled,
+      customBaseDailyRate: artworkPriceForm.customBaseDailyRate,
+      customMatureDailyRate: artworkPriceForm.customMatureDailyRate,
+      customMatureDays: artworkPriceForm.customMatureDays,
+      customViewRate: artworkPriceForm.customViewRate,
+      customFavoriteRate: artworkPriceForm.customFavoriteRate,
+      customMaxGrowthMultiple: artworkPriceForm.customMaxGrowthMultiple,
+      dailyViewCount: randomByEightyPercent(artworkPriceForm.dailyViewCount),
+      dailyLikeCount: randomByEightyPercent(artworkPriceForm.dailyLikeCount)
+    }
+    await requestApi.silentPut(`/product/${artworkId}/priceGrowth`, params)
+    ElMessage.success(`价格配置已保存，浏览 ${params.dailyViewCount}，收藏 ${params.dailyLikeCount}`)
+    artworkPriceVisible.value = false
+    if (Number(editForm.artworkId) === Number(artworkId)) {
+      editForm.customPriceGrowthEnabled = params.customPriceGrowthEnabled
+      setDailyHeatRange(params.dailyViewCount, params.dailyLikeCount)
+    }
+    loadPriceLogs(artworkId)
+    loadData()
+  } catch (e) {
+    ElMessage.error('价格配置保存失败：' + (e.message || '未知错误'))
+  } finally {
+    artworkPriceSaving.value = false
+  }
 }
 
 const getArtistUid = (artist = {}) => artist.uid || artist.userUid || artist.artistUid || artist.artistCode || artist.code || ''
@@ -974,6 +1341,9 @@ const loadData = async () => {
       year: item.year,              // 创作年份
       price: item.price ? item.price / 100 : 0,  // 分转元
       originalPrice: item.originalPrice ? item.originalPrice / 100 : 0,
+      currentPrice: item.currentPrice ? item.currentPrice / 100 : 0,
+      tomorrowIncreaseMin: item.tomorrowIncreaseMin || 0,
+      tomorrowIncreaseMax: item.tomorrowIncreaseMax || 0,
       ownershipType: item.ownershipType || 1,
       artworkCode: item.artworkCode || item.artworkUid,
       status: item.status,
@@ -981,10 +1351,12 @@ const loadData = async () => {
       description: item.description,
       salesCount: item.salesCount || 0,
       favoriteCount: item.favoriteCount || 0,
+      realFavoriteCount: item.realFavoriteCount ?? item.favoriteCount ?? 0,
+      configuredFavoriteCount: item.configuredFavoriteCount ?? item.dailyLikeCount ?? 0,
       dailyViewCount: item.dailyViewCount || 0,
       dailyLikeCount: item.dailyLikeCount || 0,
       displayViewCount: item.displayViewCount || item.viewCount || 0,
-      displayLikeCount: item.displayLikeCount || item.favoriteCount || 0,
+      displayLikeCount: item.displayLikeCount ?? item.favoriteCount ?? 0,
       priceRise: item.priceRise || 0, // 价格增长率
       createTime: item.createTime,
       distributionEnabled: item.distributionEnabled || false,
@@ -1080,6 +1452,7 @@ const openArtistEditor = async (row) => {
 
 const handleEdit = async (row) => {
   console.log('【DEBUG】handleEdit row.price:', row.price, 'row.originalPrice:', row.originalPrice)
+  loadPriceGrowthConfig()
   // 合并画种和分类显示
   let artTypeValue = row.artType || ''
   if (row.categoryName && !artTypeValue) {
@@ -1099,30 +1472,20 @@ const handleEdit = async (row) => {
     cover: row.cover || '',
     price: row.price || 0,
     originalPrice: row.originalPrice || 0,
+    currentPrice: row.currentPrice || row.price || 0,
+    priceRise: row.priceRise || 0,
+    tomorrowIncreaseMin: row.tomorrowIncreaseMin || 0,
+    tomorrowIncreaseMax: row.tomorrowIncreaseMax || 0,
     ownershipType: row.ownershipType || 1,
     description: row.description || '',
-    status: row.status
+    status: row.status,
+    favoriteCount: row.favoriteCount || 0,
+    customPriceGrowthEnabled: Boolean(row.customPriceGrowthEnabled)
   })
   setDailyHeatRange(row.dailyViewCount || 0, row.dailyLikeCount || 0)
+  loadPriceLogs(row.artworkId || row.id)
   artistExactMatched.value = Boolean(editForm.authorId)
   console.log('【DEBUG】handleEdit editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
-  
-  // 加载单个作品的价格增长配置
-  try {
-    const data = await requestApi.silentGet(`/product/${row.artworkId}/priceGrowth`)
-    Object.assign(editForm, {
-      customPriceGrowthEnabled: data.customPriceGrowthEnabled || false
-    })
-    setPriceGrowthRanges(data)
-  } catch (e) {
-    console.warn('加载价格增长配置失败，使用默认配置:', e.message)
-    // 使用默认值
-    Object.assign(editForm, {
-      customPriceGrowthEnabled: false
-    })
-    setPriceGrowthRanges()
-  }
-  
   editVisible.value = true
 }
 
@@ -1142,11 +1505,18 @@ const handleAdd = () => {
     cover: '',
     price: 0,
     originalPrice: 0,
+    currentPrice: 0,
+    priceRise: 0,
+    tomorrowIncreaseMin: 0,
+    tomorrowIncreaseMax: 0,
     ownershipType: 1,
     description: '',
-    status: 1
+    status: 1,
+    favoriteCount: 0,
+    customPriceGrowthEnabled: false
   })
   setDailyHeatRange(0, 0)
+  priceLogs.value = []
   setPriceGrowthRanges()
   artistExactMatched.value = false
   editVisible.value = true
@@ -1202,15 +1572,6 @@ const handleSave = async () => {
     const dailyLikeCount = randomIntInRange(editForm.dailyLikeMin, editForm.dailyLikeMax)
     editForm.dailyViewCount = dailyViewCount
     editForm.dailyLikeCount = dailyLikeCount
-    const priceGrowthValues = {
-      customBaseDailyRate: randomNumberInRange(editForm.customBaseDailyRateMin, editForm.customBaseDailyRateMax, 4),
-      customMatureDailyRate: randomNumberInRange(editForm.customMatureDailyRateMin, editForm.customMatureDailyRateMax, 4),
-      customMatureDays: randomIntInRange(editForm.customMatureDaysMin, editForm.customMatureDaysMax),
-      customViewRate: randomNumberInRange(editForm.customViewRateMin, editForm.customViewRateMax, 2, 1),
-      customFavoriteRate: randomNumberInRange(editForm.customFavoriteRateMin, editForm.customFavoriteRateMax, 2, 1),
-      customMaxGrowthMultiple: randomNumberInRange(editForm.customMaxGrowthMultipleMin, editForm.customMaxGrowthMultipleMax, 1, 1)
-    }
-    Object.assign(editForm, priceGrowthValues)
     
     const params = {
       title: editForm.title,
@@ -1225,6 +1586,7 @@ const handleSave = async () => {
       ownershipType: editForm.ownershipType || 1,
       description: editForm.description,
       status: editForm.status,
+      favoriteCount: Math.max(Number(editForm.favoriteCount || 0), 0),
       dailyViewCount,
       dailyLikeCount
     }
@@ -1235,18 +1597,6 @@ const handleSave = async () => {
       // 更新作品
       params.id = Number(editForm.artworkId)
       await request.put(`/product/artwork/${editForm.artworkId}`, params)
-      
-      // 保存单个作品的价格增长配置
-      const priceGrowthParams = {
-        customPriceGrowthEnabled: editForm.customPriceGrowthEnabled,
-        ...priceGrowthValues
-      }
-      try {
-        await requestApi.silentPut(`/product/${editForm.artworkId}/priceGrowth`, priceGrowthParams)
-      } catch (e) {
-        console.warn('保存价格增长配置失败，作品基础信息已保存:', e.message)
-      }
-      
       console.log('更新结果:')
       ElMessage.success('更新成功')
     } else {
@@ -1269,9 +1619,10 @@ const handleSave = async () => {
 }
 
 const handleToggleStatus = async (row) => {
-  const newStatus = row.status === 1 ? 0 : 1
+  const currentStatus = Number(row.status)
+  const newStatus = currentStatus === 1 ? 0 : 1
   const action = newStatus === 1 ? '上架' : '下架'
-  console.log('切换状态:', { artworkId: row.artworkId, currentStatus: row.status, newStatus })
+  console.log('切换状态:', { artworkId: row.artworkId, currentStatus, newStatus })
   try {
     await ElMessageBox.confirm(`确定要${action}该作品吗？`, '提示', { type: 'warning' })
     console.log('确认后调用API...')
@@ -1280,13 +1631,16 @@ const handleToggleStatus = async (row) => {
       status: newStatus
     })
     console.log('API响应:', res)
+    row.status = newStatus
     // 成功后刷新列表获取最新数据
-    loadData()
+    await loadData()
     ElMessage.success(`${action}成功`)
   } catch (e) {
     console.error('操作失败:', e)
     const msg = e.response?.data?.message || e.message || '操作失败'
-ElMessage.error(msg)
+    if (msg !== 'cancel' && msg !== 'close') {
+      ElMessage.error(msg)
+    }
   }
 }
 
@@ -1607,6 +1961,20 @@ onMounted(() => {
   line-height: 1.4;
 }
 
+.favorite-count-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.favorite-count-cell strong {
+  color: #303133;
+  font-size: 15px;
+}
+
 .size-year {
   margin-top: 4px;
   color: #909399;
@@ -1758,6 +2126,122 @@ onMounted(() => {
 
 .artist-create-tip {
   margin-top: 8px;
+}
+
+.heat-config-summary,
+.price-growth-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #f7f9fc;
+  border: 1px solid #ebeef5;
+}
+
+.price-growth-preview {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.heat-summary-item,
+.price-growth-preview > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.heat-summary-item span,
+.price-growth-preview span {
+  color: #909399;
+  font-size: 12px;
+}
+
+.heat-summary-item b,
+.price-growth-preview b {
+  color: #303133;
+  font-size: 16px;
+}
+
+.heat-summary-item small {
+  color: #909399;
+  font-size: 12px;
+}
+
+.config-button {
+  margin-left: 12px;
+}
+
+.price-config-alert {
+  margin-bottom: 16px;
+}
+
+.price-config-preview {
+  display: flex;
+  gap: 24px;
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: #f5f7fa;
+  color: #606266;
+}
+
+.random-tip {
+  width: 100%;
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.price-log-panel {
+  min-height: 72px;
+}
+
+.price-log-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.price-log-item:last-child {
+  border-bottom: none;
+}
+
+.price-log-item b {
+  color: #303133;
+}
+
+.price-log-item p {
+  margin: 4px 0 0;
+  color: #909399;
+  font-size: 12px;
+}
+
+.price-log-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.price-log-meta span {
+  color: #303133;
+  font-weight: 600;
+}
+
+.price-log-meta em {
+  color: #f56c6c;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.price-log-meta small {
+  color: #909399;
 }
 
 /* 艺术家编辑弹窗样式 */

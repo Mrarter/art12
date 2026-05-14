@@ -364,4 +364,80 @@ export default {
   font-size: 26rpx;
   color: #333;
 }
+
+/* 分销规则暗金视觉优化 */
+.rules-page {
+  background: #0b0b0c;
+  padding: 24rpx;
+  color: #f6f2e8;
+  box-sizing: border-box;
+}
+
+.content {
+  padding-bottom: 64rpx;
+}
+
+.section {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 18rpx;
+  box-shadow: 0 18rpx 42rpx rgba(0, 0, 0, 0.22);
+}
+
+.section-title {
+  color: #f6f2e8;
+  padding-left: 18rpx;
+  border-left: 6rpx solid #c9a227;
+  line-height: 36rpx;
+}
+
+.paragraph,
+.rule-content,
+.answer {
+  color: #b7b0a4;
+}
+
+.level-item,
+.qa-item {
+  background: #202024;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.level-item.gold {
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.2), rgba(32, 32, 36, 0.96));
+  border-color: rgba(201, 162, 39, 0.42);
+}
+
+.level-name,
+.info-row .value,
+.rule-title,
+.question,
+.log-content {
+  color: #f6f2e8;
+}
+
+.level-condition,
+.info-row .label,
+.step-name,
+.log-date {
+  color: #8f8a80;
+}
+
+.info-row .value {
+  color: #f2c85b;
+}
+
+.rule-item {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.step-num {
+  background: #c9a227;
+  color: #16130b;
+  font-weight: 800;
+}
+
+.flow-arrow {
+  color: #5c574f;
+}
 </style>

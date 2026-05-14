@@ -28,7 +28,7 @@ export default {
     return {
       artistId: null,
       score: {
-        level: 'D',
+        level: 'B',
         totalScore: 0
       },
       scoreItems: []
@@ -54,9 +54,9 @@ export default {
           { key: 'sales', name: '销售表现', desc: '成交金额、成交数量、销售增长', value: score.salesScore || 0, max: 300 },
           { key: 'influence', name: '市场影响力', desc: '粉丝、收藏、浏览、分享', value: score.influenceScore || 0, max: 200 },
           { key: 'activity', name: '活跃度', desc: '上新频率、登录、互动', value: score.activityScore || 0, max: 100 },
-          { key: 'quality', name: '作品质量', desc: '平台评审、作品完整度', value: score.qualityScore || 0, max: 150 },
+          { key: 'quality', name: '作品信息完整度', desc: '作品封面、描述、尺寸、年份、材质等', value: score.qualityScore || 0, max: 50 },
           { key: 'review', name: '藏家评价', desc: '购买评价、复购、评论质量', value: score.reviewScore || 0, max: 100 },
-          { key: 'academic', name: '学术资质', desc: '毕业院校、职称、展览、获奖', value: score.academicScore || 0, max: 100 },
+          { key: 'academic', name: '学术资质', desc: '毕业院校、职称、展览、获奖', value: score.academicScore || 0, max: 200 },
           { key: 'internet', name: '互联网资质', desc: '艺术博主身份、粉丝、内容转化', value: score.internetScore || 0, max: 50 }
         ]
       } catch (e) {

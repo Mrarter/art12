@@ -42,6 +42,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/admin/, '/admin')
       },
+      // 价格调控直接落到商品服务，保证全局配置参与实际涨价计算
+      '/api/admin/config/priceGrowth': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/admin/, '/admin')
+      },
       // 管理员接口 -> admin服务(8090) (处理 /api/admin/xxx -> /admin/xxx)
       '/api/admin': {
         target: 'http://localhost:8090',
@@ -57,7 +63,8 @@ export default defineConfig({
       // C端艺术家评分接口 -> product服务(8082)
       '/api/artist': {
         target: 'http://localhost:8082',
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
       // 商品服务 -> 8082
       '/api/product': {

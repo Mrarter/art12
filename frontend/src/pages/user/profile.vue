@@ -3,7 +3,7 @@
     <view v-if="!isLoggedIn" class="login-panel">
       <image class="login-avatar" src="/static/images/avatar.png" mode="aspectFill"></image>
       <text class="login-title">登录后编辑个人资料</text>
-      <text class="login-desc">完善头像、昵称和简介，让收藏者、艺术家与艺荐官身份都更清晰。</text>
+      <text class="login-desc">完善头像、昵称和简介，让收藏家、艺术家与艺荐官身份都更清晰。</text>
       <view class="login-btn" @click="goPage('/pages/login/index')">去登录</view>
     </view>
 
@@ -192,7 +192,7 @@ export default {
     },
     identityTags() {
       const map = {
-        collector: '收藏者',
+        collector: '收藏家',
         artist: '艺术家',
         promoter: '艺荐官',
         agent: '代理人'
@@ -204,7 +204,7 @@ export default {
         {
           key: 'collector',
           short: '藏',
-          title: '收藏者资料',
+          title: '收藏家资料',
           desc: '用于收藏、订单、转售和证书归档',
           status: '已启用'
         }

@@ -568,4 +568,147 @@ onMounted(() => {
   font-size: 24rpx;
   color: #999999;
 }
+
+/* 订单页暗色视觉优化 */
+.order-list-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+}
+
+.status-tabs {
+  background: rgba(11, 11, 12, 0.96);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  padding: 0 24rpx;
+
+  .tab-item {
+    color: #8f8a80;
+    font-weight: 600;
+
+    &.active {
+      color: #f6f2e8;
+
+      &::after {
+        background-color: #c9a227;
+        width: 42rpx;
+      }
+    }
+  }
+}
+
+.order-list {
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.order-card {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 18rpx;
+  box-shadow: 0 18rpx 42rpx rgba(0, 0, 0, 0.22);
+
+  .order-header {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+
+    .seller-info .seller-name {
+      color: #f6f2e8;
+    }
+
+    .order-no {
+      color: #8f8a80;
+    }
+
+    .order-status {
+      font-weight: 700;
+
+      &.status-PENDING_PAYMENT { color: #ff7a7a; }
+      &.status-PAID { color: #c9a227; }
+      &.status-SHIPPED { color: #f0b64d; }
+      &.status-COMPLETED { color: #69d37b; }
+    }
+  }
+
+  .order-goods .goods-item {
+    .goods-image {
+      background-color: #202024;
+    }
+
+    .goods-info {
+      .goods-title {
+        color: #f6f2e8;
+        font-weight: 700;
+      }
+
+      .goods-meta {
+        color: #8f8a80;
+      }
+    }
+
+    .goods-right {
+      .goods-price {
+        color: #f2c85b;
+        font-weight: 800;
+      }
+
+      .goods-qty {
+        color: #8f8a80;
+      }
+    }
+  }
+
+  .order-footer {
+    .order-info {
+      .order-time,
+      .order-count {
+        color: #8f8a80;
+      }
+    }
+
+    .order-amount {
+      .amount-label {
+        color: #8f8a80;
+      }
+
+      .amount-value {
+        color: #f2c85b;
+      }
+    }
+  }
+
+  .order-actions {
+    border-top-color: rgba(255, 255, 255, 0.08);
+
+    .action-btn {
+      background: #202024;
+      color: #f6f2e8;
+
+      &.primary {
+        background: #c9a227;
+        color: #16130b;
+        font-weight: 800;
+      }
+
+      &.cancel {
+        border-color: rgba(255, 255, 255, 0.16);
+        color: #9b958a;
+      }
+    }
+  }
+}
+
+.empty-state {
+  min-height: 56vh;
+  justify-content: center;
+
+  .empty-image {
+    opacity: 0.62;
+  }
+
+  .empty-text {
+    color: #8f8a80;
+  }
+}
+
+.load-more {
+  color: #68645c;
+}
 </style>

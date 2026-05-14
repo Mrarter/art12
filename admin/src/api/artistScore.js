@@ -10,10 +10,7 @@ export function getArtistScoreList(params) {
 }
 
 export function getArtistScoreDetail(artistId) {
-  return requestApi({
-    url: '/artist/score/' + artistId,
-    method: 'get'
-  })
+  return requestApi.silentGet('/artist/score/' + artistId)
 }
 
 export function recalculateArtistScore(artistId) {

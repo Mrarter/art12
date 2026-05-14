@@ -5,7 +5,7 @@ import request from './request'
  * GET /api/artist/score/{artistId}
  */
 export function getArtistScore(artistId) {
-  return request.get(`/api/artist/score/${artistId}`)
+  return request.get(`/artist/score/${artistId}`)
 }
 
 /**
@@ -13,5 +13,5 @@ export function getArtistScore(artistId) {
  * POST /api/artist/score/recalculate/{artistId}
  */
 export function recalculateArtistScore(artistId) {
-  return request.post(`/api/artist/score/recalculate/${artistId}`)
+  return request.post(`/artist/score/recalculate/${artistId}`)
 }

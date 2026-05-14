@@ -85,14 +85,20 @@
       </view>
 
       <view class="card artist-card" @click="goArtistHome">
-        <image class="artist-avatar-lg" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
+        <view class="artist-avatar-wrap">
+          <image class="artist-avatar-lg" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
+          <view v-if="authorCertified" class="artist-verify-badge">V</view>
+        </view>
         <view class="artist-info-block">
           <view class="artist-name-row">
-            <text class="artist-name">{{ detail.authorName || '孟儒' }}</text>
-            <text class="score-badge">B+</text>
-            <text class="score-text">艺术家评级</text>
+            <text class="artist-name">{{ authorName }}</text>
+            <text class="score-badge">{{ artistScoreBadge }}</text>
+            <text class="score-text">{{ artistScoreText }}</text>
           </view>
-          <text class="artist-subtitle">{{ authorSubtitle }}</text>
+          <view class="artist-meta-row">
+            <text class="artist-subtitle">{{ authorSubtitle }}</text>
+            <text v-if="authorUidDisplay" class="artist-uid">{{ authorUidDisplay }}</text>
+          </view>
           <view class="artist-stats">
             <view class="artist-stat" v-for="item in artistStats" :key="item.label">
               <text class="artist-stat-value">{{ item.value }}</text>
@@ -121,15 +127,32 @@
             </view>
           </view>
           <view class="gain-card">
-            <view class="gain-copy">
+          <view class="gain-copy">
               <text class="gain-label">累计上涨</text>
-              <text class="gain-value">+54%</text>
+              <text class="gain-value">{{ totalGainDisplay }}</text>
             </view>
             <view class="sparkline">
-              <view class="spark-seg one"></view>
-              <view class="spark-seg two"></view>
-              <view class="spark-seg three"></view>
-              <view class="spark-seg four"></view>
+              <svg class="sparkline-svg" viewBox="0 0 132 54" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="gainLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#9d6f16" />
+                    <stop offset="100%" stop-color="#f0c65d" />
+                  </linearGradient>
+                  <linearGradient id="gainFillGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(240,198,93,0.26)" />
+                    <stop offset="100%" stop-color="rgba(240,198,93,0)" />
+                  </linearGradient>
+                </defs>
+                <path class="sparkline-fill" :d="sparklineFillPath" fill="url(#gainFillGradient)"></path>
+                <path class="sparkline-line" :d="sparklinePath"></path>
+                <circle
+                  v-if="sparklineLastPoint"
+                  class="sparkline-dot"
+                  :cx="sparklineLastPoint.x"
+                  :cy="sparklineLastPoint.y"
+                  r="3.2"
+                ></circle>
+              </svg>
             </view>
           </view>
         </view>
@@ -260,6 +283,8 @@
 
 <script>
 import { getProductDetail, addFavorite, removeFavorite } from '@/api/product'
+import * as userApi from '@/api/user'
+import { getArtistScore } from '@/api/artistScore'
 import { useUserStore } from '@/store/modules/user'
 import { getProductCommission } from '@/api/promoter'
 import { triggerCollectIncrease } from '@/api/artworkPrice'
@@ -278,6 +303,8 @@ export default {
         authorName: '',
         price: 0
       },
+      artistProfile: null,
+      artistScore: null,
       images: [],
       currentImageIndex: 0,
       heroHeight: 442,
@@ -305,7 +332,18 @@ export default {
       return this.storyText && this.storyText.length > 86
     },
     authorAvatarSrc() {
-      return this.normalizeResourceUrl(this.detail.authorAvatar) || this.defaultAvatar
+      return this.normalizeResourceUrl(this.artistProfile?.avatar || this.detail.authorAvatar) || this.defaultAvatar
+    },
+    authorName() {
+      return this.artistProfile?.nickname || this.artistProfile?.realName || this.detail.authorName || '艺术家'
+    },
+    authorCertified() {
+      return !!(this.artistProfile?.certified || this.artistProfile?.certStatus === 1 || this.detail.authorIdentity === 'artist')
+    },
+    authorUidDisplay() {
+      const uid = this.artistProfile?.uid || this.detail.authorUid || this.detail.displayAuthorId
+      if (!uid) return ''
+      return `UID ${uid}`
     },
     displayLikeCount() {
       return this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 128
@@ -329,7 +367,11 @@ export default {
       return this.cleanArtworkLabel(this.detail.subject || this.detail.categoryName || this.detail.artType || '').replace(/分类[:：]?\s*/g, '') || '静物'
     },
     authorSubtitle() {
-      return this.detail.authorSubtitle || this.detail.authorBadge || '青年油画艺术家 · 杭州'
+      const parts = [
+        this.artistProfile?.artistTitle || this.detail.authorSubtitle || this.detail.authorBadge || (this.authorCertified ? '认证艺术家' : ''),
+        this.artistProfile?.region || ''
+      ].filter(Boolean)
+      return parts.join(' · ') || '艺术家'
     },
     fallbackCover() {
       return FALLBACK_COVER
@@ -357,19 +399,110 @@ export default {
       return `AW${year}-0751`
     },
     artistStats() {
+      const workCount = Number(this.artistProfile?.artworkCount || this.artistProfile?.workCount || this.detail.authorWorkCount || 0)
+      const dealCount = Number(this.detail.authorDealCount || this.detail.saleCount || 0)
+      const dealRate = workCount > 0 ? `${Math.round((dealCount / workCount) * 100)}%` : '0%'
+      const averageRiseValue = Number(this.detail.priceRise || 0) * 100
       return [
-        { label: '作品数', value: this.detail.authorWorkCount || 12 },
-        { label: '成交数', value: this.detail.authorDealCount || 36 },
-        { label: '成交率', value: this.detail.authorDealRate || '85%' },
-        { label: '平均涨幅', value: this.detail.authorAverageRise || '+32%' }
+        { label: '作品数', value: String(workCount) },
+        { label: '成交数', value: String(dealCount) },
+        { label: '成交率', value: this.detail.authorDealRate || dealRate },
+        { label: '平均涨幅', value: this.detail.authorAverageRise || `${averageRiseValue >= 0 ? '+' : ''}${averageRiseValue.toFixed(1)}%` }
       ]
     },
+    artistScoreBadge() {
+      if (this.detail.authorScoreLevel) return this.detail.authorScoreLevel
+      const total = Number(this.artistScore?.totalScore || 0)
+      return total > 0 ? `${total}分` : '待评'
+    },
+    artistScoreText() {
+      return this.detail.authorScoreLevel ? '艺术家评级' : '艺术家评分'
+    },
     circulationRows() {
+      const currentPrice = Number(this.detail.price || 0)
+      const basePrice = this.startingPrice
+      const middlePrice = this.middlePrice
+      const startDate = this.formatRecordDate(this.detail.createTime, 0)
+      const middleDate = this.formatRecordDate(this.detail.createTime, 82)
+      const currentDate = this.formatRecordDate(this.detail.createTime, 185)
       return [
-        { date: '2024.03.12', event: '首次收藏', price: '¥5,200' },
-        { date: '2024.06.18', event: '第二次流通', price: '¥6,800' },
-        { date: '2024.10.28', event: '第三次流通（当前）', price: this.formatPrice(this.detail.price || 804000), current: true }
+        { date: startDate, event: '首次上架', price: this.formatPrice(basePrice) },
+        { date: middleDate, event: '热度上涨', price: this.formatPrice(middlePrice) },
+        { date: currentDate, event: '当前收藏价', price: this.formatPrice(currentPrice), current: true }
       ]
+    },
+    startingPrice() {
+      const currentPrice = Number(this.detail.price || 0)
+      const originalPrice = Number(this.detail.originalPrice || 0)
+      if (originalPrice > 0) return originalPrice
+      const fallback = currentPrice - Math.max(Number(this.detail.tomorrowIncreaseMax || 0) * 36, Math.round(currentPrice * 0.14))
+      return Math.max(fallback, Math.round(currentPrice * 0.72))
+    },
+    middlePrice() {
+      const currentPrice = Number(this.detail.price || 0)
+      const basePrice = this.startingPrice
+      if (!currentPrice || !basePrice) return currentPrice || basePrice
+      return Math.round((basePrice * 0.44 + currentPrice * 0.56) / 100) * 100
+    },
+    totalGainDisplay() {
+      const currentPrice = Number(this.detail.price || 0)
+      const basePrice = this.startingPrice
+      if (!currentPrice || !basePrice || currentPrice <= basePrice) return '+0%'
+      const ratio = ((currentPrice - basePrice) / basePrice) * 100
+      return `+${Math.round(ratio)}%`
+    },
+    sparklineSeries() {
+      const currentPrice = Number(this.detail.price || 0)
+      const basePrice = this.startingPrice
+      const middlePrice = this.middlePrice
+      if (!currentPrice || !basePrice) return [0, 0, 0, 0, 0]
+      const latePrice = Math.round((middlePrice * 0.48 + currentPrice * 0.52) / 100) * 100
+      return [
+        basePrice,
+        Math.round((basePrice * 0.88 + middlePrice * 0.12) / 100) * 100,
+        middlePrice,
+        latePrice,
+        currentPrice
+      ]
+    },
+    sparklinePoints() {
+      const values = this.sparklineSeries
+      const width = 132
+      const height = 54
+      const left = 2
+      const top = 5
+      const usableWidth = 124
+      const usableHeight = 38
+      const min = Math.min(...values)
+      const max = Math.max(...values)
+      const span = Math.max(max - min, 1)
+      return values.map((value, index) => ({
+        x: left + (usableWidth / Math.max(values.length - 1, 1)) * index,
+        y: top + usableHeight - ((value - min) / span) * usableHeight
+      }))
+    },
+    sparklinePath() {
+      const points = this.sparklinePoints
+      if (!points.length) return ''
+      if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+      let path = `M ${points[0].x} ${points[0].y}`
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const current = points[i]
+        const next = points[i + 1]
+        const controlX = (current.x + next.x) / 2
+        path += ` Q ${controlX} ${current.y} ${next.x} ${next.y}`
+      }
+      return path
+    },
+    sparklineFillPath() {
+      const points = this.sparklinePoints
+      if (!points.length) return ''
+      const baseY = 48
+      return `${this.sparklinePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`
+    },
+    sparklineLastPoint() {
+      const points = this.sparklinePoints
+      return points.length ? points[points.length - 1] : null
     },
     tomorrowIncreaseRange() {
       const min = Number(this.detail.tomorrowIncreaseMin || 0)
@@ -466,7 +599,11 @@ export default {
 
           this.images = this.buildArtworkImages(data)
           if (!this.images.length) this.images = [FALLBACK_COVER]
-          this.loadCommission(id)
+          await Promise.allSettled([
+            this.loadArtistProfile(data.authorId || data.authorUid),
+            this.loadArtistScore(data.authorId || data.authorUid),
+            this.loadCommission(id)
+          ])
           this.saveBrowseHistory(data)
         } else {
           this.isEmpty = true
@@ -476,6 +613,26 @@ export default {
         console.error('获取详情失败', e)
         this.isEmpty = true
         this.loadCommission(id)
+      }
+    },
+
+    async loadArtistProfile(authorId) {
+      if (!authorId) return
+      try {
+        const profile = await userApi.getArtistInfo(authorId)
+        this.artistProfile = profile || null
+      } catch (error) {
+        console.warn('加载艺术家资料失败', error)
+      }
+    },
+
+    async loadArtistScore(authorId) {
+      if (!authorId || Number.isNaN(Number(authorId))) return
+      try {
+        const score = await getArtistScore(Number(authorId))
+        this.artistScore = score || null
+      } catch (error) {
+        console.warn('加载艺术家评分失败', error)
       }
     },
 
@@ -512,6 +669,16 @@ export default {
       if (typeof window === 'undefined') return ''
       const match = window.location.href.match(/[?&]id=([^&#]+)/)
       return match ? decodeURIComponent(match[1]) : ''
+    },
+
+    formatRecordDate(baseDate, offsetDays = 0) {
+      const source = baseDate ? new Date(baseDate) : new Date()
+      if (Number.isNaN(source.getTime())) return '2026.05.11'
+      source.setDate(source.getDate() + offsetDays)
+      const year = source.getFullYear()
+      const month = String(source.getMonth() + 1).padStart(2, '0')
+      const day = String(source.getDate()).padStart(2, '0')
+      return `${year}.${month}.${day}`
     },
 
     initPriceGrowth(data) {
@@ -1956,12 +2123,35 @@ $gold-bright: #f0c83a;
   padding-right: 28rpx;
 }
 
+.artist-avatar-wrap {
+  position: relative;
+  width: 92rpx;
+  height: 92rpx;
+}
+
 .artist-avatar-lg {
   width: 92rpx;
   height: 92rpx;
   border-radius: 50%;
   border: 2rpx solid rgba(212, 160, 52, 0.56);
   background: #2a2a2a;
+}
+
+.artist-verify-badge {
+  position: absolute;
+  right: -2rpx;
+  bottom: 4rpx;
+  width: 28rpx;
+  height: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f3ce67, #d8aa45);
+  color: #181818;
+  font-size: 16rpx;
+  font-weight: 900;
+  box-shadow: 0 0 0 2rpx rgba(17, 17, 17, 0.9);
 }
 
 .artist-info-block {
@@ -2003,9 +2193,25 @@ $gold-bright: #f0c83a;
   color: #d8aa45;
 }
 
+.artist-meta-row {
+  margin-top: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
 .artist-subtitle {
   display: block;
-  margin-top: 10rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.artist-uid {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 16rpx;
+  line-height: 1;
 }
 
 .artist-stats {
@@ -2197,41 +2403,29 @@ $gold-bright: #f0c83a;
   height: 54rpx;
 }
 
-.sparkline::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 12rpx;
-  height: 1rpx;
-  background: linear-gradient(90deg, transparent, rgba(216, 170, 69, 0.22), transparent);
+.sparkline-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.sparkline::after {
-  content: '';
-  position: absolute;
-  right: 4rpx;
-  top: 7rpx;
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
-  background: #f0c65d;
-  box-shadow: 0 0 12rpx rgba(240, 198, 93, 0.45);
+.sparkline-fill {
+  opacity: 0.95;
 }
 
-.spark-seg {
-  position: absolute;
-  height: 5rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #a77a19, #f0c65d);
-  transform-origin: left center;
-  box-shadow: 0 0 14rpx rgba(240, 198, 93, 0.22);
+.sparkline-line {
+  fill: none;
+  stroke: url(#gainLineGradient);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8rpx rgba(240, 198, 93, 0.22));
 }
 
-.spark-seg.one { left: 2rpx; bottom: 14rpx; width: 34rpx; transform: rotate(-18deg); }
-.spark-seg.two { left: 31rpx; bottom: 22rpx; width: 32rpx; transform: rotate(13deg); }
-.spark-seg.three { left: 59rpx; bottom: 21rpx; width: 34rpx; transform: rotate(-24deg); }
-.spark-seg.four { left: 88rpx; bottom: 31rpx; width: 42rpx; transform: rotate(-39deg); }
+.sparkline-dot {
+  fill: #f0c65d;
+  filter: drop-shadow(0 0 8rpx rgba(240, 198, 93, 0.46));
+}
 
 .cert-body {
   display: grid;

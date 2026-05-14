@@ -235,6 +235,12 @@
       }
     },
     {
+      "path": "pages/user/realname",
+      "style": {
+        "navigationBarTitleText": "实名认证"
+      }
+    },
+    {
       "path": "pages/user/agreement",
       "style": {
         "navigationBarTitleText": "协议"

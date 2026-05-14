@@ -12,7 +12,7 @@ export const login = (data) => {
 // 微信登录
 export const wxLogin = (data) => {
   return request({
-    url: '/user/wxlogin',
+    url: '/user/auth/wx-login',
     method: 'POST',
     data
   })
@@ -61,7 +61,7 @@ export const getPurchased = (params) => {
 // 获取艺术家信息
 export const getArtistInfo = (userId) => {
   return request({
-    url: `/user/artist/${userId}`
+    url: `/user/artist/info/${userId}`
   })
 }
 
@@ -117,18 +117,18 @@ export const deleteAddress = (id) => {
 // 关注艺术家
 export const followArtist = (artistId) => {
   return request({
-    url: '/user/follow',
+    url: `/user/artist/${artistId}/follow`,
     method: 'POST',
-    data: { artistId }
+    data: {}
   })
 }
 
 // 取消关注艺术家
 export const unfollowArtist = (artistId) => {
   return request({
-    url: '/user/unfollow',
-    method: 'POST',
-    data: { artistId }
+    url: `/user/artist/${artistId}/follow`,
+    method: 'DELETE',
+    data: {}
   })
 }
 

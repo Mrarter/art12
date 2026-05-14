@@ -56,12 +56,24 @@ export const getOrderDetail = (orderNo) => {
 }
 
 export const getOrderCounts = () => {
-  return getOrderList({ page: 1, pageSize: 1 }).then((result) => result?.counts || {
-    pendingPayment: result?.pendingPayCount || 0,
+  const defaults = {
+    pending: 0,
+    pendingPayment: 0,
     paid: 0,
     shipped: 0,
-    completed: 0
-  })
+    completed: 0,
+    received: 0,
+    review: 0
+  }
+  return getOrderList({ page: 1, pageSize: 1 })
+    .then((result) => result?.counts || {
+      ...defaults,
+      pendingPayment: result?.pendingPayCount || 0
+    })
+    .catch((error) => {
+      console.warn('获取订单数量失败，使用默认统计', error)
+      return defaults
+    })
 }
 
 export const cancelOrder = (orderId) => {

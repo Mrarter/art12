@@ -26,7 +26,7 @@ public class AuctionService {
 
     public PageResult<Map<String, Object>> getSessions(int page, int size, Integer status) {
         // 检查表是否存在
-        if (!tableExists("auction_sessions")) {
+        if (!tableExists("auction_session")) {
             return emptyResult();
         }
 
@@ -39,7 +39,7 @@ public class AuctionService {
         }
 
         Long total = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM auction_sessions" + where, Long.class, args.toArray());
+            "SELECT COUNT(*) FROM auction_session" + where, Long.class, args.toArray());
 
         List<Object> queryArgs = new ArrayList<>(args);
         queryArgs.add((page - 1) * size);
@@ -47,28 +47,29 @@ public class AuctionService {
         
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
-            SELECT id, name, cover_image, description, start_time, end_time, status,
-                   lot_count, total_bids, create_time, update_time
-            FROM auction_sessions
+            SELECT id, title, cover_image, description, start_time, end_time, status,
+                   total_lots, total_bids, create_time, update_time
+            FROM auction_session
             """ + where + " ORDER BY create_time DESC LIMIT ?, ?",
             queryArgs.toArray()
         );
 
         List<Map<String, Object>> records = new ArrayList<>();
         for (Map<String, Object> row : rows) {
+            Integer displayStatus = resolveSessionStatus(row.get("start_time"), row.get("end_time"), row.get("status"));
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", row.get("id"));
-            item.put("title", row.get("name"));  // 数据库是name，前端用title
-            item.put("name", row.get("name"));
+            item.put("title", row.get("title"));
+            item.put("name", row.get("title"));
             item.put("coverImage", row.get("cover_image"));
             item.put("cover", row.get("cover_image"));  // 前端用cover
             item.put("description", row.get("description"));
             item.put("startTime", row.get("start_time"));
             item.put("endTime", row.get("end_time"));
-            item.put("status", row.get("status"));
-            item.put("statusText", getStatusText((Integer) row.get("status")));
-            item.put("totalLots", row.get("lot_count"));  // 数据库是lot_count
-            item.put("lotCount", row.get("lot_count"));
+            item.put("status", displayStatus);
+            item.put("statusText", getStatusText(displayStatus));
+            item.put("totalLots", row.get("total_lots"));
+            item.put("lotCount", row.get("total_lots"));
             item.put("totalBids", row.get("total_bids"));
             item.put("createTime", row.get("create_time"));
             item.put("updateTime", row.get("update_time"));
@@ -82,11 +83,11 @@ public class AuctionService {
     }
 
     public Map<String, Object> getSessionById(Long id) {
-        if (!tableExists("auction_sessions")) {
+        if (!tableExists("auction_session")) {
             return null;
         }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT * FROM auction_sessions WHERE id = ?", id);
+            "SELECT * FROM auction_session WHERE id = ?", id);
         if (rows.isEmpty()) return null;
         return convertSession(rows.get(0));
     }
@@ -103,12 +104,12 @@ public class AuctionService {
 
     @Transactional
     public Long createSession(Map<String, Object> params) {
-        if (!tableExists("auction_sessions")) return null;
+        if (!tableExists("auction_session")) return null;
         String title = (String) params.get("title");
         String name = title != null ? title : (String) params.get("name");
         LocalDateTime now = LocalDateTime.now();
         jdbcTemplate.update(
-            "INSERT INTO auction_sessions (name, description, cover_image, start_time, end_time, status, create_time, update_time) " +
+            "INSERT INTO auction_session (title, description, cover_image, start_time, end_time, status, create_time, update_time) " +
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             name, params.get("description"), params.get("coverImage") != null ? params.get("coverImage") : params.get("cover"),
             params.get("startTime"), params.get("endTime"), params.get("status") != null ? 1 : 0,
@@ -118,12 +119,12 @@ public class AuctionService {
 
     @Transactional
     public void updateSession(Long id, Map<String, Object> params) {
-        if (!tableExists("auction_sessions")) return;
-        StringBuilder sql = new StringBuilder("UPDATE auction_sessions SET update_time = ?");
+        if (!tableExists("auction_session")) return;
+        StringBuilder sql = new StringBuilder("UPDATE auction_session SET update_time = ?");
         List<Object> args = new ArrayList<>();
         args.add(LocalDateTime.now());
-        if (params.containsKey("title")) { sql.append(", name = ?"); args.add(params.get("title")); }
-        else if (params.containsKey("name")) { sql.append(", name = ?"); args.add(params.get("name")); }
+        if (params.containsKey("title")) { sql.append(", title = ?"); args.add(params.get("title")); }
+        else if (params.containsKey("name")) { sql.append(", title = ?"); args.add(params.get("name")); }
         if (params.containsKey("description")) { sql.append(", description = ?"); args.add(params.get("description")); }
         if (params.containsKey("coverImage")) { sql.append(", cover_image = ?"); args.add(params.get("coverImage")); }
         else if (params.containsKey("cover")) { sql.append(", cover_image = ?"); args.add(params.get("cover")); }
@@ -137,8 +138,8 @@ public class AuctionService {
 
     @Transactional
     public boolean deleteSession(Long id) {
-        if (!tableExists("auction_sessions")) return false;
-        return jdbcTemplate.update("DELETE FROM auction_sessions WHERE id = ?", id) > 0;
+        if (!tableExists("auction_session")) return false;
+        return jdbcTemplate.update("DELETE FROM auction_session WHERE id = ?", id) > 0;
     }
 
     public Map<String, Object> getLotById(Long id) {
@@ -298,7 +299,7 @@ public class AuctionService {
         Map<String, Object> stats = new LinkedHashMap<>();
         
         // 如果表不存在，返回默认统计
-        if (!tableExists("auction_sessions")) {
+        if (!tableExists("auction_session")) {
             stats.put("totalSessions", 0);
             stats.put("activeSessions", 0);
             stats.put("totalBids", 0);
@@ -308,13 +309,13 @@ public class AuctionService {
 
         try {
             Long totalSessions = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auction_sessions", Long.class);
+                "SELECT COUNT(*) FROM auction_session", Long.class);
             Long activeSessions = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auction_sessions WHERE status = 1", Long.class);
+                "SELECT COUNT(*) FROM auction_session WHERE status = 2", Long.class);
             Long totalBids = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(total_bids), 0) FROM auction_sessions", Long.class);
+                "SELECT COALESCE(SUM(total_bids), 0) FROM auction_session", Long.class);
             BigDecimal totalVolume = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(lot_count * total_bids), 0) FROM auction_sessions", BigDecimal.class);
+                "SELECT COALESCE(SUM(total_lots * total_bids), 0) FROM auction_session", BigDecimal.class);
 
             stats.put("totalSessions", totalSessions != null ? totalSessions : 0);
             stats.put("activeSessions", activeSessions != null ? activeSessions : 0);
@@ -335,14 +336,14 @@ public class AuctionService {
         try {
             String whereClause = buildDateWhereClause(startDate, endDate, "create_time");
             Long totalSessions = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auction_sessions WHERE " + whereClause, Long.class);
+                "SELECT COUNT(*) FROM auction_session WHERE " + whereClause, Long.class);
             stats.put("totalSessions", totalSessions != null ? totalSessions : 0);
             stats.put("activeSessions", jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auction_sessions WHERE status = 1 AND " + whereClause, Long.class));
+                "SELECT COUNT(*) FROM auction_session WHERE status = 2 AND " + whereClause, Long.class));
             stats.put("totalBids", jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(total_bids), 0) FROM auction_sessions WHERE " + whereClause, Long.class));
+                "SELECT COALESCE(SUM(total_bids), 0) FROM auction_session WHERE " + whereClause, Long.class));
             stats.put("totalVolume", jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(lot_count * total_bids), 0) FROM auction_sessions WHERE " + whereClause, BigDecimal.class));
+                "SELECT COALESCE(SUM(total_lots * total_bids), 0) FROM auction_session WHERE " + whereClause, BigDecimal.class));
         } catch (Exception e) {
             stats.put("totalSessions", 0);
             stats.put("activeSessions", 0);
@@ -356,7 +357,7 @@ public class AuctionService {
         try {
             String whereClause = buildDateWhereClause(startDate, endDate, "create_time");
             return jdbcTemplate.queryForList(
-                "SELECT name AS title, lot_count AS total_lots, total_bids, 0 AS total_volume FROM auction_sessions WHERE " + whereClause + " ORDER BY lot_count DESC LIMIT 10");
+                "SELECT title, total_lots, total_bids, 0 AS total_volume FROM auction_session WHERE " + whereClause + " ORDER BY total_lots DESC LIMIT 10");
         } catch (Exception e) {
             return List.of();
         }
@@ -367,7 +368,7 @@ public class AuctionService {
             String whereClause = buildDateWhereClause(startDate, endDate, "create_time");
             return jdbcTemplate.queryForList(
                 "SELECT a.real_name AS artist_name, COUNT(DISTINCT s.id) AS session_count, SUM(s.total_lots) AS total_lots " +
-                "FROM auction_sessions s JOIN artist a ON s.artist_id = a.id WHERE " + whereClause + " GROUP BY a.id, a.real_name ORDER BY total_lots DESC LIMIT 10");
+                "FROM auction_session s JOIN artist a ON s.artist_id = a.id WHERE " + whereClause + " GROUP BY a.id, a.real_name ORDER BY total_lots DESC LIMIT 10");
         } catch (Exception e) {
             return List.of();
         }
@@ -397,7 +398,7 @@ public class AuctionService {
         try {
             return jdbcTemplate.queryForList(
                 "SELECT DATE(create_time) AS date, COUNT(*) AS count, COALESCE(SUM(total_lots), 0) AS volume " +
-                "FROM auction_sessions WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL ? DAY) " +
+                "FROM auction_session WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL ? DAY) " +
                 "GROUP BY DATE(create_time) ORDER BY date");
         } catch (Exception e) {
             return List.of();
@@ -421,7 +422,7 @@ public class AuctionService {
     private boolean tableExists(String tableName) {
         try {
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'shiyiju' AND table_name = ?",
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
                 Integer.class, tableName);
             return count != null && count > 0;
         } catch (Exception e) {
@@ -439,15 +440,15 @@ public class AuctionService {
     private Map<String, Object> convertSession(Map<String, Object> row) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", row.get("id"));
-        item.put("title", row.get("name"));
-        item.put("name", row.get("name"));
+        item.put("title", row.get("title"));
+        item.put("name", row.get("title"));
         item.put("coverImage", row.get("cover_image"));
         item.put("cover", row.get("cover_image"));
         item.put("description", row.get("description"));
         item.put("startTime", row.get("start_time"));
         item.put("endTime", row.get("end_time"));
-        item.put("status", row.get("status"));
-        item.put("totalLots", row.get("lot_count"));
+        item.put("status", resolveSessionStatus(row.get("start_time"), row.get("end_time"), row.get("status")));
+        item.put("totalLots", row.get("total_lots"));
         item.put("totalBids", row.get("total_bids"));
         item.put("createTime", row.get("create_time"));
         return item;
@@ -463,5 +464,44 @@ public class AuctionService {
             case 4 -> "已结算";
             default -> "未知";
         };
+    }
+
+    private Integer resolveSessionStatus(Object startValue, Object endValue, Object statusValue) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startTime = toLocalDateTime(startValue);
+        LocalDateTime endTime = toLocalDateTime(endValue);
+        if (startTime != null && now.isBefore(startTime)) {
+            return 1;
+        }
+        if (endTime != null && now.isAfter(endTime)) {
+            return 3;
+        }
+        if (startTime != null || endTime != null) {
+            return 2;
+        }
+        return toInteger(statusValue);
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value instanceof LocalDateTime time) {
+            return time;
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return LocalDateTime.parse(text.replace(" ", "T"));
+        }
+        return null;
+    }
+
+    private Integer toInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return Integer.parseInt(text);
+        }
+        return null;
     }
 }

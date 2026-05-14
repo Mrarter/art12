@@ -152,6 +152,25 @@
             <el-input-number v-model="priceForm.viewRate" :min="1" :max="3" :precision="2" />
             <span class="tips">倍</span>
           </el-form-item>
+
+          <el-divider content-position="left">浏览量自动增长</el-divider>
+
+          <el-form-item label="自动增长开关">
+            <el-switch v-model="priceForm.viewAutoGrowthEnabled" />
+            <span class="tips">开启后，作品展示浏览量会叠加全局每日、每周、每月增长</span>
+          </el-form-item>
+          <el-form-item label="每日浏览量增长">
+            <el-input-number v-model="priceForm.dailyViewGrowth" :min="0" :max="999999" :precision="0" />
+            <span class="tips">次/天，应用到所有使用全局配置的作品</span>
+          </el-form-item>
+          <el-form-item label="每周浏览量增长">
+            <el-input-number v-model="priceForm.weeklyViewGrowth" :min="0" :max="999999" :precision="0" />
+            <span class="tips">次/周，按作品上线周数累加</span>
+          </el-form-item>
+          <el-form-item label="每月浏览量增长">
+            <el-input-number v-model="priceForm.monthlyViewGrowth" :min="0" :max="999999" :precision="0" />
+            <span class="tips">次/月，按作品上线月数累加</span>
+          </el-form-item>
           
           <el-form-item label="收藏量阈值">
             <el-input-number v-model="priceForm.favoriteThreshold" :min="0" :max="10000" />
@@ -308,6 +327,10 @@ const priceForm = reactive({
   // 热度系数
   viewThreshold: 100,
   viewRate: 1.1,
+  viewAutoGrowthEnabled: false,
+  dailyViewGrowth: 0,
+  weeklyViewGrowth: 0,
+  monthlyViewGrowth: 0,
   favoriteThreshold: 5,
   favoriteRate: 1.1,
   // 销售加成
@@ -346,6 +369,11 @@ const loadAllConfig = async () => {
     if (data.trade) Object.assign(tradeForm, data.trade)
     if (data.promotion) Object.assign(promotionForm, data.promotion)
     if (data.priceGrowth) Object.assign(priceForm, data.priceGrowth)
+    try {
+      Object.assign(priceForm, await request.get('/config/priceGrowth'))
+    } catch (e) {
+      console.warn('价格调控配置加载失败，保留系统配置值', e)
+    }
     if (data.auction) Object.assign(auctionForm, data.auction)
     if (data.audit) Object.assign(auditForm, data.audit)
   } catch (e) {
@@ -356,6 +384,7 @@ const loadAllConfig = async () => {
 // 保存配置
 const handleSave = async () => {
   try {
+    await request.post('/config/priceGrowth', priceForm)
     await request.post('/config/update', {
       trade: tradeForm,
       promotion: promotionForm,

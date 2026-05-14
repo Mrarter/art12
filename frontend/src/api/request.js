@@ -2,14 +2,14 @@
 // H5/模拟器：默认使用相对路径走 Vite 代理 (/api -> localhost:8080)
 // 微信真机调试：必须使用电脑在同一 Wi-Fi 下的局域网 IP
 // 生产预览/上传版：需要在微信公众平台配置 HTTPS 合法域名
-const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '127.0.0.1'
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
 const MP_GATEWAY_ORIGIN = import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `http://${DEV_LAN_HOST}:8080`
 const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN_HOST}:8087`
 const GATEWAY_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
   ? MP_GATEWAY_ORIGIN
   : ''
 const BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? GATEWAY_ORIGIN
+  ? `${GATEWAY_ORIGIN}/api`
   : '/api'
 const LOCAL_FILE_ORIGIN = 'http://127.0.0.1:8087'
 const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
@@ -35,6 +35,9 @@ const normalizeResourceUrls = (value) => {
   if (typeof value === 'string') {
     if (value.startsWith('/upload/')) {
       return FILE_BASE_URL + value
+    }
+    if (value.startsWith('upload/')) {
+      return FILE_BASE_URL + '/' + value
     }
     if (value.startsWith(LOCAL_FILE_ORIGIN)) {
       return FILE_BASE_URL + value.slice(LOCAL_FILE_ORIGIN.length)

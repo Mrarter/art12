@@ -41,7 +41,16 @@
             <text class="required">*</text>
             <text>身份证号</text>
           </view>
-          <input class="item-input" v-model="form.idCard" placeholder="请输入18位身份证号" placeholder-class="placeholder" maxlength="18" />
+          <input
+            class="item-input"
+            v-model="form.idCard"
+            placeholder="请输入18位身份证号"
+            placeholder-class="placeholder"
+            maxlength="18"
+            @input="onIdCardInput"
+            @blur="validateIdCardField"
+          />
+          <text v-if="idCardError" class="field-error">{{ idCardError }}</text>
         </view>
 
         <view class="form-item">
@@ -95,12 +104,23 @@
             </view>
           </view>
         </view>
+
+        <view class="face-verify-card" :class="{ verified: form.faceVerified }" @click="startFaceVerify">
+          <view class="face-icon">{{ form.faceVerified ? '✓' : '' }}</view>
+          <view class="face-copy">
+            <text class="face-title">人脸识别认证</text>
+            <text class="face-desc">
+              {{ form.faceVerified ? '已完成真人核验，将随认证资料一并提交' : '请确认本人操作，完成人脸识别后可提交认证' }}
+            </text>
+          </view>
+          <text class="face-action">{{ form.faceVerified ? '已认证' : '去认证' }}</text>
+        </view>
       </view>
 
       <!-- 作品展示 -->
       <view class="form-section">
         <view class="section-title">作品展示<text class="section-hint">（可选）</text></view>
-        <view class="upload-tips">上传3-5张代表作品，有助于审核通过</view>
+        <view class="upload-tips">上传10张代表作品，有助于审核通过</view>
         
         <view class="works-uploader">
           <view class="works-list">
@@ -110,7 +130,7 @@
                 
               </view>
             </view>
-            <view class="work-add" @click="chooseImage('artworks')" v-if="form.artworks.length < 5">
+            <view class="work-add" @click="chooseImage('artworks')" v-if="form.artworks.length < MAX_ARTWORK_COUNT">
               
               <text>添加作品</text>
             </view>
@@ -145,6 +165,9 @@ const artFields = ref([
   { id: '', name: '加载中...' }
 ])
 
+const MAX_ARTWORK_COUNT = 10
+const idCardError = ref('')
+
 const form = ref({
   realName: '',
   idCard: '',
@@ -153,6 +176,7 @@ const form = ref({
   resume: '',  // 后端字段名统一为resume
   idCardFront: '',
   idCardBack: '',
+  faceVerified: false,
   artworks: []  // 后端字段名统一为artworks
 })
 
@@ -165,12 +189,55 @@ const certStatus = ref({
 
 const canSubmit = computed(() => {
   return form.value.realName && 
-         form.value.idCard.length === 18 && 
+         validateIdCard(form.value.idCard) &&
          form.value.artField && 
          form.value.resume &&  // 改为resume
          form.value.idCardFront && 
-         form.value.idCardBack
+         form.value.idCardBack &&
+         form.value.faceVerified
 })
+
+const validateIdCard = (value) => {
+  const id = String(value || '').trim().toUpperCase()
+  if (!/^\d{17}[\dX]$/.test(id)) return false
+
+  const birth = id.slice(6, 14)
+  const year = Number(birth.slice(0, 4))
+  const month = Number(birth.slice(4, 6))
+  const day = Number(birth.slice(6, 8))
+  const date = new Date(year, month - 1, day)
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() + 1 !== month ||
+    date.getDate() !== day
+  ) {
+    return false
+  }
+
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+  const checks = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+  const sum = id.slice(0, 17).split('').reduce((total, num, index) => {
+    return total + Number(num) * weights[index]
+  }, 0)
+  return checks[sum % 11] === id[17]
+}
+
+const onIdCardInput = (e) => {
+  form.value.idCard = String(e.detail.value || '').toUpperCase()
+  if (idCardError.value && validateIdCard(form.value.idCard)) {
+    idCardError.value = ''
+  }
+}
+
+const validateIdCardField = () => {
+  if (!form.value.idCard) {
+    idCardError.value = ''
+    return true
+  }
+  const valid = validateIdCard(form.value.idCard)
+  idCardError.value = valid ? '' : '身份证号格式不正确，请检查号码、出生日期和校验位'
+  return valid
+}
 
 const onFieldChange = (e) => {
   const index = e.detail.value
@@ -180,7 +247,7 @@ const onFieldChange = (e) => {
 
 const chooseImage = (type) => {
   uni.chooseImage({
-    count: type === 'artworks' ? 5 - form.value.artworks.length : 1,
+    count: type === 'artworks' ? MAX_ARTWORK_COUNT - form.value.artworks.length : 1,
     sizeType: ['compressed'],
     success: (res) => {
       if (type === 'idCardFront') {
@@ -193,6 +260,7 @@ const chooseImage = (type) => {
           openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
         )).then(croppedList => {
           form.value.artworks.push(...croppedList)
+          form.value.artworks = form.value.artworks.slice(0, MAX_ARTWORK_COUNT)
         })
       }
     }
@@ -203,12 +271,35 @@ const removeWork = (index) => {
   form.value.artworks.splice(index, 1)  // 改为artworks
 }
 
+const startFaceVerify = () => {
+  if (form.value.faceVerified) return
+  uni.showModal({
+    title: '人脸识别认证',
+    content: '请确保由申请人本人操作。当前为本地调试流程，确认后标记为已完成。',
+    confirmText: '开始认证',
+    success: (res) => {
+      if (res.confirm) {
+        uni.showLoading({ title: '认证中...' })
+        setTimeout(() => {
+          uni.hideLoading()
+          form.value.faceVerified = true
+          uni.showToast({ title: '人脸认证完成', icon: 'success' })
+        }, 700)
+      }
+    }
+  })
+}
+
 const showAgreement = () => {
   uni.navigateTo({ url: '/pages/user/agreement?type=artist_cert' })
 }
 
 const submitForm = async () => {
   if (!canSubmit.value) {
+    if (!validateIdCardField()) {
+      uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
+      return
+    }
     uni.showToast({ title: '请完善必填信息', icon: 'none' })
     return
   }
@@ -429,6 +520,14 @@ onMounted(async () => {
 
 .placeholder {
   color: #bbb;
+}
+
+.field-error {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  color: #ff6b6b;
 }
 
 .upload-group {
@@ -686,6 +785,63 @@ onMounted(async () => {
 .works-uploader .works-list .work-add {
   background: #202024;
   border-color: rgba(255, 255, 255, 0.12);
+}
+
+.face-verify-card {
+  margin-top: 28rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.12), rgba(32, 32, 36, 0.96));
+  border: 1rpx solid rgba(201, 162, 39, 0.32);
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+
+  &.verified {
+    border-color: rgba(82, 196, 26, 0.45);
+    background: linear-gradient(135deg, rgba(82, 196, 26, 0.12), rgba(32, 32, 36, 0.96));
+  }
+}
+
+.face-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(201, 162, 39, 0.2);
+  color: #c9a227;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.face-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.face-title {
+  display: block;
+  color: #f6f2e8;
+  font-size: 28rpx;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.face-desc {
+  display: block;
+  color: #9b958a;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.face-action {
+  color: #c9a227;
+  font-size: 26rpx;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .works-uploader .works-list .work-add text,

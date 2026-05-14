@@ -218,7 +218,8 @@
             <el-tag v-if="row.certified" size="small" type="success">平台认证</el-tag>
             <el-tag v-if="row.badge === 'master'" size="small" type="danger">大师级</el-tag>
             <el-tag v-else-if="row.badge === 'popular'" size="small" type="warning">人气</el-tag>
-            <el-tag v-if="row.scoreLevel" size="small">{{ row.scoreLevel }}级</el-tag>
+            <el-tag v-if="row.scoreLevel && row.scoreLevel !== 'U'" size="small">{{ row.scoreLevel }}级</el-tag>
+            <el-tag v-if="row.scoreLevel === 'U'" size="small" type="info">未认证</el-tag>
             <span v-if="!row.certified && !row.badge && !row.scoreLevel" class="no-tags">-</span>
           </div>
         </template>
@@ -318,7 +319,13 @@
               </div>
             </div>
             
-            <el-form ref="profileFormRef" :model="profileForm" label-width="90px" class="profile-form">
+            <el-form
+              ref="profileFormRef"
+              :model="profileForm"
+              label-width="90px"
+              class="profile-form"
+              @keydown="handleProfileFormKeydown"
+            >
               <el-divider content-position="left">基本信息</el-divider>
               <el-row :gutter="20">
                 <el-col :span="12">
@@ -349,6 +356,32 @@
                   </el-form-item>
                 </el-col>
               </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="主页标题">
+                    <el-input v-model="profileForm.artistTitle" placeholder="如：当代油画艺术家" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="展示标签">
+                    <el-input v-model="profileForm.artistTags" placeholder="多个标签用逗号分隔" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-form-item label="主页头图">
+                <div class="cover-uploader">
+                  <el-image v-if="profileForm.homepageCover" :src="getFullImageUrl(profileForm.homepageCover)" fit="cover" class="cover-preview" />
+                  <el-upload
+                    class="cover-upload"
+                    :show-file-list="false"
+                    :http-request="handleHomepageCoverUpload"
+                    accept="image/*"
+                  >
+                    <el-button v-if="!profileForm.homepageCover" type="primary" size="small">上传头图</el-button>
+                    <el-button v-else type="warning" size="small">更换头图</el-button>
+                  </el-upload>
+                </div>
+              </el-form-item>
               <el-form-item label="艺术家简介">
                 <el-input 
                   v-model="profileForm.resume" 
@@ -436,17 +469,53 @@
         <!-- Tab3: 资质审核 -->
         <el-tab-pane label="资质审核" name="identity">
           <div class="identity-detail" v-if="currentIdentityData.artistId">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="毕业院校">{{ currentIdentityData.schoolName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="学历">{{ currentIdentityData.degree || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="职称">{{ currentIdentityData.academicTitle || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="协会">{{ currentIdentityData.associationName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="社交平台">{{ currentIdentityData.socialPlatform || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="粉丝数">{{ currentIdentityData.followerCount || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="账号链接" :span="2">{{ currentIdentityData.socialAccountUrl || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="展览经历" :span="2">{{ currentIdentityData.exhibitions || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="获奖经历" :span="2">{{ currentIdentityData.awards || '-' }}</el-descriptions-item>
-            </el-descriptions>
+            <el-form :model="currentIdentityData" label-width="100px" ref="identityFormRef">
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="毕业院校">
+                    <el-input v-model="currentIdentityData.schoolName" placeholder="请输入毕业院校" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="学历">
+                    <el-input v-model="currentIdentityData.degree" placeholder="请输入学历" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="职称">
+                    <el-input v-model="currentIdentityData.academicTitle" placeholder="请输入职称" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="协会">
+                    <el-input v-model="currentIdentityData.associationName" placeholder="请输入协会名称" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="社交平台">
+                    <el-input v-model="currentIdentityData.socialPlatform" placeholder="如：小红书、抖音" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="粉丝数">
+                    <el-input-number v-model="currentIdentityData.followerCount" :min="0" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-form-item label="账号链接">
+                <el-input v-model="currentIdentityData.socialAccountUrl" placeholder="请输入社交账号链接" />
+              </el-form-item>
+              <el-form-item label="展览经历">
+                <el-input v-model="currentIdentityData.exhibitions" type="textarea" :rows="2" placeholder="请输入展览经历" />
+              </el-form-item>
+              <el-form-item label="获奖经历">
+                <el-input v-model="currentIdentityData.awards" type="textarea" :rows="2" placeholder="请输入获奖经历" />
+              </el-form-item>
+            </el-form>
             <el-tag :type="identityStatusType" style="margin-top: 16px;">
               审核状态：{{ identityStatusText }}
             </el-tag>
@@ -457,9 +526,12 @@
               placeholder="审核备注"
               style="margin-top: 16px"
             />
-            <div style="margin-top: 16px; text-align: right;">
-              <el-button type="success" @click="auditIdentityInDetail('PASS')">审核通过</el-button>
-              <el-button type="danger" @click="auditIdentityInDetail('REJECT')">驳回</el-button>
+            <div style="margin-top: 16px; display: flex; justify-content: space-between;">
+              <el-button type="primary" @click="saveIdentityData">保存身份信息</el-button>
+              <span>
+                <el-button type="success" @click="auditIdentityInDetail('PASS')">审核通过</el-button>
+                <el-button type="danger" @click="auditIdentityInDetail('REJECT')">驳回</el-button>
+              </span>
             </div>
           </div>
           <el-empty v-else description="该艺术家暂无资质审核记录" :image-size="60" />
@@ -470,7 +542,7 @@
           <div class="artworks-section" v-loading="artworksLoading">
             <div v-if="userArtworks.list && userArtworks.list.length > 0" class="artwork-grid">
               <div v-for="artwork in userArtworks.list" :key="artwork.id" class="artwork-item" style="min-height: 180px;">
-                <el-image :src="getFullImageUrl(artwork.cover)" :alt="artwork.title" fit="cover" class="artwork-cover" />
+                <el-image :src="getFullImageUrl(artwork.cover || artwork.coverImage || (artwork.images && artwork.images[0]))" :alt="artwork.title" fit="cover" class="artwork-cover" />
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
                   <p class="artwork-price">¥{{ artwork.price || 0 }}</p>
@@ -690,6 +762,23 @@
       </template>
     </el-dialog>
 
+    <!-- 人工调分弹窗 -->
+    <el-dialog v-model="scoreAdjustVisible" title="人工调分" width="400px" destroy-on-close>
+      <el-form :model="scoreAdjustForm" label-width="100px">
+        <el-form-item label="当前调分值">
+          <el-input-number v-model="scoreAdjustForm.adjustScore" :min="-1000" :max="1000" />
+          <div style="color: #999; font-size: 12px; margin-top: 4px;">直接输入调整后的调分总值，系统自动计算增减</div>
+        </el-form-item>
+        <el-form-item label="调整原因">
+          <el-input v-model="scoreAdjustForm.reason" type="textarea" :rows="3" placeholder="请填写调整原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="scoreAdjustVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitScoreAdjust">确定调分</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 添加作品弹窗 -->
     <el-dialog v-model="artworkDialogVisible" title="添加作品" width="700px" destroy-on-close>
       <el-tabs v-model="artworkTab" class="artwork-tabs">
@@ -705,7 +794,7 @@
                    class="work-card" 
                    :class="{ selected: selectedExistingId === work.id }"
                    @click="selectExistingWork(work)">
-                <el-image :src="getFullImageUrl(work.cover)" fit="cover" class="work-cover" />
+                <el-image :src="getFullImageUrl(work.cover || work.coverImage || (work.images && work.images[0]))" fit="cover" class="work-cover" />
                 <div class="work-info">
                   <p class="work-title">{{ work.title }}</p>
                   <p class="work-author">{{ work.authorName }}</p>
@@ -784,7 +873,7 @@
         </el-form-item>
         <el-form-item label="作品封面">
           <div class="cover-uploader">
-            <el-image v-if="artworkForm.cover" :src="getFullImageUrl(artworkForm.cover)" fit="cover" class="cover-preview" />
+            <el-image v-if="artworkForm.cover" :src="getFullImageUrl(artworkForm.cover)" fit="cover" class="cover-preview" @error="(e) => e.target.style.display='none'" />
             <el-upload
               class="cover-upload"
               :show-file-list="false"
@@ -820,7 +909,7 @@ import { requestApi } from '@/api/request'
 import { copyId } from '@/utils/id'
 import ScoreLevelTag from '@/components/ScoreLevelTag.vue'
 import { getArtistScoreList, recalculateArtistScore, manualAdjustArtistScore, getArtistScoreDetail } from '@/api/artistScore'
-import { getIdentityAuditList, getIdentityDetail, auditArtistIdentity } from '@/api/artistIdentity'
+import { getIdentityAuditList, getIdentityDetail, auditArtistIdentity, saveArtistIdentity } from '@/api/artistIdentity'
 
 const route = useRoute()
 const loading = ref(false)
@@ -931,9 +1020,12 @@ const profileForm = reactive({
   phone: '',
   email: '',
   avatar: '',
+  homepageCover: '',
   identities: [],
   realName: '',
   idCard: '',
+  artistTitle: '',
+  artistTags: '',
   resume: ''
 })
 
@@ -1023,9 +1115,12 @@ const openUserProfile = async (row) => {
     phone: row.phone || row.userPhone || '',
     email: row.email || '',
     avatar: row.avatar || row.userAvatar || '',
+    homepageCover: row.homepageCover || '',
     identities: row.certified ? ['artist'] : [],
     realName: row.realName || '',
     idCard: row.idCard || '',
+    artistTitle: row.artistTitle || '',
+    artistTags: Array.isArray(row.artistTags) ? row.artistTags.join(', ') : (row.artistTags || ''),
     resume: row.resume || row.bio || ''
   })
 
@@ -1133,6 +1228,32 @@ const handleAvatarUpload = async (options) => {
   }
 }
 
+const handleHomepageCoverUpload = async (options) => {
+  const { file, onSuccess, onError } = options
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    onError(new Error('请选择图片文件'))
+    return
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 10MB')
+    onError(new Error('图片大小不能超过 10MB'))
+    return
+  }
+
+  try {
+    const result = await uploadFile(file)
+    profileForm.homepageCover = result?.url || result || ''
+    ElMessage.success('主页头图上传成功')
+    onSuccess()
+  } catch (e) {
+    ElMessage.error(e.message || '主页头图上传失败')
+    onError(e)
+  }
+}
+
 // 保存用户资料
 const saveProfile = async () => {
   try {
@@ -1146,6 +1267,9 @@ const saveProfile = async () => {
       identities: profileForm.identities,
       realName: profileForm.realName,
       idCard: profileForm.idCard,
+      artistTitle: profileForm.artistTitle,
+      artistTags: profileForm.artistTags,
+      homepageCover: profileForm.homepageCover,
       resume: profileForm.resume
     })
     detailVisible.value = false
@@ -1156,6 +1280,19 @@ const saveProfile = async () => {
   } finally {
     editLoading.value = false
   }
+}
+
+const handleProfileFormKeydown = (event) => {
+  if (event.key !== 'Enter' || detailActiveTab.value !== 'info' || editLoading.value) {
+    return
+  }
+  const target = event.target
+  const tagName = target?.tagName?.toLowerCase()
+  if (tagName === 'textarea' || target?.classList?.contains('el-textarea__inner')) {
+    return
+  }
+  event.preventDefault()
+  saveProfile()
 }
 
 const handleSearch = () => {
@@ -1604,6 +1741,10 @@ const loadExistingWorks = async () => {
       existingWorks.value = [...existingWorks.value, ...(res.records || res.list || [])]
     }
     existingWorksTotal.value = res.total || existingWorks.value.length
+    // 调试：打印第一个作品的图片信息
+    if (existingWorks.value.length > 0) {
+      console.log('作品数据示例:', JSON.stringify(existingWorks.value[0], null, 2))
+    }
   } catch (e) {
     console.error('加载作品失败', e)
     existingWorks.value = []
@@ -1639,8 +1780,15 @@ const confirmSelectExisting = async () => {
   
   try {
     artworkLoading.value = true
+    // 确保 authorId 是数字类型
+    const authorId = Number(currentUser.value.id) || Number(currentUser.value.userId)
+    if (!authorId) {
+      ElMessage.error('缺少用户ID')
+      artworkLoading.value = false
+      return
+    }
     await requestApi.post('/product/create', {
-      authorId: currentUser.value.userId || currentUser.value.id,
+      authorId: authorId,
       title: selectedExistingTitle.value,
       cover: existingWorks.value.find(w => w.id === selectedExistingId.value)?.coverImage || '',
       price: existingWorks.value.find(w => w.id === selectedExistingId.value)?.price || 0,
@@ -1715,8 +1863,15 @@ const submitArtwork = async () => {
   
   try {
     artworkLoading.value = true
+    // 确保 authorId 是数字类型
+    const authorId = Number(currentUser.value.id) || Number(currentUser.value.userId)
+    if (!authorId) {
+      ElMessage.error('缺少用户ID')
+      artworkLoading.value = false
+      return
+    }
     await requestApi.post('/product/create', {
-      authorId: currentUser.value.userId || currentUser.value.id,
+      authorId: authorId,
       ...artworkForm
     })
     ElMessage.success('作品添加成功')
@@ -1938,7 +2093,7 @@ const recalculateScore = async (row) => {
 const openScoreAdjust = () => {
   scoreAdjustForm.value = {
     artistId: currentRecord.value.id,
-    adjustScore: 0,
+    adjustScore: currentScoreData.value.adjustmentScore || 0,
     reason: ''
   }
   scoreAdjustVisible.value = true
@@ -1950,12 +2105,40 @@ const submitScoreAdjust = async () => {
     return
   }
   try {
-    await manualAdjustArtistScore(scoreAdjustForm.value)
+    // 计算差值：目标值 - 当前值
+    const oldAdjust = currentScoreData.value.adjustmentScore || 0
+    const newAdjust = scoreAdjustForm.value.adjustScore
+    const delta = newAdjust - oldAdjust
+    if (delta === 0) {
+      ElMessage.warning('调分值未发生变化')
+      return
+    }
+    await manualAdjustArtistScore({
+      artistId: scoreAdjustForm.value.artistId,
+      adjustScore: delta,
+      reason: scoreAdjustForm.value.reason
+    })
     ElMessage.success('人工调分成功')
     scoreAdjustVisible.value = false
     // 刷新评分数据
     const scoreData = await getArtistScoreDetail(scoreAdjustForm.value.artistId)
     currentScoreData.value = scoreData || {}
+    await loadData()
+  } catch (e) {}
+}
+
+// 保存身份信息
+const saveIdentityData = async () => {
+  try {
+    await saveArtistIdentity(currentIdentityData.value)
+    ElMessage.success('身份信息已保存')
+    // 保存后重新算分
+    const artistId = currentRecord.value.id
+    if (artistId) {
+      await recalculateArtistScore(artistId)
+      const scoreData = await getArtistScoreDetail(artistId)
+      currentScoreData.value = scoreData || {}
+    }
     await loadData()
   } catch (e) {}
 }
@@ -1998,10 +2181,11 @@ const scoreItems = () => [
   { name: '销售表现', value: currentScoreData.value.salesScore || 0, max: 300, desc: '成交金额、成交数量、销售增长率' },
   { name: '市场影响力', value: currentScoreData.value.influenceScore || 0, max: 200, desc: '关注、收藏、浏览、分享' },
   { name: '活跃度', value: currentScoreData.value.activityScore || 0, max: 100, desc: '上新、登录、互动' },
-  { name: '作品质量', value: currentScoreData.value.qualityScore || 0, max: 150, desc: '平台评审与作品完整度' },
+  { name: '作品信息完整度', value: currentScoreData.value.qualityScore || 0, max: 50, desc: '作品封面、描述、尺寸、年份、材质等' },
   { name: '藏家评价', value: currentScoreData.value.reviewScore || 0, max: 100, desc: '评价、复购、评论质量' },
-  { name: '学术资质', value: currentScoreData.value.academicScore || 0, max: 100, desc: '美院、职称、协会、展览、获奖' },
-  { name: '互联网资质', value: currentScoreData.value.internetScore || 0, max: 50, desc: '艺术博主身份、粉丝、内容质量、转化' }
+  { name: '学术资质', value: currentScoreData.value.academicScore || 0, max: 200, desc: '美院、职称、协会、展览、获奖' },
+  { name: '互联网资质', value: currentScoreData.value.internetScore || 0, max: 50, desc: '艺术博主身份、粉丝、内容质量、转化' },
+  { name: '手动调整', value: currentScoreData.value.adjustmentScore || 0, max: 1000, desc: '人工调分累积值' }
 ]
 
 onMounted(async () => {

@@ -57,6 +57,7 @@ public class AuctionController {
         
         // 转换为兼容前端的格式
         List<Map<String, Object>> records = result.getRecords().stream().map(session -> {
+            Integer displayStatus = resolveSessionStatus(session.getStartTime(), session.getEndTime(), session.getStatus());
             Map<String, Object> map = new HashMap<>();
             map.put("id", session.getId());
             map.put("name", session.getTitle());
@@ -64,7 +65,7 @@ public class AuctionController {
             map.put("description", session.getDescription());
             map.put("startTime", session.getStartTime());
             map.put("endTime", session.getEndTime());
-            map.put("status", session.getStatus());
+            map.put("status", displayStatus);
             map.put("lotCount", session.getTotalLots());
             return map;
         }).collect(Collectors.toList());
@@ -104,7 +105,7 @@ public class AuctionController {
         sessionMap.put("description", session.getDescription());
         sessionMap.put("startTime", session.getStartTime());
         sessionMap.put("endTime", session.getEndTime());
-        sessionMap.put("status", session.getStatus());
+        sessionMap.put("status", resolveSessionStatus(session.getStartTime(), session.getEndTime(), session.getStatus()));
         sessionMap.put("lotCount", session.getTotalLots());
         
         // 转换拍品数据
@@ -128,6 +129,20 @@ public class AuctionController {
         result.put("lots", lotMaps);
         
         return Result.success(result);
+    }
+
+    private Integer resolveSessionStatus(LocalDateTime startTime, LocalDateTime endTime, Integer status) {
+        LocalDateTime now = LocalDateTime.now();
+        if (startTime != null && now.isBefore(startTime)) {
+            return AuctionConstant.SESSION_STATUS_COMING;
+        }
+        if (endTime != null && now.isAfter(endTime)) {
+            return AuctionConstant.SESSION_STATUS_ENDED;
+        }
+        if (startTime != null || endTime != null) {
+            return AuctionConstant.SESSION_STATUS_ONGOING;
+        }
+        return status;
     }
 
     /**

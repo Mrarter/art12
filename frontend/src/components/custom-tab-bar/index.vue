@@ -68,7 +68,7 @@ export default {
     },
     canShowPublish() {
       const identities = this.identities.map(item => String(item).toLowerCase())
-      return identities.some(item => ['collector', 'artist', '藏家', '收藏者', '艺术家'].includes(item)) || this.userStore.isArtist
+      return identities.some(item => ['collector', 'artist', '藏家', '收藏者', '收藏家', '艺术家'].includes(item)) || this.userStore.isArtist
     },
     visibleTabList() {
       return this.tabList

@@ -16,10 +16,11 @@
         <view class="mask-bottom" :style="{ bottom: 0, left: 0, right: 0, height: cropBottomGap + 'px' }"></view>
       </view>
       <!-- 裁剪框边框装饰 -->
-      <view class="crop-border" :style="{
+      <view class="crop-border" :class="{ circle: shape === 'circle' }" :style="{
         left: cropLeft + 'px', top: cropTop + 'px',
         width: cropW + 'px', height: cropH + 'px'
       }">
+        <view v-if="shape === 'circle'" class="circle-mask-ring"></view>
         <view class="corner tl"></view>
         <view class="corner tr"></view>
         <view class="corner bl"></view>
@@ -489,6 +490,33 @@ export default {
 .crop-border {
   position: absolute;
   pointer-events: none;
+}
+
+.crop-border.circle {
+  border: 4rpx solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2rpx rgba(255, 255, 255, 0.16),
+    inset 0 0 0 2rpx rgba(255, 255, 255, 0.18),
+    0 0 32rpx rgba(0, 0, 0, 0.28);
+
+  .corner {
+    display: none;
+  }
+
+  .size-label {
+    bottom: 16rpx;
+    padding: 2rpx 12rpx;
+    border-radius: 999rpx;
+    background: rgba(0, 0, 0, 0.32);
+  }
+}
+
+.circle-mask-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
 }
 
 .corner {

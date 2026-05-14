@@ -394,4 +394,123 @@ export default {
     border-radius: 40rpx;
   }
 }
+
+/* 已购作品暗色视觉优化 */
+.purchased-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+}
+
+.filter-bar {
+  background: rgba(11, 11, 12, 0.96);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  padding: 0 24rpx;
+
+  .filter-item {
+    color: #8f8a80;
+    font-weight: 600;
+
+    &.active {
+      color: #f6f2e8;
+
+      &::after {
+        background: #c9a227;
+      }
+    }
+  }
+}
+
+.order-list {
+  padding: 24rpx;
+
+  .order-card {
+    background: #171719;
+    border: 1rpx solid rgba(255, 255, 255, 0.08);
+    border-radius: 18rpx;
+    box-shadow: 0 18rpx 42rpx rgba(0, 0, 0, 0.22);
+
+    .order-header {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+
+      .order-time {
+        color: #8f8a80;
+      }
+
+      .order-status {
+        font-weight: 800;
+      }
+    }
+
+    .order-items .order-item {
+      .item-image {
+        background: #202024;
+      }
+
+      .item-info {
+        .item-title {
+          color: #f6f2e8;
+          font-weight: 800;
+        }
+
+        .item-artist {
+          color: #8f8a80;
+        }
+      }
+
+      .item-price {
+        text {
+          color: #f2c85b;
+        }
+
+        .item-num {
+          color: #8f8a80;
+        }
+      }
+    }
+
+    .order-footer {
+      .order-total {
+        text {
+          color: #8f8a80;
+        }
+
+        .total-price {
+          color: #f2c85b;
+        }
+      }
+
+      .order-actions .action-btn {
+        &.primary {
+          color: #16130b;
+          background: #c9a227;
+          font-weight: 800;
+        }
+
+        &.secondary {
+          color: #f6f2e8;
+          background: #202024;
+          border: 1rpx solid rgba(255, 255, 255, 0.08);
+        }
+      }
+    }
+  }
+}
+
+.empty-state {
+  min-height: 58vh;
+  justify-content: center;
+
+  .empty-icon {
+    opacity: 0.62;
+  }
+
+  .empty-text {
+    color: #8f8a80;
+  }
+
+  .empty-btn {
+    color: #c9a227;
+    border-color: rgba(201, 162, 39, 0.55);
+  }
+}
 </style>
