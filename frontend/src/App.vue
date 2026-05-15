@@ -6,12 +6,17 @@
 
 <script>
 // 文件服务器和网关地址（与 request.js 保持一致）
+// Mac端真机调试需要HTTPS
 const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+const MP_GATEWAY_ORIGIN = import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `https://${DEV_LAN_HOST}:9443`
+const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `https://${DEV_LAN_HOST}:9447`
+const IS_MP_WEIXIN = process.env.UNI_PLATFORM === 'mp-weixin'
 
 export default {
   globalData: {
-    fileDomain: `http://${DEV_LAN_HOST}:8087`,
-    domain: `http://${DEV_LAN_HOST}:8080`
+    // H5 走本地代理与相对路径，小程序走配置的 HTTPS 域名
+    fileDomain: IS_MP_WEIXIN ? MP_FILE_ORIGIN : '',
+    domain: IS_MP_WEIXIN ? MP_GATEWAY_ORIGIN : ''
   },
   onLaunch() {
     console.log('App Launch - 拾艺局')

@@ -19,8 +19,8 @@
       <view class="hero-card" :style="heroCardStyle">
         <swiper class="image-swiper" @change="onSwiperChange" v-if="images.length">
           <swiper-item class="hero-slide" v-for="(img, index) in images" :key="index">
-            <image class="hero-backdrop" :src="img" mode="aspectFill"></image>
-            <image class="hero-image" :src="img" mode="aspectFill" @load="onHeroImageLoad" @error="onArtworkImageError(index)" @click="previewImage(index)"></image>
+            <image class="hero-backdrop" :src="img || fallbackCover" mode="aspectFill" @error="onArtworkImageError(index)"></image>
+            <image class="hero-image" :src="img || fallbackCover" mode="aspectFill" @load="onHeroImageLoad" @error="onArtworkImageError(index)" @click="previewImage(index)"></image>
           </swiper-item>
         </swiper>
         <view class="hero-shadow"></view>
@@ -332,21 +332,35 @@ export default {
       return this.storyText && this.storyText.length > 86
     },
     authorAvatarSrc() {
-      return this.normalizeResourceUrl(this.artistProfile?.avatar || this.detail.authorAvatar) || this.defaultAvatar
+      const profileAvatar = this.profileMatchesDetailAuthor ? this.artistProfile?.avatar : ''
+      return this.normalizeResourceUrl(profileAvatar || this.detail.authorAvatar) || this.defaultAvatar
     },
     authorName() {
-      return this.artistProfile?.nickname || this.artistProfile?.realName || this.detail.authorName || '艺术家'
+      return this.detail.authorName || this.artistProfile?.nickname || this.artistProfile?.realName || '艺术家'
     },
     authorCertified() {
       return !!(this.artistProfile?.certified || this.artistProfile?.certStatus === 1 || this.detail.authorIdentity === 'artist')
     },
     authorUidDisplay() {
-      const uid = this.artistProfile?.uid || this.detail.authorUid || this.detail.displayAuthorId
+      const profileUid = this.profileMatchesDetailAuthor ? this.artistProfile?.uid : ''
+      const uid = this.detail.authorUid || this.detail.displayAuthorId || profileUid
       if (!uid) return ''
       return `UID ${uid}`
     },
+    profileMatchesDetailAuthor() {
+      if (!this.artistProfile || !this.detail) return false
+      const detailUid = String(this.detail.authorUid || '').trim()
+      const profileUid = String(this.artistProfile.uid || '').trim()
+      if (detailUid && profileUid) {
+        return detailUid === profileUid
+      }
+      const detailName = String(this.detail.authorName || '').trim()
+      const profileName = String(this.artistProfile.nickname || this.artistProfile.realName || '').trim()
+      return !!(detailName && profileName && detailName === profileName)
+    },
     displayLikeCount() {
-      return this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 128
+      // 优先使用真实收藏数，避免展示口径与后台运营数据不一致
+      return this.detail.realFavoriteCount ?? this.detail.favoriteCount ?? this.detail.displayLikeCount ?? this.detail.likeCount ?? 0
     },
     artworkYear() {
       return this.detail.year || this.detail.createYear || '2024'
@@ -368,8 +382,8 @@ export default {
     },
     authorSubtitle() {
       const parts = [
-        this.artistProfile?.artistTitle || this.detail.authorSubtitle || this.detail.authorBadge || (this.authorCertified ? '认证艺术家' : ''),
-        this.artistProfile?.region || ''
+        (this.profileMatchesDetailAuthor ? this.artistProfile?.artistTitle : '') || this.detail.authorSubtitle || this.detail.authorBadge || (this.authorCertified ? '认证艺术家' : ''),
+        (this.profileMatchesDetailAuthor ? this.artistProfile?.region : '') || ''
       ].filter(Boolean)
       return parts.join(' · ') || '艺术家'
     },
@@ -385,8 +399,11 @@ export default {
     artworkMetaLine() {
       return `${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`
     },
+    displayPrice() {
+      return this.resolveCurrentPrice(this.detail)
+    },
     priceNumber() {
-      const price = Number(this.detail.price || 804000)
+      const price = Number(this.displayPrice || 804000)
       return Math.round(price / 100).toLocaleString()
     },
     growthRangeDisplay() {
@@ -419,7 +436,7 @@ export default {
       return this.detail.authorScoreLevel ? '艺术家评级' : '艺术家评分'
     },
     circulationRows() {
-      const currentPrice = Number(this.detail.price || 0)
+      const currentPrice = Number(this.displayPrice || 0)
       const basePrice = this.startingPrice
       const middlePrice = this.middlePrice
       const startDate = this.formatRecordDate(this.detail.createTime, 0)
@@ -432,27 +449,27 @@ export default {
       ]
     },
     startingPrice() {
-      const currentPrice = Number(this.detail.price || 0)
+      const currentPrice = Number(this.displayPrice || 0)
       const originalPrice = Number(this.detail.originalPrice || 0)
       if (originalPrice > 0) return originalPrice
       const fallback = currentPrice - Math.max(Number(this.detail.tomorrowIncreaseMax || 0) * 36, Math.round(currentPrice * 0.14))
       return Math.max(fallback, Math.round(currentPrice * 0.72))
     },
     middlePrice() {
-      const currentPrice = Number(this.detail.price || 0)
+      const currentPrice = Number(this.displayPrice || 0)
       const basePrice = this.startingPrice
       if (!currentPrice || !basePrice) return currentPrice || basePrice
       return Math.round((basePrice * 0.44 + currentPrice * 0.56) / 100) * 100
     },
     totalGainDisplay() {
-      const currentPrice = Number(this.detail.price || 0)
+      const currentPrice = Number(this.displayPrice || 0)
       const basePrice = this.startingPrice
       if (!currentPrice || !basePrice || currentPrice <= basePrice) return '+0%'
       const ratio = ((currentPrice - basePrice) / basePrice) * 100
       return `+${Math.round(ratio)}%`
     },
     sparklineSeries() {
-      const currentPrice = Number(this.detail.price || 0)
+      const currentPrice = Number(this.displayPrice || 0)
       const basePrice = this.startingPrice
       const middlePrice = this.middlePrice
       if (!currentPrice || !basePrice) return [0, 0, 0, 0, 0]
@@ -510,15 +527,15 @@ export default {
       if (min > 0 || max > 0) {
         const low = Math.min(min || max, max || min)
         const high = Math.max(min, max)
-        return low === high ? this.formatPrice(low) : `${this.formatPrice(low)} - ${this.formatPrice(high)}`
+        return low === high ? this.formatPriceDelta(low) : `${this.formatPriceDelta(low)} - ${this.formatPriceDelta(high)}`
       }
-      const price = Number(this.detail.price || 0)
+      const price = Number(this.displayPrice || 0)
       const baseRate = Number(this.detail.customBaseDailyRate || this.detail.baseDailyRate || 0)
       const matureRate = Number(this.detail.customMatureDailyRate || this.detail.matureDailyRate || baseRate)
       if (!price || (!baseRate && !matureRate)) return ''
       const low = Math.round(price * Math.min(baseRate || matureRate, matureRate || baseRate))
       const high = Math.round(price * Math.max(baseRate, matureRate))
-      return low === high ? this.formatPrice(low) : `${this.formatPrice(low)} - ${this.formatPrice(high)}`
+      return low === high ? this.formatPriceDelta(low) : `${this.formatPriceDelta(low)} - ${this.formatPriceDelta(high)}`
     },
     infoRows() {
       return [
@@ -557,7 +574,7 @@ export default {
           cover,
           title: this.detail.title ? `${this.detail.title}-已修复` : '测试作品-已修复',
           meta: `${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`,
-          price: this.formatPrice(this.detail.price || 1200000)
+          price: this.formatPrice(this.displayPrice || 1200000)
         },
         {
           id: this.detail.id,
@@ -642,7 +659,7 @@ export default {
         id: item.id,
         name: item.title || item.name || '未命名作品',
         author: item.authorName || item.artistName || '未知艺术家',
-        price: item.price || 0,
+        price: this.resolveCurrentPrice(item),
         image: item.coverImage || item.cover || (Array.isArray(item.images) ? item.images[0] : ''),
         time: Date.now()
       }
@@ -695,12 +712,12 @@ export default {
       try {
         const res = await getProductCommission(productId)
         const rate = res.commissionRate || res.rate || this.detail.commissionRate || 5
-        const priceYuan = (this.detail.price || 0) / 100
+        const priceYuan = (this.displayPrice || 0) / 100
         this.commission = Math.floor(priceYuan * rate) / 100
         this.commissionLevels = this.buildCommissionLevels(res, rate)
       } catch (e) {
         const rate = this.detail.commissionRate || 5
-        const priceYuan = (this.detail.price || 0) / 100
+        const priceYuan = (this.displayPrice || 0) / 100
         this.commission = Math.floor(priceYuan * rate) / 100
         this.commissionLevels = this.buildCommissionLevels(null, rate)
       }
@@ -768,9 +785,9 @@ export default {
     async triggerPriceOnCollect() {
       try {
         const newPrice = await triggerCollectIncrease(this.detail.id)
-        const oldPrice = this.detail.price
+        const oldPrice = this.displayPrice
         const changeRate = newPrice && oldPrice ? ((newPrice - oldPrice) / oldPrice * 100) : 0.5
-        this.detail.price = newPrice || this.detail.price
+        if (newPrice) this.detail.currentPrice = newPrice
         this.priceGrowth.collectCount = (this.priceGrowth.collectCount || 0) + 1
         this.priceGrowth.growthRate = `+${changeRate.toFixed(1)}%`
         uni.showToast({ title: '收藏成功，作品热度提升', icon: 'none' })
@@ -955,7 +972,7 @@ export default {
     },
 
     buildCommissionLevels(res, rate) {
-      const priceYuan = (this.detail.price || 0) / 100
+      const priceYuan = (this.displayPrice || 0) / 100
       const levels = Array.isArray(res?.levels) && res.levels.length
         ? res.levels
         : [
@@ -979,6 +996,22 @@ export default {
       if (!price) return '¥0'
       const yuan = Math.round(Number(price) / 100)
       return `¥${yuan.toLocaleString()}`
+    },
+
+    formatPriceDelta(price) {
+      const value = Number(price || 0)
+      if (value <= 0) return '¥0'
+      const yuan = value / 100
+      const formatted = yuan >= 1
+        ? Math.round(yuan).toLocaleString()
+        : yuan.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+      return `¥${formatted}`
+    },
+
+    resolveCurrentPrice(item = {}) {
+      const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
+      if (currentPrice > 0) return currentPrice
+      return Number(item.price || 0)
     },
 
     formatYuanAmount(amount) {

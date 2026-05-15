@@ -192,6 +192,15 @@ export default {
     },
 
     getEffectiveStatus(item) {
+      const rawStatus = Number(item.status)
+      // 优先使用后端状态，保持与运营后台一致
+      if (!Number.isNaN(rawStatus)) {
+        if (rawStatus === 3) return 2
+        if (rawStatus === 2) return 1
+        if (rawStatus === 1) return 0
+        if (rawStatus === 0) return 0
+      }
+
       const start = item.startTime || item.auctionStart || item.previewStart
       const end = item.endTime || item.auctionEnd || item.previewEnd
       const startTime = start ? new Date(start).getTime() : 0
@@ -202,11 +211,7 @@ export default {
       if (endTime && now > endTime) return 2
       if (startTime || endTime) return 1
 
-      const status = Number(item.status)
-      if (status === 3) return 2
-      if (status === 2) return 1
-      if (status === 1) return 0
-      return status || 0
+      return 0
     },
 
     getRemainSeconds(endTime) {
