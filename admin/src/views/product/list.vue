@@ -201,9 +201,10 @@
       </el-table-column>
       <el-table-column label="价格" width="150">
         <template #default="{ row }">
-          <p>¥{{ row.price ? Number(row.price).toLocaleString() : 0 }}</p>
+          <p>¥{{ getDisplayPrice(row).toLocaleString() }}</p>
           <p class="size-year" v-if="formatSizeYear(row)">{{ formatSizeYear(row) }}</p>
-          <p class="original" v-if="row.originalPrice">原价: ¥{{ Number(row.originalPrice).toLocaleString() }}</p>
+          <p class="original" v-if="row.currentPrice && row.currentPrice !== row.price">基础价: ¥{{ Number(row.price || 0).toLocaleString() }}</p>
+          <p class="original" v-else-if="row.originalPrice">原价: ¥{{ Number(row.originalPrice).toLocaleString() }}</p>
           <p class="price-rise" v-if="row.priceRise > 0" style="color: #ff4d4f; font-size: 12px;">
             涨幅 +{{ (row.priceRise * 100).toFixed(1) }}%
           </p>
@@ -398,7 +399,7 @@
               </template>
               <template #default="{ item }">
                 <div class="artist-search-item">
-                  <el-avatar v-if="item.avatar" :src="item.avatar" size="small" />
+                  <el-avatar v-if="item.avatar" :src="getFullImageUrl(item.avatar)" size="small" />
                   <el-avatar v-else size="small">{{ item.name?.charAt(0) }}</el-avatar>
                   <span class="artist-name">{{ item.name }}</span>
                   <span v-if="getArtistUid(item)" class="artist-code">UID: {{ getArtistUid(item) }}</span>
@@ -645,71 +646,14 @@
       </template>
     </el-dialog>
 
-    <!-- 艺术家信息编辑弹窗 -->
-    <el-dialog v-model="artistDialogVisible" title="编辑艺术家信息" width="600px" destroy-on-close>
-      <div v-loading="artistEditLoading">
-        <el-form ref="artistFormRef" :model="artistForm" label-width="90px">
-          <div class="artist-profile-header">
-            <div class="avatar-section">
-              <el-avatar :src="artistForm.avatar" :size="80" fit="cover" />
-              <el-upload
-                class="avatar-uploader"
-                :show-file-list="false"
-                :http-request="handleArtistAvatarUpload"
-                accept="image/*"
-              >
-                <el-button size="small" type="primary">上传头像</el-button>
-              </el-upload>
-            </div>
-            <div class="artist-info-summary">
-              <p class="artist-id">UID: {{ artistCurrentRow.authorUid || artistCurrentRow.displayAuthorId || artistForm.userId }}</p>
-              <p class="artist-name-preview">{{ artistCurrentRow.artistName }}</p>
-            </div>
-          </div>
-          <el-divider content-position="left">基本信息</el-divider>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="昵称" prop="nickname">
-                <el-input v-model="artistForm.nickname" placeholder="请输入昵称" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="手机号" prop="phone">
-                <el-input v-model="artistForm.phone" placeholder="请输入手机号" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="邮箱">
-            <el-input v-model="artistForm.email" placeholder="请输入邮箱" />
-          </el-form-item>
-          <el-divider content-position="left">艺术家信息</el-divider>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="真实姓名">
-                <el-input v-model="artistForm.realName" placeholder="请输入真实姓名" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="身份证号">
-                <el-input v-model="artistForm.idCard" placeholder="请输入身份证号" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="艺术家简介">
-            <el-input
-              v-model="artistForm.resume"
-              type="textarea"
-              :rows="3"
-              placeholder="请输入艺术家简介"
-            />
-          </el-form-item>
-        </el-form>
-      </div>
-      <template #footer>
-        <el-button @click="artistDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="artistEditLoading" @click="saveArtistInfo">保存</el-button>
-      </template>
-    </el-dialog>
+    <!-- 艺术家详情弹窗 -->
+    <ArtistDetailDialog
+      :visible="artistDialogVisible"
+      :user-id="artistDialogUserId"
+      :initial-data="artistDialogInitData"
+      @close="artistDialogVisible = false"
+      @saved="loadData"
+    />
 
     <!-- 图片裁剪对话框 -->
     <ImageCropper
@@ -731,6 +675,7 @@ import { requestApi } from '@/api/request'
 import { getFullImageUrl, uploadFile } from '@/api/request'
 import { getArtworkPriceLogs } from '@/api/artworkPrice'
 import ImageCropper from '@/components/ImageCropper.vue'
+import ArtistDetailDialog from '@/components/ArtistDetailDialog.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -973,14 +918,14 @@ const visiblePriceLogs = computed(() => {
   if (priceLogs.value.length) return priceLogs.value
   const range = getExpectedIncreaseRange(editForm)
   if (range.min <= 0 && range.max <= 0) return []
-  const currentPrice = Number(editForm.currentPrice || editForm.price || 0)
   const maxIncrease = Math.max(range.min, range.max)
-  const basePrice = Number(editForm.price || 0)
+  const yuanPrice = Number(editForm.price || 0)
+  const basePrice = yuanPrice * 100
   return [{
     id: 'forecast',
     oldPrice: basePrice,
-    newPrice: currentPrice > 0 ? currentPrice : basePrice + maxIncrease,
-    changeRate: basePrice > 0 ? maxIncrease / basePrice : 0,
+    newPrice: basePrice + maxIncrease * 100,
+    changeRate: yuanPrice > 0 ? maxIncrease / yuanPrice : 0,
     changeReason: 'FORECAST',
     remark: `根据当前价格调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
     createdAt: '实时预估'
@@ -1082,7 +1027,10 @@ const priceLogReasonText = (reason = '') => {
 
 const formatPriceLogPrice = (value) => {
   const amount = Number(value || 0)
-  return `¥${amount.toLocaleString()}`
+  return `¥${(amount / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
 }
 
 const formatPriceLogRate = (value) => {
@@ -1267,20 +1215,8 @@ const distForm = reactive({
 
 // 艺术家信息编辑相关
 const artistDialogVisible = ref(false)
-const artistEditLoading = ref(false)
-const artistFormRef = ref()
-const artistCurrentRow = ref({})
-const artistForm = reactive({
-  userId: null,
-  nickname: '',
-  realName: '',
-  idCard: '',
-  resume: '',
-  avatar: '',
-  phone: '',
-  email: '',
-  identities: []
-})
+const artistDialogUserId = ref(null)
+const artistDialogInitData = ref({})
 
 const rules = {
   title: [{ required: true, message: '请输入作品名称', trigger: 'blur' }],
@@ -1399,55 +1335,20 @@ const resetSearch = () => {
   handleSearch()
 }
 
-const openArtistEditor = async (row) => {
-  // 优先使用数字ID authorId
+const openArtistEditor = (row) => {
   const authorId = row.authorId
   if (!authorId) {
     ElMessage.warning('该作品未关联艺术家')
     return
   }
-  artistCurrentRow.value = row
-  artistEditLoading.value = true
-  
-  // 默认使用作品中的基本信息
-  const fallbackData = {
-    userId: authorId,
+  artistDialogUserId.value = authorId
+  artistDialogInitData.value = {
     nickname: row.artistName || '',
-    realName: '',
-    idCard: '',
-    resume: '',
     avatar: row.authorAvatar || '',
-    phone: '',
-    email: '',
-    identities: ['artist']
+    displayId: row.authorUid || row.displayAuthorId || '',
+    certified: row.certified
   }
-  Object.assign(artistForm, fallbackData)
-  
-  try {
-    // 获取艺术家详细信息（静默模式，不显示错误消息）
-    const res = await request.get(`/admin/user/${authorId}`, { silent: true })
-    // 处理 Result 包装结构
-    const data = res?.data || res
-    if (data && data.nickname) {
-      Object.assign(artistForm, {
-        userId: authorId,
-        nickname: data.nickname || data.userNickname || '',
-        realName: data.realName || '',
-        idCard: data.idCard || '',
-        resume: data.resume || data.bio || '',
-        avatar: data.avatar || '',
-        phone: data.phone || data.userPhone || '',
-        email: data.email || '',
-        identities: data.isArtist ? ['artist'] : []
-      })
-    }
-  } catch (e) {
-    // 获取失败，保持使用作品中的基本信息
-    console.warn('获取用户详情失败，使用作品基本信息:', e.message)
-  } finally {
-    artistDialogVisible.value = true
-    artistEditLoading.value = false
-  }
+  artistDialogVisible.value = true
 }
 
 const handleEdit = async (row) => {
@@ -1487,6 +1388,12 @@ const handleEdit = async (row) => {
   artistExactMatched.value = Boolean(editForm.authorId)
   console.log('【DEBUG】handleEdit editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
   editVisible.value = true
+}
+
+const getDisplayPrice = (row) => {
+  const priceInFen = Number(row.currentPrice || row.price || 0)
+  // 转换为元（分 / 100）
+  return priceInFen / 100
 }
 
 const handleAdd = () => {
@@ -1714,56 +1621,6 @@ const copyLink = () => {
   }).catch(() => {
     ElMessage.error('复制失败')
   })
-}
-
-// 保存艺术家信息
-const saveArtistInfo = async () => {
-  artistEditLoading.value = true
-  try {
-    await request.put(`/admin/user/${artistForm.userId}`, {
-      nickname: artistForm.nickname,
-      avatar: artistForm.avatar,
-      phone: artistForm.phone,
-      email: artistForm.email,
-      identities: artistForm.identities,
-      realName: artistForm.realName,
-      idCard: artistForm.idCard,
-      resume: artistForm.resume
-    })
-    ElMessage.success('艺术家信息保存成功')
-    artistDialogVisible.value = false
-  } catch (e) {
-    ElMessage.error('保存失败：' + (e.message || '未知错误'))
-  } finally {
-    artistEditLoading.value = false
-  }
-}
-
-// 上传艺术家头像
-const handleArtistAvatarUpload = async (options) => {
-  const { file, onSuccess, onError } = options
-
-  if (!file.type.startsWith('image/')) {
-    ElMessage.error('请选择图片文件')
-    onError(new Error('请选择图片文件'))
-    return
-  }
-
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.error('图片大小不能超过 10MB')
-    onError(new Error('图片大小不能超过 10MB'))
-    return
-  }
-
-  try {
-    const result = await uploadFile(file)
-    artistForm.avatar = result?.url || result || ''
-    ElMessage.success('头像上传成功')
-    onSuccess()
-  } catch (e) {
-    ElMessage.error(e.message || '头像上传失败')
-    onError(e)
-  }
 }
 
 onMounted(() => {

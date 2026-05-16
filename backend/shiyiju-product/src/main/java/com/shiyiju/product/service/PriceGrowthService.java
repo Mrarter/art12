@@ -3,7 +3,9 @@ package com.shiyiju.product.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shiyiju.product.entity.Artwork;
+import com.shiyiju.product.entity.ArtworkPriceLog;
 import com.shiyiju.product.mapper.ArtworkMapper;
+import com.shiyiju.product.mapper.ArtworkPriceLogMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,7 +17,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 作品价格增长计算服务
@@ -31,6 +35,7 @@ public class PriceGrowthService {
     private final ArtworkMapper artworkMapper;
     private final PriceGrowthConfig config;
     private final JdbcTemplate jdbcTemplate;
+    private final ArtworkPriceLogMapper priceLogMapper;
 
     /**
      * 计算价格增长率
@@ -106,18 +111,16 @@ public class PriceGrowthService {
         long days = ChronoUnit.DAYS.between(artwork.getCreateTime(), LocalDateTime.now());
         if (days < 0) days = 0;
 
-        BigDecimal dailyRate;
         int matureDays = artwork.getCustomMatureDays() != null ? artwork.getCustomMatureDays() : config.getMatureDays();
-        
-        if (days > matureDays) {
-            dailyRate = artwork.getCustomMatureDailyRate() != null ? artwork.getCustomMatureDailyRate() : config.getMatureDailyRate();
-            days = days - matureDays;
-        } else {
-            dailyRate = artwork.getCustomBaseDailyRate() != null ? artwork.getCustomBaseDailyRate() : config.getBaseDailyRate();
-        }
 
-        BigDecimal multiplier = BigDecimal.ONE.add(dailyRate.multiply(BigDecimal.valueOf(days)));
-        return multiplier;
+        BigDecimal baseDailyRate = artwork.getCustomBaseDailyRate() != null
+                ? artwork.getCustomBaseDailyRate()
+                : config.getBaseDailyRate();
+        BigDecimal matureDailyRate = artwork.getCustomMatureDailyRate() != null
+                ? artwork.getCustomMatureDailyRate()
+                : config.getMatureDailyRate();
+
+        return calculateSegmentedTimeMultiplier(days, matureDays, baseDailyRate, matureDailyRate);
     }
 
     /**
@@ -193,16 +196,20 @@ public class PriceGrowthService {
         long days = ChronoUnit.DAYS.between(createTime, LocalDateTime.now());
         if (days < 0) days = 0;
 
-        BigDecimal dailyRate;
-        if (days > config.getMatureDays()) {
-            dailyRate = config.getMatureDailyRate();
-            days = days - config.getMatureDays();
-        } else {
-            dailyRate = config.getBaseDailyRate();
-        }
+        return calculateSegmentedTimeMultiplier(days, config.getMatureDays(), config.getBaseDailyRate(), config.getMatureDailyRate());
+    }
 
-        BigDecimal multiplier = BigDecimal.ONE.add(dailyRate.multiply(BigDecimal.valueOf(days)));
-        return multiplier;
+    private BigDecimal calculateSegmentedTimeMultiplier(long days, Integer matureDays, BigDecimal baseDailyRate, BigDecimal matureDailyRate) {
+        int thresholdDays = matureDays != null ? Math.max(matureDays, 0) : 0;
+        long baseDays = thresholdDays > 0 ? Math.min(days, thresholdDays) : 0;
+        long matureDaysCount = thresholdDays > 0 ? Math.max(days - thresholdDays, 0) : days;
+
+        BigDecimal baseGrowth = (baseDailyRate != null ? baseDailyRate : BigDecimal.ZERO)
+                .multiply(BigDecimal.valueOf(baseDays));
+        BigDecimal matureGrowth = (matureDailyRate != null ? matureDailyRate : BigDecimal.ZERO)
+                .multiply(BigDecimal.valueOf(matureDaysCount));
+
+        return BigDecimal.ONE.add(baseGrowth).add(matureGrowth);
     }
 
     /**
@@ -334,9 +341,19 @@ public class PriceGrowthService {
             log.debug("价格增长功能已关闭，跳过定时任务");
             return;
         }
-        
+
         log.info("开始执行价格增长率更新任务...");
-        
+
+        // 批量查询已有涨价日志的作品ID，避免逐个查询
+        Set<Long> loggedArtworkIds = new HashSet<>();
+        try {
+            List<Long> ids = jdbcTemplate.queryForList(
+                    "SELECT DISTINCT artwork_id FROM artwork_price_log", Long.class);
+            loggedArtworkIds.addAll(ids);
+        } catch (Exception e) {
+            log.warn("查询已有涨价日志列表失败", e);
+        }
+
         int pageSize = 100;
         int pageNum = 1;
         int totalUpdated = 0;
@@ -356,15 +373,22 @@ public class PriceGrowthService {
             for (Artwork artwork : artworks) {
                 try {
                     hydrateCustomPriceGrowthConfig(artwork);
+                    BigDecimal oldPriceRise = artwork.getPriceRise();
                     BigDecimal priceRise = calculatePriceRise(artwork);
                     Long currentPrice = calculateCurrentPrice(artwork);
-                    
+
                     artwork.setPriceRise(priceRise);
-                    // 注意：只更新 priceRise 和 currentPrice，不覆盖用户设置的 price
+                    // 注意：只更新 priceRise，不覆盖用户设置的 price
                     // price 是用户设置的销售价格，currentPrice 是计算后的当前价格
                     artwork.setUpdateTime(LocalDateTime.now());
                     artworkMapper.updateById(artwork);
                     totalUpdated++;
+
+                    // 涨价幅度变化或首次记录时写入涨价日志
+                    boolean hasLog = loggedArtworkIds.contains(artwork.getId());
+                    writePriceRiseLog(artwork, oldPriceRise, priceRise, currentPrice, hasLog);
+                    // 记录已写入日志
+                    loggedArtworkIds.add(artwork.getId());
                 } catch (Exception e) {
                     log.error("更新作品价格失败, artworkId={}", artwork.getId(), e);
                 }
@@ -393,6 +417,7 @@ public class PriceGrowthService {
         }
         hydrateCustomPriceGrowthConfig(artwork);
 
+        BigDecimal oldPriceRise = artwork.getPriceRise();
         BigDecimal priceRise = calculatePriceRise(artwork);
         Long currentPrice = calculateCurrentPrice(artwork);
         
@@ -400,6 +425,11 @@ public class PriceGrowthService {
         // 注意：不要覆盖用户设置的 price，只更新 priceRise
         artwork.setUpdateTime(LocalDateTime.now());
         artworkMapper.updateById(artwork);
+        
+        // 涨价幅度变化时写入涨价日志
+        boolean hasExistingLog = priceLogMapper.selectCount(
+                new LambdaQueryWrapper<ArtworkPriceLog>().eq(ArtworkPriceLog::getArtworkId, artworkId)) > 0;
+        writePriceRiseLog(artwork, oldPriceRise, priceRise, currentPrice, hasExistingLog);
     }
     
     /**
@@ -407,6 +437,39 @@ public class PriceGrowthService {
      */
     public PriceGrowthConfig getConfig() {
         return config;
+    }
+
+    /**
+     * 写入涨价日志
+     * <p>
+     * 写入条件：
+     * 1. 该作品没有日志（首次）→ 总是写入
+     * 2. 该作品已有日志且涨价幅度变化 → 写入
+     */
+    private void writePriceRiseLog(Artwork artwork, BigDecimal oldPriceRise, BigDecimal newPriceRise, Long currentPrice, boolean hasExistingLog) {
+        boolean changed = (oldPriceRise == null && newPriceRise != null && newPriceRise.compareTo(BigDecimal.ZERO) > 0)
+                || (oldPriceRise != null && newPriceRise != null && oldPriceRise.compareTo(newPriceRise) != 0);
+        // 首次记录或值有变化时才写入
+        if (hasExistingLog && !changed) {
+            return;
+        }
+
+        try {
+            long basePrice = resolveBasePrice(artwork);
+            ArtworkPriceLog log = new ArtworkPriceLog();
+            log.setArtworkId(artwork.getId());
+            log.setArtistId(artwork.getAuthorId());
+            log.setOldPrice(basePrice);
+            log.setNewPrice(currentPrice);
+            log.setChangeRate(newPriceRise);
+            log.setChangeReason("SYSTEM");
+            log.setRemark("系统自动计算涨价");
+            log.setOperatorId(0L);
+            log.setCreatedAt(LocalDateTime.now());
+            priceLogMapper.insert(log);
+        } catch (Exception e) {
+            log.warn("写入涨价日志失败, artworkId={}", artwork.getId(), e);
+        }
     }
 
     private void hydrateCustomPriceGrowthConfig(Artwork artwork) {

@@ -7,8 +7,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -1145,6 +1147,10 @@ public class ProductAdminPersistenceService {
         String descriptionSelect = schemaInspector.hasColumn("artwork", "description") ? "a.description" : "NULL";
         String dailyViewCountSelect = schemaInspector.hasColumn("artwork", "daily_view_count") ? "a.daily_view_count" : "0";
         String dailyLikeCountSelect = schemaInspector.hasColumn("artwork", "daily_like_count") ? "a.daily_like_count" : "0";
+        boolean hasOriginalPrice = schemaInspector.hasColumn("artwork", "original_price");
+        boolean hasPriceRise = schemaInspector.hasColumn("artwork", "price_rise");
+        String originalPriceSelect = hasOriginalPrice ? "a.original_price" : "NULL";
+        String priceRiseSelect = hasPriceRise ? "a.price_rise" : "NULL";
         boolean hasCoverImageColumn = schemaInspector.hasColumn("artwork", "cover_image");
         boolean hasCoverColumn = schemaInspector.hasColumn("artwork", "cover");
         String coverImageSelect = hasCoverImageColumn && hasCoverColumn
@@ -1166,6 +1172,7 @@ public class ProductAdminPersistenceService {
                    a.art_type, %s AS favorite_count, %s AS weight_value, %s AS ownership_type,
                    %s AS distribution_enabled, %s AS commission_rate, %s AS view_count,
                    %s AS description, %s AS daily_view_count, %s AS daily_like_count,
+                   %s AS original_price, %s AS price_rise,
                    a.create_time, %s AS category_name
             FROM artwork a
             %s
@@ -1183,6 +1190,8 @@ public class ProductAdminPersistenceService {
                 descriptionSelect,
                 dailyViewCountSelect,
                 dailyLikeCountSelect,
+                originalPriceSelect,
+                priceRiseSelect,
                 categoryNameSelect,
                 authorJoins
             ) + where + " ORDER BY " + (hasWeightColumn ? "a.weight DESC, " : "") + "a.create_time DESC, a.id DESC LIMIT ?, ?",
@@ -1192,6 +1201,36 @@ public class ProductAdminPersistenceService {
         List<Map<String, Object>> list = new ArrayList<>();
         for (Map<String, Object> row : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
+            // 基准价：优先使用 original_price，与 PriceGrowthService.resolveBasePrice() 一致
+            BigDecimal rawBasePrice = toBigDecimal(row.get("price"));
+            BigDecimal basePrice;
+            if (hasOriginalPrice) {
+                BigDecimal origPrice = toBigDecimal(row.get("original_price"));
+                if (origPrice != null && origPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    basePrice = origPrice;
+                } else {
+                    basePrice = rawBasePrice;
+                }
+            } else {
+                basePrice = rawBasePrice;
+            }
+            int realFavoriteCount = toInt(row.get("favorite_count"), 0);
+            int configuredFavoriteCount = toInt(row.get("daily_like_count"), 0);
+            int displayViewCount = toInt(row.get("view_count"), 0) + toInt(row.get("daily_view_count"), 0);
+            int displayLikeCount = realFavoriteCount + configuredFavoriteCount;
+            // 优先使用数据库中已存储的 price_rise（由 PriceGrowthService 定时任务计算），否则回退简化计算
+            BigDecimal priceRise;
+            if (hasPriceRise) {
+                BigDecimal storedRise = toBigDecimal(row.get("price_rise"));
+                if (storedRise != null && storedRise.compareTo(BigDecimal.ZERO) > 0) {
+                    priceRise = storedRise;
+                } else {
+                    priceRise = calculateAdminPriceRise(row, displayViewCount, displayLikeCount);
+                }
+            } else {
+                priceRise = calculateAdminPriceRise(row, displayViewCount, displayLikeCount);
+            }
+            BigDecimal currentPrice = calculateAdminCurrentPrice(basePrice, priceRise);
             item.put("id", row.get("id"));
             item.put("artworkId", row.get("id"));
             item.put("displayArtworkId", String.format("%04d", toInt(row.get("id"), 0)));
@@ -1205,12 +1244,13 @@ public class ProductAdminPersistenceService {
             item.put("authorName", row.get("author_name"));
             item.put("cover", row.get("cover_image"));
             item.put("price", row.get("price"));
+            item.put("originalPrice", row.get("original_price"));
+            item.put("currentPrice", currentPrice);
+            item.put("priceRise", priceRise);
             item.put("categoryName", row.get("category_name"));
             item.put("artType", row.get("art_type"));
             item.put("size", row.get("size"));
             item.put("year", row.get("artwork_year"));
-            int realFavoriteCount = toInt(row.get("favorite_count"), 0);
-            int configuredFavoriteCount = toInt(row.get("daily_like_count"), 0);
             item.put("favoriteCount", realFavoriteCount);
             item.put("realFavoriteCount", realFavoriteCount);
             item.put("configuredFavoriteCount", configuredFavoriteCount);
@@ -1218,8 +1258,8 @@ public class ProductAdminPersistenceService {
             item.put("description", row.get("description"));
             item.put("dailyViewCount", toInt(row.get("daily_view_count"), 0));
             item.put("dailyLikeCount", configuredFavoriteCount);
-            item.put("displayViewCount", toInt(row.get("view_count"), 0) + toInt(row.get("daily_view_count"), 0));
-            item.put("displayLikeCount", realFavoriteCount + configuredFavoriteCount);
+            item.put("displayViewCount", displayViewCount);
+            item.put("displayLikeCount", displayLikeCount);
             item.put("weight", toInt(row.get("weight_value"), 0));
             item.put("ownershipType", toInt(row.get("ownership_type"), 1));
             item.put("status", toInt(row.get("status"), 0));
@@ -1235,6 +1275,51 @@ public class ProductAdminPersistenceService {
         result.put("page", page);
         result.put("size", size);
         return result;
+    }
+
+    private BigDecimal calculateAdminPriceRise(Map<String, Object> row, int displayViewCount, int displayLikeCount) {
+        BigDecimal basePrice = toBigDecimal(row.get("price"));
+        if (basePrice == null || basePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal multiplier = BigDecimal.ONE;
+        int onlineDays = getInclusiveOnlineDays(row.get("create_time"));
+        multiplier = multiplier.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(0.0002).multiply(BigDecimal.valueOf(onlineDays))));
+        if (displayViewCount >= 100) {
+            multiplier = multiplier.multiply(BigDecimal.valueOf(1.1));
+        }
+        if (displayLikeCount >= 5) {
+            multiplier = multiplier.multiply(BigDecimal.valueOf(1.1));
+        }
+        return multiplier.subtract(BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateAdminCurrentPrice(BigDecimal basePrice, BigDecimal priceRise) {
+        if (basePrice == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal multiplier = BigDecimal.ONE.add(priceRise != null ? priceRise : BigDecimal.ZERO);
+        return basePrice.multiply(multiplier).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private int getInclusiveOnlineDays(Object createTime) {
+        LocalDate date = null;
+        if (createTime instanceof LocalDateTime dateTime) {
+            date = dateTime.toLocalDate();
+        } else if (createTime instanceof java.sql.Timestamp timestamp) {
+            date = timestamp.toLocalDateTime().toLocalDate();
+        } else if (createTime != null) {
+            try {
+                date = LocalDateTime.parse(createTime.toString().replace(" ", "T")).toLocalDate();
+            } catch (Exception ignored) {
+                date = null;
+            }
+        }
+        if (date == null) {
+            return 1;
+        }
+        long days = ChronoUnit.DAYS.between(date, LocalDate.now()) + 1;
+        return (int) Math.max(days, 1);
     }
     
     private int mapProductStatus(String status) {

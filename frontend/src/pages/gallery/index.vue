@@ -38,7 +38,7 @@
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">{{ formatPrice(item.price) }}</text>
+                  <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
                   <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
@@ -69,7 +69,7 @@
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">{{ formatPrice(item.price) }}</text>
+                  <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
                   <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
@@ -377,6 +377,13 @@ export default {
       const artist = item.artistName || item.authorName
       if (!holder || holder === artist) return ''
       return holder
+    },
+
+    // 获取实时价格（优先使用 currentPrice，否则 fallback 到 price）
+    getCurrentPrice(item) {
+      const current = Number(item.currentPrice || 0)
+      if (current > 0) return current
+      return Number(item.price || 0)
     },
 
     showRiseTip(item) {

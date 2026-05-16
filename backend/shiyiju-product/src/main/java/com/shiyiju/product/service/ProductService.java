@@ -119,6 +119,7 @@ public class ProductService {
 
     /** 转换为简化VO（避免调用可能出错的服务） */
     private ArtworkVO convertToSimpleVO(Artwork artwork) {
+        loadArtworkPriceGrowthConfig(artwork);
         ArtworkVO vo = new ArtworkVO();
         vo.setId(artwork.getId());
         vo.setTitle(artwork.getTitle());
@@ -138,7 +139,7 @@ public class ProductService {
         }
         vo.setPrice(artwork.getPrice());
         vo.setOriginalPrice(artwork.getOriginalPrice());
-        vo.setCurrentPrice(artwork.getPrice());
+        vo.setCurrentPrice(priceGrowthService.calculateCurrentPrice(artwork));
         vo.setStock(artwork.getStock());
         vo.setStatus(artwork.getStatus());
         vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
@@ -800,6 +801,7 @@ public class ProductService {
 
     /** 转换实体为VO */
     private ArtworkVO convertToVO(Artwork artwork, Long userId) {
+        loadArtworkPriceGrowthConfig(artwork);
         ArtworkVO vo = new ArtworkVO();
         vo.setId(artwork.getId());
         vo.setTitle(artwork.getTitle());
@@ -838,7 +840,7 @@ public class ProductService {
             case 2 -> "收藏";
             default -> "原创";
         });
-        vo.setPriceRise(artwork.getPriceRise() != null ? artwork.getPriceRise() : BigDecimal.ZERO);
+        vo.setPriceRise(priceGrowthService.calculatePriceRise(artwork));
         applyHeatCounts(vo, artwork);
         vo.setSaleCount(artwork.getSaleCount() != null ? artwork.getSaleCount() : 0);
         vo.setCreateTime(artwork.getCreateTime() != null ? artwork.getCreateTime().toString() : null);
@@ -1011,7 +1013,7 @@ public class ProductService {
             case 2 -> "已售罄";
             default -> "未知";
         });
-        vo.setPriceRise(artwork.getPriceRise() != null ? artwork.getPriceRise() : BigDecimal.ZERO);
+        vo.setPriceRise(priceGrowthService.calculatePriceRise(artwork));
         vo.setCurrentPrice(priceGrowthService.calculateCurrentPrice(artwork));
         vo.setIsNew(artwork.getCreateTime() != null
                 && artwork.getCreateTime().isAfter(LocalDateTime.now().minusDays(30)));

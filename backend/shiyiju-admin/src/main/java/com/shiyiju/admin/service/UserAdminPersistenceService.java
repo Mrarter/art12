@@ -676,7 +676,31 @@ public class UserAdminPersistenceService {
 
     public Map<String, Object> getUserDetail(Long userId) {
         PageResult<Map<String, Object>> pageResult = listUsers(1, 1, String.valueOf(userId), null, null, null, null, null);
-        return pageResult.getRecords().isEmpty() ? null : pageResult.getRecords().get(0);
+        Map<String, Object> detail = pageResult.getRecords().isEmpty() ? null : pageResult.getRecords().get(0);
+        if (detail == null) return null;
+
+        // 补充查询 artist_profile 中的艺术家字段（使用直接 SQL 避免动态表名问题）
+        try {
+            String sql = "SELECT COALESCE(bio, resume, '') AS rcol, real_name, id_card, artist_title, artist_tags, homepage_cover FROM artist_profile WHERE user_id = ? LIMIT 1";
+            Map<String, Object> row = jdbcTemplate.queryForMap(sql, userId);
+            if (row != null) {
+                detail.put("resume", row.get("rcol"));
+                detail.put("realName", row.get("real_name"));
+                detail.put("idCard", row.get("id_card"));
+                detail.put("artistTitle", row.get("artist_title"));
+                detail.put("artistTags", row.get("artist_tags"));
+                detail.put("homepageCover", row.get("homepage_cover"));
+            }
+        } catch (Exception e) {
+            log.warn("查询艺术家信息失败 userId={}, error: {}", userId, e.getMessage());
+        }
+        return detail;
+    }
+
+    private void addIfColExists(List<String> cols, String table, String col) {
+        if (schemaInspector.hasColumn(table, col)) {
+            cols.add(col);
+        }
     }
 
     public Map<String, Object> listArtists(int page, int size, String status,
@@ -3478,7 +3502,8 @@ public class UserAdminPersistenceService {
 
         // 动态获取列名
         String titleCol = schemaInspector.firstExistingColumn(artworkTable, "title", "name");
-        String coverCol = schemaInspector.firstExistingColumn(artworkTable, "cover_image", "cover", "image", "thumbnail");
+        // cover 优先，cover_image 其次（因为数据库中 cover 有数据，cover_image 为 NULL）
+        String coverCol = schemaInspector.firstExistingColumn(artworkTable, "cover", "cover_image", "image", "thumbnail");
         String priceCol = schemaInspector.firstExistingColumn(artworkTable, "price", "reserve_price");
         String statusCol = schemaInspector.firstExistingColumn(artworkTable, "status", "audit_status");
         String createCol = createTimeColumn(artworkTable);
@@ -3490,7 +3515,8 @@ public class UserAdminPersistenceService {
 
         // 分页查询作品
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-            SELECT id, %s AS title, %s AS cover, %s AS price, COALESCE(original_price, 0) AS original_price, 
+            SELECT id, %s AS title, %s AS cover, %s AS price, COALESCE(original_price, 0) AS original_price,
+                   COALESCE(price_rise, 0) AS price_rise,
                    author_name, category_id, art_type, size, year, ownership_type, stock, description,
                    %s AS status, %s AS create_time
             FROM %s
@@ -3505,17 +3531,18 @@ public class UserAdminPersistenceService {
             item.put("id", row.get("id"));
             item.put("title", row.get("title"));
             item.put("cover", row.get("cover"));
-            // 价格从分转换为元
-            Long priceInFen = row.get("price") != null ? ((Number) row.get("price")).longValue() : 0L;
-            item.put("price", priceInFen / 100.0);
-            // 原价也从分转换为元
-            Object originalPriceObj = row.get("original_price");
-            if (originalPriceObj != null) {
-                Long originalPriceInFen = ((Number) originalPriceObj).longValue();
-                item.put("originalPrice", originalPriceInFen / 100.0);
-            } else {
-                item.put("originalPrice", null);
-            }
+            // price 存储的是分（整数）
+            long priceInFen = row.get("price") != null ? ((Number) row.get("price")).longValue() : 0L;
+            long originalPriceInFen = row.get("original_price") != null ? ((Number) row.get("original_price")).longValue() : 0L;
+            // 计算实时价格：basePrice * (1 + priceRise)，结果仍然是分
+            long basePriceFen = originalPriceInFen > 0 ? originalPriceInFen : priceInFen;
+            double priceRise = row.get("price_rise") != null ? ((Number) row.get("price_rise")).doubleValue() : 0.0;
+            long currentPriceFen = Math.round(basePriceFen * (1 + priceRise));
+            // 返回实时价格（元，用于显示）和实时价格原始值（分，保持一致性）
+            item.put("price", currentPriceFen / 100.0);  // 转换为元（带小数）
+            item.put("currentPrice", currentPriceFen);  // 分（整数）
+            item.put("originalPrice", originalPriceInFen > 0 ? originalPriceInFen / 100.0 : null);  // 转换为元
+            item.put("priceRise", priceRise);
             item.put("authorName", row.get("author_name"));
             item.put("categoryId", row.get("category_id"));
             item.put("artType", row.get("art_type"));
