@@ -158,11 +158,11 @@ export default {
           ...profile
         })
         
-        // 保存Token和用户信息
+        // 保存Token和用户信息（使用新的认证模块）
         const userStore = useUserStore()
-        userStore.setToken(data.token)
+        const userInfo = this.buildLoginUserInfo(data, profile)
+        userStore.onLoginSuccess(data.token, userInfo)
         userStore.setOpenId(data.openId || '')
-        userStore.setUserInfo(this.buildLoginUserInfo(data, profile))
         
         const toastTitle = data.phone ? '微信登录成功' : '已同步微信头像昵称'
         uni.showToast({ title: toastTitle, icon: 'success' })
@@ -209,8 +209,8 @@ export default {
         })
         
         const userStore = useUserStore()
-        userStore.setToken(data.token)
-        userStore.setUserInfo(this.buildPhoneLoginUserInfo(data))
+        const userInfo = this.buildPhoneLoginUserInfo(data)
+        userStore.onLoginSuccess(data.token, userInfo)
         
         uni.showToast({ title: '登录成功', icon: 'success' })
         this.closePhoneLogin()
@@ -252,14 +252,15 @@ export default {
     // 游客体验
     onGuestLogin() {
       const userStore = useUserStore()
-      userStore.setToken('guest_token')
-      userStore.setUserInfo({
+      const guestInfo = {
         id: 0,
         nickname: '游客',
         avatar: '',
         isGuest: true,
         currentIdentity: 'collector'
-      })
+      }
+      // 使用新的登录成功处理
+      userStore.onLoginSuccess('guest_token', guestInfo)
       
       uni.showToast({ title: '已进入游客模式', icon: 'success' })
       
@@ -269,10 +270,26 @@ export default {
     },
     
     afterLogin() {
+      // 优先使用 URL 参数指定的跳转
       if (this.redirect) {
         uni.navigateTo({ url: this.redirect })
         return
       }
+      
+      // 尝试从 auth 模块恢复之前保存的重定向 URL
+      // 这个机制用于：用户在某页面操作时登录过期 → 跳转登录 → 登录后恢复原页面
+      try {
+        const { getAndClearRedirectUrl } = require('@/utils/auth')
+        const savedRedirect = getAndClearRedirectUrl()
+        if (savedRedirect && savedRedirect !== '/pages/index/index') {
+          uni.navigateTo({ url: savedRedirect })
+          return
+        }
+      } catch (e) {
+        // 模块加载失败，使用默认跳转
+      }
+      
+      // 默认跳转到首页
       uni.switchTab({ url: '/pages/index/index' })
     },
 

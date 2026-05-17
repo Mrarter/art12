@@ -1,20 +1,35 @@
 /**
  * =====================================================
- *  统一网络请求封装 - utils/request.js
+ *  统一网络请求封装 - api/request.js
  *  支持 H5 (Vite 代理) 和 微信小程序 (直连IP)
  *  艺本艺术品流通平台
  * =====================================================
  *
- *  功能清单：
- *    1. BASE_URL 配置（环境变量 → 默认值）      2. TIMEOUT 配置（30s）
- *    3. DEBUG 日志模式                           4. 统一请求封装 (request)
- *    5. GET/POST/PUT/DELETE 快捷方法              6. Token 自动注入
- *    7. 网络状态检测 (getNetworkType)             8. 错误提示 (Toast)
- *    9. Promise 返回                              10. 请求日志输出
- *   11. 响应日志输出                              12. 超时处理
- *   13. 统一异常处理                             14. 自动重试机制
- *   15. 请求去重保护                             16. 资源 URL 归一化
+ * 功能清单：
+ *  1. BASE_URL 配置（环境变量 → 默认值）      2. TIMEOUT 配置（30s）
+ *  3. DEBUG 日志模式                           4. 统一请求封装 (request)
+ *  5. GET/POST/PUT/DELETE 快捷方法              6. Token 自动注入
+ *  7. 网络状态检测 (getNetworkType)             8. 错误提示 (Toast)
+ *  9. Promise 返回                              10. 请求日志输出
+ *  11. 响应日志输出                              12. 超时处理
+ *  13. 统一异常处理                             14. 自动重试机制
+ *  15. 请求去重保护                             16. Token 刷新机制
+ *  17. 智能重定向（保存路由状态）                18. 游客模式检测
  */
+
+// ==================== 导入依赖 ====================
+
+import {
+  getAccessToken,
+  getTokenData,
+  isGuestUser,
+  checkTokenValid,
+  ensureValidToken,
+  executeTokenRefresh,
+  handleAuthFailure,
+  saveRedirectUrl,
+  getCurrentPagePath
+} from '@/utils/auth'
 
 // ==================== 常量 ====================
 
@@ -42,6 +57,9 @@ const RETRY_DELAY = 1000       // 重试间隔 (ms)
 
 // 请求去重：存储进行中的请求标识，防止同一 URL 并发重复请求
 const pendingRequests = new Map()
+
+// 标记当前是否正在处理 401（防止多次触发重定向）
+let isHandling401 = false
 
 // ==================== 3. DEBUG 日志模式 ====================
 
@@ -198,6 +216,85 @@ const showErrorToast = (msg) => {
 
 const requestKey = (url, method) => `${method}:${url}`
 
+// ==================== 16. Token 刷新 & 17. 智能重定向 ====================
+
+/**
+ * 处理认证失败
+ * @param {boolean} redirectToLogin 是否跳转到登录页
+ * @param {string} reason 失败原因
+ */
+const handleUnauthorized = (redirectToLogin = true, reason = '') => {
+  // 防止多次触发
+  if (isHandling401) return
+  isHandling401 = true
+
+  // 保存当前页面路径
+  const currentPath = getCurrentPagePath()
+  if (currentPath && redirectToLogin) {
+    saveRedirectUrl(currentPath)
+  }
+
+  // 清除登录态
+  handleAuthFailure(redirectToLogin)
+
+  // 友好提示
+  if (reason) {
+    uni.showToast({ title: reason, icon: 'none', duration: 2500 })
+  }
+
+  // 延迟跳转登录页，让用户看到提示
+  if (redirectToLogin) {
+    setTimeout(() => {
+      // 检查是否已登录页面，避免循环
+      if (currentPath && !currentPath.includes('/pages/login')) {
+        uni.navigateTo({ url: '/pages/login/index' })
+      }
+      isHandling401 = false
+    }, 1500)
+  } else {
+    // 1 秒后重置标记
+    setTimeout(() => { isHandling401 = false }, 1000)
+  }
+}
+
+/**
+ * 尝试刷新 Token
+ * @returns {Promise<string|null>} 新 Token 或 null
+ */
+const tryRefreshToken = async () => {
+  // 游客模式不刷新
+  if (isGuestUser()) {
+    log.warn('游客模式，跳过 Token 刷新')
+    return null
+  }
+
+  try {
+    const newToken = await executeTokenRefresh()
+    if (newToken) {
+      log.api('Token 刷新成功')
+      return newToken
+    }
+    return null
+  } catch (e) {
+    log.error('Token 刷新异常:', e)
+    return null
+  }
+}
+
+/**
+ * 检查并处理 Token 即将过期
+ * 在发起请求前调用，用于触发无感刷新
+ */
+const checkAndRefreshToken = async () => {
+  const check = checkTokenValid()
+
+  // 只有即将过期且不是游客才刷新
+  if (check.reason === 'about_to_expire' && !check.isGuest) {
+    log.api('检测到 Token 即将过期，触发无感刷新')
+    await tryRefreshToken()
+  }
+}
+
 // ==================== 4-6. 核心请求封装 ====================
 
 /**
@@ -222,13 +319,13 @@ const requestWithRetry = (options, retryCount = 0) => {
     const cleanup = () => pendingRequests.delete(key)
 
     // ---- 6. Token 自动注入 ----
-    const token = uni.getStorageSync('token') || ''
-    const userInfo = uni.getStorageSync('userInfo')
-    const userId = userInfo?.id || ''
+    const token = getAccessToken()
+    const tokenData = getTokenData()
+    const userId = tokenData?.userId || ''
 
     const header = { 'Content-Type': 'application/json' }
     if (token) header['Authorization'] = 'Bearer ' + token
-    if (userId) header['X-User-Id'] = userId
+    if (userId) header['X-User-Id'] = String(userId)
 
     // ---- 10. 请求日志 ----
     log.req(options.method || 'GET', url, options.data)
@@ -239,7 +336,7 @@ const requestWithRetry = (options, retryCount = 0) => {
       method: options.method || 'GET',
       data: ['POST', 'PUT', 'DELETE'].includes(options.method) ? options.data : undefined,
       header,
-      timeout: TIMEOUT,     // 2. TIMEOUT 配置
+      timeout: TIMEOUT,
 
       // ---- 11. 响应日志 ----
       success: (res) => {
@@ -249,25 +346,51 @@ const requestWithRetry = (options, retryCount = 0) => {
         if (res.statusCode === 200) {
           const body = res.data
           if (body && body.code === 200) {
-            resolve(normalizeResourceUrls(body.data)) // 9. Promise resolve
+            resolve(normalizeResourceUrls(body.data))
           } else if (body && body.code === 401) {
-            // ---- 6. Token 过期处理 ----
-            log.warn('Token 过期或未授权，清除登录态')
-            uni.removeStorageSync('token')
-            uni.removeStorageSync('userInfo')
-            uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-            setTimeout(() => uni.navigateTo({ url: '/pages/login/index' }), 1500)
-            reject(new Error(body?.message || '未授权')) // 9. Promise reject
+            // ---- Token 过期/无效 ----
+            log.warn('Token 无效: code=401, 消息:', body?.message)
+
+            // 尝试刷新 Token
+            if (retryCount === 0 && !isGuestUser()) {
+              tryRefreshToken().then((newToken) => {
+                if (newToken) {
+                  log.api('Token 刷新成功，重试请求')
+                  // 递归重试（使用新 token）
+                  resolve(requestWithRetry(options, retryCount + 1))
+                } else {
+                  handleUnauthorized(true, body?.message || '登录已过期，请重新登录')
+                  reject(new Error(body?.message || '未授权'))
+                }
+              })
+              return
+            }
+
+            handleUnauthorized(true, body?.message || '登录已过期，请重新登录')
+            reject(new Error(body?.message || '未授权'))
           } else {
             log.warn('API 错误:', body?.code, body?.message)
-            reject(new Error(body?.message || '请求失败')) // 9. Promise reject
+            reject(new Error(body?.message || '请求失败'))
           }
         } else if (res.statusCode === 401) {
-          log.warn('未授权，清除登录态并跳转登录')
-          uni.removeStorageSync('token')
-          uni.removeStorageSync('userInfo')
-          uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-          setTimeout(() => uni.navigateTo({ url: '/pages/login/index' }), 1500)
+          // ---- HTTP 401 ----
+          log.warn('HTTP 401: 未授权')
+
+          // 尝试刷新 Token
+          if (retryCount === 0 && !isGuestUser()) {
+            tryRefreshToken().then((newToken) => {
+              if (newToken) {
+                log.api('Token 刷新成功，重试请求')
+                resolve(requestWithRetry(options, retryCount + 1))
+              } else {
+                handleUnauthorized(true, '登录已过期，请重新登录')
+                reject(new Error('登录已过期，请重新登录'))
+              }
+            })
+            return
+          }
+
+          handleUnauthorized(true, '登录已过期，请重新登录')
           reject(new Error('登录已过期，请重新登录'))
         } else if (res.statusCode === 404) {
           log.error('接口不存在:', url)
@@ -316,7 +439,7 @@ const requestWithRetry = (options, retryCount = 0) => {
           }
         })
 
-        reject(new Error(friendly)) // 9. Promise reject
+        reject(new Error(friendly))
       }
     })
   })
@@ -324,11 +447,30 @@ const requestWithRetry = (options, retryCount = 0) => {
 
 // ==================== 5. GET/POST/PUT/DELETE 方法 ====================
 
-const request = (options) => requestWithRetry(options)
+const request = (options) => {
+  // 在发起请求前检查 Token 状态
+  checkAndRefreshToken()
 
-request.get = (url, data) => requestWithRetry({ url, method: 'GET', data })
-request.post = (url, data) => requestWithRetry({ url, method: 'POST', data })
-request.put = (url, data) => requestWithRetry({ url, method: 'PUT', data })
-request.delete = (url, data) => requestWithRetry({ url, method: 'DELETE', data })
+  return requestWithRetry(options)
+}
+
+request.get = (url, data) => {
+  checkAndRefreshToken()
+  return requestWithRetry({ url, method: 'GET', data })
+}
+request.post = (url, data) => {
+  checkAndRefreshToken()
+  return requestWithRetry({ url, method: 'POST', data })
+}
+request.put = (url, data) => {
+  checkAndRefreshToken()
+  return requestWithRetry({ url, method: 'PUT', data })
+}
+request.delete = (url, data) => {
+  checkAndRefreshToken()
+  return requestWithRetry({ url, method: 'DELETE', data })
+}
+
+// ==================== 导出 ====================
 
 export default request

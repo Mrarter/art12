@@ -18,6 +18,14 @@ export const wxLogin = (data) => {
   })
 }
 
+// 刷新 Token（无感刷新）
+export const refreshToken = () => {
+  return request({
+    url: '/user/auth/refresh',
+    method: 'POST'
+  })
+}
+
 // 获取用户信息
 export const getUserInfo = () => {
   return request({

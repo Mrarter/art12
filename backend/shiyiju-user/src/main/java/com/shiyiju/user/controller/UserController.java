@@ -48,6 +48,24 @@ public class UserController {
     }
 
     /**
+     * 刷新 Token (POST /user/auth/refresh)
+     * 用于 Token 即将过期时无感刷新
+     */
+    @PostMapping("/auth/refresh")
+    public Result<LoginVO> refreshToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Result.fail(401, "无效的 Token");
+        }
+        String token = authHeader.substring(7);
+        log.info("Token 刷新请求, token: {}", token.substring(0, Math.min(20, token.length())));
+        LoginVO vo = userService.refreshToken(token);
+        if (vo == null) {
+            return Result.fail(401, "Token 已过期，请重新登录");
+        }
+        return Result.success(vo);
+    }
+
+    /**
      * 获取用户信息 (GET /user/info)
      */
     @GetMapping("/info")

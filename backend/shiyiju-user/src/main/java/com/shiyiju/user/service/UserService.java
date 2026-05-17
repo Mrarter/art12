@@ -2107,4 +2107,66 @@ public class UserService {
             throw new BusinessException(ResultCode.INTERNAL_ERROR.getCode(), "哈希计算失败");
         }
     }
+
+    // ===================== Token 刷新 =====================
+
+    /**
+     * 刷新 Token
+     * 根据旧 Token 验证用户身份，生成新 Token
+     *
+     * @param oldToken 旧的 Bearer Token
+     * @return 新的 LoginVO（含新 Token），或 null 表示旧 Token 无效
+     */
+    public LoginVO refreshToken(String oldToken) {
+        try {
+            // 1. 解析旧 Token（可能已过期或即将过期）
+            Long userId = JwtUtil.getUserId(oldToken);
+            String openid = JwtUtil.getOpenid(oldToken);
+
+            if (userId == null) {
+                log.warn("刷新 Token 失败：无法获取用户ID");
+                return null;
+            }
+
+            // 2. 验证用户是否存在
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                log.warn("刷新 Token 失败：用户不存在 userId={}", userId);
+                return null;
+            }
+
+            // 3. 检查 Redis 中是否有该用户的 Token 记录（可选：用于更强的安全性）
+            // 如果开启，则只有在 Redis 中有记录时才允许刷新
+            // String storedToken = (String) redisTemplate.opsForValue().get("token:" + userId);
+            // if (storedToken == null || !storedToken.equals(oldToken)) {
+            //     log.warn("刷新 Token 失败：Redis 中无记录或 Token 不匹配");
+            //     return null;
+            // }
+
+            // 4. 生成新 Token
+            String newToken = JwtUtil.generateToken(userId, openid != null ? openid : user.getOpenid());
+
+            // 5. 更新 Redis 记录
+            redisTemplate.opsForValue().set("token:" + userId, newToken, 7, java.util.concurrent.TimeUnit.DAYS);
+
+            log.info("Token 刷新成功: userId={}", userId);
+
+            // 6. 返回新 Token
+            LoginVO vo = new LoginVO();
+            vo.setToken(newToken);
+            vo.setUserId(userId);
+            vo.setUid(user.getUid());
+            vo.setIdentities(user.getIdentities());
+            vo.setPhone(user.getPhone());
+
+            return vo;
+
+        } catch (ExpiredJwtException e) {
+            log.warn("刷新 Token 失败：Token 已过期");
+            return null;
+        } catch (Exception e) {
+            log.error("刷新 Token 异常: {}", e.getMessage(), e);
+            return null;
+        }
+    }
 }
