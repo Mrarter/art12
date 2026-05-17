@@ -139,7 +139,7 @@
               <span class="target-name">{{ row.targetName || row.groupName }}</span>
             </div>
             <div v-else class="user-info">
-              <el-avatar :src="row.userAvatar" :size="24" />
+              <el-avatar :src="getFullImageUrl(row.userAvatar)" :size="24" />
               <span>{{ row.userName || row.nickname || '-' }}</span>
             </div>
           </template>
@@ -303,7 +303,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Message, SuccessFilled, Clock, CircleCloseFilled, Plus } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 
 const loading = ref(false)
 const typeFilter = ref('')

@@ -45,3 +45,12 @@ wechat:
 logging:
   level:
     com.shiyiju: DEBUG
+
+# ===================== 转售系统配置 =====================
+resale:
+  # 艺术家持续收益比例（5%）
+  artist-income-rate: 0.05
+  # 平台服务费比例（10%）
+  platform-fee-rate: 0.10
+  # 平台收款钱包用户ID（如需入账到平台账户，设为对应 user_id）
+  platform-wallet-user-id: 0

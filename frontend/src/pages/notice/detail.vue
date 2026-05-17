@@ -140,58 +140,12 @@ export default {
 
   methods: {
     loadDetail() {
-      // 模拟详情数据
-      this.detail = {
-        id: this.id,
-        type: this.type === 'activity' ? 'activity' : 'normal',
-        title: this.type === 'activity' 
-          ? '【五一特惠】艺术品专场拍卖会' 
-          : '关于平台艺术品交易规则调整的通知',
-        content: `
-          <p>亲爱的用户：</p>
-          <p>为了更好地保障用户权益，提升平台服务质量，我们对艺术品交易规则进行了优化调整，现将主要变更内容通知如下：</p>
-          
-          <h3>一、售后服务升级</h3>
-          <p>1. 退货期限由原来的7天延长至15天</p>
-          <p>2. 新增「鉴赏期」服务，签收后7天内可无理由退货</p>
-          <p>3. 运费险覆盖范围扩大至全场艺术品</p>
-          
-          <h3>二、纠纷处理优化</h3>
-          <p>1. 引入第三方专业鉴定机构</p>
-          <p>2. 纠纷响应时间缩短至24小时内</p>
-          <p>3. 新增「先行赔付」机制</p>
-          
-          <h3>三、交易安全保障</h3>
-          <p>1. 大额交易引入人脸识别验证</p>
-          <p>2. 新增交易冷静期功能</p>
-          <p>3. 资金托管范围扩大</p>
-          
-          <p>以上规则调整将于2026年5月1日起正式生效。感谢您的理解与支持！</p>
-          <p>如有疑问，请联系客服热线：400-888-8888</p>
-        `,
-        publishTime: '2026-04-21 10:00:00',
-        viewCount: 2568,
-        likeCount: 326,
-        commentCount: 58,
-        isLiked: false,
-        cover: '/static/icons/notice-cover1.png',
-        authorName: '拾艺局官方',
-        authorAvatar: '/static/icons/avatar-default.png',
-        activityInfo: this.type === 'activity' ? {
-          startTime: '2026-05-01 00:00:00',
-          endTime: '2026-05-05 23:59:59',
-          location: '拾艺局App线上专场',
-          method: '线上竞拍，通过App参与'
-        } : null
-      }
+      // TODO: 对接真实公告/活动详情 API
+      this.detail = { id: this.id, type: 'normal', title: '', content: '<p>加载中...</p>', createTime: '' }
     },
 
     loadRelated() {
-      this.relatedList = [
-        { id: 1, title: '艺术家入驻审核流程优化公告', publishTime: '2026-04-20 15:30:00' },
-        { id: 2, title: '新用户专享福利活动', publishTime: '2026-04-20 10:00:00' },
-        { id: 3, title: '关于规范艺术品描述的公告', publishTime: '2026-04-17 11:00:00' }
-      ]
+      this.relatedList = []
     },
 
     goBack() {

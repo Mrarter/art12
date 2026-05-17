@@ -24,6 +24,11 @@ public class UserSchemaInitializer {
         ensureArtistProfileTable();
         ensureArtistCertificationsTable();
         ensureArtistProfileColumns();
+        ensureRealnameTable();
+        ensureRealnameColumns();
+        ensurePayAccountTable();
+        ensureWalletTables();
+        ensureCommissionRecordTable();
         backfillUsersFromLegacyTables();
     }
 
@@ -264,6 +269,125 @@ public class UserSchemaInitializer {
               KEY idx_artist_certifications_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """);
+    }
+
+    private void ensureRealnameTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS realname_certifications (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '用户ID',
+              real_name VARCHAR(100) DEFAULT NULL COMMENT '真实姓名',
+              id_card VARCHAR(64) DEFAULT NULL COMMENT '身份证号（脱敏存储）',
+              id_card_hash VARCHAR(128) DEFAULT NULL COMMENT '身份证号SHA256（查重用）',
+              id_front_url VARCHAR(512) DEFAULT NULL COMMENT '身份证正面照URL',
+              id_back_url VARCHAR(512) DEFAULT NULL COMMENT '身份证背面照URL',
+              face_verified TINYINT DEFAULT 0 COMMENT '人脸核验状态',
+              status INT DEFAULT 0 COMMENT '审核状态：0-待审核，1-已通过，2-已拒绝',
+              reject_reason VARCHAR(500) DEFAULT NULL COMMENT '拒绝原因',
+              review_time DATETIME DEFAULT NULL COMMENT '审核时间',
+              reviewer_id BIGINT DEFAULT NULL COMMENT '审核人ID',
+              create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_realname_user_id (user_id),
+              KEY idx_realname_status (status),
+              UNIQUE KEY uk_realname_user_id (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensureCommissionRecordTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS commission_record (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '佣金接收人用户ID',
+              source_user_id BIGINT DEFAULT NULL COMMENT '来源用户ID（购买者/推广人）',
+              order_id BIGINT DEFAULT NULL COMMENT '关联订单ID',
+              artwork_id BIGINT DEFAULT NULL COMMENT '关联作品ID',
+              commission_type VARCHAR(32) NOT NULL COMMENT '类型：artwork_sale/promoter_reward/resale_reward/team_reward',
+              commission_level INT DEFAULT 1 COMMENT '佣金层级：1-一级 2-二级',
+              rate DECIMAL(5,2) DEFAULT 0.00 COMMENT '佣金比例(%)',
+              amount DECIMAL(12,2) NOT NULL COMMENT '佣金金额',
+              status VARCHAR(16) DEFAULT 'pending' COMMENT '状态：pending/settled/freeze/cancel',
+              remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_commission_user_id (user_id),
+              KEY idx_commission_order (order_id),
+              KEY idx_commission_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensurePayAccountTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS pay_account (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '用户ID',
+              account_type TINYINT NOT NULL COMMENT '账户类型：1-微信 2-支付宝 3-银行卡',
+              real_name VARCHAR(100) DEFAULT NULL COMMENT '收款人姓名',
+              id_card VARCHAR(64) DEFAULT NULL COMMENT '身份证号（脱敏）',
+              phone VARCHAR(20) DEFAULT NULL COMMENT '手机号',
+              bank_name VARCHAR(100) DEFAULT NULL COMMENT '开户银行',
+              bank_card VARCHAR(256) DEFAULT NULL COMMENT '银行卡号（AES加密）',
+              alipay_account VARCHAR(100) DEFAULT NULL COMMENT '支付宝账号',
+              wechat_openid VARCHAR(64) DEFAULT NULL COMMENT '微信OpenId',
+              is_default TINYINT DEFAULT 0 COMMENT '是否默认：0-否 1-是',
+              verify_status TINYINT DEFAULT 0 COMMENT '实名认证状态：0-未认证 1-已认证',
+              status TINYINT DEFAULT 1 COMMENT '状态：1-正常 0-禁用',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_pay_account_user_id (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensureWalletTables() {
+        // 用户钱包表
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS user_wallet (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '用户ID',
+              balance DECIMAL(12,2) DEFAULT 0.00 COMMENT '可用余额',
+              freeze_amount DECIMAL(12,2) DEFAULT 0.00 COMMENT '冻结金额',
+              pending_amount DECIMAL(12,2) DEFAULT 0.00 COMMENT '待结算金额',
+              deposit_amount DECIMAL(12,2) DEFAULT 0.00 COMMENT '保证金',
+              total_income DECIMAL(12,2) DEFAULT 0.00 COMMENT '累计收入',
+              total_withdraw DECIMAL(12,2) DEFAULT 0.00 COMMENT '累计提现',
+              version INT DEFAULT 0 COMMENT '乐观锁',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              UNIQUE KEY uk_wallet_user_id (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+
+        // 钱包流水表
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS wallet_bill (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '用户ID',
+              bill_type VARCHAR(32) NOT NULL COMMENT '流水类型：income/withdraw/freeze/unfreeze/commission/resale/refund/deposit',
+              amount DECIMAL(12,2) NOT NULL COMMENT '变动金额',
+              before_balance DECIMAL(12,2) NOT NULL COMMENT '变动前余额',
+              after_balance DECIMAL(12,2) NOT NULL COMMENT '变动后余额',
+              related_id BIGINT DEFAULT NULL COMMENT '关联业务ID',
+              related_type VARCHAR(32) DEFAULT NULL COMMENT '关联业务类型：order/commission/resale/withdraw/deposit',
+              remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_bill_user_id (user_id),
+              KEY idx_bill_related (related_type, related_id),
+              UNIQUE KEY uk_bill_biz (bill_type, related_type, related_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensureRealnameColumns() {
+        addColumnIfMissing("users", "real_name_verified",
+            "ALTER TABLE users ADD COLUMN real_name_verified TINYINT DEFAULT 0 COMMENT '实名认证状态：0-未认证，1-已认证'");
     }
 
     private boolean tableExists(String tableName) {

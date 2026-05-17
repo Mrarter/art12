@@ -266,3 +266,31 @@ CREATE TABLE IF NOT EXISTS `file_records` (
   `file_type` VARCHAR(32) COMMENT '文件类型',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- ========================================
+-- 订单失败记录表（自动回滚与重试支持）
+-- ========================================
+CREATE TABLE IF NOT EXISTS `order_fail_record` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `order_no` VARCHAR(64) DEFAULT NULL COMMENT '失败时已生成的订单号（可能为空）',
+  `user_id` BIGINT NOT NULL COMMENT '买家用户ID',
+  `artwork_id` BIGINT DEFAULT NULL COMMENT '作品ID',
+  `resale_id` BIGINT DEFAULT NULL COMMENT '转售记录ID',
+  `cart_ids` VARCHAR(256) DEFAULT NULL COMMENT '购物车ID列表（逗号分隔）',
+  `source` VARCHAR(32) NOT NULL COMMENT '订单来源: DIRECT/CART/RESALE/AUCTION',
+  `fail_reason` VARCHAR(64) NOT NULL COMMENT '失败原因枚举',
+  `fail_message` VARCHAR(1024) DEFAULT NULL COMMENT '详细错误信息',
+  `request_params` TEXT COMMENT '请求参数JSON',
+  `retry_count` INT DEFAULT 0 COMMENT '已重试次数',
+  `max_retries` INT DEFAULT 3 COMMENT '最大重试次数',
+  `retry_status` TINYINT DEFAULT 0 COMMENT '重试状态: 0-未重试 1-重试中 2-重试成功 3-重试失败',
+  `compensated` TINYINT DEFAULT 0 COMMENT '是否已补偿回滚: 0-未补偿 1-已补偿',
+  `compensate_at` DATETIME DEFAULT NULL COMMENT '补偿回滚时间',
+  `next_retry_at` DATETIME DEFAULT NULL COMMENT '下次重试时间',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_user_id` (`user_id`),
+  INDEX `idx_order_no` (`order_no`),
+  INDEX `idx_retry_status` (`retry_status`),
+  INDEX `idx_next_retry_at` (`next_retry_at`),
+  INDEX `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单失败记录表';

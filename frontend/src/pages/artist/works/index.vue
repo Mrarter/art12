@@ -6,40 +6,79 @@
       <text class="spacer"></text>
     </view>
 
-    <view class="artist-strip">
-      <image class="avatar" src="/static/images/avatar.png" mode="aspectFill"></image>
-      <view>
-        <text class="artist-name">孟儒</text>
-        <text class="artist-desc">36 件作品正在平台展示与流通</text>
-      </view>
+    <!-- 加载中 -->
+    <view v-if="loading" class="status-box">
+      <view class="loading-spinner"></view>
+      <text class="status-text">加载中...</text>
     </view>
 
-    <scroll-view scroll-x class="tabs-scroll">
-      <view class="tabs">
-        <text v-for="tab in tabs" :key="tab.value" class="tab" :class="{ active: activeTab === tab.value }" @click="activeTab = tab.value">{{ tab.label }}</text>
-      </view>
-    </scroll-view>
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="status-box">
+      <text class="status-icon">⚠</text>
+      <text class="status-text error">{{ error }}</text>
+      <text class="retry-btn" @click="loadData">点击重试</text>
+    </view>
 
-    <view class="works-grid">
-      <view v-for="work in filteredWorks" :key="work.id" class="work-card" @click="goWork(work.id)">
-        <image class="work-image" :src="work.cover" mode="aspectFill"></image>
-        <view class="work-body">
-          <view class="work-line">
-            <text class="work-title">{{ work.title }}</text>
-            <text class="status">{{ work.statusText }}</text>
-          </view>
-          <text class="work-meta">{{ work.material }} / {{ work.size }} / {{ work.year }}</text>
-          <text class="price">{{ work.priceText }}</text>
+    <!-- 数据加载完成 -->
+    <template v-else>
+      <!-- 艺术家信息条 -->
+      <view class="artist-strip">
+        <image class="avatar" :src="artistAvatar" mode="aspectFill"></image>
+        <view>
+          <text class="artist-name">{{ artistName }}</text>
+          <text class="artist-desc">{{ works.length }} 件作品正在平台展示与流通</text>
         </view>
       </view>
-    </view>
+
+      <scroll-view scroll-x class="tabs-scroll">
+        <view class="tabs">
+          <text
+            v-for="tab in tabs"
+            :key="tab.value"
+            class="tab"
+            :class="{ active: activeTab === tab.value }"
+            @click="activeTab = tab.value"
+          >{{ tab.label }}</text>
+        </view>
+      </scroll-view>
+
+      <!-- 作品网格 -->
+      <view v-if="filteredWorks.length > 0" class="works-grid">
+        <view
+          v-for="work in filteredWorks"
+          :key="work.id"
+          class="work-card"
+          @click="goWork(work.id)"
+        >
+          <image class="work-image" :src="work.cover" mode="aspectFill"></image>
+          <view class="work-body">
+            <view class="work-line">
+              <text class="work-title">{{ work.title }}</text>
+              <text class="status-label">{{ work.statusLabel }}</text>
+            </view>
+            <text class="work-meta">{{ work.metaText }}</text>
+            <text class="price">{{ work.priceText }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空数据 -->
+      <view v-else class="status-box">
+        <text class="status-icon">📭</text>
+        <text class="status-text">暂无作品</text>
+      </view>
+    </template>
   </view>
 </template>
 
 <script>
+import { getProductList } from '@/api/product'
+import { getArtistInfo } from '@/api/user'
+
 export default {
   data() {
     return {
+      artistId: null,
       activeTab: 'ALL',
       tabs: [
         { label: '全部', value: 'ALL' },
@@ -48,22 +87,87 @@ export default {
         { label: '再次流通', value: 'CAN_APPLY' },
         { label: '代表作', value: 'FEATURED' }
       ],
-      works: [
-        { id: 49, title: '晨曦·归航', material: '布面油画', size: '100×80cm', year: '2024', priceText: '¥8,000', status: 'FEATURED', statusText: '代表作', cover: '/static/artist-ui/personal-gallery.png' },
-        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥12,000', status: 'ON_SALE', statusText: '可收藏', cover: '/static/artist-ui/artist-homepage-dark.png' },
-        { id: 46, title: '静物 No.0751', material: '布面油画', size: '40×40cm', year: '2024', priceText: '¥3,200', status: 'COLLECTED', statusText: '已收藏', cover: '/static/artist-ui/collection-trust.png' },
-        { id: 45, title: '海边风景', material: '布面油画', size: '60×60cm', year: '2023', priceText: '待估值', status: 'CAN_APPLY', statusText: '可再次流通', cover: '/static/artist-ui/artist-homepage-alt.png' }
-      ]
+      works: [],
+      artistInfo: null,
+      loading: true,
+      error: ''
     }
   },
   computed: {
+    artistName() {
+      return this.artistInfo?.nickname || this.artistInfo?.name || '艺术家'
+    },
+    artistAvatar() {
+      return this.artistInfo?.avatar || '/static/images/avatar.png'
+    },
     filteredWorks() {
-      return this.activeTab === 'ALL' ? this.works : this.works.filter(item => item.status === this.activeTab)
+      if (this.activeTab === 'ALL') return this.works
+      return this.works.filter(w => this.matchTab(w, this.activeTab))
     }
   },
+  onLoad(query) {
+    this.artistId = query.id
+    this.loadData()
+  },
   methods: {
-    goBack() { uni.navigateBack() },
-    goWork(id) { uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` }) }
+    async loadData() {
+      this.loading = true
+      this.error = ''
+      try {
+        const info = await getArtistInfo(this.artistId)
+        this.artistInfo = info || null
+        const artistName = info?.nickname || info?.name
+        if (artistName) {
+          const res = await getProductList({ authorName: artistName, pageSize: 100 })
+          const records = res?.records || []
+          this.works = records.map(this.normalizeWork)
+        }
+      } catch (e) {
+        console.warn('[artist/works] 加载失败:', e)
+        this.error = '加载失败，请检查网络后重试'
+      } finally {
+        this.loading = false
+      }
+    },
+    normalizeWork(item) {
+      const statusMap = {
+        0: '已下架',
+        1: '可收藏',
+        2: '已售罄'
+      }
+      const label = statusMap[item.status] || '未知'
+      const metaParts = [item.material, item.size, item.year].filter(Boolean)
+      return {
+        ...item,
+        cover: item.coverImage || item.cover,
+        statusLabel: label,
+        metaText: metaParts.join(' / '),
+        priceText: item.price ? '¥' + (item.price / 100).toLocaleString() : '待估值'
+      }
+    },
+    matchTab(work, tab) {
+      switch (tab) {
+        case 'ON_SALE':
+          return work.status === 1
+        case 'COLLECTED':
+          return work.isFavorite || work.isFavorited
+        case 'CAN_APPLY':
+          return work.status === 1 && work.ownershipType === 2
+        case 'FEATURED':
+          return !!work.authorBadge
+        default:
+          return true
+      }
+    },
+    switchTab(value) {
+      this.activeTab = value
+    },
+    goBack() {
+      uni.navigateBack()
+    },
+    goWork(id) {
+      uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
+    }
   }
 }
 </script>
@@ -106,6 +210,7 @@ $border-dark: rgba(214, 168, 39, 0.35);
   font-weight: 700;
 }
 
+/* ===== 艺术家信息条 ===== */
 .artist-strip {
   display: flex;
   align-items: center;
@@ -139,6 +244,55 @@ $border-dark: rgba(214, 168, 39, 0.35);
   line-height: 36rpx;
 }
 
+/* ===== 加载 / 错误 / 空状态 ===== */
+.status-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 40rpx;
+}
+
+.status-icon {
+  font-size: 60rpx;
+  margin-bottom: 20rpx;
+}
+
+.status-text {
+  font-size: 26rpx;
+  color: $text-muted;
+  text-align: center;
+  line-height: 40rpx;
+}
+
+.status-text.error {
+  color: #e74c3c;
+}
+
+.retry-btn {
+  margin-top: 24rpx;
+  padding: 14rpx 48rpx;
+  border: 1rpx solid $border-dark;
+  border-radius: 999rpx;
+  color: $gold-light;
+  font-size: 26rpx;
+}
+
+.loading-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid rgba(214, 168, 39, 0.2);
+  border-top-color: $gold;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 24rpx;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== Tab ===== */
 .tabs-scroll {
   width: 100%;
   margin: 28rpx 0;
@@ -151,11 +305,14 @@ $border-dark: rgba(214, 168, 39, 0.35);
 }
 
 .tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 16rpx 26rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.09);
   border-radius: 999rpx;
   color: $text-muted;
   font-size: 24rpx;
+  line-height: 1;
 }
 
 .tab.active {
@@ -164,6 +321,7 @@ $border-dark: rgba(214, 168, 39, 0.35);
   background: rgba(214, 168, 39, 0.12);
 }
 
+/* ===== 作品网格 ===== */
 .works-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -196,9 +354,13 @@ $border-dark: rgba(214, 168, 39, 0.35);
 .work-title {
   font-size: 28rpx;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260rpx;
 }
 
-.status {
+.status-label {
   flex-shrink: 0;
   color: $gold-light;
   font-size: 20rpx;

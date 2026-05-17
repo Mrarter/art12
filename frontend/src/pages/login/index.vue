@@ -97,7 +97,7 @@
 <script>
 import { wxLogin, phoneLogin, sendSmsCode } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
-import loginBrandLogo from '@/static/images/login-brand-logo.png'
+import loginBrandLogo from '@/static/logo.png'
 
 export default {
   data() {
@@ -172,7 +172,19 @@ export default {
         }, 1500)
       } catch (e) {
         console.error('微信登录失败', e)
-        uni.showToast({ title: e.message || '微信登录失败，请重试', icon: 'none' })
+        const errMsg = e.message || '微信登录失败，请重试'
+        
+        // 配置缺失类错误（500）→ 使用模态框，更醒目
+        if (errMsg.includes('暂不可用') || errMsg.includes('联系管理员') || errMsg.includes('小程序密钥')) {
+          uni.showModal({
+            title: '微信登录不可用',
+            content: errMsg,
+            confirmText: '我知道了',
+            showCancel: false
+          })
+        } else {
+          uni.showToast({ title: errMsg, icon: 'none', duration: 3000 })
+        }
       } finally {
         this.loading = false
       }

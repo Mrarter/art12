@@ -261,14 +261,8 @@ const saveLogistics = async () => {
 }
 
 onMounted(() => {
-  const orderId = route.query.orderId || 'SYJ20240120001'
-  
-  // 模拟订单数据
-  orderDetail.value = {
-    orderNo: orderId,
-    createTime: '2024-01-20 14:15:00',
-    type: 'normal',
-    payMethod: 'wechat',
+  const orderId = route.query.orderId || ''
+  if (orderId) fetchOrderDetail(orderId)
     remark: '请尽快发货，谢谢',
     buyerName: '李四',
     buyerPhone: '138****8002',

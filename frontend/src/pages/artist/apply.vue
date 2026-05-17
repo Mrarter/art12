@@ -88,10 +88,9 @@
       <!-- 所在城市 -->
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>所在城市</view>
-        <picker mode="region" @change="onCityChange">
+        <picker mode="region" :value="form.cityArr || ['','','']" @change="onCityChange">
           <view class="picker-value">
             {{ form.city || '请选择' }}
-            
           </view>
         </picker>
       </view>
@@ -279,6 +278,7 @@ export default {
         gender: 1,
         birthYear: '',
         city: '',
+        cityArr: ['', '', ''],
         artCategory: '',
         artCategoryIndex: 0,
         style: '',
@@ -339,7 +339,9 @@ export default {
     },
 
     onCityChange(e) {
-      this.form.city = e.detail.value.join('')
+      const arr = e.detail.value
+      this.form.cityArr = arr
+      this.form.city = arr.filter(Boolean).join(' ')
     },
 
     onArtCategoryChange(e) {

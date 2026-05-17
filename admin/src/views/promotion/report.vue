@@ -127,7 +127,7 @@
           <el-table-column label="艺荐官" min-width="200">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :src="row.avatar" :size="36" />
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="36" />
                 <div>
                   <p class="nickname">{{ row.nickname }}</p>
                   <p class="level">{{ row.levelName }}</p>
@@ -174,7 +174,7 @@
           <el-table-column label="艺荐官" min-width="180">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :src="row.avatar" :size="36" />
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="36" />
                 <div>
                   <p class="nickname">{{ row.nickname }}</p>
                   <p class="phone">{{ row.phone }}</p>
@@ -224,7 +224,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Coin, Wallet, User, TrendCharts, Download } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 import * as echarts from 'echarts'
 
 const loading = ref(false)

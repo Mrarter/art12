@@ -188,6 +188,8 @@ const recirculate = () => {
 .artwork-artist { font-size: 26rpx; color: #999; margin-top: 8rpx; display: block; }
 .artwork-tags { display: flex; gap: 12rpx; margin-top: 16rpx; }
 .tag {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 6rpx 18rpx;
   background: #222;
   border-radius: 20rpx;

@@ -13,6 +13,10 @@ public class Artwork implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
     
+    /** 作品ID（与id相同） */
+    @TableField("artwork_id")
+    private Long artworkId;
+    
     /** 作品标准化UID (19位: ART + 日期 + 序列 + 随机码) */
     @TableField("artwork_code")
     private String artworkUid;
@@ -44,8 +48,10 @@ public class Artwork implements Serializable {
     private Integer source;
     private Long holderId;
     private LocalDateTime holderSince;
-    private Long price;
-    private Long originalPrice;
+    /** 当前价格（元） */
+    private BigDecimal price;
+    /** 原始价格（元） */
+    private BigDecimal originalPrice;
     private Integer stock;
     private Integer status;
     private Integer weight; // 权重，数值越大越靠前
@@ -90,6 +96,10 @@ public class Artwork implements Serializable {
     private BigDecimal customFavoriteRate; // 自定义收藏量加成系数
     @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customMaxGrowthMultiple; // 自定义最大涨幅倍数
+    /** 内容指纹 SHA256(title + authorId + yyyyMMdd)，用于幂等去重 */
+    @TableField("content_fingerprint")
+    private String contentFingerprint;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

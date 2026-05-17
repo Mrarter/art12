@@ -398,4 +398,175 @@ public class AuctionController {
         
         return Result.success(result);
     }
+
+    // ===================== 管理后台 API =====================
+
+    /**
+     * 创建拍卖专场 (POST /auction/admin/session/create)
+     */
+    @PostMapping("/admin/session/create")
+    public Result<Void> createSession(@RequestBody Map<String, Object> params) {
+        AuctionSession session = new AuctionSession();
+        session.setTitle((String) params.getOrDefault("title", ""));
+        session.setCoverImage((String) params.getOrDefault("coverImage", ""));
+        session.setDescription((String) params.getOrDefault("description", ""));
+        session.setStartTime(params.get("startTime") != null ? LocalDateTime.parse((String) params.get("startTime")) : LocalDateTime.now());
+        session.setEndTime(params.get("endTime") != null ? LocalDateTime.parse((String) params.get("endTime")) : LocalDateTime.now().plusDays(7));
+        session.setStatus(AuctionConstant.SESSION_STATUS_COMING);
+        session.setTotalLots(0);
+        session.setTotalBids(0);
+        sessionMapper.insert(session);
+        log.info("创建拍卖专场: id={}, title={}", session.getId(), session.getTitle());
+        return Result.success();
+    }
+
+    /**
+     * 更新拍卖专场 (POST /auction/admin/session/update)
+     */
+    @PostMapping("/admin/session/update")
+    public Result<Void> updateSession(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        AuctionSession session = sessionMapper.selectById(id);
+        if (session == null) {
+            return Result.fail(404, "专场不存在");
+        }
+        if (params.containsKey("title")) session.setTitle((String) params.get("title"));
+        if (params.containsKey("coverImage")) session.setCoverImage((String) params.get("coverImage"));
+        if (params.containsKey("description")) session.setDescription((String) params.get("description"));
+        if (params.containsKey("startTime")) session.setStartTime(LocalDateTime.parse((String) params.get("startTime")));
+        if (params.containsKey("endTime")) session.setEndTime(LocalDateTime.parse((String) params.get("endTime")));
+        sessionMapper.updateById(session);
+        log.info("更新拍卖专场: id={}", id);
+        return Result.success();
+    }
+
+    /**
+     * 删除拍卖专场 (POST /auction/admin/session/delete)
+     */
+    @PostMapping("/admin/session/delete")
+    public Result<Void> deleteSession(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        sessionMapper.deleteById(id);
+        log.info("删除拍卖专场: id={}", id);
+        return Result.success();
+    }
+
+    /**
+     * 管理后台 - 拍品列表 (POST /auction/admin/lot/list)
+     */
+    @PostMapping("/admin/lot/list")
+    public Result<PageResult<Map<String, Object>>> getAdminLotList(@RequestBody Map<String, Object> params) {
+        int page = params.getOrDefault("page", 1) instanceof Number n ? n.intValue() : 1;
+        int size = params.getOrDefault("size", 20) instanceof Number n ? n.intValue() : 20;
+        Long sessionId = params.get("sessionId") instanceof Number n ? n.longValue() : null;
+
+        Page<AuctionLot> pageResult = new Page<>(page, size);
+        LambdaQueryWrapper<AuctionLot> wrapper = new LambdaQueryWrapper<AuctionLot>()
+                .orderByAsc(AuctionLot::getLotNo);
+        if (sessionId != null) {
+            wrapper.eq(AuctionLot::getSessionId, sessionId);
+        }
+        Page<AuctionLot> resultPage = lotMapper.selectPage(pageResult, wrapper);
+
+        List<Map<String, Object>> rows = resultPage.getRecords().stream().map(lot -> {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", lot.getId());
+            row.put("lotNo", lot.getLotNo());
+            row.put("title", lot.getTitle());
+            row.put("coverImage", lot.getCoverImage());
+            row.put("artistName", lot.getArtistName());
+            row.put("startPrice", lot.getStartPrice());
+            row.put("currentPrice", lot.getCurrentPrice());
+            row.put("reservePrice", lot.getReservePrice());
+            row.put("increment", lot.getIncrement());
+            row.put("depositAmount", lot.getDepositAmount());
+            row.put("bidCount", lot.getBidCount());
+            row.put("status", lot.getStatus());
+            row.put("startTime", lot.getStartTime());
+            row.put("endTime", lot.getEndTime());
+            row.put("sessionId", lot.getSessionId());
+            row.put("artworkId", lot.getArtworkId());
+            return row;
+        }).collect(Collectors.toList());
+
+        return Result.success(PageResult.of(resultPage.getTotal(), page, size, rows));
+    }
+
+    /**
+     * 管理后台 - 创建拍品 (POST /auction/admin/lot/create)
+     */
+    @PostMapping("/admin/lot/create")
+    public Result<Void> createLot(@RequestBody Map<String, Object> params) {
+        AuctionLot lot = new AuctionLot();
+        lot.setSessionId(((Number) params.get("sessionId")).longValue());
+        lot.setTitle((String) params.getOrDefault("title", ""));
+        lot.setCoverImage((String) params.getOrDefault("coverImage", ""));
+        lot.setArtistName((String) params.getOrDefault("artistName", ""));
+        lot.setLotNo(String.valueOf(params.getOrDefault("lotNo", "")));
+        lot.setStartPrice(params.get("startPrice") != null ? new java.math.BigDecimal(params.get("startPrice").toString()) : java.math.BigDecimal.ZERO);
+        lot.setCurrentPrice(params.get("currentPrice") != null ? new java.math.BigDecimal(params.get("currentPrice").toString()) : java.math.BigDecimal.ZERO);
+        lot.setReservePrice(params.get("reservePrice") != null ? new java.math.BigDecimal(params.get("reservePrice").toString()) : java.math.BigDecimal.ZERO);
+        lot.setIncrement(params.get("increment") != null ? new java.math.BigDecimal(params.get("increment").toString()) : new java.math.BigDecimal("500"));
+        lot.setDepositAmount(params.get("depositAmount") != null ? new java.math.BigDecimal(params.get("depositAmount").toString()) : new java.math.BigDecimal("1000"));
+        lot.setBidCount(0);
+        lot.setStatus(AuctionConstant.LOT_STATUS_PENDING);
+        lot.setStartTime(params.get("startTime") != null ? LocalDateTime.parse((String) params.get("startTime")) : LocalDateTime.now());
+        lot.setEndTime(params.get("endTime") != null ? LocalDateTime.parse((String) params.get("endTime")) : LocalDateTime.now().plusDays(7));
+        lotMapper.insert(lot);
+        // 更新 session 的 lot 计数
+        AuctionSession session = sessionMapper.selectById(lot.getSessionId());
+        if (session != null) {
+            session.setTotalLots(session.getTotalLots() + 1);
+            sessionMapper.updateById(session);
+        }
+        return Result.success();
+    }
+
+    /**
+     * 管理后台 - 删除拍品 (POST /auction/admin/lot/delete)
+     */
+    @PostMapping("/admin/lot/delete")
+    public Result<Void> deleteLot(@RequestBody Map<String, Object> params) {
+        Long id = ((Number) params.get("id")).longValue();
+        AuctionLot lot = lotMapper.selectById(id);
+        if (lot != null && lot.getSessionId() != null) {
+            AuctionSession session = sessionMapper.selectById(lot.getSessionId());
+            if (session != null && session.getTotalLots() > 0) {
+                session.setTotalLots(session.getTotalLots() - 1);
+                sessionMapper.updateById(session);
+            }
+        }
+        lotMapper.deleteById(id);
+        return Result.success();
+    }
+
+    /**
+     * 管理后台 - 更新拍品 (POST /auction/lots/update)
+     */
+    @PostMapping("/lots/update")
+    public Result<Void> updateLot(@RequestBody Map<String, Object> params) {
+        try {
+            Long id = ((Number) params.get("id")).longValue();
+            AuctionLot lot = lotMapper.selectById(id);
+            if (lot == null) {
+                return Result.fail(404, "拍品不存在");
+            }
+            if (params.containsKey("title")) lot.setTitle((String) params.get("title"));
+            if (params.containsKey("coverImage")) lot.setCoverImage((String) params.get("coverImage"));
+            if (params.containsKey("artistName")) lot.setArtistName((String) params.get("artistName"));
+            if (params.containsKey("sessionId")) lot.setSessionId(((Number) params.get("sessionId")).longValue());
+            if (params.containsKey("lotNo")) lot.setLotNo(String.valueOf(params.get("lotNo")));
+            if (params.containsKey("startPrice")) lot.setStartPrice(new java.math.BigDecimal(params.get("startPrice").toString()));
+            if (params.containsKey("reservePrice")) lot.setReservePrice(new java.math.BigDecimal(params.get("reservePrice").toString()));
+            if (params.containsKey("increment")) lot.setIncrement(new java.math.BigDecimal(params.get("increment").toString()));
+            if (params.containsKey("depositAmount")) lot.setDepositAmount(new java.math.BigDecimal(params.get("depositAmount").toString()));
+            if (params.containsKey("startTime")) lot.setStartTime(LocalDateTime.parse((String) params.get("startTime")));
+            if (params.containsKey("endTime")) lot.setEndTime(LocalDateTime.parse((String) params.get("endTime")));
+            lotMapper.updateById(lot);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新拍品失败", e);
+            return Result.fail(500, e.getMessage());
+        }
+    }
 }

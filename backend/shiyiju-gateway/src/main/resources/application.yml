@@ -173,6 +173,13 @@ spring:
             - Path=/api/admin/artist/**
           filters:
             - RewritePath=/api/admin/artist(?<segment>/?.*), /admin/artist$\{segment}
+        # 作品价格管理接口 - 路由到 product 服务（必须在通用 /api/admin/** 之前）
+        - id: shiyiju-admin-artwork-price
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/admin/artwork/price/**
+          filters:
+            - RewritePath=/api/admin/artwork/price(?<segment>/?.*), /admin/artwork/price$\{segment}
         # 运营后台 - 带 /api 前缀的其他管理接口
         - id: shiyiju-admin
           uri: http://localhost:8090

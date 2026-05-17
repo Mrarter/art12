@@ -130,6 +130,7 @@ public class ProductService {
         vo.setArtType(artwork.getArtType());
         vo.setMaterial(artwork.getMedium());
         vo.setSize(artwork.getSize());
+        vo.setYear(artwork.getYear());
         vo.setDescription(artwork.getDescription());
         // 优先使用 cover 字段，备选 coverImage
         String coverUrl = artwork.getCover() != null ? artwork.getCover() : artwork.getCoverImage();
@@ -139,7 +140,7 @@ public class ProductService {
         }
         vo.setPrice(artwork.getPrice());
         vo.setOriginalPrice(artwork.getOriginalPrice());
-        vo.setCurrentPrice(priceGrowthService.calculateCurrentPrice(artwork));
+        vo.setCurrentPrice(BigDecimal.valueOf(priceGrowthService.calculateCurrentPrice(artwork)));
         vo.setStock(artwork.getStock());
         vo.setStatus(artwork.getStatus());
         vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
@@ -463,8 +464,9 @@ public class ProductService {
             artwork.setYear(getIntOrNull(rs, "year"));
             artwork.setDescription(rs.getString("description"));
             artwork.setCoverImage(rs.getString("cover_image"));
-            artwork.setPrice(getLongOrDefault(rs, "price", 0L));
-            artwork.setOriginalPrice(getLongOrNull(rs, "original_price"));
+            artwork.setPrice(BigDecimal.valueOf(getLongOrDefault(rs, "price", 0L)));
+            Long origPriceVal = getLongOrNull(rs, "original_price");
+            artwork.setOriginalPrice(origPriceVal != null ? BigDecimal.valueOf(origPriceVal) : null);
             artwork.setStock(getIntOrNull(rs, "stock"));
             artwork.setStatus(getIntOrDefault(rs, "status", 1));
             artwork.setWeight(getIntOrDefault(rs, "weight", 0));
@@ -596,16 +598,34 @@ public class ProductService {
             authorId = 1L; // 默认作者ID
         }
 
+        // ---- 内容级幂等校验：通过内容指纹检测是否已存在相同作品 ----
+        String today = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String contentRaw = (dto.getTitle() != null ? dto.getTitle() : "") + "|" + authorId + "|" + today;
+        String contentFingerprint = sha256(contentRaw);
+        dto.setContentFingerprint(contentFingerprint);
+
+        // 查最近 10 分钟内是否有相同指纹的作品
+        LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
+        Artwork existing = artworkMapper.selectOne(new LambdaQueryWrapper<Artwork>()
+                .eq(Artwork::getContentFingerprint, contentFingerprint)
+                .ge(Artwork::getCreateTime, tenMinutesAgo)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            log.warn("内容级幂等拦截：相同作品已存在，返回已有ID={}, title={}", existing.getId(), dto.getTitle());
+            return existing.getId();
+        }
+
         Artwork artwork = new Artwork();
         artwork.setTitle(dto.getTitle());
         artwork.setAuthorId(authorId);
         artwork.setAuthorUid(dto.getAuthorUid()); // 设置作者UID
         artwork.setAuthorName(authorName);
+        artwork.setContentFingerprint(contentFingerprint);
         artwork.setCategoryId(dto.getCategoryId());
         artwork.setCoverImage(dto.getCover() != null ? dto.getCover() : "https://picsum.photos/400/400");
         artwork.setImages(dto.getImages());
-        artwork.setPrice(dto.getPrice() != null ? dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue() : 0L);
-        artwork.setOriginalPrice(dto.getOriginalPrice() != null ? dto.getOriginalPrice().multiply(BigDecimal.valueOf(100)).longValue() : null);
+        artwork.setPrice(dto.getPrice() != null ? dto.getPrice() : BigDecimal.ZERO);
+        artwork.setOriginalPrice(dto.getOriginalPrice() != null ? dto.getOriginalPrice() : null);
         artwork.setStock(dto.getStock() != null ? dto.getStock() : 0);
         artwork.setDescription(dto.getDescription());
         artwork.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
@@ -624,8 +644,33 @@ public class ProductService {
         // 生成作品编号：画种缩写 + 日期 + 序号
         String artworkCode = generateArtworkCode(dto.getArtType(), dto.getCategoryId());
         artwork.setArtworkCode(artworkCode);
+        // 设置 artwork_id（等于自增的 id）
         artworkMapper.insert(artwork);
+        // 插入后更新 artwork_id = id
+        if (artwork.getId() != null) {
+            artwork.setArtworkId(artwork.getId());
+            artworkMapper.updateById(artwork);
+        }
         return artwork.getId();
+    }
+
+    /** 计算 SHA256 摘要 */
+    private String sha256(String input) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            log.error("计算SHA256失败", e);
+            // 降级：使用字符串的 hashCode（不完美但至少避免 NPE）
+            return Integer.toHexString(input.hashCode());
+        }
     }
     
     /** 生成作品编号 */
@@ -708,16 +753,11 @@ public class ProductService {
         if (dto.getCategoryId() != null) artwork.setCategoryId(dto.getCategoryId());
         if (dto.getCover() != null) artwork.setCoverImage(dto.getCover());
         if (dto.getImages() != null) artwork.setImages(dto.getImages());
-        // 价格单位是分，转换 BigDecimal -> Long (分)
         if (dto.getPrice() != null) {
-            Long priceInFen = dto.getPrice().multiply(BigDecimal.valueOf(100)).longValue();
-            System.out.println("【DEBUG】设置价格: dto.getPrice()=" + dto.getPrice() + " -> 转换为分=" + priceInFen);
-            artwork.setPrice(priceInFen);
+            artwork.setPrice(dto.getPrice());
         }
         if (dto.getOriginalPrice() != null) {
-            Long originalPriceInFen = dto.getOriginalPrice().multiply(BigDecimal.valueOf(100)).longValue();
-            System.out.println("【DEBUG】设置原价: dto.getOriginalPrice()=" + dto.getOriginalPrice() + " -> 转换为分=" + originalPriceInFen);
-            artwork.setOriginalPrice(originalPriceInFen);
+            artwork.setOriginalPrice(dto.getOriginalPrice());
         }
         if (dto.getStock() != null) artwork.setStock(dto.getStock());
         if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
@@ -828,7 +868,7 @@ public class ProductService {
         vo.setOriginalPrice(artwork.getOriginalPrice());
         // 实时计算当前价格（包含最新浏览量、收藏量等因素）
         Long currentPrice = priceGrowthService.calculateCurrentPrice(artwork);
-        vo.setCurrentPrice(currentPrice);
+        vo.setCurrentPrice(currentPrice != null ? BigDecimal.valueOf(currentPrice) : null);
         vo.setStock(artwork.getStock());
         vo.setStatus(artwork.getStatus());
         vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
@@ -970,8 +1010,8 @@ public class ProductService {
         vo.setCustomViewRate(artwork.getCustomViewRate());
         vo.setCustomFavoriteRate(artwork.getCustomFavoriteRate());
         vo.setCustomMaxGrowthMultiple(artwork.getCustomMaxGrowthMultiple());
-        vo.setTomorrowIncreaseMin(priceGrowthService.calculateTomorrowIncreaseMin(artwork));
-        vo.setTomorrowIncreaseMax(priceGrowthService.calculateTomorrowIncreaseMax(artwork));
+        vo.setTomorrowIncreaseMin(BigDecimal.valueOf(priceGrowthService.calculateTomorrowIncreaseMin(artwork)));
+        vo.setTomorrowIncreaseMax(BigDecimal.valueOf(priceGrowthService.calculateTomorrowIncreaseMax(artwork)));
 
         return vo;
     }
@@ -1014,7 +1054,7 @@ public class ProductService {
             default -> "未知";
         });
         vo.setPriceRise(priceGrowthService.calculatePriceRise(artwork));
-        vo.setCurrentPrice(priceGrowthService.calculateCurrentPrice(artwork));
+        vo.setCurrentPrice(BigDecimal.valueOf(priceGrowthService.calculateCurrentPrice(artwork)));
         vo.setIsNew(artwork.getCreateTime() != null
                 && artwork.getCreateTime().isAfter(LocalDateTime.now().minusDays(30)));
         vo.setIsHot((artwork.getSaleCount() != null && artwork.getSaleCount() > 0)
@@ -1051,8 +1091,8 @@ public class ProductService {
         vo.setCustomViewRate(artwork.getCustomViewRate());
         vo.setCustomFavoriteRate(artwork.getCustomFavoriteRate());
         vo.setCustomMaxGrowthMultiple(artwork.getCustomMaxGrowthMultiple());
-        vo.setTomorrowIncreaseMin(priceGrowthService.calculateTomorrowIncreaseMin(artwork));
-        vo.setTomorrowIncreaseMax(priceGrowthService.calculateTomorrowIncreaseMax(artwork));
+        vo.setTomorrowIncreaseMin(BigDecimal.valueOf(priceGrowthService.calculateTomorrowIncreaseMin(artwork)));
+        vo.setTomorrowIncreaseMax(BigDecimal.valueOf(priceGrowthService.calculateTomorrowIncreaseMax(artwork)));
         return vo;
     }
 

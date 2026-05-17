@@ -1,0 +1,51 @@
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+2026-05-17T22:02:53.460+08:00  WARN 14082 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.5)
+
+2026-05-17T22:02:53.769+08:00  WARN 14082 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-05-17T22:02:53.795+08:00  INFO 14082 --- [           main] com.shiyiju.auction.AuctionApplication   : Starting AuctionApplication using Java 17.0.19 with PID 14082 (/Users/master/CodeBuddy/art12/backend/shiyiju-auction/target/shiyiju-auction-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
+2026-05-17T22:02:53.796+08:00 DEBUG 14082 --- [           main] com.shiyiju.auction.AuctionApplication   : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-05-17T22:02:53.796+08:00  INFO 14082 --- [           main] com.shiyiju.auction.AuctionApplication   : The following 1 profile is active: "local"
+2026-05-17T22:02:55.971+08:00  INFO 14082 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-17T22:02:55.972+08:00  INFO 14082 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-17T22:02:56.000+08:00  INFO 14082 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 12 ms. Found 0 Redis repository interfaces.
+2026-05-17T22:02:56.580+08:00  INFO 14082 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=cc3eac4e-c9a8-30c6-a842-359a5a5c9920
+2026-05-17T22:02:57.501+08:00  INFO 14082 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8084 (http)
+2026-05-17T22:02:57.518+08:00  INFO 14082 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-17T22:02:57.518+08:00  INFO 14082 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-05-17T22:02:57.576+08:00  INFO 14082 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-17T22:02:57.577+08:00  INFO 14082 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 3558 ms
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        3.5.8 
+2026-05-17T22:02:58.815+08:00  INFO 14082 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-17T22:02:59.391+08:00  INFO 14082 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@469d003c
+2026-05-17T22:02:59.393+08:00  INFO 14082 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-17T22:02:59.820+08:00  INFO 14082 --- [           main] com.shiyiju.common.util.JwtUtil          : JWT 密钥已通过配置注入
+2026-05-17T22:02:59.821+08:00  INFO 14082 --- [           main] com.shiyiju.common.util.AESUtil          : AES 密钥已通过配置注入
+2026-05-17T22:03:00.632+08:00  INFO 14082 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8084 (http) with context path ''
+2026-05-17T22:03:00.637+08:00  INFO 14082 --- [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-05-17T22:03:00.637+08:00  INFO 14082 --- [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@57a2ed35]]
+2026-05-17T22:03:00.637+08:00  INFO 14082 --- [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-05-17T22:03:00.644+08:00  INFO 14082 --- [           main] com.shiyiju.auction.AuctionApplication   : Started AuctionApplication in 8.16 seconds (process running for 9.172)
+2026-05-17T22:03:31.964+08:00  INFO 14082 --- [nio-8084-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-17T22:03:31.964+08:00  INFO 14082 --- [nio-8084-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-17T22:03:31.968+08:00  INFO 14082 --- [nio-8084-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 4 ms
+2026-05-17T22:03:31.999+08:00  WARN 14082 --- [nio-8084-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.auction.controller.AuctionController
+2026-05-17T22:03:32.163+08:00 DEBUG 14082 --- [nio-8084-exec-1] c.s.a.m.A.selectList_mpCount             : ==>  Preparing: SELECT COUNT(*) AS total FROM auction_session WHERE (status IN (?, ?))
+2026-05-17T22:03:32.173+08:00 DEBUG 14082 --- [nio-8084-exec-1] c.s.a.m.A.selectList_mpCount             : ==> Parameters: 1(Integer), 2(Integer)
+2026-05-17T22:03:32.183+08:00 DEBUG 14082 --- [nio-8084-exec-1] c.s.a.m.A.selectList_mpCount             : <==      Total: 1
+2026-05-17T22:03:32.187+08:00 DEBUG 14082 --- [nio-8084-exec-1] c.s.a.m.AuctionSessionMapper.selectList  : ==>  Preparing: SELECT id,title,cover_image,description,start_time,end_time,status,total_lots,total_bids,create_time,update_time FROM auction_session WHERE (status IN (?,?)) ORDER BY start_time ASC LIMIT ?
+2026-05-17T22:03:32.188+08:00 DEBUG 14082 --- [nio-8084-exec-1] c.s.a.m.AuctionSessionMapper.selectList  : ==> Parameters: 1(Integer), 2(Integer), 10(Long)
+2026-05-17T22:03:32.205+08:00 DEBUG 14082 --- [nio-8084-exec-1] c.s.a.m.AuctionSessionMapper.selectList  : <==      Total: 3
+2026-05-17T22:03:32.207+08:00  INFO 14082 --- [nio-8084-exec-1] c.s.a.controller.AuctionController       : Query auction sessions: total=3, records=3
+2026-05-17T22:03:59.911+08:00  INFO 14082 --- [MessageBroker-1] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]

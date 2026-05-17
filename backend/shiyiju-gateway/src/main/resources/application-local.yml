@@ -143,6 +143,12 @@ spring:
             - Path=/message/list,/message/send,/message/template/list
           filters:
             - RewritePath=/message(?<segment>/?.*), /admin/message$\{segment}
+        - id: shiyiju-admin-artwork-price
+          uri: http://127.0.0.1:8082
+          predicates:
+            - Path=/api/admin/artwork/price/**
+          filters:
+            - RewritePath=/api/admin/artwork/price(?<segment>/?.*), /admin/artwork/price$\{segment}
         - id: shiyiju-admin
           uri: http://127.0.0.1:8090
           predicates:

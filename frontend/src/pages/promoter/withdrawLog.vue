@@ -208,90 +208,8 @@ const stats = ref({
   completedAmount: 52120.00
 })
 
-// 提现记录列表（模拟数据）
-const allList = ref([
-  {
-    id: 'WD202604210001',
-    amount: 2888.00,
-    fee: 14.44,
-    actualAmount: 2873.56,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'pending',
-    createTime: '2026-04-21 14:30:00',
-    completedTime: null,
-    reason: null,
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-21 14:30:00' }
-    ]
-  },
-  {
-    id: 'WD202604190002',
-    amount: 5200.00,
-    fee: 26.00,
-    actualAmount: 5174.00,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'completed',
-    createTime: '2026-04-19 10:20:00',
-    completedTime: '2026-04-20 09:15:00',
-    reason: null,
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-19 10:20:00' },
-      { title: '审核通过', time: '2026-04-19 14:00:00' },
-      { title: '财务处理中', time: '2026-04-19 16:30:00' },
-      { title: '已到账', time: '2026-04-20 09:15:00' }
-    ]
-  },
-  {
-    id: 'WD202604150003',
-    amount: 1500.00,
-    fee: 7.50,
-    actualAmount: 1492.50,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'rejected',
-    createTime: '2026-04-15 09:00:00',
-    completedTime: null,
-    reason: '账户信息有误，请核实后重新申请',
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-15 09:00:00' },
-      { title: '审核中', time: '2026-04-15 11:00:00' },
-      { title: '审核拒绝', time: '2026-04-15 14:00:00' }
-    ]
-  },
-  {
-    id: 'WD202604120004',
-    amount: 3800.00,
-    fee: 19.00,
-    actualAmount: 3781.00,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'completed',
-    createTime: '2026-04-12 16:00:00',
-    completedTime: '2026-04-14 10:30:00',
-    reason: null,
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-12 16:00:00' },
-      { title: '审核通过', time: '2026-04-12 18:00:00' },
-      { title: '财务处理中', time: '2026-04-13 09:00:00' },
-      { title: '已到账', time: '2026-04-14 10:30:00' }
-    ]
-  },
-  {
-    id: 'WD202604100005',
-    amount: 2000.00,
-    fee: 10.00,
-    actualAmount: 1990.00,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'completed',
-    createTime: '2026-04-10 11:00:00',
-    completedTime: '2026-04-11 15:20:00',
-    reason: null,
-    traces: []
-  }
-])
+// 提现记录列表（待对接真实 API）
+const allList = ref([])
 
 // 筛选后的列表
 const filteredList = computed(() => {
@@ -326,7 +244,7 @@ const loadMore = () => {
   setTimeout(() => {
     page.value++
     loading.value = false
-    hasMore.value = false // 模拟数据加载完毕
+    hasMore.value = false // TODO: 对接真实分页 API，替换 setTimeout 模拟
   }, 1000)
 }
 

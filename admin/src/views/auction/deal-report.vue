@@ -154,7 +154,7 @@
           <el-table-column label="艺术家" min-width="200">
             <template #default="{ row }">
               <div class="artist-info">
-                <el-avatar :src="row.avatar" :size="40" />
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="40" />
                 <div>
                   <p class="name">{{ row.artistName }}</p>
                   <p class="badge" v-if="row.badge">{{ row.badge }}</p>
@@ -219,7 +219,7 @@
           <el-table-column label="拍品" min-width="200">
             <template #default="{ row }">
               <div class="lot-info">
-                <el-image :src="row.image" :preview-src-list="[row.image]" fit="cover" style="width: 60px; height: 60px; border-radius: 4px;" />
+                <el-image :src="getFullImageUrl(row.image)" :preview-src-list="row.image ? [getFullImageUrl(row.image)] : []" fit="cover" style="width: 60px; height: 60px; border-radius: 4px;" />
                 <div class="lot-detail">
                   <p class="lot-title">{{ row.title }}</p>
                   <p class="lot-artist">{{ row.artistName }}</p>
@@ -236,7 +236,7 @@
           <el-table-column label="买家" width="120">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :src="row.buyerAvatar" :size="24" />
+                <el-avatar :src="getFullImageUrl(row.buyerAvatar)" :size="24" />
                 <span>{{ row.buyerName }}</span>
               </div>
             </template>
@@ -279,7 +279,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Trophy, Goods, CircleCheck, User, Download } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 import * as echarts from 'echarts'
 
 const loading = ref(false)

@@ -19,7 +19,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @RestController
@@ -28,6 +30,10 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+
+    // 防重复提交：缓存请求ID，key=requestId，value=处理时间戳
+    private final ConcurrentHashMap<String, Long> idempotencyCache = new ConcurrentHashMap<>();
+    private static final long IDEMPOTENCY_TTL_MS = 30_000; // 30秒内相同请求ID视为重复
 
     @Value("${upload.local.path:/tmp/shiyiju-uploads}")
     private String localPath;
@@ -179,11 +185,15 @@ public class ProductController {
     @PostMapping("/favorite")
     public Result<Void> favoriteProduct(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
-            @RequestBody Long artworkId
+            @RequestBody Map<String, Object> params
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
+        if (params == null || params.get("artworkId") == null) {
+            return Result.fail(400, "缺少作品ID");
+        }
+        Long artworkId = ((Number) params.get("artworkId")).longValue();
         productService.favoriteArtwork(artworkId, userId);
         return Result.success();
     }
@@ -304,7 +314,34 @@ public class ProductController {
      */
     @PostMapping("/create")
     public Result<Long> createProduct(@RequestBody ArtworkUpdateDTO dto) {
+        // 防重复提交检查：优先使用客户端 requestId，兼容旧版本
+        String dedupKey = null;
+        if (dto.getRequestId() != null && !dto.getRequestId().isEmpty()) {
+            dedupKey = dto.getRequestId();
+        }
+        if (dedupKey != null) {
+            Long cached = idempotencyCache.get(dedupKey);
+            if (cached != null) {
+                log.warn("重复请求已拦截 dedupKey={}", dedupKey);
+                return Result.fail("请勿重复提交");
+            }
+            idempotencyCache.put(dedupKey, System.currentTimeMillis());
+        }
         Long id = productService.createArtwork(dto);
+        // 服务返回后，用 contentFingerprint 生成更强的缓存 key
+        if (dto.getContentFingerprint() != null && dedupKey == null) {
+            // 10 秒时间窗口：相同内容指纹在 10 秒内视为重复
+            String contentKey = dto.getContentFingerprint() + "|" + (System.currentTimeMillis() / 10000);
+            Long cached = idempotencyCache.get(contentKey);
+            if (cached != null) {
+                log.warn("内容级重复拦截 contentKey={}", contentKey);
+                return Result.fail("请勿重复提交");
+            }
+            idempotencyCache.put(contentKey, System.currentTimeMillis());
+        }
+        // 清理过期缓存
+        long now = System.currentTimeMillis();
+        idempotencyCache.entrySet().removeIf(e -> now - e.getValue() > IDEMPOTENCY_TTL_MS);
         return Result.success(id);
     }
 
@@ -314,7 +351,33 @@ public class ProductController {
      */
     @PostMapping("/publish")
     public Result<Long> publishProduct(@RequestBody ArtworkUpdateDTO dto) {
+        // 防重复提交检查：优先使用客户端 requestId，兼容旧版本
+        String dedupKey = null;
+        if (dto.getRequestId() != null && !dto.getRequestId().isEmpty()) {
+            dedupKey = dto.getRequestId();
+        }
+        if (dedupKey != null) {
+            Long cached = idempotencyCache.get(dedupKey);
+            if (cached != null) {
+                log.warn("重复请求已拦截 dedupKey={}", dedupKey);
+                return Result.fail("请勿重复提交");
+            }
+            idempotencyCache.put(dedupKey, System.currentTimeMillis());
+        }
         Long id = productService.createArtwork(dto);
+        // 服务返回后，用 contentFingerprint 生成更强的缓存 key
+        if (dto.getContentFingerprint() != null && dedupKey == null) {
+            String contentKey = dto.getContentFingerprint() + "|" + (System.currentTimeMillis() / 10000);
+            Long cached = idempotencyCache.get(contentKey);
+            if (cached != null) {
+                log.warn("内容级重复拦截 contentKey={}", contentKey);
+                return Result.fail("请勿重复提交");
+            }
+            idempotencyCache.put(contentKey, System.currentTimeMillis());
+        }
+        // 清理过期缓存
+        long now = System.currentTimeMillis();
+        idempotencyCache.entrySet().removeIf(e -> now - e.getValue() > IDEMPOTENCY_TTL_MS);
         return Result.success(id);
     }
 

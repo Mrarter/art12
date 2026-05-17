@@ -5,6 +5,7 @@
       <view class="hero-copy">
         <text class="hero-title">实名认证</text>
         <text class="hero-desc">{{ statusMeta.desc }}</text>
+        <text v-if="rejectReason" class="reject-reason">拒绝原因：{{ rejectReason }}</text>
       </view>
       <text class="status-pill" :class="statusMeta.className">{{ statusMeta.text }}</text>
     </view>
@@ -65,6 +66,9 @@
             <text class="upload-title">身份证正面</text>
             <text class="upload-subtitle">国徽面</text>
           </view>
+          <view v-if="uploading === 'front'" class="upload-mask">
+            <text class="upload-mask-text">上传中...</text>
+          </view>
         </view>
         <view class="upload-card" @click="chooseImage('back')">
           <image v-if="form.idBack" class="upload-image" :src="form.idBack" mode="aspectFill" />
@@ -72,6 +76,9 @@
             <text class="upload-icon">+</text>
             <text class="upload-title">身份证背面</text>
             <text class="upload-subtitle">人像面</text>
+          </view>
+          <view v-if="uploading === 'back'" class="upload-mask">
+            <text class="upload-mask-text">上传中...</text>
           </view>
         </view>
       </view>
@@ -83,7 +90,7 @@
         <view class="face-icon">{{ form.faceVerified ? '✓' : '脸' }}</view>
         <view class="face-copy">
           <text class="face-title">{{ form.faceVerified ? '已完成真人核验' : '开始人脸识别认证' }}</text>
-          <text class="face-desc">{{ form.faceVerified ? '核验结果将与实名资料一并提交审核。' : '请由证件本人操作，确保光线充足并正对屏幕。' }}</text>
+          <text class="face-desc">{{ form.faceVerified ? '核验结果将与实名资料一并提交。' : '请由证件本人操作，确保光线充足并正对屏幕。' }}</text>
         </view>
         <text class="face-action">{{ form.faceVerified ? '已认证' : '去认证' }}</text>
       </view>
@@ -92,12 +99,13 @@
     <view class="notice-card">
       <view class="notice-title">认证说明</view>
       <text class="notice-line">仅用于平台账户实名校验、提现和发票等合规场景。</text>
-      <text class="notice-line">身份证号本地仅展示脱敏结果；正式环境应接入微信或第三方实名核验接口。</text>
+      <text class="notice-line">身份证信息将加密存储，仅脱敏显示。</text>
+      <text class="notice-line">审核通常需 1-3 个工作日，请耐心等待。</text>
     </view>
 
     <view class="bottom-bar">
-      <button class="submit-btn" :class="{ disabled: !canSubmit || isReadonly }" :disabled="!canSubmit || isReadonly" @click="submitForm">
-        {{ submitText }}
+      <button class="submit-btn" :class="{ disabled: !canSubmit || isReadonly || submitting }" :disabled="!canSubmit || isReadonly || submitting" @click="submitForm">
+        {{ submitting ? '提交中...' : submitText }}
       </button>
     </view>
   </view>
@@ -105,8 +113,8 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-
-const STORAGE_KEY = 'realname_certification'
+import { submitRealnameCert, getRealnameCertStatus } from '@/api/user.js'
+import { uploadFile } from '@/api/file.js'
 
 const form = ref({
   realName: '',
@@ -116,15 +124,21 @@ const form = ref({
   faceVerified: false,
   idCardValid: false,
   status: 0,
+  rejectReason: '',
   submittedAt: ''
 })
 
 const idCardError = ref('')
+const uploading = ref(null)
+const submitting = ref(false)
 
 const isReadonly = computed(() => form.value.status === 1 || form.value.status === 2)
 const validIdCard = computed(() => form.value.idCardValid || validateIdCard(form.value.idCard))
 const hasIdImages = computed(() => Boolean(form.value.idFront && form.value.idBack))
+const rejectReason = computed(() => form.value.rejectReason)
+
 const canSubmit = computed(() => {
+  if (form.value.status === 1) return false
   return Boolean(form.value.realName.trim() && validIdCard.value && hasIdImages.value && form.value.faceVerified)
 })
 
@@ -135,12 +149,17 @@ const statusMeta = computed(() => {
   if (form.value.status === 2) {
     return { text: '审核中', desc: '资料已提交，平台将在 1-3 个工作日内完成审核。', icon: '审', className: 'pending' }
   }
+  if (form.value.status === 3) {
+    return { text: '已拒绝', desc: '认证未通过，请修改后重新提交。', icon: '✗', className: 'rejected' }
+  }
   return { text: '未认证', desc: '完成身份信息、证件上传和人脸识别后提交审核。', icon: '认', className: 'idle' }
 })
 
 const submitText = computed(() => {
   if (form.value.status === 1) return '已完成认证'
   if (form.value.status === 2) return '认证审核中'
+  if (submitting.value) return '提交中...'
+  if (form.value.status === 3) return '重新提交认证'
   return '提交实名认证'
 })
 
@@ -183,16 +202,26 @@ const validateIdCardField = () => {
   return valid
 }
 
-const chooseImage = (type) => {
+const chooseImage = async (type) => {
   if (isReadonly.value) return
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
-    success: (res) => {
+    success: async (res) => {
       const path = res.tempFilePaths?.[0]
       if (!path) return
-      if (type === 'front') form.value.idFront = path
-      if (type === 'back') form.value.idBack = path
+
+      uploading.value = type
+      try {
+        const url = await uploadFile(path)
+        if (type === 'front') form.value.idFront = url
+        if (type === 'back') form.value.idBack = url
+        uni.showToast({ title: '上传成功', icon: 'success' })
+      } catch (err) {
+        uni.showToast({ title: err.message || '上传失败', icon: 'none' })
+      } finally {
+        uploading.value = null
+      }
     }
   })
 }
@@ -205,7 +234,7 @@ const startFaceVerify = () => {
   }
   uni.showModal({
     title: '人脸识别认证',
-    content: '请确认由本人操作。当前为本地调试流程，确认后将标记为已完成。',
+    content: '请确认由本人操作。确认后将标记为已完成，并随实名资料一并提交审核。',
     confirmText: '开始认证',
     success: (res) => {
       if (!res.confirm) return
@@ -219,18 +248,7 @@ const startFaceVerify = () => {
   })
 }
 
-const saveLocalStatus = () => {
-  const payload = {
-    ...form.value,
-    idCardValid: true,
-    idCardMasked: maskIdCard(form.value.idCard),
-    idCard: '',
-    updatedAt: new Date().toISOString()
-  }
-  uni.setStorageSync(STORAGE_KEY, payload)
-}
-
-const submitForm = () => {
+const submitForm = async () => {
   if (!validateIdCardField()) {
     uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
     return
@@ -244,23 +262,44 @@ const submitForm = () => {
     return
   }
 
-  uni.showLoading({ title: '提交中...' })
-  setTimeout(() => {
-    uni.hideLoading()
+  submitting.value = true
+  try {
+    await submitRealnameCert({
+      realName: form.value.realName.trim(),
+      idCard: form.value.idCard.toUpperCase(),
+      idFrontUrl: form.value.idFront,
+      idBackUrl: form.value.idBack,
+      faceVerified: form.value.faceVerified
+    })
     form.value.status = 2
     form.value.submittedAt = new Date().toISOString()
-    saveLocalStatus()
+    form.value.idCard = maskIdCard(form.value.idCard)
+    form.value.idCardValid = true
     uni.showToast({ title: '提交成功，等待审核', icon: 'success' })
-  }, 600)
+  } catch (err) {
+    uni.showToast({ title: err.message || '提交失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
-onMounted(() => {
-  const saved = uni.getStorageSync(STORAGE_KEY)
-  if (!saved) return
-  form.value = {
-    ...form.value,
-    ...saved,
-    idCard: saved.idCard || saved.idCardMasked || ''
+onMounted(async () => {
+  try {
+    const data = await getRealnameCertStatus()
+    if (data && data.status > 0) {
+      form.value.status = data.status
+      if (data.maskedRealName) {
+        form.value.realName = data.maskedRealName
+      }
+      if (data.maskedIdCard) {
+        form.value.idCard = data.maskedIdCard
+        form.value.idCardValid = true
+      }
+      form.value.rejectReason = data.rejectReason || ''
+      form.value.submittedAt = data.submittedAt || ''
+    }
+  } catch (err) {
+    console.warn('获取认证状态失败:', err.message)
   }
 })
 </script>
@@ -326,6 +365,14 @@ onMounted(() => {
   line-height: 36rpx;
 }
 
+.reject-reason {
+  display: block;
+  margin-top: 8rpx;
+  color: #ff6b6b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
 .status-pill {
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
@@ -347,6 +394,11 @@ onMounted(() => {
 .status-pill.success {
   background: rgba(82, 196, 26, 0.16);
   color: #69d37b;
+}
+
+.status-pill.rejected {
+  background: rgba(255, 107, 107, 0.16);
+  color: #ff6b6b;
 }
 
 .progress-card {
@@ -467,6 +519,21 @@ onMounted(() => {
   background: #202024;
   border: 1rpx dashed rgba(201, 162, 39, 0.44);
   overflow: hidden;
+  position: relative;
+}
+
+.upload-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-mask-text {
+  color: #f6f2e8;
+  font-size: 26rpx;
 }
 
 .upload-image {
@@ -594,6 +661,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  width: 100%;
 }
 
 .submit-btn.disabled {

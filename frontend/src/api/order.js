@@ -29,6 +29,14 @@ export const getCirculationDetail = (artworkId) => {
   })
 }
 
+/**
+ * 转售购买 - 创建转售订单
+ * POST /order/orders/resale
+ */
+export const createResaleOrder = (data) => {
+  return request.post('/order/orders/resale', data)
+}
+
 // ===== 以下为 confirm.vue 等已有页面依赖的 API =====
 
 export const getCartList = (params) => {

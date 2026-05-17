@@ -165,7 +165,8 @@ public class PriceGrowthService {
 
         long basePrice = resolveBasePrice(artwork);
         if (basePrice <= 0) {
-            return artwork != null ? artwork.getPrice() : 0L;
+            BigDecimal p = artwork.getPrice();
+            return p != null ? p.longValue() : 0L;
         }
 
         BigDecimal originalPrice = BigDecimal.valueOf(basePrice);
@@ -179,10 +180,10 @@ public class PriceGrowthService {
         if (artwork == null) {
             return 0L;
         }
-        if (artwork.getOriginalPrice() != null && artwork.getOriginalPrice() > 0) {
-            return artwork.getOriginalPrice();
+        if (artwork.getOriginalPrice() != null && artwork.getOriginalPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return artwork.getOriginalPrice().longValue();
         }
-        return artwork.getPrice() != null ? artwork.getPrice() : 0L;
+        return artwork.getPrice() != null ? artwork.getPrice().longValue() : 0L;
     }
 
     /**
@@ -304,13 +305,13 @@ public class PriceGrowthService {
     }
 
     private Long calculateTomorrowIncrease(Artwork artwork, boolean min) {
-        if (artwork == null || artwork.getPrice() == null || artwork.getPrice() <= 0) {
+        if (artwork == null || artwork.getPrice() == null || artwork.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             return 0L;
         }
         BigDecimal baseRate = resolveBaseDailyRate(artwork);
         BigDecimal matureRate = resolveMatureDailyRate(artwork);
         BigDecimal rate = min ? baseRate.min(matureRate) : baseRate.max(matureRate);
-        return BigDecimal.valueOf(artwork.getPrice())
+        return artwork.getPrice()
                 .multiply(rate)
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValue();

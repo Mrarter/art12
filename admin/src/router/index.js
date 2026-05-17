@@ -49,6 +49,12 @@ const routes = [
             component: () => import('@/views/user/user-profile.vue'),
             meta: { title: '用户画像' }
           },
+          {
+            path: 'realname',
+            name: 'RealnameAudit',
+            component: () => import('@/views/user/realname.vue'),
+            meta: { title: '实名认证' }
+          },
         ]
       },
       {
@@ -229,6 +235,25 @@ const routes = [
             name: 'PriceRuleConfig',
             component: () => import('@/views/system/PriceRuleConfig.vue'),
             meta: { title: '涨价规则' }
+          }
+        ]
+      },
+      {
+        path: 'resale',
+        name: 'Resale',
+        meta: { title: '转售管理', icon: 'RefreshRight' },
+        children: [
+          {
+            path: 'list',
+            name: 'ResaleList',
+            component: () => import('@/views/resale/ResaleList.vue'),
+            meta: { title: '转售记录' }
+          },
+          {
+            path: 'stats',
+            name: 'ResaleStats',
+            component: () => import('@/views/resale/ResaleStats.vue'),
+            meta: { title: '流通数据统计' }
           }
         ]
       },

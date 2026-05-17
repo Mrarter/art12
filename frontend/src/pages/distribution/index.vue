@@ -302,6 +302,8 @@ export default {
 }
 
 .tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 24rpx;
   color: #999;
   padding: 8rpx 16rpx;

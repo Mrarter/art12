@@ -257,10 +257,44 @@ public class UserController {
      * @param params 包含 userId 和 uid
      */
     @PostMapping("/admin/update-uid")
-    public Result<Void> updateUid(@RequestBody java.util.Map<String, Object> params) {
+    public Result<Void> updateUid(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody java.util.Map<String, Object> params) {
+        if (authorization == null && params.get("adminKey") == null) {
+            return Result.fail(401, "需要管理员权限");
+        }
         Long userId = ((Number) params.get("userId")).longValue();
         String uid = params.get("uid").toString();
         userService.updateUid(userId, uid);
         return Result.success();
     }
+
+    // ===================== 实名认证 API =====================
+
+    /**
+     * 提交实名认证申请 (POST /user/realname/submit)
+     */
+    @PostMapping("/user/realname/submit")
+    public Result<Void> submitRealnameCert(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Valid @RequestBody com.shiyiju.user.dto.RealnameCertSubmitDTO dto) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        userService.submitRealnameCert(userId, dto);
+        return Result.success();
+    }
+
+    /**
+     * 查询实名认证状态 (GET /user/realname/status)
+     */
+    @GetMapping("/user/realname/status")
+    public Result<com.shiyiju.user.vo.RealnameCertStatusVO> getRealnameCertStatus(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.getRealnameCertStatus(userId));
+    }
+
 }

@@ -302,6 +302,7 @@ export default {
       return [
         { label: '我的收藏', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
         { label: '已购作品', desc: `${this.assetStats.purchased} 件藏品`, icon: '购', iconPath: '/static/art-icons/icon-certificate.svg', tone: 'green', path: '/pages/user/purchased' },
+        { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
         { label: '浏览记录', desc: '最近看过', icon: '览', iconPath: '/static/art-icons/icon-preview.svg', tone: 'blue', path: '/pages/user/history' },
         { label: '购物车', desc: '待收藏作品', icon: '车', iconPath: '/static/art-icons/icon-cart.svg', tone: 'red', path: '/pages/cart/index', tab: true },
         { label: '我的钱包', desc: `余额 ¥${this.assetStats.wallet}`, icon: '钱', iconPath: '/static/art-icons/icon-budget.svg', tone: 'gold', path: '/pages/user/wallet' },
@@ -332,6 +333,9 @@ export default {
             { label: '我的收藏', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
             { label: '已购作品', desc: '查看藏品', icon: '购', iconPath: '/static/art-icons/icon-certificate.svg', tone: 'green', path: '/pages/user/purchased' },
             { label: '我的关注', desc: '关注的艺术家', icon: '关', iconPath: '/static/art-icons/icon-follow.svg', tone: 'blue', path: '/pages/user/following' },
+            { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
+            { label: '发布转售', desc: '转售已购作品', icon: '发', tone: 'gold', path: '/pages/resale/publish' },
+            { label: '我的转售', desc: '管理转售记录', icon: '管', tone: 'green', path: '/pages/resale/my' },
             { label: '收藏证书', desc: '已购作品凭证', icon: '证', iconPath: '/static/art-icons/icon-verify.svg', tone: 'purple', path: this.comingSoon('收藏证书', '收藏证书列表正在整理中，可先从已购作品进入单件作品证书。') }
           ]
         },

@@ -12,6 +12,7 @@ import com.shiyiju.user.dto.ArtistCertDTO;
 import com.shiyiju.user.entity.ArtistCertification;
 import com.shiyiju.user.entity.ArtistProfile;
 import com.shiyiju.user.entity.PromoterRecord;
+import com.shiyiju.user.entity.RealnameCertification;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.common.entity.Address;
 import com.shiyiju.user.mapper.ArtistCertificationMapper;
@@ -46,6 +47,7 @@ public class UserService {
     private final PromoterRecordMapper promoterRecordMapper;
     private final ArtistCertificationMapper artistCertMapper;
     private final ArtistProfileMapper artistProfileMapper;
+    private final com.shiyiju.user.mapper.RealnameCertificationMapper realnameCertMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final JdbcTemplate jdbcTemplate;
     
@@ -54,6 +56,77 @@ public class UserService {
     
     @org.springframework.beans.factory.annotation.Value("${wechat.secret:}")
     private String wechatSecret;
+
+    /**
+     * 启动时从 .env 文件加载微信密钥（IDE 开发环境兜底）
+     * 优先级：系统环境变量 / application.yml > .env 文件
+     */
+    @jakarta.annotation.PostConstruct
+    public void loadWechatConfigFromDotEnv() {
+        boolean secretIsPlaceholder = wechatSecret == null || wechatSecret.isEmpty()
+                || "your-wechat-secret".equals(wechatSecret);
+        boolean appIdIsPlaceholder = wechatAppId == null || wechatAppId.isEmpty()
+                || "your-wechat-appid".equals(wechatAppId);
+
+        if (secretIsPlaceholder || appIdIsPlaceholder) {
+            String projectRoot = System.getProperty("user.dir");
+            // 向上查找 art12 项目根目录（支持从子模块启动）
+            java.io.File dotEnv = findDotEnvFile(new java.io.File(projectRoot));
+            if (dotEnv != null && dotEnv.exists()) {
+                log.info("从 .env 文件加载微信配置: {}", dotEnv.getAbsolutePath());
+                try {
+                    java.util.Properties props = new java.util.Properties();
+                    try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                            new java.io.FileReader(dotEnv))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            line = line.trim();
+                            if (line.isEmpty() || line.startsWith("#")) continue;
+                            int eqIdx = line.indexOf('=');
+                            if (eqIdx > 0) {
+                                String key = line.substring(0, eqIdx).trim();
+                                String value = line.substring(eqIdx + 1).trim();
+                                props.setProperty(key, value);
+                            }
+                        }
+                    }
+                    if (secretIsPlaceholder && props.containsKey("WECHAT_SECRET")) {
+                        String fromDotEnv = props.getProperty("WECHAT_SECRET");
+                        if (!"your-wechat-secret".equals(fromDotEnv) && !fromEnvIsDefault(fromDotEnv)) {
+                            wechatSecret = fromDotEnv;
+                            log.info("从 .env 加载 wechat.secret 成功 (长度={})", wechatSecret.length());
+                        }
+                    }
+                    if (appIdIsPlaceholder && props.containsKey("WECHAT_APPID")) {
+                        String fromDotEnv = props.getProperty("WECHAT_APPID");
+                        if (!"your-wechat-appid".equals(fromDotEnv)) {
+                            wechatAppId = fromDotEnv;
+                            log.info("从 .env 加载 wechat.appid 成功: {}", maskAppId(wechatAppId));
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("读取 .env 文件失败: {}", e.getMessage());
+                }
+            } else {
+                log.info("未找到 .env 文件 (搜索路径: {}), 使用 application.yml 配置", projectRoot);
+            }
+        }
+    }
+
+    private java.io.File findDotEnvFile(java.io.File startDir) {
+        java.io.File current = startDir;
+        for (int i = 0; i < 5 && current != null; i++) {
+            java.io.File candidate = new java.io.File(current, ".env");
+            if (candidate.exists() && candidate.isFile()) return candidate;
+            current = current.getParentFile();
+        }
+        return null;
+    }
+
+    private boolean fromEnvIsDefault(String value) {
+        return value == null || value.isEmpty() || "your-wechat-secret".equals(value)
+                || value.contains("你的") || value.contains("请修改");
+    }
 
     /**
      * 微信登录
@@ -271,44 +344,124 @@ public class UserService {
     }
 
     /**
-     * 调用微信接口获取 openId
+     * 调用微信接口获取 openId，含密钥校验和 H5 开发降级
      * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
      */
     private String getOpenidFromWx(String code) {
         if (code == null || code.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "微信授权码不能为空");
         }
-        
-        // 如果未配置微信密钥，使用mock模式（开发环境）
-        if (wechatSecret == null || wechatSecret.isEmpty() || "your-wechat-secret".equals(wechatSecret)) {
-            log.warn("微信小程序密钥未配置，使用mock模式获取openId");
-            return "mock_openid_" + code;
+
+        // ==== 第一步：校验微信密钥配置 ====
+        validateWechatConfig();
+
+        // ==== 第二步：H5 开发环境降级（不调用真实微信 API） ====
+        if (isDevMockCode(code)) {
+            return getDevMockOpenId(code);
         }
-        
+
+        // ==== 第三步：调用微信 code2Session 接口 ====
         try {
             String url = String.format(
                 "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
                 wechatAppId, wechatSecret, code
             );
-            
+            log.info("正在调用微信 code2Session, appid={}, code长度={}", maskAppId(wechatAppId), code.length());
+
             String response = cn.hutool.http.HttpUtil.get(url, 5000);
             log.debug("微信code2Session响应: {}", response);
-            
+
             com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
-            
+
             if (json.containsKey("openid")) {
-                return json.getString("openid");
+                String openid = json.getString("openid");
+                log.info("微信 code2Session 成功, openid={}", maskOpenId(openid));
+                return openid;
             } else {
-                log.error("微信code2Session失败: errcode={}, errmsg={}", 
-                    json.getInteger("errcode"), json.getString("errmsg"));
-                throw new BusinessException(ResultCode.PARAM_ERROR, "微信登录失败: " + json.getString("errmsg"));
+                Integer errcode = json.getInteger("errcode");
+                String errmsg = json.getString("errmsg");
+                log.error("微信code2Session 返回错误: errcode={}, errmsg={}, appid={}",
+                        errcode, errmsg, maskAppId(wechatAppId));
+                throw new BusinessException(ResultCode.PARAM_ERROR, 
+                    "微信登录失败(" + errcode + "): " + errmsg);
             }
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("调用微信code2Session异常", e);
-            throw new BusinessException(ResultCode.PARAM_ERROR, "微信登录服务异常");
+            log.error("调用微信code2Session接口异常, appid={}", maskAppId(wechatAppId), e);
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "微信登录服务异常，请稍后重试");
         }
+    }
+
+    /**
+     * 校验微信密钥配置是否有效
+     * 配置缺失时抛出明确错误，配置异常时输出详细日志
+     */
+    private void validateWechatConfig() {
+        // 检查 appId
+        boolean appIdMissing = wechatAppId == null || wechatAppId.isEmpty() 
+                || "your-wechat-appid".equals(wechatAppId) 
+                || wechatAppId.startsWith("wx") == false;
+        
+        // 检查 secret
+        boolean secretMissing = wechatSecret == null || wechatSecret.isEmpty() 
+                || "your-wechat-secret".equals(wechatSecret);
+        
+        if (appIdMissing || secretMissing) {
+            StringBuilder sb = new StringBuilder("微信小程序密钥配置不完整：");
+            if (wechatAppId == null || wechatAppId.isEmpty()) {
+                sb.append("[appId=空]");
+            } else if ("your-wechat-appid".equals(wechatAppId)) {
+                sb.append("[appId=默认占位值]");
+            } else if (!wechatAppId.startsWith("wx")) {
+                sb.append("[appId格式异常: ").append(maskAppId(wechatAppId)).append("]");
+            } else {
+                sb.append("[appId=").append(maskAppId(wechatAppId)).append("✓]");
+            }
+            if (wechatSecret == null || wechatSecret.isEmpty()) {
+                sb.append("[secret=空]");
+            } else if ("your-wechat-secret".equals(wechatSecret)) {
+                sb.append("[secret=默认占位值]");
+            } else {
+                sb.append("[secret=已配置✓]");
+            }
+            log.error("微信登录配置校验失败: {}", sb);
+            throw new BusinessException(500, 
+                "微信登录服务暂不可用，请联系管理员配置小程序密钥。\n" + sb.toString());
+        }
+    }
+
+    /**
+     * 判断是否为 H5 开发环境的 mock 授权码
+     * H5 环境无法调用 uni.login 获取真实 code，使用 h5_dev_ 前缀标识
+     */
+    private boolean isDevMockCode(String code) {
+        return code != null && code.startsWith("h5_dev_");
+    }
+
+    /**
+     * H5 开发环境：使用 mock openId（不调用微信API）
+     */
+    private String getDevMockOpenId(String code) {
+        String mockOpenId = "mock_openid_" + code.substring("h5_dev_".length());
+        log.warn("H5 开发模式：使用 mock openId={}（请在生产环境配置真实微信密钥）", maskOpenId(mockOpenId));
+        return mockOpenId;
+    }
+
+    /**
+     * 脱敏 appId：保留前4位和后4位
+     */
+    private String maskAppId(String appId) {
+        if (appId == null || appId.length() <= 8) return appId;
+        return appId.substring(0, 4) + "****" + appId.substring(appId.length() - 4);
+    }
+
+    /**
+     * 脱敏 openId：保留前4位和后4位  
+     */
+    private String maskOpenId(String openId) {
+        if (openId == null || openId.length() <= 8) return openId;
+        return openId.substring(0, 4) + "****" + openId.substring(openId.length() - 4);
     }
 
     /**
@@ -1449,5 +1602,509 @@ public class UserService {
         }
 
         return results.stream().limit(limit).toList();
+    }
+
+    // ======================== 数据分析 ========================
+
+    /**
+     * 获取艺术家核心指标概览
+     */
+    public Map<String, Object> getArtistAnalyticsOverview(Long artistId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        // 1. 作品总量与浏览/收藏/销售统计
+        String artworkTable = firstExistingTable("artwork", "artworks");
+        if (artworkTable != null) {
+            try {
+                String viewCol = firstExistingColumn(artworkTable, "view_count");
+                String favCol = firstExistingColumn(artworkTable, "favorite_count");
+                String saleCol = firstExistingColumn(artworkTable, "sale_count", "display_sale_count");
+
+                StringBuilder sql = new StringBuilder("SELECT COUNT(*) AS total_works");
+                if (viewCol != null) sql.append(", COALESCE(SUM(").append(viewCol).append("),0) AS total_views");
+                if (favCol != null) sql.append(", COALESCE(SUM(").append(favCol).append("),0) AS total_favorites");
+                if (saleCol != null) sql.append(", COALESCE(SUM(").append(saleCol).append("),0) AS total_sales");
+                sql.append(" FROM ").append(artworkTable).append(" WHERE author_id = ?");
+
+                Map<String, Object> row = jdbcTemplate.queryForMap(sql.toString(), artistId);
+                data.put("works", toLong(row.get("total_works"), 0));
+                if (viewCol != null) data.put("views", toLong(row.get("total_views"), 0));
+                if (favCol != null) data.put("favorites", toLong(row.get("total_favorites"), 0));
+                if (saleCol != null) data.put("sales", toLong(row.get("total_sales"), 0));
+            } catch (Exception e) {
+                log.warn("查询作品统计失败 artistId={}: {}", artistId, e.getMessage());
+            }
+        }
+
+        // 2. 粉丝数
+        try {
+            Map<String, Object> userRow = jdbcTemplate.queryForMap(
+                "SELECT follower_count FROM users WHERE id = ?", artistId);
+            data.put("followers", toLong(userRow.get("follower_count"), 0));
+        } catch (Exception e) {
+            data.put("followers", 0L);
+        }
+
+        // 3. 互动率 = (收藏 + 销售) / 浏览量
+        long views = data.containsKey("views") ? toLong(data.get("views"), 0) : 0;
+        long interactions = (data.containsKey("favorites") ? toLong(data.get("favorites"), 0) : 0)
+                         + (data.containsKey("sales") ? toLong(data.get("sales"), 0) : 0);
+        data.put("engagementRate", views > 0
+            ? BigDecimal.valueOf(interactions).multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(views), 2, BigDecimal.ROUND_HALF_UP)
+            : BigDecimal.ZERO);
+
+        // 4. 订单数据：累计交易额
+        try {
+            String orderTable = firstExistingTable("trade_order", "orders", "order_info");
+            if (orderTable != null && artworkTable != null) {
+                String itemTable = firstExistingTable("trade_order_item", "order_items", "order_item");
+                if (itemTable != null) {
+                    Map<String, Object> orderRow = jdbcTemplate.queryForMap(
+                        "SELECT COUNT(*) AS total_orders, COALESCE(SUM(i.subtotal),0) AS total_revenue "
+                        + "FROM " + itemTable + " i "
+                        + "JOIN " + artworkTable + " a ON i.artwork_id = a.id "
+                        + "WHERE a.author_id = ?",
+                        artistId
+                    );
+                    data.put("orders", toLong(orderRow.get("total_orders"), 0));
+                    data.put("revenue", toLong(orderRow.get("total_revenue"), 0));
+                }
+            }
+        } catch (Exception e) {
+            // 没有 order_item 表或字段不匹配时静默跳过
+            data.putIfAbsent("orders", 0L);
+            data.putIfAbsent("revenue", 0L);
+        }
+
+        return data;
+    }
+
+    /**
+     * 获取艺术家趋势数据
+     */
+    public Map<String, Object> getArtistAnalyticsTrend(Long artistId, int days) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (days <= 0) days = 30;
+        data.put("days", days);
+
+        java.time.LocalDate now = java.time.LocalDate.now();
+        java.time.LocalDate since = now.minusDays(days - 1);
+
+        // 1. 销售趋势（按天聚合）
+        List<Map<String, Object>> salesTrend = new ArrayList<>();
+        try {
+            String itemTable = firstExistingTable("trade_order_item", "order_items", "order_item");
+            String orderTable = firstExistingTable("trade_order", "orders", "order_info");
+            String artworkTable = firstExistingTable("artwork", "artworks");
+
+            if (itemTable != null && orderTable != null && artworkTable != null) {
+                // 订单支付时间字段探测
+                String payCol = firstExistingColumn(orderTable, "paid_at", "pay_time", "create_time", "created_at");
+                if (payCol != null) {
+                    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                        "SELECT DATE(o." + payCol + ") AS day, "
+                        + "COUNT(DISTINCT o.id) AS order_count, "
+                        + "COALESCE(SUM(i.subtotal),0) AS revenue "
+                        + "FROM " + orderTable + " o "
+                        + "JOIN " + itemTable + " i ON o.id = i.order_id "
+                        + "JOIN " + artworkTable + " a ON i.artwork_id = a.id "
+                        + "WHERE a.author_id = ? AND o." + payCol + " >= ? "
+                        + "GROUP BY DATE(o." + payCol + ") ORDER BY day",
+                        artistId, since.toString()
+                    );
+                    salesTrend = rows;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询销售趋势失败: {}", e.getMessage());
+        }
+
+        // 2. 粉丝增长趋势
+        List<Map<String, Object>> followerTrend = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT DATE(create_time) AS day, COUNT(*) AS count "
+                + "FROM user_follows WHERE follow_user_id = ? AND create_time >= ? "
+                + "GROUP BY DATE(create_time) ORDER BY day",
+                artistId, since.toString()
+            );
+            followerTrend = rows;
+        } catch (Exception e) {
+            log.warn("查询粉丝趋势失败: {}", e.getMessage());
+        }
+
+        // 3. 填充完整日期序列（补零）
+        List<String> dateLabels = new ArrayList<>();
+        Map<String, Long> salesMap = new HashMap<>();
+        Map<String, Long> revenueMap = new HashMap<>();
+        Map<String, Long> followerMap = new HashMap<>();
+
+        for (Map<String, Object> r : salesTrend) {
+            String d = stringValue(r.get("day"));
+            salesMap.put(d, toLong(r.get("order_count"), 0));
+            revenueMap.put(d, toLong(r.get("revenue"), 0));
+        }
+        for (Map<String, Object> r : followerTrend) {
+            followerMap.put(stringValue(r.get("day")), toLong(r.get("count"), 0));
+        }
+
+        List<Long> salesList = new ArrayList<>();
+        List<Long> revenueList = new ArrayList<>();
+        List<Long> followersList = new ArrayList<>();
+
+        long cumulativeFollowers = 0;
+        // 初始粉丝数（基于用户表的 follower_count 减去趋势内的新增）
+        try {
+            Map<String, Object> userRow = jdbcTemplate.queryForMap(
+                "SELECT follower_count FROM users WHERE id = ?", artistId);
+            long currentFollowers = toLong(userRow.get("follower_count"), 0);
+            long newInPeriod = followerMap.values().stream().mapToLong(Long::longValue).sum();
+            cumulativeFollowers = Math.max(0, currentFollowers - newInPeriod);
+        } catch (Exception e) {
+            log.warn("查询初始粉丝数失败", e);
+        }
+
+        for (int i = 0; i < days; i++) {
+            String d = since.plusDays(i).toString();
+            dateLabels.add(d);
+            salesList.add(salesMap.getOrDefault(d, 0L));
+            revenueList.add(revenueMap.getOrDefault(d, 0L));
+            cumulativeFollowers += followerMap.getOrDefault(d, 0L);
+            followersList.add(cumulativeFollowers);
+        }
+
+        data.put("dates", dateLabels);
+        data.put("sales", salesList);
+        data.put("revenue", revenueList);
+        data.put("followers", followersList);
+
+        return data;
+    }
+
+    /**
+     * 获取受众画像
+     */
+    public Map<String, Object> getArtistAudienceProfile(Long artistId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        // 1. 地域分布：关注该艺术家的用户的 region 字段
+        List<Map<String, Object>> regionDistribution = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT COALESCE(NULLIF(u.region,''),'未知') AS region, COUNT(*) AS count "
+                + "FROM user_follows f JOIN users u ON f.user_id = u.id "
+                + "WHERE f.follow_user_id = ? AND u.region IS NOT NULL "
+                + "GROUP BY region ORDER BY count DESC LIMIT 10",
+                artistId
+            );
+            long total = rows.stream().mapToLong(r -> toLong(r.get("count"), 0)).sum();
+            for (Map<String, Object> r : rows) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("name", r.get("region"));
+                long cnt = toLong(r.get("count"), 0);
+                item.put("count", cnt);
+                item.put("ratio", total > 0
+                    ? BigDecimal.valueOf(cnt).multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(total), 1, BigDecimal.ROUND_HALF_UP)
+                    : BigDecimal.ZERO);
+                regionDistribution.add(item);
+            }
+        } catch (Exception e) {
+            log.warn("查询地域分布失败: {}", e.getMessage());
+        }
+        data.put("regionDistribution", regionDistribution);
+
+        // 2. 性别分布：关注该艺术家的用户的 gender 字段
+        List<Map<String, Object>> genderDistribution = new ArrayList<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT u.gender, COUNT(*) AS count "
+                + "FROM user_follows f JOIN users u ON f.user_id = u.id "
+                + "WHERE f.follow_user_id = ? GROUP BY u.gender",
+                artistId
+            );
+            long totalGender = 0;
+            for (Map<String, Object> r : rows) {
+                int g = toInt(r.get("gender"), 0);
+                long cnt = toLong(r.get("count"), 0);
+                totalGender += cnt;
+                String label = switch (g) { case 1 -> "男"; case 2 -> "女"; default -> "未知"; };
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("name", label);
+                item.put("count", cnt);
+                genderDistribution.add(item);
+            }
+            // 计算比率
+            for (Map<String, Object> item : genderDistribution) {
+                long cnt = toLong(item.get("count"), 0);
+                item.put("ratio", totalGender > 0
+                    ? BigDecimal.valueOf(cnt).multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(totalGender), 1, BigDecimal.ROUND_HALF_UP)
+                    : BigDecimal.ZERO);
+            }
+        } catch (Exception e) {
+            log.warn("查询性别分布失败: {}", e.getMessage());
+        }
+        data.put("genderDistribution", genderDistribution);
+
+        // 3. 偏好分析：按作品分类统计销量
+        List<Map<String, Object>> preferenceDistribution = new ArrayList<>();
+        try {
+            String artworkTable = firstExistingTable("artwork", "artworks");
+            if (artworkTable != null) {
+                String typeCol = firstExistingColumn(artworkTable, "art_type", "category_name", "medium");
+                // 使用view_count作为"热度"代理指标（sale_count可能不存在）
+                String proxyCol = firstExistingColumn(artworkTable, "view_count", "favorite_count");
+                if (typeCol != null && proxyCol != null) {
+                    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                        "SELECT COALESCE(NULLIF(" + typeCol + ",''),'其他') AS label, "
+                        + "SUM(COALESCE(" + proxyCol + ",0)) AS count "
+                        + "FROM " + artworkTable + " WHERE author_id = ? "
+                        + "GROUP BY label ORDER BY count DESC",
+                        artistId
+                    );
+                    long totalPref = rows.stream().mapToLong(r -> toLong(r.get("count"), 0)).sum();
+                    for (Map<String, Object> r : rows) {
+                        Map<String, Object> item = new LinkedHashMap<>();
+                        item.put("name", r.get("label"));
+                        long cnt = toLong(r.get("count"), 0);
+                        item.put("count", cnt);
+                        item.put("ratio", totalPref > 0
+                            ? BigDecimal.valueOf(cnt).multiply(BigDecimal.valueOf(100))
+                                .divide(BigDecimal.valueOf(totalPref), 1, BigDecimal.ROUND_HALF_UP)
+                            : BigDecimal.ZERO);
+                        preferenceDistribution.add(item);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询偏好分布失败: {}", e.getMessage());
+        }
+        data.put("preferenceDistribution", preferenceDistribution);
+
+        return data;
+    }
+
+    private long toLong(Object value, long defaultValue) {
+        if (value == null) return defaultValue;
+        if (value instanceof Number) return ((Number) value).longValue();
+        try { return Long.parseLong(String.valueOf(value)); } catch (NumberFormatException e) { return defaultValue; }
+    }
+
+    // ===================== 实名认证 =====================
+
+    /**
+     * 提交实名认证申请
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void submitRealnameCert(Long userId, com.shiyiju.user.dto.RealnameCertSubmitDTO dto) {
+        // 检查是否已有认证记录
+        RealnameCertification existing = realnameCertMapper.selectOne(
+            new LambdaQueryWrapper<RealnameCertification>().eq(RealnameCertification::getUserId, userId));
+        if (existing != null) {
+            if (existing.getStatus() == 1) {
+                throw new BusinessException(400, "您已通过实名认证");
+            }
+            if (existing.getStatus() == 0) {
+                throw new BusinessException(400, "您已有待审核的认证申请");
+            }
+            // 已拒绝则允许重新提交 - 更新记录
+        }
+
+        String idCard = dto.getIdCard().trim().toUpperCase();
+        String idCardHash = sha256(idCard);
+        String maskedIdCard = maskIdCard(idCard);
+
+        // 查重：同一身份证不能被不同用户认证
+        RealnameCertification dup = realnameCertMapper.selectOne(
+            new LambdaQueryWrapper<RealnameCertification>()
+                .eq(RealnameCertification::getIdCardHash, idCardHash)
+                .eq(RealnameCertification::getStatus, 1));
+        if (dup != null) {
+            throw new BusinessException(400, "该身份证号已被其他账号认证");
+        }
+
+        if (existing != null) {
+            // 重新提交：更新已有记录
+            existing.setRealName(dto.getRealName().trim());
+            existing.setIdCard(maskedIdCard);
+            existing.setIdCardHash(idCardHash);
+            existing.setIdFrontUrl(dto.getIdFrontUrl());
+            existing.setIdBackUrl(dto.getIdBackUrl());
+            existing.setFaceVerified(Boolean.TRUE.equals(dto.getFaceVerified()) ? 1 : 0);
+            existing.setStatus(0);
+            existing.setRejectReason(null);
+            existing.setReviewTime(null);
+            existing.setReviewerId(null);
+            realnameCertMapper.updateById(existing);
+        } else {
+            RealnameCertification cert = new RealnameCertification();
+            cert.setUserId(userId);
+            cert.setRealName(dto.getRealName().trim());
+            cert.setIdCard(maskedIdCard);
+            cert.setIdCardHash(idCardHash);
+            cert.setIdFrontUrl(dto.getIdFrontUrl());
+            cert.setIdBackUrl(dto.getIdBackUrl());
+            cert.setFaceVerified(Boolean.TRUE.equals(dto.getFaceVerified()) ? 1 : 0);
+            cert.setStatus(0);
+            realnameCertMapper.insert(cert);
+        }
+
+        log.info("用户 {} 提交实名认证申请", userId);
+    }
+
+    /**
+     * 获取实名认证状态
+     */
+    public com.shiyiju.user.vo.RealnameCertStatusVO getRealnameCertStatus(Long userId) {
+        RealnameCertification cert = realnameCertMapper.selectOne(
+            new LambdaQueryWrapper<RealnameCertification>().eq(RealnameCertification::getUserId, userId));
+
+        if (cert == null) {
+            // 检查 users 表是否有 real_name_verified 历史标记
+            User user = userMapper.selectById(userId);
+            if (user != null) {
+                // 暂不使用 JDBC 读取动态列名，后续兼容
+            }
+            return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
+                .status(0)
+                .build();
+        }
+
+        int displayStatus;
+        switch (cert.getStatus()) {
+            case 1: displayStatus = 1; break; // 已通过
+            case 2: displayStatus = 3; break; // 已拒绝（前端展示码 3）
+            default: displayStatus = 2; break; // 审核中（前端展示码 2）
+        }
+
+        String maskedRealName = maskRealName(cert.getRealName());
+        String maskedIdCard = cert.getIdCard();
+
+        return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
+            .status(displayStatus)
+            .maskedRealName(maskedRealName)
+            .maskedIdCard(maskedIdCard)
+            .rejectReason(cert.getRejectReason())
+            .submittedAt(cert.getCreateTime())
+            .reviewTime(cert.getReviewTime())
+            .build();
+    }
+
+    /**
+     * 管理后台 - 分页查询实名认证列表
+     */
+    public com.shiyiju.common.result.PageResult<Map<String, Object>> listRealnameCert(
+            int page, int size, Integer status, String keyword) {
+        StringBuilder sql = new StringBuilder("SELECT r.id, r.user_id, r.real_name, r.id_card, ");
+        sql.append("r.id_front_url, r.id_back_url, r.face_verified, r.status, ");
+        sql.append("r.reject_reason, r.review_time, r.create_time, ");
+        sql.append("COALESCE(u.nickname, '') AS nickname, COALESCE(u.avatar, '') AS avatar, ");
+        sql.append("COALESCE(u.phone, '') AS phone, COALESCE(u.uid, '') AS uid ");
+        sql.append("FROM realname_certifications r LEFT JOIN users u ON r.user_id = u.id WHERE 1=1");
+
+        List<Object> params = new ArrayList<>();
+
+        if (status != null) {
+            sql.append(" AND r.status = ?");
+            params.add(status);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            sql.append(" AND (u.nickname LIKE ? OR r.real_name LIKE ?)");
+            String kw = "%" + keyword.trim() + "%";
+            params.add(kw);
+            params.add(kw);
+        }
+
+        // 总数
+        String countSql = sql.toString().replaceFirst("SELECT r\\.id,.*?FROM", "SELECT COUNT(*) FROM");
+        Integer total = jdbcTemplate.queryForObject(countSql, Integer.class, params.toArray());
+        if (total == null) total = 0;
+
+        // 分页
+        int offset = (page - 1) * size;
+        sql.append(" ORDER BY r.create_time DESC LIMIT ? OFFSET ?");
+        params.add(size);
+        params.add(offset);
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        return com.shiyiju.common.result.PageResult.of((long) total, page, size, rows);
+    }
+
+    /**
+     * 管理后台 - 审核通过
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void approveRealnameCert(Long certId, Long reviewerId) {
+        RealnameCertification cert = realnameCertMapper.selectById(certId);
+        if (cert == null) {
+            throw new BusinessException(400, "认证记录不存在");
+        }
+        if (cert.getStatus() != 0) {
+            throw new BusinessException(400, "该记录已审核，不能重复操作");
+        }
+
+        cert.setStatus(1);
+        cert.setReviewTime(LocalDateTime.now());
+        cert.setReviewerId(reviewerId);
+        realnameCertMapper.updateById(cert);
+
+        // 更新 users 表
+        jdbcTemplate.update("UPDATE users SET real_name_verified = 1 WHERE id = ?", cert.getUserId());
+
+        log.info("实名认证审核通过: certId={}, userId={}, reviewerId={}", certId, cert.getUserId(), reviewerId);
+    }
+
+    /**
+     * 管理后台 - 审核拒绝
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectRealnameCert(Long certId, Long reviewerId, String reason) {
+        RealnameCertification cert = realnameCertMapper.selectById(certId);
+        if (cert == null) {
+            throw new BusinessException(400, "认证记录不存在");
+        }
+        if (cert.getStatus() != 0) {
+            throw new BusinessException(400, "该记录已审核，不能重复操作");
+        }
+
+        cert.setStatus(2);
+        cert.setRejectReason(reason);
+        cert.setReviewTime(LocalDateTime.now());
+        cert.setReviewerId(reviewerId);
+        realnameCertMapper.updateById(cert);
+
+        log.info("实名认证审核拒绝: certId={}, userId={}, reviewerId={}, reason={}",
+            certId, cert.getUserId(), reviewerId, reason);
+    }
+
+    // ===================== 工具方法 =====================
+
+    /** 脱敏姓名：张** */
+    private String maskRealName(String name) {
+        if (name == null || name.length() <= 1) return name;
+        return name.charAt(0) + "**";
+    }
+
+    /** 脱敏身份证号：410***********1234 */
+    private String maskIdCard(String idCard) {
+        if (idCard == null || idCard.length() < 10) return idCard;
+        return idCard.substring(0, 3) + "***********" + idCard.substring(idCard.length() - 4);
+    }
+
+    /** SHA256 哈希 */
+    private String sha256(String input) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR.getCode(), "哈希计算失败");
+        }
     }
 }

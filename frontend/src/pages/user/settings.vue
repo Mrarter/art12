@@ -163,14 +163,21 @@ export default {
   },
 
   onShow() {
-    this.loadLocalRealNameStatus()
+    this.fetchRealNameStatus()
     if (this.isLoggedIn) this.userStore.fetchUserInfo()
   },
 
   methods: {
-    loadLocalRealNameStatus() {
-      const saved = uni.getStorageSync('realname_certification')
-      this.localRealNameStatus = saved?.status ?? null
+    async fetchRealNameStatus() {
+      try {
+        const { getRealnameCertStatus } = await import('@/api/user.js')
+        const data = await getRealnameCertStatus()
+        this.localRealNameStatus = data?.status ?? null
+      } catch (err) {
+        // fallback to localStorage
+        const saved = uni.getStorageSync('realname_certification')
+        this.localRealNameStatus = saved?.status ?? null
+      }
     },
     comingSoon(title, desc) {
       return `/pages/common/coming-soon?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`

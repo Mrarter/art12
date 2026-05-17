@@ -459,6 +459,8 @@ onMounted(() => {
       margin-top: 12rpx;
 
       .tag {
+        flex-shrink: 0;
+        white-space: nowrap;
         padding: 6rpx 16rpx;
         background: rgba(201, 162, 39, 0.13);
         color: #c9a227;

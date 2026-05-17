@@ -385,9 +385,9 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      if (!price && price !== 0) return '0'
+      const num = Number(price)
+      return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     },
 
     formatCountdown(seconds) {

@@ -7,7 +7,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 @EnableDiscoveryClient
 @MapperScan({"com.shiyiju.promotion.mapper", "com.shiyiju.user.mapper"})
-@SpringBootApplication(scanBasePackages = {"com.shiyiju.promotion", "com.shiyiju.common"})
+@SpringBootApplication(scanBasePackages = {"com.shiyiju.promotion", "com.shiyiju.common", "com.shiyiju.user"})
 public class PromotionApplication {
     public static void main(String[] args) {
         SpringApplication.run(PromotionApplication.class, args);

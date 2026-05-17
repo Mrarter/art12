@@ -4,14 +4,20 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shiyiju.common.constant.OrderConstant;
 import com.shiyiju.common.constant.ProductConstant;
+import com.shiyiju.common.client.WalletRestClient;
+import com.shiyiju.common.event.FinanceEvent;
+import com.shiyiju.common.event.FinanceEventPublisher;
+import com.shiyiju.common.event.FinanceEventType;
 import com.shiyiju.common.entity.Address;
 import com.shiyiju.common.exception.BusinessException;
 import com.shiyiju.common.mapper.AddressMapper;
+import com.shiyiju.common.order.OrderFailReason;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.ResultCode;
 import com.shiyiju.common.service.WxPayService;
 import com.shiyiju.order.dto.CreateOrderDTO;
 import com.shiyiju.order.entity.*;
+import com.shiyiju.order.exception.OrderFailCreateException;
 import com.shiyiju.order.mapper.*;
 import com.shiyiju.order.vo.AddressVO;
 import com.shiyiju.order.vo.CartVO;
@@ -21,13 +27,19 @@ import com.shiyiju.common.entity.Artwork;
 import com.shiyiju.common.entity.User;
 import com.shiyiju.common.mapper.ArtworkMapper;
 import com.shiyiju.common.mapper.UserMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -47,6 +59,11 @@ public class OrderService {
     private final UserMapper userMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final WxPayService wxPayService;
+    private final WalletRestClient walletClient;
+    private final FinanceEventPublisher financeEventPublisher;
+    private final OrderFailRecorder orderFailRecorder;
+    private final PlatformTransactionManager transactionManager;
+    private final ObjectMapper objectMapper;
 
     private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     
@@ -73,7 +90,7 @@ public class OrderService {
             vo.setSize(artwork.getSize());
             vo.setPrice(artwork.getPrice());
             vo.setQuantity(cart.getQuantity());
-            vo.setSubtotal(artwork.getPrice() * cart.getQuantity());
+            vo.setSubtotal(artwork.getPrice().multiply(BigDecimal.valueOf(cart.getQuantity())));
             vo.setStock(artwork.getStock());
             vo.setSelected(false);
             return vo;
@@ -81,7 +98,7 @@ public class OrderService {
     }
 
     /** 添加到购物车 */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void addToCart(Long userId, Long artworkId, Integer quantity) {
         Artwork artwork = artworkMapper.selectById(artworkId);
         if (artwork == null) {
@@ -212,34 +229,97 @@ public class OrderService {
         }
     }
 
-    /** 从购物车创建订单 */
-    @Transactional
+    /** 从购物车创建订单（带异常捕获与失败记录） */
+    @Transactional(rollbackFor = Exception.class)
     public Order createOrderFromCart(Long userId, CreateOrderDTO dto) {
         if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
             for (Long cartId : dto.getCartIds()) {
                 String itemLockKey = "cart:item:lock:" + cartId;
                 Object lockedUserId = redisTemplate.opsForValue().get(itemLockKey);
                 if (lockedUserId == null || !userId.toString().equals(lockedUserId.toString())) {
-                    throw new BusinessException(ResultCode.PARAM_ERROR, "购物车项未锁定或已过期，请重新选择");
+                    throw new OrderFailCreateException(OrderFailReason.PARAM_INVALID,
+                            "购物车项未锁定或已过期，请重新选择");
                 }
             }
         }
-        return createOrder(userId, dto);
+        return executeOrderCreation(userId, dto, "CART");
     }
 
-    /** 直接购买 */
-    @Transactional
+    /** 直接购买（带异常捕获与失败记录） */
+    @Transactional(rollbackFor = Exception.class)
     public Order createDirectOrder(Long userId, CreateOrderDTO dto) {
-        return createOrder(userId, dto);
+        return executeOrderCreation(userId, dto, "DIRECT");
     }
 
-    /** 创建订单 */
-    @Transactional
-    public Order createOrder(Long userId, CreateOrderDTO dto) {
-        Address address = addressMapper.selectById(dto.getAddressId());
-        if (address == null) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "收货地址不存在");
+    /**
+     * 有保护的订单创建执行器
+     * 统一管理事务边界、异常捕获、失败记录与自动回滚
+     */
+    public Order executeOrderCreation(Long userId, CreateOrderDTO dto, String source) {
+        try {
+            return createOrderInternal(userId, dto);
+        } catch (OrderFailCreateException e) {
+            // 已结构化的业务异常，直接记录失败原因
+            log.warn("订单创建失败(业务) - userId={}, artworkId={}, source={}, reason={}, detail={}",
+                    userId, dto.getArtworkId(), source, e.getFailReason().getCode(), e.getMessage());
+            recordFailAsync(userId, dto, source, e.getFailReason(), e.getMessage(), null);
+            throw e;
+        } catch (BusinessException e) {
+            // 现有业务异常，映射为订单失败原因
+            OrderFailReason reason = mapBusinessExceptionToFailReason(e);
+            log.warn("订单创建失败(业务异常) - userId={}, code={}, message={}",
+                    userId, e.getCode(), e.getMessage());
+            recordFailAsync(userId, dto, source, reason, e.getMessage(), null);
+            throw new OrderFailCreateException(reason, e.getMessage());
+        } catch (Exception e) {
+            // 不可预料的系统异常，记录完整信息到日志
+            String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            log.error("订单创建失败(系统异常) - userId={}, artworkId={}, source={}, exType={}, detail={}",
+                    userId, dto.getArtworkId(), source, e.getClass().getName(), errMsg, e);
+            recordFailAsync(userId, dto, source, OrderFailReason.INTERNAL_ERROR, errMsg, null);
+            throw new OrderFailCreateException(OrderFailReason.INTERNAL_ERROR, "系统繁忙，请稍后重试");
         }
+    }
+
+    /**
+     * 在独立事务中记录失败日志（不影响主事务回滚）
+     */
+    private void recordFailAsync(Long userId, CreateOrderDTO dto, String source,
+                                 OrderFailReason reason, String message, String orderNo) {
+        try {
+            DefaultTransactionDefinition def = new DefaultTransactionDefinition();
+            def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            TransactionStatus status = transactionManager.getTransaction(def);
+            try {
+                orderFailRecorder.record(OrderFailRecorder.RecordContext.builder()
+                        .userId(userId)
+                        .orderNo(orderNo)
+                        .artworkId(dto.getArtworkId())
+                        .cartIds(dto.getCartIds() != null ? dto.getCartIds().stream()
+                                .map(String::valueOf).collect(java.util.stream.Collectors.joining(",")) : null)
+                        .source(source)
+                        .failReason(reason)
+                        .failMessage(message)
+                        .requestParams(dto)
+                        .compensated(orderNo != null)  // 已生成订单号的需要补偿
+                );
+                transactionManager.commit(status);
+            } catch (Exception ex) {
+                transactionManager.rollback(status);
+                log.error("订单失败记录落库异常(已回滚)", ex);
+            }
+        } catch (Exception e) {
+            log.error("订单失败记录事务启动失败", e);
+        }
+    }
+
+    /**
+     * 内部订单创建方法（事务由外层公共方法保障）
+     * 外部调用请使用 createDirectOrder / createOrderFromCart
+     */
+    public Order createOrderInternal(Long userId, CreateOrderDTO dto) {
+        // 获取地址：优先使用传入的地址；-1 或无匹配时使用默认地址
+        Address address = resolveUserAddress(userId, dto.getAddressId());
 
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -256,13 +336,13 @@ public class OrderService {
                 Artwork artwork = artworkMapper.selectById(cart.getArtworkId());
                 if (artwork == null) continue;
 
-                if (artwork.getStock() < cart.getQuantity()) {
+                if (safeStock(artwork) < cart.getQuantity()) {
                     throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, "作品【" + artwork.getTitle() + "】库存不足");
                 }
 
                 OrderItem item = createOrderItem(artwork, cart.getQuantity());
                 orderItems.add(item);
-                totalAmount = totalAmount.add(BigDecimal.valueOf(artwork.getPrice()).multiply(BigDecimal.valueOf(cart.getQuantity())));
+                totalAmount = totalAmount.add(safePrice(artwork).multiply(BigDecimal.valueOf(cart.getQuantity())));
             }
 
             // 清空购物车
@@ -280,13 +360,13 @@ public class OrderService {
                 throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
             }
             int qty = dto.getQuantity() != null ? dto.getQuantity() : 1;
-            if (artwork.getStock() < qty) {
+            if (safeStock(artwork) < qty) {
                 throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH);
             }
 
             OrderItem item = createOrderItem(artwork, qty);
             orderItems.add(item);
-            totalAmount = totalAmount.add(BigDecimal.valueOf(artwork.getPrice()).multiply(BigDecimal.valueOf(qty)));
+            totalAmount = totalAmount.add(safePrice(artwork).multiply(BigDecimal.valueOf(qty)));
         }
 
         if (orderItems.isEmpty()) {
@@ -334,29 +414,204 @@ public class OrderService {
             item.setCreateTime(LocalDateTime.now());
             orderItemMapper.insert(item);
 
-            // 扣减库存
+            // 扣减库存（空安全保护）
             Artwork artwork = artworkMapper.selectById(item.getArtworkId());
-            artwork.setStock(artwork.getStock() - item.getQuantity());
-            if (artwork.getStock() <= 0) {
-                artwork.setStatus(ProductConstant.STATUS_SOLD_OUT);
+            if (artwork != null) {
+                int currentStock = safeStock(artwork);
+                int newStock = Math.max(currentStock - item.getQuantity(), 0);
+                artwork.setStock(newStock);
+                if (newStock <= 0) {
+                    artwork.setStatus(ProductConstant.STATUS_SOLD_OUT);
+                }
+                artworkMapper.updateById(artwork);
             }
-            artworkMapper.updateById(artwork);
         }
 
         return order;
     }
 
+    /**
+     * 重试创建订单 — 用于 OrderFailController 手动重试
+     * 根据失败记录中的参数重建订单
+     */
+    @Transactional
+    public Order retryCreateOrder(OrderFailRecord record, int retryCount) {
+        CreateOrderDTO dto = new CreateOrderDTO();
+        dto.setArtworkId(record.getArtworkId());
+        dto.setQuantity(1);
+        dto.setAddressId(-1L);  // 使用默认地址（或从失败记录中获取）
+
+        // 从 requestParams JSON 恢复更多参数
+        if (record.getRequestParams() != null) {
+            try {
+                CreateOrderDTO originalDto = objectMapper.readValue(record.getRequestParams(), CreateOrderDTO.class);
+                if (originalDto != null) {
+                    dto.setQuantity(originalDto.getQuantity() != null ? originalDto.getQuantity() : 1);
+                    dto.setAddressId(originalDto.getAddressId() != null ? originalDto.getAddressId() : -1L);
+                    dto.setRemark(originalDto.getRemark());
+                    if (originalDto.getCartIds() != null) dto.setCartIds(originalDto.getCartIds());
+                }
+            } catch (Exception e) {
+                log.warn("重试订单解析请求参数失败，使用默认参数: {}", e.getMessage());
+            }
+        }
+
+        return createOrderInternal(record.getUserId(), dto);
+    }
+
+    /**
+     * 将 BusinessException 映射为 OrderFailReason
+     */
+    private OrderFailReason mapBusinessExceptionToFailReason(BusinessException e) {
+        if (e.getCode() == null) return OrderFailReason.INTERNAL_ERROR;
+        switch (e.getCode()) {
+            case 1201: return OrderFailReason.PRODUCT_OFF_SHELF;
+            case 1202: return OrderFailReason.PRODUCT_OFF_SHELF;
+            case 1203: return OrderFailReason.PRODUCT_SOLD_OUT;
+            case 1204: return OrderFailReason.STOCK_INSUFFICIENT;
+            case 1304: return OrderFailReason.PRICE_CHANGED;
+            case 1402: return OrderFailReason.PAYMENT_TIMEOUT;
+            default:
+                // 检查消息内容，更准确地推断失败原因
+                String msg = e.getMessage();
+                if (msg != null) {
+                    if (msg.contains("地址") || msg.contains("address")) return OrderFailReason.ADDRESS_INVALID;
+                    if (msg.contains("用户") || msg.contains("user") || msg.contains("登录")) return OrderFailReason.USER_INVALID;
+                    if (msg.contains("参数") || msg.contains("param") || msg.contains("stock")) return OrderFailReason.PARAM_INVALID;
+                    if (msg.contains("库存") || msg.contains("stock")) return OrderFailReason.STOCK_INSUFFICIENT;
+                    if (msg.contains("下架") || msg.contains("off shelf") || msg.contains("OFF_SHELF")) return OrderFailReason.PRODUCT_OFF_SHELF;
+                    if (msg.contains("售罄") || msg.contains("sold out") || msg.contains("SOLD_OUT")) return OrderFailReason.PRODUCT_SOLD_OUT;
+                }
+                return OrderFailReason.INTERNAL_ERROR;
+        }
+    }
+
+    /**
+     * 解析用户地址：优先使用传入 addressId；-1 或无效时查询默认地址
+     */
+    private Address resolveUserAddress(Long userId, Long addressId) {
+        if (addressId != null && addressId > 0) {
+            Address address = addressMapper.selectById(addressId);
+            if (address != null) return address;
+        }
+        // 查询用户默认地址
+        List<Address> addresses = addressMapper.selectList(
+                new LambdaQueryWrapper<Address>()
+                        .eq(Address::getUserId, userId)
+                        .orderByDesc(Address::getIsDefault)
+                        .orderByDesc(Address::getCreateTime)
+                        .last("LIMIT 1")
+        );
+        if (!addresses.isEmpty()) {
+            return addresses.get(0);
+        }
+        // 没有地址时允许无地址创建订单（数字艺术品场景），不阻塞购买
+        Address fallback = new Address();
+        fallback.setId(0L);
+        fallback.setUserId(userId);
+        fallback.setReceiverName("用户");
+        fallback.setReceiverPhone("");
+        fallback.setProvince("");
+        fallback.setCity("");
+        fallback.setDistrict("");
+        fallback.setDetailAddress("平台托管");
+        return fallback;
+    }
+
     private OrderItem createOrderItem(Artwork artwork, int quantity) {
+        BigDecimal price = safePrice(artwork);
         OrderItem item = new OrderItem();
         item.setArtworkId(artwork.getId());
         item.setArtistId(artwork.getAuthorId());  // 使用 authorId
         item.setItemType("ARTWORK");
         item.setTitle(artwork.getTitle());
         item.setCoverImage(artwork.getCoverImage());
-        item.setPrice(artwork.getPrice());
+        item.setPrice(price);
         item.setQuantity(quantity);
-        item.setSubtotal(artwork.getPrice() * quantity);
+        item.setSubtotal(price.multiply(BigDecimal.valueOf(quantity)));
         return item;
+    }
+
+    /**
+     * 空安全的库存获取
+     */
+    private int safeStock(Artwork artwork) {
+        return artwork.getStock() != null ? artwork.getStock() : 999;
+    }
+
+    /**
+     * 空安全的价格获取
+     */
+    private BigDecimal safePrice(Artwork artwork) {
+        return artwork.getPrice() != null ? artwork.getPrice() : BigDecimal.ZERO;
+    }
+
+    /** 转售购买 - 创建转售订单 */
+    @Transactional(rollbackFor = Exception.class)
+    public Order createResaleOrder(Long userId, Long resaleId, BigDecimal resalePrice, Long artworkId, Long addressId) {
+        Address address = addressMapper.selectById(addressId);
+        if (address == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "收货地址不存在");
+        }
+
+        // 查询作品信息
+        Artwork artwork = artworkMapper.selectById(artworkId);
+        if (artwork == null) {
+            throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
+        }
+
+        // 创建订单项
+        OrderItem item = new OrderItem();
+        item.setArtworkId(artwork.getId());
+        item.setArtistId(artwork.getAuthorId());
+        item.setItemType("ARTWORK");
+        item.setTitle(artwork.getTitle());
+        item.setCoverImage(artwork.getCoverImage());
+        item.setPrice(resalePrice);
+        item.setQuantity(1);
+        item.setSubtotal(resalePrice);
+        List<OrderItem> orderItems = Collections.singletonList(item);
+
+        // 生成订单号
+        String orderNo = "SYJ" + LocalDateTime.now().format(ORDER_NO_FORMAT)
+                + String.format("%04d", userId % 10000);
+
+        // 创建订单
+        Order order = new Order();
+        order.setOrderNo(orderNo);
+        order.setUserId(userId);
+        order.setTotalAmount(resalePrice);
+        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setPayAmount(resalePrice);
+        order.setCommissionAmount(BigDecimal.ZERO);
+        order.setAddressId(address.getId());
+        order.setReceiverName(address.getReceiverName());
+        order.setReceiverPhone(address.getReceiverPhone());
+        order.setReceiverAddress(address.getProvince() + address.getCity() + address.getDistrict() + address.getDetailAddress());
+        order.setRemark("resale:" + resaleId);  // 记录转售ID用于支付回调
+        order.setSource(OrderConstant.SOURCE_RESALE);
+        order.setStatus(OrderConstant.STATUS_PENDING_PAYMENT);
+        order.setCreateTime(LocalDateTime.now());
+
+        // 设置卖家信息
+        if (artwork.getAuthorId() != null) {
+            User seller = userMapper.selectById(artwork.getAuthorId());
+            if (seller != null) {
+                order.setSellerName(seller.getNickname());
+                order.setSellerAvatar(seller.getAvatar());
+            }
+        }
+
+        orderMapper.insert(order);
+
+        // 保存订单项
+        item.setOrderId(order.getId());
+        item.setCreateTime(LocalDateTime.now());
+        orderItemMapper.insert(item);
+
+        log.info("创建转售订单: orderId={}, orderNo={}, resaleId={}, userId={}, amount={}",
+                order.getId(), orderNo, resaleId, userId, resalePrice);
+        return order;
     }
 
     /** 获取订单列表 */
@@ -606,12 +861,18 @@ public class OrderService {
     }
 
     /** 支付回调处理 */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void handlePayCallback(String orderNo, String transactionId) {
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
         );
         if (order == null) return;
+
+        // 幂等
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+            log.info("订单 {} 已处理，幂等返回，当前状态: {}", orderNo, order.getStatus());
+            return;
+        }
 
         order.setStatus(OrderConstant.STATUS_PAID);
         order.setPaymentStatus(OrderConstant.STATUS_PAID);
@@ -619,46 +880,94 @@ public class OrderService {
         order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
 
-        // 支付成功后计算并发放佣金（二级分销+团队奖励）
-        try {
-            calculateCommission(order);
-        } catch (Exception e) {
-            log.error("佣金计算失败", e);
-            // 佣金计算失败不影响订单状态
+        // === 转售订单：发布事件标记已支付（异步处理，不阻塞本地事务） ===
+        if (OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+            Long resaleId = parseResaleIdFromRemark(order.getRemark());
+            if (resaleId != null) {
+                financeEventPublisher.publish(FinanceEvent.builder()
+                        .type(FinanceEventType.RESALE_MARK_PAID)
+                        .resaleId(resaleId)
+                        .buyerUserId(order.getUserId())
+                        .orderNo(orderNo)
+                        .build());
+                log.info("转售订单事件已发布: orderId={}, resaleId={}, buyerId={}",
+                        order.getId(), resaleId, order.getUserId());
+            }
+            return;
+        }
+
+        // === 普通订单：为每个订单项发布艺术家收益事件 ===
+        List<OrderItem> items = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+        for (OrderItem item : items) {
+            Artwork artwork = artworkMapper.selectById(item.getArtworkId());
+            if (artwork != null && artwork.getAuthorId() != null && item.getPrice() != null
+                    && item.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+                financeEventPublisher.publish(FinanceEvent.builder()
+                        .type(FinanceEventType.ARTIST_INCOME)
+                        .userId(artwork.getAuthorId())
+                        .amount(item.getPrice())
+                        .relatedId(order.getId())
+                        .relatedType("order")
+                        .remark("作品销售: " + artwork.getTitle() + " " + orderNo)
+                        .build());
+            }
+        }
+
+        // === 普通订单：发布佣金结算事件 ===
+        Long promoterId = getPromoterIdByOrder(order.getId());
+        if (promoterId != null) {
+            Long artworkId = getFirstArtworkId(order.getId());
+            financeEventPublisher.publish(FinanceEvent.builder()
+                    .type(FinanceEventType.COMMISSION_SETTLE)
+                    .userId(promoterId)
+                    .amount(order.getPayAmount())
+                    .relatedId(order.getId())
+                    .relatedType("order")
+                    .orderNo(orderNo)
+                    .remark("推广佣金 " + orderNo)
+                    .artworkId(artworkId)
+                    .build());
         }
     }
 
     /**
+     * 从订单备注中解析转售ID（格式: "resale:123"）
+     */
+    private Long parseResaleIdFromRemark(String remark) {
+        if (remark == null || remark.isEmpty()) return null;
+        if (remark.startsWith("resale:")) {
+            try {
+                return Long.parseLong(remark.substring("resale:".length()));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 结算艺术家收益 - 通过发布事件异步处理
+     */
+    private void settleArtistIncome(Order order) {
+        // 已迁移到 handlePayCallback 中的事件发布逻辑
+    }
+
+    /**
      * 计算并发放佣金（二级分销+团队奖励）
-     * 一级佣金：直接推广佣金（5%）
-     * 二级佣金：团队奖励（2%）
+     * 已迁移到 handlePayCallback 中的事件发布逻辑
      */
     private void calculateCommission(Order order) {
-        // 获取订单关联的艺荐官ID
-        Long promoterId = getPromoterIdByOrder(order.getId());
-        if (promoterId == null) {
-            log.info("订单无关联艺荐官，跳过佣金计算");
-            return;
-        }
+        // 已迁移到 handlePayCallback 中的事件发布逻辑
+    }
 
-        // 订单金额（分）
-        long orderAmount = order.getPayAmount().multiply(new BigDecimal("100")).longValue();
-        
-        // ========== 一级佣金：直接推广佣金 ==========
-        long directCommission = new BigDecimal(orderAmount)
-                .multiply(DIRECT_COMMISSION_RATE).longValue();
-        if (directCommission > 0) {
-            log.info("一级佣金 - promoterId:{}, amount:{}", promoterId, directCommission);
-            // 佣金记录和更新会在后续单独的服务中处理
-            // 这里先更新订单的佣金金额
-            order.setCommissionAmount(new BigDecimal(directCommission).divide(new BigDecimal("100")));
-            orderMapper.updateById(order);
-        }
-
-        // ========== 二级佣金：团队奖励 ==========
-        // 如果购买者也是艺荐官，给其上级发放团队奖励
-        // 注意：团队奖励逻辑需要用户模块支持，这里预留扩展点
-        log.info("订单佣金计算完成 - orderId:{}, directCommission:{}", order.getId(), directCommission);
+    /** 获取订单第一个作品ID */
+    public Long getFirstArtworkId(Long orderId) {
+        OrderItem item = orderItemMapper.selectOne(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, orderId)
+                        .last("LIMIT 1"));
+        return item != null ? item.getArtworkId() : null;
     }
 
     /** 获取订单关联的艺荐官ID */

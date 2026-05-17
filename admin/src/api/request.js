@@ -147,29 +147,20 @@ export const uploadFile = async (file, onProgress) => {
 // 图片完整 URL 处理
 export const getFullImageUrl = (url) => {
   if (!url) return ''
-  if (url.startsWith('/')) {
-    return CDN_URL + url
-  }
-
-  // 本地上传文件：如果是带域名的 /upload/ 路径，去掉域名换成相对路径
-  // admin 后端已通过 ResourceHandler 映射 /upload/** → 本地 uploads 目录
+  // 已有完整域名（包括 http://, https://, // 协议相对 URL）
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    try {
-      const parsed = new URL(url)
-      if (parsed.pathname.startsWith('/upload/')) {
-        // 如果 CDN_URL 不为空且有 /upload/ 前缀，则用 CDN_URL + path
-        if (CDN_URL) {
-          return CDN_URL + parsed.pathname
-        }
-        return parsed.pathname
-      }
-    } catch (e) {
-      return url
-    }
     return url
   }
-  // 否则拼接 CDN 地址
-  return CDN_URL + url
+  if (url.startsWith('//')) {
+    // 协议相对 URL，补全 https
+    return 'https:' + url
+  }
+  // 相对路径：拼接 CDN 地址或当前域名
+  if (CDN_URL) {
+    return CDN_URL + url
+  }
+  // 无 CDN 时，以相对路径返回（浏览器会自动拼接当前域名）
+  return url
 }
 
 export default request

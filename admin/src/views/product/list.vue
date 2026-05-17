@@ -521,15 +521,23 @@
           </el-form-item>
           <div class="price-growth-preview">
             <div>
+              <span>基础价</span>
+              <b>{{ formatMoneyYuan(editForm.basePrice) }}</b>
+            </div>
+            <div>
               <span>当前价格</span>
               <b>{{ formatMoneyYuan(editForm.price) }}</b>
             </div>
             <div>
-              <span>预计涨价范围</span>
+              <span>累计涨幅</span>
+              <b style="color: #ff4d4f;">+{{ (editForm.priceRise * 100).toFixed(2) }}%</b>
+            </div>
+            <div>
+              <span>预计每日涨价</span>
               <b>{{ editPriceIncreaseRangeText }}</b>
             </div>
             <div>
-              <span>预计涨价数目</span>
+              <span>每日涨价数目</span>
               <b>{{ editPriceIncreaseCountText }}</b>
             </div>
           </div>
@@ -775,6 +783,7 @@ const editForm = reactive({
   price: 0,
   originalPrice: 0,
   currentPrice: 0,
+  basePrice: 0,       // 原始/基础价格，用于计算每日涨幅
   priceRise: 0,
   tomorrowIncreaseMin: 0,
   tomorrowIncreaseMax: 0,
@@ -819,6 +828,7 @@ const priceLogs = ref([])
 const artworkPriceForm = reactive({
   artworkId: '',
   artworkTitle: '',
+  basePrice: 0,   // 原始/基础价格
   customPriceGrowthEnabled: false,
   customBaseDailyRate: 0.0002,
   customMatureDailyRate: 0.0003,
@@ -859,7 +869,8 @@ const getPriceGrowthConfigFor = (source = {}) => {
 }
 
 const getExpectedIncreaseRange = (source = {}) => {
-  const price = Number(source.price || 0)
+  // 优先使用 basePrice（原始/基础价格）计算每日涨幅，避免用已涨价的 currentPrice 导致涨幅虚低
+  const price = Number(source.basePrice || source.price || 0)
   const explicitMin = Number(source.tomorrowIncreaseMin || 0)
   const explicitMax = Number(source.tomorrowIncreaseMax || 0)
   if (explicitMin > 0 || explicitMax > 0) {
@@ -896,7 +907,9 @@ const editPriceIncreaseCountText = computed(() => {
 const artworkPriceIncreaseRangeText = computed(() => {
   const source = {
     ...artworkPriceForm,
+    // 优先用 row.price（基础价），fallback 到 editForm.price（当前售价）
     price: artworkPriceCurrent.value?.price || editForm.price,
+    basePrice: artworkPriceCurrent.value?.price || editForm.basePrice || editForm.price,
     tomorrowIncreaseMin: artworkPriceCurrent.value?.tomorrowIncreaseMin || 0,
     tomorrowIncreaseMax: artworkPriceCurrent.value?.tomorrowIncreaseMax || 0
   }
@@ -906,6 +919,7 @@ const artworkPriceIncreaseCountText = computed(() => {
   const source = {
     ...artworkPriceForm,
     price: artworkPriceCurrent.value?.price || editForm.price,
+    basePrice: artworkPriceCurrent.value?.price || editForm.basePrice || editForm.price,
     tomorrowIncreaseMin: artworkPriceCurrent.value?.tomorrowIncreaseMin || 0,
     tomorrowIncreaseMax: artworkPriceCurrent.value?.tomorrowIncreaseMax || 0
   }
@@ -919,15 +933,15 @@ const visiblePriceLogs = computed(() => {
   const range = getExpectedIncreaseRange(editForm)
   if (range.min <= 0 && range.max <= 0) return []
   const maxIncrease = Math.max(range.min, range.max)
-  const yuanPrice = Number(editForm.price || 0)
-  const basePrice = yuanPrice * 100
+  const yuanBase = Number(editForm.basePrice || editForm.price || 0)
+  const basePriceInFen = yuanBase * 100
   return [{
     id: 'forecast',
-    oldPrice: basePrice,
-    newPrice: basePrice + maxIncrease * 100,
-    changeRate: yuanPrice > 0 ? maxIncrease / yuanPrice : 0,
+    oldPrice: basePriceInFen,
+    newPrice: basePriceInFen + maxIncrease * 100,
+    changeRate: yuanBase > 0 ? maxIncrease / yuanBase : 0,
     changeReason: 'FORECAST',
-    remark: `根据当前价格调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
+    remark: `根据基础价 ${formatMoneyYuan(yuanBase)} 和调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
     createdAt: '实时预估'
   }]
 })
@@ -1086,6 +1100,7 @@ const openArtworkPriceConfig = async (row) => {
   Object.assign(artworkPriceForm, {
     artworkId,
     artworkTitle: row.title || row.artworkTitle || '',
+    basePrice: row.price || row.originalPrice || row.currentPrice || 0,
     customPriceGrowthEnabled: false,
     customBaseDailyRate: 0.0002,
     customMatureDailyRate: 0.0003,
@@ -1275,9 +1290,9 @@ const loadData = async () => {
       artType: item.artType,        // 画种
       size: item.size,               // 尺寸
       year: item.year,              // 创作年份
-      price: item.price ? item.price / 100 : 0,  // 分转元
-      originalPrice: item.originalPrice ? item.originalPrice / 100 : 0,
-      currentPrice: item.currentPrice ? item.currentPrice / 100 : 0,
+      price: item.price ?? 0,       // 后端已转元
+      originalPrice: item.originalPrice ?? 0,
+      currentPrice: item.currentPrice ?? 0,
       tomorrowIncreaseMin: item.tomorrowIncreaseMin || 0,
       tomorrowIncreaseMax: item.tomorrowIncreaseMax || 0,
       ownershipType: item.ownershipType || 1,
@@ -1352,7 +1367,6 @@ const openArtistEditor = (row) => {
 }
 
 const handleEdit = async (row) => {
-  console.log('【DEBUG】handleEdit row.price:', row.price, 'row.originalPrice:', row.originalPrice)
   loadPriceGrowthConfig()
   // 合并画种和分类显示
   let artTypeValue = row.artType || ''
@@ -1371,9 +1385,12 @@ const handleEdit = async (row) => {
     size: row.size || '',
     year: row.year || null,
     cover: row.cover || '',
-    price: row.price || 0,
+    // 显示涨价后的实时价格 currentPrice（已由 loadData 转为元）
+    price: row.currentPrice || row.price || 0,
     originalPrice: row.originalPrice || 0,
     currentPrice: row.currentPrice || row.price || 0,
+    // 原始/基础价格：用于计算每日涨幅；优先取 price（原始上架价），否则取 originalPrice
+    basePrice: row.price || row.originalPrice || row.currentPrice || 0,
     priceRise: row.priceRise || 0,
     tomorrowIncreaseMin: row.tomorrowIncreaseMin || 0,
     tomorrowIncreaseMax: row.tomorrowIncreaseMax || 0,
@@ -1386,14 +1403,12 @@ const handleEdit = async (row) => {
   setDailyHeatRange(row.dailyViewCount || 0, row.dailyLikeCount || 0)
   loadPriceLogs(row.artworkId || row.id)
   artistExactMatched.value = Boolean(editForm.authorId)
-  console.log('【DEBUG】handleEdit editForm.price:', editForm.price, 'editForm.originalPrice:', editForm.originalPrice)
   editVisible.value = true
 }
 
 const getDisplayPrice = (row) => {
-  const priceInFen = Number(row.currentPrice || row.price || 0)
-  // 转换为元（分 / 100）
-  return priceInFen / 100
+  // 后端已返回元值
+  return Number(row.currentPrice || row.price || 0)
 }
 
 const handleAdd = () => {
@@ -1413,6 +1428,7 @@ const handleAdd = () => {
     price: 0,
     originalPrice: 0,
     currentPrice: 0,
+    basePrice: 0,
     priceRise: 0,
     tomorrowIncreaseMin: 0,
     tomorrowIncreaseMax: 0,

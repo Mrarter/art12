@@ -289,10 +289,12 @@ onMounted(async () => {
 
 const timeMultiplier = computed(() => {
   const days = Math.max(Number(sim.onlineDays || 0), 0)
-  if (days > config.matureDays) {
-    return 1 + config.matureDailyRate * (days - config.matureDays)
-  }
-  return 1 + config.baseDailyRate * days
+  const matureDays = Math.max(Number(config.matureDays || 0), 0)
+  const baseDays = matureDays > 0 ? Math.min(days, matureDays) : 0
+  const matureDaysCount = matureDays > 0 ? Math.max(days - matureDays, 0) : days
+  return 1
+    + Number(config.baseDailyRate || 0) * baseDays
+    + Number(config.matureDailyRate || 0) * matureDaysCount
 })
 
 const badgeMultiplier = computed(() => {

@@ -196,7 +196,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, DocumentCopy } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import request from '@/api/request'
+import request, { requestApi } from '@/api/request'
 import { uploadFile, getFullImageUrl as getUrl } from '@/api/request'
 import { copyId } from '@/utils/id'
 
@@ -225,11 +225,8 @@ const searchForm = reactive({
 const form = reactive({
   name: '',
   cover: '',
-  previewStart: '',
-  previewEnd: '',
-  auctionStart: '',
-  auctionEnd: '',
-  deposit: 1000,
+  startTime: '',
+  endTime: '',
   description: ''
 })
 
@@ -283,30 +280,32 @@ const loadData = async () => {
     const params = { page: pagination.page, size: pagination.size }
     if (searchForm.name) params.name = searchForm.name
     if (searchForm.status) params.status = searchForm.status
-    const data = await request.get('/auction/sessions', { params })
+    const data = await requestApi.get('/auction/sessions', { params })
     
-    // 映射API字段到前端期望的字段
+    // 映射API字段到前端期望的字段（对齐后端返回格式）
     tableData.value = (data.records || data.list || []).map(item => ({
       sessionId: item.id,
+      id: item.id,
       sessionCode: item.sessionCode || `SES${String(item.id).padStart(10, '0')}`,
       name: item.title || item.name,
-      cover: item.cover || item.coverImage,
-      previewStart: item.previewStart || item.startTime,
-      previewEnd: item.previewEnd || item.endTime,
-      auctionStart: item.auctionStart || item.startTime,
-      auctionEnd: item.auctionEnd || item.endTime,
-      status: item.statusText?.toLowerCase() || (item.status === 1 ? 'preview' : item.status === 2 ? 'ongoing' : 'ended'),
+      cover: item.coverImage || item.cover || '',
+      startTime: item.startTime,
+      endTime: item.endTime,
+      // Admin 展示用字段，映射到后端同一个 startTime/endTime
+      previewStart: item.startTime,
+      previewEnd: item.endTime,
+      auctionStart: item.startTime,
+      auctionEnd: item.endTime,
+      // 状态：直接使用后端数值（1=预展/即将开始, 2=进行中, 3=已结束）
+      status: typeof item.status === 'number' ? item.status : (item.status === 'preview' ? 1 : item.status === 'ongoing' ? 2 : 3),
       totalAmount: item.totalAmount || 0,
-      totalLots: item.totalLots || item.lotCount || 0
+      totalLots: item.lotCount || item.totalLots || 0
     }))
     pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = [
-      { sessionId: 'S001', sessionCode: 'SES202604240001M5K8', name: '2024春季艺术品拍卖会', cover: '', previewStart: '2024-02-01 09:00', previewEnd: '2024-02-05 18:00', auctionStart: '2024-02-06 10:00', auctionEnd: '2024-02-06 18:00', status: 'ended', totalAmount: 2580000 },
-      { sessionId: 'S002', sessionCode: 'SES202604250001A3F2', name: '当代艺术专场', cover: '', previewStart: '2024-03-01 09:00', previewEnd: '2024-03-05 18:00', auctionStart: '2024-03-06 10:00', auctionEnd: '2024-03-06 18:00', status: 'ongoing', totalAmount: 0 },
-      { sessionId: 'S003', sessionCode: 'SES202604250002W7N9', name: '书画精品专场', cover: '', previewStart: '2024-03-15 09:00', previewEnd: '2024-03-20 18:00', auctionStart: '2024-03-21 10:00', auctionEnd: '2024-03-21 18:00', status: 'preview', totalAmount: 0 }
-    ]
-    pagination.total = 3
+    console.error('加载拍卖专场失败:', e)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -325,7 +324,7 @@ const resetSearch = () => {
 const showDialog = (type, row = null) => {
   if (type === 'add') {
     isEdit.value = false
-    Object.assign(form, { name: '', cover: '', previewStart: '', previewEnd: '', auctionStart: '', auctionEnd: '', deposit: 1000, description: '' })
+    Object.assign(form, { id: null, name: '', cover: '', startTime: '', endTime: '', description: '' })
   } else {
     isEdit.value = true
     Object.assign(form, row)
@@ -413,23 +412,24 @@ const handleSubmit = async () => {
   if (!valid) return
   
   try {
+    const payload = {
+      title: form.name,
+      coverImage: form.cover,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      description: form.description || ''
+    }
     if (isEdit.value) {
-      // 本地更新
-      const index = tableData.value.findIndex(item => item.sessionId === form.sessionId)
-      if (index > -1) {
-        tableData.value[index] = { ...tableData.value[index], ...form }
-        ElMessage.success('更新成功')
-      }
+      await requestApi.post('/auction/admin/session/update', { id: form.id, ...payload })
+      ElMessage.success('更新成功')
     } else {
-      // 本地添加
-      const newId = 'S' + String(Math.max(...tableData.value.map(item => parseInt(item.sessionId.slice(1))), 0) + 1).padStart(3, '0')
-      tableData.value.unshift({ sessionId: newId, ...form, status: 'preview', totalAmount: 0 })
-      pagination.total++
+      await requestApi.post('/auction/admin/session/create', payload)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
+    await loadData()
   } catch (e) {
-    ElMessage.error('操作失败')
+    ElMessage.error('操作失败: ' + (e.message || '未知错误'))
   }
 }
 
@@ -441,14 +441,12 @@ const manageLots = (row) => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该专场吗？', '提示', { type: 'warning' })
-    // 本地删除
-    const index = tableData.value.findIndex(item => item.sessionId === row.sessionId)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      pagination.total--
-      ElMessage.success('删除成功')
-    }
-  } catch (e) {}
+    await requestApi.post('/auction/admin/session/delete', { id: row.id })
+    ElMessage.success('删除成功')
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败: ' + (e.message || '未知错误'))
+  }
 }
 
 onMounted(() => {

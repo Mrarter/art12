@@ -9,14 +9,19 @@ import com.shiyiju.promotion.entity.CommissionLog;
 import com.shiyiju.promotion.entity.WithdrawRecord;
 import com.shiyiju.promotion.mapper.CommissionLogMapper;
 import com.shiyiju.promotion.mapper.WithdrawRecordMapper;
+import com.shiyiju.promotion.service.CommissionService;
 import com.shiyiju.promotion.vo.EarningsDetailVO;
 import com.shiyiju.promotion.vo.EarningsTrendVO;
 import com.shiyiju.promotion.vo.RankingVO;
 import com.shiyiju.user.entity.PromoterRecord;
+import com.shiyiju.user.entity.RealnameCertification;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.user.mapper.PromoterRecordMapper;
+import com.shiyiju.user.mapper.RealnameCertificationMapper;
 import com.shiyiju.user.mapper.UserMapper;
+import com.shiyiju.user.service.WalletService;
 import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -35,8 +40,11 @@ public class PromotionController {
 
     private final PromoterRecordMapper promoterRecordMapper;
     private final CommissionLogMapper commissionLogMapper;
+    private final RealnameCertificationMapper realnameCertMapper;
     private final WithdrawRecordMapper withdrawRecordMapper;
     private final UserMapper userMapper;
+    private final WalletService walletService;
+    private final CommissionService commissionService;
 
     /**
      * 获取推广中心数据 (GET /promoter/center)
@@ -277,10 +285,37 @@ public class PromotionController {
             return Result.fail(1103, "未开通艺荐官");
         }
 
+        // ==== 校验：提现金额 ====
         Long amount = Long.valueOf(params.get("amount").toString());
         if (amount <= 0) {
             return Result.fail(400, "提现金额必须大于0");
         }
+        if (amount < 100) {
+            return Result.fail(400, "最低提现金额为100元");
+        }
+
+        // ==== 校验：实名认证 ====
+        RealnameCertification realname = realnameCertMapper.selectOne(
+                new LambdaQueryWrapper<RealnameCertification>()
+                        .eq(RealnameCertification::getUserId, userId)
+                        .eq(RealnameCertification::getStatus, 1));
+        if (realname == null) {
+            return Result.fail(400, "请先完成实名认证再提现");
+        }
+
+        // ==== 校验：每日提现次数 ====
+        LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+        Long todayCount = withdrawRecordMapper.selectCount(
+                new LambdaQueryWrapper<WithdrawRecord>()
+                        .eq(WithdrawRecord::getPromoterId, promoter.getId())
+                        .ge(WithdrawRecord::getCreateTime, todayStart));
+        if (todayCount >= 3) {
+            return Result.fail(400, "每日提现次数已达上限（3次）");
+        }
+
+        // 冻结钱包余额
+        walletService.freeze(userId, BigDecimal.valueOf(amount),
+                null, "withdraw", "提现申请冻结");
 
         // 创建提现记录
         WithdrawRecord record = new WithdrawRecord();
@@ -607,6 +642,27 @@ public class PromotionController {
             defaultInfo.put("commission", 0);
             defaultInfo.put("estimatedEarning", 0);
             return Result.success(defaultInfo);
+        }
+    }
+
+    /**
+     * 佣金结算（服务间调用） (POST /promoter/commission/settle)
+     * 由订单系统在支付成功后调用
+     */
+    @PostMapping("/commission/settle")
+    public Result<Void> settleCommission(@RequestBody Map<String, Object> params) {
+        try {
+            Long orderId = ((Number) params.get("orderId")).longValue();
+            String orderNo = (String) params.get("orderNo");
+            java.math.BigDecimal orderAmount = new java.math.BigDecimal(params.get("amount").toString());
+            Long buyerId = params.get("buyerId") != null ? ((Number) params.get("buyerId")).longValue() : null;
+            Long promoterId = params.get("promoterId") != null ? ((Number) params.get("promoterId")).longValue() : null;
+            Long artworkId = params.get("artworkId") != null ? ((Number) params.get("artworkId")).longValue() : null;
+            commissionService.calculateAndSettleCommission(orderId, orderNo, orderAmount, buyerId, promoterId, artworkId);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("佣金结算失败", e);
+            return Result.fail(500, e.getMessage());
         }
     }
 }

@@ -11,41 +11,62 @@ DEPLOY_DIR="$BASE_DIR/deploy-local"
 # 创建日志目录
 mkdir -p "$LOGS_DIR"
 
-# 服务配置: 服务名 JAR文件 端口
-declare -A SERVICES=(
-    ["gateway"]="shiyiju-gateway-1.0.0-SNAPSHOT.jar:8080"
-    ["user"]="shiyiju-user-1.0.0-SNAPSHOT.jar:8081"
-    ["product"]="shiyiju-product-1.0.0-SNAPSHOT.jar:8082"
-    ["order"]="shiyiju-order-1.0.0-SNAPSHOT.jar:8083"
-    ["auction"]="shiyiju-auction-1.0.0-SNAPSHOT.jar:8084"
-    ["promotion"]="shiyiju-promotion-1.0.0-SNAPSHOT.jar:8085"
-    ["community"]="shiyiju-community-1.0.0-SNAPSHOT.jar:8086"
-    ["file"]="shiyiju-file-1.0.0-SNAPSHOT.jar:8087"
-    ["message"]="shiyiju-message-1.0.0-SNAPSHOT.jar:8088"
-    ["admin"]="shiyiju-admin-1.0.0-SNAPSHOT.jar:8090"
+# ===========================================
+# 加载环境变量配置
+# 优先级：.env (gitignored, 真实密钥) > .env.local (git-tracked, 模板)
+# ===========================================
+load_env_file() {
+    local env_file="$1"
+    if [ -f "$env_file" ]; then
+        echo "  📄 加载环境变量: $env_file"
+        set -a  # 自动导出后续所有变量
+        source "$env_file"
+        set +a
+    fi
+}
+
+# 先加载 .env.local 模板，再加载 .env 覆盖（避免默认值被覆盖）
+load_env_file "$BASE_DIR/../.env.local"
+load_env_file "$BASE_DIR/../.env"
+
+# 服务端口映射: "服务名:端口"
+readonly SERVICES=(
+    "gateway:8080"
+    "user:8081"
+    "product:8082"
+    "order:8083"
+    "auction:8084"
+    "promotion:8085"
+    "community:8086"
+    "file:8087"
+    "message:8088"
+    "admin:8090"
 )
 
-# JAR 路径映射
-JAR_PATHS=(
-    "$BASE_DIR/shiyiju-gateway/target/shiyiju-gateway-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-user/target/shiyiju-user-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-product/target/shiyiju-product-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-order/target/shiyiju-order-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-auction/target/shiyiju-auction-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-promotion/target/shiyiju-promotion-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-community/target/shiyiju-community-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-file/target/shiyiju-file-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-message/target/shiyiju-message-1.0.0-SNAPSHOT.jar"
-    "$BASE_DIR/shiyiju-admin/target/shiyiju-admin-1.0.0-SNAPSHOT.jar"
-)
+# 从服务名获取端口号
+get_port() {
+    local target="$1"
+    for entry in "${SERVICES[@]}"; do
+        local name="${entry%%:*}"
+        local port="${entry#*:}"
+        if [ "$name" = "$target" ]; then
+            echo "$port"
+            return 0
+        fi
+    done
+    return 1
+}
 
 # 停止所有服务
 stop_all() {
     echo "🛑 停止所有服务..."
-    for service in gateway user product order auction promotion community file message admin; do
-        pid=$(lsof -ti:$(( ${service}_port )) 2>/dev/null || true)
+    for entry in "${SERVICES[@]}"; do
+        local name="${entry%%:*}"
+        local port="${entry#*:}"
+        local pid=""
+        pid=$(lsof -ti:"$port" 2>/dev/null || true)
         if [ -n "$pid" ]; then
-            kill $pid 2>/dev/null && echo "  ✓ $service 已停止" || true
+            kill "$pid" 2>/dev/null && echo "  ✓ $name 已停止" || true
         fi
     done
     pkill -f "shiyiju-.*\.jar" 2>/dev/null || true
@@ -101,16 +122,11 @@ start_all() {
     echo "=========================================="
     echo "✅ 所有服务已启动"
     echo "=========================================="
-    echo "📍 Gateway:    http://localhost:8080"
-    echo "📍 User:      http://localhost:8081"
-    echo "📍 Product:   http://localhost:8082"
-    echo "📍 Order:     http://localhost:8083"
-    echo "📍 Auction:   http://localhost:8084"
-    echo "📍 Promotion: http://localhost:8085"
-    echo "📍 Community: http://localhost:8086"
-    echo "📍 File:      http://localhost:8087"
-    echo "📍 Message:   http://localhost:8088"
-    echo "📍 Admin:     http://localhost:8090"
+    for entry in "${SERVICES[@]}"; do
+        local name="${entry%%:*}"
+        local port="${entry#*:}"
+        printf "📍 %-10s http://localhost:%s\n" "$name" "$port"
+    done
     echo ""
     echo "📋 日志目录: $LOGS_DIR"
 }
@@ -121,13 +137,12 @@ status() {
     echo "📊 服务状态"
     echo "=========================================="
     
-    local services=("8080:gateway" "8081:user" "8082:product" "8083:order" "8084:auction" "8085:promotion" "8086:community" "8087:file" "8088:message" "8090:admin")
-    
-    for s in "${services[@]}"; do
-        port=${s%%:*}
-        name=${s#*:}
-        if lsof -i:$port >/dev/null 2>&1; then
-            pid=$(lsof -ti:$port)
+    for entry in "${SERVICES[@]}"; do
+        local name="${entry%%:*}"
+        local port="${entry#*:}"
+        if lsof -i:"$port" >/dev/null 2>&1; then
+            local pid
+            pid=$(lsof -ti:"$port")
             echo "  ✅ $name (端口 $port) - PID: $pid"
         else
             echo "  ❌ $name (端口 $port) - 未运行"

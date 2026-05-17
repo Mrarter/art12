@@ -193,41 +193,8 @@ export default {
           this.reminders = res.data || []
         }
       } catch (e) {
-        // 模拟数据
-        this.reminders = [
-          {
-            id: 1,
-            sessionId: 1,
-            lotId: null,
-            sessionName: '2026春季当代艺术专场',
-            lotName: '',
-            coverImage: '/static/icons/auction-1.png',
-            startTime: '2026-04-25 19:00:00',
-            enabled: true,
-            remindMinutes: 15,
-            notifyPush: true,
-            notifySms: false,
-            notifyBefore: true,
-            notifyOutbid: true,
-            notifyEnd: false
-          },
-          {
-            id: 2,
-            sessionId: 2,
-            lotId: 101,
-            sessionName: '名家书画专场',
-            lotName: '张大千《山水长卷》',
-            coverImage: '/static/icons/auction-2.png',
-            startTime: '2026-04-26 20:00:00',
-            enabled: true,
-            remindMinutes: 30,
-            notifyPush: true,
-            notifySms: true,
-            notifyBefore: true,
-            notifyOutbid: false,
-            notifyEnd: true
-          }
-        ]
+        // 加载失败，使用空列表
+        this.reminders = []
       }
     },
 

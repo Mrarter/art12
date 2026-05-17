@@ -228,11 +228,14 @@ $border-dark: rgba(214, 168, 39, 0.35);
 }
 
 .tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 16rpx 26rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.09);
   border-radius: 999rpx;
   color: $text-muted;
   font-size: 24rpx;
+  line-height: 1;
 }
 
 .tab.active {

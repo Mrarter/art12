@@ -320,6 +320,8 @@ export default {
 }
 
 .tag {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 22rpx;
   background: #f0f0f0;
   color: #666;

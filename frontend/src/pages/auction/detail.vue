@@ -695,6 +695,8 @@ onLoad((options) => {
       gap: 12rpx;
 
       .tag {
+        flex-shrink: 0;
+        white-space: nowrap;
         padding: 4rpx 16rpx;
         border-radius: 8rpx;
         font-size: 22rpx;

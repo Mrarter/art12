@@ -211,26 +211,8 @@ const showOrderDetail = async (orderNo) => {
       ElMessage.warning('订单详情加载失败')
     }
   } catch (e) {
-    // 模拟数据
-    orderDetail.value = {
-      orderNo: orderNo,
-      orderStatus: 'COMPLETED',
-      statusText: '已完成',
-      buyerNickname: '张三',
-      buyerUid: 'USR202604250001VKO5',
-      buyerPhone: '139****1234',
-      userId: 1,
-      goodsAmount: 58000,
-      freightAmount: 0,
-      discountAmount: 0,
-      payAmount: 58000,
-      paymentStatus: 'PAID',
-      createTime: '2024-01-20 10:30:00',
-      items: [
-        { artwork_title: '山水国画', cover_image: 'https://picsum.photos/100/100', quantity: 1, price: 58000 }
-      ]
-    }
-    orderDialogVisible.value = true
+    console.error('加载订单详情失败:', e)
+    ElMessage.error('获取订单详情失败')
   }
 }
 

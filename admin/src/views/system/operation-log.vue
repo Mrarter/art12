@@ -88,7 +88,7 @@
         <el-table-column label="操作者" width="140">
           <template #default="{ row }">
             <div class="operator-info">
-              <el-avatar :src="row.avatar" :size="28" />
+              <el-avatar :src="getFullImageUrl(row.avatar)" :size="28" />
               <div class="operator-detail">
                 <p class="name">{{ row.operatorName || row.adminName || '系统' }}</p>
                 <p class="role">{{ row.roleName || row.adminRole || '-' }}</p>
@@ -212,7 +212,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document, Plus, Edit, Delete, Download, InfoFilled } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 
 const loading = ref(false)
 const dateRange = ref([])

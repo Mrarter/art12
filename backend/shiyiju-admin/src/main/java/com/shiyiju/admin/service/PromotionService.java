@@ -1,5 +1,6 @@
 package com.shiyiju.admin.service;
 
+import com.shiyiju.common.client.WalletRestClient;
 import com.shiyiju.common.result.PageResult;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -16,9 +17,11 @@ import java.util.*;
 public class PromotionService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final WalletRestClient walletClient;
 
-    public PromotionService(JdbcTemplate jdbcTemplate) {
+    public PromotionService(JdbcTemplate jdbcTemplate, WalletRestClient walletClient) {
         this.jdbcTemplate = jdbcTemplate;
+        this.walletClient = walletClient;
     }
 
     /**
@@ -256,11 +259,27 @@ public class PromotionService {
     @Transactional
     public void handleWithdraw(Long id, Integer status, String remark, Long operatorId, String operatorName) {
         LocalDateTime now = LocalDateTime.now();
+        
+        // 查询提现记录
+        Map<String, Object> record = jdbcTemplate.queryForMap(
+            "SELECT user_id, amount FROM withdraw_record WHERE id = ?", id);
+        Long userId = record.get("user_id") instanceof Number n ? n.longValue() : null;
+        java.math.BigDecimal amount = record.get("amount") instanceof Number n 
+            ? java.math.BigDecimal.valueOf(n.doubleValue()) : java.math.BigDecimal.ZERO;
+
         if (status == 1) {
+            // 审核通过 - 出账（扣除冻结金额）
+            if (userId != null && amount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                walletClient.expense(userId, amount, "withdraw", id, "withdraw", remark);
+            }
             jdbcTemplate.update(
                 "UPDATE withdraw_record SET status = ?, handle_time = ?, complete_time = ?, operator_id = ?, operator_name = ? WHERE id = ?",
                 status, now, now, operatorId, operatorName, id);
         } else if (status == 2) {
+            // 审核拒绝 - 解冻
+            if (userId != null && amount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                walletClient.unfreeze(userId, amount, id, "withdraw", "提现驳回: " + remark);
+            }
             jdbcTemplate.update(
                 "UPDATE withdraw_record SET status = ?, handle_time = ?, reject_reason = ?, operator_id = ?, operator_name = ? WHERE id = ?",
                 status, now, remark, operatorId, operatorName, id);

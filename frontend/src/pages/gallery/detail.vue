@@ -158,6 +158,51 @@
         </view>
       </view>
 
+      <view class="card resale-card" v-if="resaleStats && resaleStats.resaleCount > 0">
+        <view class="section-top">
+          <view class="section-title">
+            <text class="section-icon">⟳</text>
+            <text>转售数据</text>
+          </view>
+          <view class="more-link" @click="goResaleMarket">转售市场 ›</view>
+        </view>
+        <view class="resale-body">
+          <view class="resale-stat-row">
+            <view class="resale-stat">
+              <text class="resale-stat-value">{{ resaleStats.resaleCount }}</text>
+              <text class="resale-stat-label">转售次数</text>
+            </view>
+            <view class="resale-stat">
+              <text class="resale-stat-value">{{ resaleStats.totalTrades }}</text>
+              <text class="resale-stat-label">流通次数</text>
+            </view>
+            <view class="resale-stat">
+              <text class="resale-stat-value">¥{{ formatPriceSmall(resaleStats.highestPrice) }}</text>
+              <text class="resale-stat-label">最高成交价</text>
+            </view>
+            <view class="resale-stat">
+              <text class="resale-stat-value" :style="{color: (resaleStats.totalGrowthRate || 0) >= 0 ? '#67C23A' : '#F56C6C'}">
+                {{ (resaleStats.totalGrowthRate || 0) >= 0 ? '+' : '' }}{{ (resaleStats.totalGrowthRate || 0).toFixed(1) }}%
+              </text>
+              <text class="resale-stat-label">总涨幅</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="card holder-card" v-if="detail.holderId">
+        <view class="section-top">
+          <view class="section-title">
+            <text class="section-icon">♙</text>
+            <text>当前持有</text>
+          </view>
+        </view>
+        <view class="holder-body">
+          <text class="holder-id">持有者ID: {{ detail.holderId }}</text>
+          <text class="holder-since" v-if="detail.holderSince">自 {{ formatTime(detail.holderSince) }}</text>
+        </view>
+      </view>
+
       <view class="card cert-card">
         <view class="section-top">
           <view class="section-title">
@@ -221,7 +266,7 @@
         <view class="chat-mark"></view>
         <text>咨询</text>
       </button>
-      <button class="collect-btn" @click="onFavorite">立即收藏</button>
+      <button class="collect-btn" :class="{ 'is-loading': buyLoading }" :disabled="buyLoading" @click="handleDirectBuy">{{ buyLoading ? '购买中...' : '立即购买' }}</button>
     </view>
 
     <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
@@ -288,6 +333,8 @@ import { getArtistScore } from '@/api/artistScore'
 import { useUserStore } from '@/store/modules/user'
 import { getProductCommission } from '@/api/promoter'
 import { triggerCollectIncrease } from '@/api/artworkPrice'
+import { getArtworkTrades, getArtworkResaleStats } from '@/api/resale'
+import { directBuy } from '@/api/order'
 
 const FALLBACK_COVER = '/static/images/artwork-fallback.png'
 
@@ -320,7 +367,13 @@ export default {
         growthRate: '+0%',
         collectCount: 0,
         nextCondition: '收藏人数增加后可能涨价'
-      }
+      },
+      // 转售/流通数据
+      resaleTrades: [],
+      resaleStats: null,
+      loadingResale: false,
+      buyLoading: false,
+      buyErrorMessage: ''
     }
   },
 
@@ -619,7 +672,8 @@ export default {
           await Promise.allSettled([
             this.loadArtistProfile(data.authorId || data.authorUid),
             this.loadArtistScore(data.authorId || data.authorUid),
-            this.loadCommission(id)
+            this.loadCommission(id),
+            this.loadResaleData(id)
           ])
           this.saveBrowseHistory(data)
         } else {
@@ -651,6 +705,26 @@ export default {
       } catch (error) {
         console.warn('加载艺术家评分失败', error)
       }
+    },
+
+    async loadResaleData(artworkId) {
+      if (!artworkId) return
+      this.loadingResale = true
+      try {
+        const [trades, stats] = await Promise.allSettled([
+          getArtworkTrades(artworkId),
+          getArtworkResaleStats(artworkId)
+        ])
+        if (trades.status === 'fulfilled' && trades.value) {
+          this.resaleTrades = trades.value
+        }
+        if (stats.status === 'fulfilled' && stats.value) {
+          this.resaleStats = stats.value
+        }
+      } catch (e) {
+        console.warn('加载转售数据失败', e)
+      }
+      finally { this.loadingResale = false }
     },
 
     saveBrowseHistory(item) {
@@ -779,6 +853,127 @@ export default {
         }
       } catch (e) {
         uni.showToast({ title: '操作失败', icon: 'none' })
+      }
+    },
+
+    /**
+     * 带自动重试机制的异步执行函数
+     * @param {Function} fn - 要执行的异步函数（接收 attempt 序号）
+     * @param {Object} [options]
+     * @param {number} [options.maxRetries=3] - 最大尝试次数（含首次）
+     * @param {number} [options.delay=1000] - 重试间隔(ms)
+     * @param {string} [options.label='操作'] - 操作名称（日志用）
+     * @returns {Promise<any>}
+     */
+    async withRetry(fn, { maxRetries = 3, delay = 1000, label = '操作' } = {}) {
+      let lastError = null
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await fn(attempt)
+        } catch (error) {
+          lastError = error
+          const isServerBusy = error.message && (
+            error.message.includes('系统繁忙') ||
+            error.message.includes('服务器内部错误') ||
+            error.message.includes('服务暂不可用') ||
+            error.message.includes('503') ||
+            error.message.includes('502') ||
+            error.message.includes('timeout') ||
+            error.message.includes('超时')
+          )
+          // 非服务器繁忙类错误（如参数错误、权限不足）直接抛出，不重试
+          if (!isServerBusy && attempt < maxRetries) {
+            console.warn(`[${label}] 不可重试错误，放弃剩余重试:`, error.message)
+            throw error
+          }
+          if (attempt < maxRetries) {
+            console.warn(`[${label}] 第${attempt}次尝试失败，${delay}ms后重试:`, error.message)
+            await new Promise(r => setTimeout(r, delay))
+          }
+        }
+      }
+      throw lastError
+    },
+
+    async handleDirectBuy() {
+      const userStore = useUserStore()
+      if (!userStore.isLogin || userStore.userInfo?.isGuest) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      const id = this.detail?.id
+      if (!id) {
+        uni.showToast({ title: '作品信息不完整', icon: 'none' })
+        return
+      }
+
+      // 防止重复点击
+      if (this.buyLoading) {
+        uni.showToast({ title: '正在创建订单，请勿重复操作', icon: 'none' })
+        return
+      }
+
+      this.buyLoading = true
+      this.buyErrorMessage = ''
+      uni.showLoading({ title: '创建订单...' })
+
+      let retriesUsed = 0
+      try {
+        const order = await this.withRetry(
+          async (attempt) => {
+            retriesUsed = attempt
+            return directBuy({
+              artworkId: id,
+              quantity: 1,
+              addressId: -1
+            })
+          },
+          { maxRetries: 3, delay: 1000, label: '创建订单' }
+        )
+
+        uni.hideLoading()
+        this.buyLoading = false
+
+        if (order && order.id) {
+          uni.showToast({ title: '订单创建成功', icon: 'success' })
+          setTimeout(() => {
+            uni.navigateTo({ url: `/pages/order/pay?orderId=${order.id}` })
+          }, 800)
+        } else {
+          uni.showModal({
+            title: '购买失败',
+            content: '订单创建异常，请稍后在订单中心查看或联系客服。',
+            confirmText: '我知道了',
+            showCancel: false
+          })
+        }
+      } catch (e) {
+        uni.hideLoading()
+        this.buyLoading = false
+        console.error('[购买] 失败:', e)
+
+        const errMsg = e.message || '系统繁忙'
+        this.buyErrorMessage = errMsg
+
+        // 区分"重试后失败"和"直接失败"的消息
+        const isServerBusy = errMsg.includes('系统繁忙') || errMsg.includes('服务器内部错误') ||
+          errMsg.includes('服务暂不可用') || errMsg.includes('timeout') || errMsg.includes('超时')
+
+        let content = ''
+        if (retriesUsed > 0 && isServerBusy) {
+          // 重试了 n 次后仍因服务器繁忙失败
+          content = `订单创建暂时无法完成，系统已自动重试${retriesUsed}次仍未成功。\n\n原因：${errMsg}\n\n建议稍后再试，如持续失败请联系客服。`
+        } else {
+          // 直接失败（参数错误、库存不足等不可重试错误）
+          content = `订单创建失败。\n\n原因：${errMsg}`
+        }
+
+        uni.showModal({
+          title: '购买失败',
+          content,
+          confirmText: '我知道了',
+          showCancel: false
+        })
       }
     },
 
@@ -996,6 +1191,20 @@ export default {
       if (!price) return '¥0'
       const yuan = Math.round(Number(price) / 100)
       return `¥${yuan.toLocaleString()}`
+    },
+
+    formatPriceSmall(price) {
+      if (!price) return '0.00'
+      return Number(price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    },
+
+    formatTime(time) {
+      if (!time) return ''
+      return String(time).substring(0, 10)
+    },
+
+    goResaleMarket() {
+      uni.navigateTo({ url: '/pages/resale/market' })
     },
 
     formatPriceDelta(price) {
@@ -2635,6 +2844,17 @@ $gold-bright: #f0c83a;
   font-size: 27rpx;
   font-weight: 800;
   box-shadow: 0 12rpx 34rpx rgba(194, 145, 33, 0.28);
+  transition: opacity 0.25s ease;
+}
+
+.collect-btn.is-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.collect-btn[disabled] {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 @media (max-width: 520px) {
@@ -2778,4 +2998,18 @@ button::after {
   color: #fff;
   font-size: 28rpx;
 }
+
+/* 转售数据卡片 */
+.resale-card { margin-top: 16rpx; }
+.resale-body { padding: 8rpx 0; }
+.resale-stat-row { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.resale-stat { flex: 1; min-width: 100rpx; text-align: center; padding: 12rpx 0; }
+.resale-stat-value { display: block; font-size: 30rpx; font-weight: 600; color: $gold; }
+.resale-stat-label { display: block; font-size: 20rpx; color: $text-dim; margin-top: 4rpx; }
+
+/* 当前持有卡片 */
+.holder-card { margin-top: 16rpx; }
+.holder-body { padding: 12rpx 0; }
+.holder-id { font-size: 24rpx; color: $text-sub; display: block; }
+.holder-since { font-size: 20rpx; color: $text-dim; display: block; margin-top: 6rpx; }
 </style>

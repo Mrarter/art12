@@ -20,10 +20,12 @@ public class UserManagementController {
 
     private final UserAdminPersistenceService userAdminPersistenceService;
     private final AdminAccountService adminAccountService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    public UserManagementController(UserAdminPersistenceService userAdminPersistenceService, AdminAccountService adminAccountService) {
+    public UserManagementController(UserAdminPersistenceService userAdminPersistenceService, AdminAccountService adminAccountService, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.userAdminPersistenceService = userAdminPersistenceService;
         this.adminAccountService = adminAccountService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @GetMapping("/list")
@@ -548,6 +550,85 @@ public class UserManagementController {
     @DeleteMapping("/promoter/{id}")
     public Result<Void> deletePromoter(@PathVariable Long id) {
         userAdminPersistenceService.deletePromoter(id);
+        return Result.success();
+    }
+
+    // ===================== 实名认证管理 =====================
+
+    @PostMapping("/realname/list")
+    public Result<PageResult<Map<String, Object>>> getRealnameList(
+            @RequestBody Map<String, Object> params,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (!isAdmin(authorization)) {
+            return Result.fail(403, "需要管理员权限");
+        }
+        int page = params.get("page") instanceof Number n ? n.intValue() : 1;
+        int size = params.get("size") instanceof Number n ? n.intValue() : 20;
+        Integer status = params.get("status") instanceof Number n ? n.intValue() : null;
+        String keyword = (String) params.get("keyword");
+
+        StringBuilder sql = new StringBuilder(
+            "SELECT r.id, r.user_id, r.real_name, r.id_card, r.id_front_url, r.id_back_url, ")
+            .append("r.face_verified, r.status, r.reject_reason, r.review_time, r.create_time, ")
+            .append("COALESCE(u.nickname,'') AS nickname, COALESCE(u.avatar,'') AS avatar, ")
+            .append("COALESCE(u.phone,'') AS phone, COALESCE(u.uid,'') AS uid ")
+            .append("FROM realname_certifications r LEFT JOIN users u ON r.user_id = u.id WHERE 1=1");
+
+        List<Object> paramsList = new java.util.ArrayList<>();
+        if (status != null) {
+            sql.append(" AND r.status = ?");
+            paramsList.add(status);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            sql.append(" AND (u.nickname LIKE ? OR r.real_name LIKE ?)");
+            String kw = "%" + keyword.trim() + "%";
+            paramsList.add(kw);
+            paramsList.add(kw);
+        }
+
+        String countSql = sql.toString().replaceFirst("SELECT r\\.id,.*?FROM", "SELECT COUNT(*) FROM");
+        Integer total = jdbcTemplate.queryForObject(countSql, Integer.class, paramsList.toArray());
+        if (total == null) total = 0;
+
+        int offset = (page - 1) * size;
+        sql.append(" ORDER BY r.create_time DESC LIMIT ? OFFSET ?");
+        paramsList.add(size);
+        paramsList.add(offset);
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), paramsList.toArray());
+        return Result.success(PageResult.of((long) total, page, size, rows));
+    }
+
+    @PostMapping("/realname/approve")
+    public Result<Void> approveRealname(
+            @RequestBody Map<String, Object> params,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (!isAdmin(authorization)) {
+            return Result.fail(403, "需要管理员权限");
+        }
+        Long certId = ((Number) params.get("certId")).longValue();
+        jdbcTemplate.update("UPDATE realname_certifications SET status = 1, review_time = NOW() WHERE id = ? AND status = 0", certId);
+        // 获取 user_id
+        Long userId = jdbcTemplate.queryForObject(
+            "SELECT user_id FROM realname_certifications WHERE id = ?", Long.class, certId);
+        if (userId != null) {
+            jdbcTemplate.update("UPDATE users SET real_name_verified = 1 WHERE id = ?", userId);
+        }
+        return Result.success();
+    }
+
+    @PostMapping("/realname/reject")
+    public Result<Void> rejectRealname(
+            @RequestBody Map<String, Object> params,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (!isAdmin(authorization)) {
+            return Result.fail(403, "需要管理员权限");
+        }
+        Long certId = ((Number) params.get("certId")).longValue();
+        String reason = (String) params.get("reason");
+        jdbcTemplate.update(
+            "UPDATE realname_certifications SET status = 2, reject_reason = ?, review_time = NOW() WHERE id = ? AND status = 0",
+            reason, certId);
         return Result.success();
     }
 

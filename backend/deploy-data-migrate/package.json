@@ -1,0 +1,10 @@
+{
+  "name": "data-migrate",
+  "version": "1.0.0",
+  "description": "从 NoSQL 迁移数据到 MySQL",
+  "main": "index.js",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^3.7.0",
+    "mysql2": "^3.9.0"
+  }
+}

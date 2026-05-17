@@ -50,11 +50,16 @@ public enum ResultCode {
     ORDER_CANNOT_CANCEL(1302, "订单不可取消"),
     ORDER_CANNOT_CONFIRM(1303, "订单不可确认收货"),
     ORDER_PRICE_CHANGED(1304, "订单价格已变动"),
+    ORDER_CREATE_FAILED(1305, "订单创建失败"),
+    ORDER_RETRY_EXCEEDED(1306, "订单重试已达上限"),
+    ORDER_RETRY_INVALID(1307, "订单不存在或不可重试"),
+    ORDER_LOCK_FAILED(1308, "订单锁争用失败"),
 
     // 支付相关 14xx
     PAYMENT_FAILED(1401, "支付失败"),
     PAYMENT_TIMEOUT(1402, "支付超时"),
     PAYMENT_AMOUNT_MISMATCH(1403, "支付金额不匹配"),
+    CIRCUIT_BREAKER_OPEN(1404, "服务熔断，请稍后重试"),
 
     // 拍卖相关 15xx
     AUCTION_NOT_STARTED(1501, "拍卖未开始"),

@@ -138,7 +138,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DocumentCopy } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { requestApi } from '@/api/request'
 import { copyId } from '@/utils/id'
 
 const route = useRoute()
@@ -199,24 +199,30 @@ const handleCopyId = async (id) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await request.get('/auction/lot/list', { params: { page: pagination.page, size: pagination.size, ...searchForm } })
-    tableData.value = data.list
-    pagination.total = data.total
+    const data = await requestApi.post('/auction/admin/lot/list', { page: pagination.page, size: pagination.size, ...searchForm })
+    tableData.value = (data.records || data.list || []).map(item => ({
+      lotId: 'L' + String(item.id),
+      id: item.id,
+      title: item.title,
+      coverImage: item.coverImage,
+      artistName: item.artistName,
+      lotNo: item.lotNo,
+      startPrice: item.startPrice,
+      currentPrice: item.currentPrice,
+      reservePrice: item.reservePrice,
+      increment: item.increment,
+      depositAmount: item.depositAmount,
+      bidCount: item.bidCount,
+      status: item.status,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      sessionId: item.sessionId
+    }))
+    pagination.total = data.total || 0
   } catch (e) {
-    // 使用本地模拟数据
-    const sessionId = route.query.sessionId || ''
-    if (!tableData.value.length) {
-      tableData.value = sessionId === 'S002' ? [
-        { lotId: 'L101', lotCode: 'LOT202604250001X7K2', title: '现代油画', artistName: '李明', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 30000, finalPrice: 0, bidCount: 5, status: 'pending' },
-        { lotId: 'L102', lotCode: 'LOT202604250002M9N5', title: '抽象艺术', artistName: '王芳', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 50000, finalPrice: 0, bidCount: 8, status: 'pending' },
-        { lotId: 'L103', lotCode: 'LOT202604250003W3T8', title: '风景写生', artistName: '赵丽', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 20000, finalPrice: 0, bidCount: 3, status: 'pending' }
-      ] : [
-        { lotId: 'L001', lotCode: 'LOT202604240001A5K9', title: '名家山水', artistName: '张大千', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 50000, finalPrice: 68000, bidCount: 12, status: 'sold' },
-        { lotId: 'L002', lotCode: 'LOT202604240002B2F6', title: '花鸟画', artistName: '齐白石', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 80000, finalPrice: 95000, bidCount: 15, status: 'sold' },
-        { lotId: 'L003', lotCode: 'LOT202604240003C8H1', title: '书法作品', artistName: '启功', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 100000, finalPrice: 0, bidCount: 2, status: 'unsold' }
-      ]
-    }
-    pagination.total = tableData.value.length
+    console.error('加载拍品列表失败:', e)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -224,13 +230,15 @@ const loadData = async () => {
 
 const loadSessions = async () => {
   try {
-    sessions.value = await request.get('/auction/sessions')
+    const data = await requestApi.get('/auction/sessions')
+    sessions.value = (data.records || data.list || data || []).map(s => ({
+      sessionId: s.id,
+      id: s.id,
+      name: s.title || s.name
+    }))
   } catch (e) {
-    sessions.value = [
-      { sessionId: 'S001', name: '2024春季拍卖会' },
-      { sessionId: 'S002', name: '当代艺术专场' },
-      { sessionId: 'S003', name: '书画精品专场' }
-    ]
+    console.error('加载专场列表失败:', e)
+    sessions.value = []
   }
 }
 
@@ -262,23 +270,30 @@ const handleSubmit = async () => {
     return
   }
   try {
+    const payload = {
+      title: form.title,
+      coverImage: form.coverImage || '',
+      artistName: form.artistName || '',
+      sessionId: form.sessionId,
+      lotNo: form.lotNo || 0,
+      startPrice: form.startPrice,
+      reservePrice: form.reservePrice || 0,
+      increment: form.increment || 500,
+      depositAmount: form.depositAmount || 1000,
+      startTime: form.startTime || new Date().toISOString(),
+      endTime: form.endTime || new Date(Date.now() + 7 * 86400000).toISOString()
+    }
     if (isEdit.value) {
-      const index = tableData.value.findIndex(item => item.lotId === form.lotId)
-      if (index > -1) {
-        const session = sessions.value.find(s => s.sessionId === form.sessionId)
-        tableData.value[index] = { ...tableData.value[index], ...form, sessionName: session?.name || '' }
-        ElMessage.success('更新成功')
-      }
+      await requestApi.post('/auction/lots/update', { id: form.id, ...payload })
+      ElMessage.success('更新成功')
     } else {
-      const newId = 'L' + String(Math.max(...tableData.value.map(item => parseInt(item.lotId.slice(1))), 0) + 1).padStart(3, '0')
-      const session = sessions.value.find(s => s.sessionId === form.sessionId)
-      tableData.value.unshift({ lotId: newId, ...form, sessionName: session?.name || '', finalPrice: 0, bidCount: 0, status: 'pending' })
-      pagination.total++
+      await requestApi.post('/auction/admin/lot/create', payload)
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    await loadData()
   } catch (e) {
-    ElMessage.error('操作失败')
+    ElMessage.error('操作失败: ' + (e.message || '未知错误'))
   }
 }
 

@@ -53,7 +53,7 @@
         </view>
         <view class="form-item">
           <text class="form-label">所在地区</text>
-          <picker mode="region" @change="onRegionChange">
+          <picker mode="region" :value="region" @change="onRegionChange">
             <view class="picker-value">
               {{ regionText || '请选择所在地区' }}
               <text class="arrow">></text>

@@ -283,6 +283,24 @@
       }
     },
     {
+      "path": "pages/user/pay-account/list",
+      "style": {
+        "navigationBarTitleText": "收款账户"
+      }
+    },
+    {
+      "path": "pages/user/pay-account/add",
+      "style": {
+        "navigationBarTitleText": "添加收款账户"
+      }
+    },
+    {
+      "path": "pages/user/pay-account/bank-card",
+      "style": {
+        "navigationBarTitleText": "添加银行卡"
+      }
+    },
+    {
       "path": "pages/user/points",
       "style": {
         "navigationBarTitleText": "我的积分"
@@ -354,6 +372,14 @@
       "path": "pages/artist/home",
       "style": {
         "navigationBarTitleText": "艺术家主页",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#050505"
+      }
+    },
+    {
+      "path": "pages/artist/analytics",
+      "style": {
+        "navigationBarTitleText": "数据看板",
         "navigationStyle": "custom",
         "navigationBarBackgroundColor": "#050505"
       }
@@ -535,6 +561,30 @@
       "path": "pages/setting/notification",
       "style": {
         "navigationBarTitleText": "通知设置"
+      }
+    },
+    {
+      "path": "pages/resale/market",
+      "style": {
+        "navigationBarTitleText": "转售市场"
+      }
+    },
+    {
+      "path": "pages/resale/detail",
+      "style": {
+        "navigationBarTitleText": "转售详情"
+      }
+    },
+    {
+      "path": "pages/resale/publish",
+      "style": {
+        "navigationBarTitleText": "发布转售"
+      }
+    },
+    {
+      "path": "pages/resale/my",
+      "style": {
+        "navigationBarTitleText": "我的转售"
       }
     }
   ],

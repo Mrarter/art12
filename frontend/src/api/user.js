@@ -149,6 +149,26 @@ export const getFollowingList = (params) => {
   })
 }
 
+// ===================== 实名认证 API =====================
+
+/** 提交实名认证申请 */
+export const submitRealnameCert = (data) => {
+  return request({
+    url: '/user/realname/submit',
+    method: 'POST',
+    data
+  })
+}
+
+/** 查询实名认证状态 */
+export const getRealnameCertStatus = () => {
+  return request({
+    url: '/user/realname/status'
+  })
+}
+
+// ===================== 以下为已有 API =====================
+
 // 手机号登录
 export const phoneLogin = (data) => {
   return request({
@@ -189,4 +209,21 @@ export const searchUsers = (keyword, limit = 20) => {
     url: '/user/search',
     data: { keyword, limit }
   })
+}
+
+// ===================== 数据分析 API =====================
+
+/** 获取艺术家核心指标概览 */
+export const getAnalyticsOverview = (artistId) => {
+  return request({ url: `/user/artist/analytics/${artistId}/overview` })
+}
+
+/** 获取艺术家趋势数据 (days: 7/30/90) */
+export const getAnalyticsTrend = (artistId, days = 30) => {
+  return request({ url: `/user/artist/analytics/${artistId}/trend`, data: { days } })
+}
+
+/** 获取艺术家受众画像 */
+export const getAudienceProfile = (artistId) => {
+  return request({ url: `/user/artist/analytics/${artistId}/audience` })
 }

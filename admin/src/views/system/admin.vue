@@ -10,7 +10,7 @@
       <el-table-column label="管理员" min-width="200">
         <template #default="{ row }">
           <div class="admin-info">
-            <el-avatar :src="row.avatar" :size="40" icon="UserFilled" />
+            <el-avatar :src="getFullImageUrl(row.avatar)" :size="40" icon="UserFilled" />
             <div>
               <p>{{ row.username }}</p>
               <p class="email">{{ row.email }}</p>
@@ -80,7 +80,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 
 const loading = ref(false)
 const dialogVisible = ref(false)

@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Map;
 
 @Slf4j
@@ -142,6 +144,29 @@ public class OrderController {
             return Result.fail(401, "请先登录");
         }
         return Result.success(orderService.createDirectOrder(userId, dto));
+    }
+
+    /**
+     * 转售购买 (POST /orders/resale)
+     */
+    @PostMapping("/orders/resale")
+    public Result<Order> buyResale(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Long resaleId = params.get("resaleId") != null ? ((Number) params.get("resaleId")).longValue() : null;
+        BigDecimal resalePrice = params.get("resalePrice") != null
+                ? new BigDecimal(params.get("resalePrice").toString()) : null;
+        Long artworkId = params.get("artworkId") != null ? ((Number) params.get("artworkId")).longValue() : null;
+        Long addressId = params.get("addressId") != null ? ((Number) params.get("addressId")).longValue() : -1L;
+        if (resaleId == null || resalePrice == null || artworkId == null) {
+            return Result.fail(400, "参数不完整");
+        }
+        Order order = orderService.createResaleOrder(userId, resaleId, resalePrice, artworkId, addressId);
+        return Result.success(order);
     }
 
     /**

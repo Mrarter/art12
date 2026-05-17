@@ -355,6 +355,20 @@ public class ProductAdminPersistenceService {
         }
     }
 
+    private double toDouble(Object value) {
+        if (value == null) {
+            return 0.0;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (NumberFormatException ex) {
+            return 0.0;
+        }
+    }
+
     private void appendTextUpdate(List<String> assignments, List<Object> args, Map<String, Object> params, String paramKey, String column) {
         if (!params.containsKey(paramKey) || !schemaInspector.hasColumn("artwork", column)) {
             return;
@@ -778,7 +792,7 @@ public class ProductAdminPersistenceService {
         if (schemaInspector.hasColumn(userTable, "status")) {
             sql.append(", status");
             values.append(", ?");
-            args.add("user_account".equals(userTable) ? "ENABLED" : 1);
+            args.add(1);   // status 统一为整数类型
         }
         if (schemaInspector.hasColumn(userTable, "register_source")) {
             sql.append(", register_source");
@@ -885,7 +899,7 @@ public class ProductAdminPersistenceService {
         if (schemaInspector.hasColumn(artistTable, "status")) {
             sql.append(", status");
             values.append(", ?");
-            args.add("artist_profile".equals(artistTable) ? "ACTIVE" : 1);
+            args.add(1);   // status 为整数类型，统一插入 1（正常/激活）
         }
         if (schemaInspector.hasColumn(artistTable, "cert_status")) {
             sql.append(", cert_status");
@@ -1243,9 +1257,10 @@ public class ProductAdminPersistenceService {
             item.put("artistName", row.get("author_name"));
             item.put("authorName", row.get("author_name"));
             item.put("cover", row.get("cover_image"));
-            item.put("price", row.get("price"));
-            item.put("originalPrice", row.get("original_price"));
-            item.put("currentPrice", currentPrice);
+            // 价格单位：数据库存分，此处转元（保留2位小数）
+            item.put("price", toDouble(row.get("price")) / 100.0);
+            item.put("originalPrice", toDouble(row.get("original_price")) / 100.0);
+            item.put("currentPrice", currentPrice.doubleValue() / 100.0);
             item.put("priceRise", priceRise);
             item.put("categoryName", row.get("category_name"));
             item.put("artType", row.get("art_type"));

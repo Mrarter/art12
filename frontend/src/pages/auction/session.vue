@@ -221,12 +221,12 @@ export default {
       return {
         'lot-live': status === 1,
         'lot-upcoming': status === 0,
-        'lot-ended': status === 2
+        'lot-ended': status === 2 || status === 3
       }
     },
 
     getLotStatusText(status) {
-      const texts = { 0: '即将开始', 1: '正在拍卖', 2: '已结束' }
+      const texts = { 0: '即将开始', 1: '正在拍卖', 2: '已成交', 3: '流拍' }
       return texts[status] || '未知'
     },
 
@@ -244,9 +244,9 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      if (!price && price !== 0) return '0'
+      const num = Number(price)
+      return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     },
 
     formatCountdown(seconds) {

@@ -95,7 +95,7 @@ export const getCategories = () => {
  * @param {number} artworkId - 作品ID
  */
 export const addFavorite = (artworkId) => {
-  return request.post('/product/favorite', artworkId)
+  return request.post('/product/favorite', { artworkId })
 }
 
 /**

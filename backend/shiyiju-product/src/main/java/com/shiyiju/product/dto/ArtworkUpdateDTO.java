@@ -33,4 +33,8 @@ public class ArtworkUpdateDTO {
     // 分销相关
     private Boolean distributionEnabled;
     private Integer commissionRate;
+    // 防重复提交请求ID（客户端生成）
+    private String requestId;
+    // 内容指纹（服务端计算，用于数据库级幂等）
+    private String contentFingerprint;
 }

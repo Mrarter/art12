@@ -15,7 +15,6 @@ public class ArtworkVO implements Serializable {
     private String title;
     private Long authorId;
     
-    /** 艺术家名称 */
     @JsonProperty("authorName")
     private String authorName;
     
@@ -27,18 +26,11 @@ public class ArtworkVO implements Serializable {
     private String categoryName;
     
     private String artType;
-    
-    /** 材质 */
     private String material;
-    
     private String size;
-    
-    /** 创作年份 */
     private Integer year;
     private String edition;
     private String description;
-    
-    /** 封面图 */
     private String coverImage;
     
     private List<String> images;
@@ -47,22 +39,26 @@ public class ArtworkVO implements Serializable {
     private Long holderId;
     private String holderName;
     private String holderSince;
-    private Long price; // 当前价格（已计算增长率）
-    private Long originalPrice; // 原始价格
-    private Long currentPrice; // 实时计算价格（包含最新热度因素）
+    
+    /** 当前价格（元，DECIMAL） */
+    private BigDecimal price;
+    /** 原始价格（元） */
+    private BigDecimal originalPrice;
+    /** 实时计算价格 */
+    private BigDecimal currentPrice;
+    
     private Integer stock;
     private String statusText;
     private Integer status;
-    private Integer weight; // 权重
-    private Integer ownershipType; // 作品类型: 1-原创, 2-收藏
-    private String ownershipTypeText; // 作品类型文本
-    private String artworkCode; // 作品编号
+    private Integer weight;
+    private Integer ownershipType;
+    private String ownershipTypeText;
+    private String artworkCode;
     private Integer viewCount;
     private Integer realViewCount;
     private Integer dailyViewCount;
     private Integer displayViewCount;
     
-    /** 价格涨幅 */
     @JsonProperty("priceRise")
     private BigDecimal priceRise;
     
@@ -73,41 +69,23 @@ public class ArtworkVO implements Serializable {
     private Integer likeCount;
     private Integer saleCount;
     
-    /** 是否已收藏 */
     @JsonProperty("isFavorite")
     private Boolean isFavorited;
     private String createTime;
     
-    /** 是否新品（创建时间在30天内） */
     @JsonProperty("isNew")
     private Boolean isNew;
     
-    /** 是否热门（销量>0或收藏数>5） */
     @JsonProperty("isHot")
     private Boolean isHot;
     
-    /** 艺术家身份类型：artist/collector */
     private String authorIdentity;
-    
-    /** 艺术家电话 */
     private String authorPhone;
-    
-    /** 艺术家简介 */
     private String authorBio;
-    
-    /** 是否已关注该艺术家 */
     private Boolean isFollowing;
-    
-    /** 持有时长（天） */
     private Integer holdDuration;
-    
-    /** 格式化后的作品ID（4位数，如 0001） */
     private String displayArtworkId;
-    
-    /** 格式化后的艺术家ID（4位数，如 0009） */
     private String displayAuthorId;
-    
-    /** 艺术家标准化UID (如: USR202604250001X5K3) */
     private String authorUid;
     
     // 分销相关
@@ -117,7 +95,7 @@ public class ArtworkVO implements Serializable {
     private Long distributionEarnings;
     private Integer distributionUsers;
     
-    // 单个作品价格增长配置
+    // 价格增长配置
     private Boolean customPriceGrowthEnabled;
     private BigDecimal customBaseDailyRate;
     private BigDecimal customMatureDailyRate;
@@ -125,6 +103,8 @@ public class ArtworkVO implements Serializable {
     private BigDecimal customViewRate;
     private BigDecimal customFavoriteRate;
     private BigDecimal customMaxGrowthMultiple;
-    private Long tomorrowIncreaseMin;
-    private Long tomorrowIncreaseMax;
+    /** 明日预计涨价最低（元） */
+    private BigDecimal tomorrowIncreaseMin;
+    /** 明日预计涨价最高（元） */
+    private BigDecimal tomorrowIncreaseMax;
 }

@@ -1,0 +1,33 @@
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+2026-05-17T22:02:53.586+08:00  WARN 14090 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.5)
+
+2026-05-17T22:02:53.716+08:00  WARN 14090 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-05-17T22:02:53.724+08:00  INFO 14090 --- [           main] com.shiyiju.message.MessageApplication   : Starting MessageApplication using Java 17.0.19 with PID 14090 (/Users/master/CodeBuddy/art12/backend/shiyiju-message/target/shiyiju-message-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
+2026-05-17T22:02:53.724+08:00 DEBUG 14090 --- [           main] com.shiyiju.message.MessageApplication   : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-05-17T22:02:53.725+08:00  INFO 14090 --- [           main] com.shiyiju.message.MessageApplication   : The following 1 profile is active: "local"
+2026-05-17T22:02:55.824+08:00  INFO 14090 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-17T22:02:55.825+08:00  INFO 14090 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-17T22:02:55.848+08:00  INFO 14090 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 11 ms. Found 0 Redis repository interfaces.
+2026-05-17T22:02:56.403+08:00  INFO 14090 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=046bd0f9-35ea-39b9-bb2b-ab3ad1be5db1
+2026-05-17T22:02:57.301+08:00  INFO 14090 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8088 (http)
+2026-05-17T22:02:57.307+08:00  INFO 14090 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-17T22:02:57.308+08:00  INFO 14090 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-05-17T22:02:57.504+08:00  INFO 14090 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-17T22:02:57.505+08:00  INFO 14090 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 3704 ms
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        3.5.8 
+2026-05-17T22:02:58.318+08:00  INFO 14090 --- [           main] com.shiyiju.common.util.JwtUtil          : JWT 密钥已通过配置注入
+2026-05-17T22:02:58.320+08:00  INFO 14090 --- [           main] com.shiyiju.common.util.AESUtil          : AES 密钥已通过配置注入
+2026-05-17T22:02:59.491+08:00  INFO 14090 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8088 (http) with context path ''
+2026-05-17T22:02:59.505+08:00  INFO 14090 --- [           main] com.shiyiju.message.MessageApplication   : Started MessageApplication in 6.813 seconds (process running for 8.025)

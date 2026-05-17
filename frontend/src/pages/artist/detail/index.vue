@@ -233,6 +233,8 @@ $border-dark: rgba(214, 168, 39, 0.35);
 
 .cert,
 .tag {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 6rpx 14rpx;
   border: 1rpx solid $border-dark;
   border-radius: 999rpx;

@@ -72,8 +72,11 @@
               <view class="work-title">{{ work.title }}</view>
               <view class="work-meta">{{ work.material }} / {{ work.size }} / {{ work.year }}</view>
               <view class="work-bottom">
-                <text class="price">{{ work.priceText }}</text>
-                <text class="collect-tag">可收藏</text>
+                <text class="price" :class="{ 'price-error': work.priceError }">{{ work.priceDisplay }}</text>
+                <view class="work-bottom-right">
+                  <text v-if="!work.priceError" class="price-updated">{{ priceUpdatedAt }}</text>
+                  <text v-else class="collect-tag">价格待更新</text>
+                </view>
               </view>
             </view>
           </view>
@@ -89,7 +92,7 @@
           <image class="flow-cover" :src="work.cover" mode="aspectFill"></image>
           <view class="flow-main">
             <view class="flow-title">{{ work.title }}</view>
-            <view class="flow-price">{{ work.priceText }}</view>
+            <view class="flow-price" :class="{ 'price-error': work.priceError }">{{ work.priceDisplay }}</view>
           </view>
           <view class="flow-feature">
             <image src="/static/art-icons/icon-certificate.svg" mode="aspectFit"></image>
@@ -123,6 +126,12 @@
 
     <view class="bottom-actions">
       <button class="all-works-btn" @click="goWorks">查看全部作品</button>
+      <button class="analytics-btn" @click="goAnalytics">
+        <view class="analytics-btn__icon">
+          <image src="/static/art-icons/icon-chart.svg" mode="aspectFit"></image>
+        </view>
+        <text>数据看板</text>
+      </button>
       <button class="consult-btn" @click="consult">
         <view class="consult-btn__icon">
           <image src="/static/art-icons/icon-consultant.svg" mode="aspectFit"></image>
@@ -137,6 +146,7 @@
 
 <script>
 import * as userApi from '@/api/user'
+import { getProductList } from '@/api/product'
 
 export default {
   data() {
@@ -166,7 +176,10 @@ export default {
         { label: '作品', value: '0' },
         { label: '收藏', value: '0' },
         { label: '粉丝', value: '0' }
-      ]
+      ],
+      priceUpdatedAt: '',
+      priceLoading: false,
+      priceError: false
     }
   },
 
@@ -213,6 +226,12 @@ export default {
       try {
         const data = await userApi.getArtistInfo(artistId)
         this.applyArtistData(data, artistId)
+
+        // 获取艺术家名称后，调用商品服务接口拉取实时价格
+        const artistName = data?.nickname || data?.name || data?.realName
+        if (artistName) {
+          await this.fetchRealTimePrices(artistName)
+        }
       } catch (e) {
         console.error('加载艺术家数据失败', e)
         this.applyArtistData({}, artistId)
@@ -226,8 +245,10 @@ export default {
         material: w.material || w.artType || w.medium || '',
         size: w.size || '',
         year: w.year || w.createYear || '',
-        priceText: w.priceText || (w.price ? '¥' + this.formatPrice(w.price) : ''),
-        cover: w.cover || w.coverImage || w.coverUrl || '/static/images/museum-v12-work-boat.png'
+        priceText: w.priceText || (this.resolveCurrentPrice(w) ? '¥' + this.formatPrice(this.resolveCurrentPrice(w)) : ''),
+        cover: w.cover || w.coverImage || w.coverUrl || '/static/images/museum-v12-work-boat.png',
+        priceDisplay: w.priceText || '',
+        priceError: false
       }))
       const artistTags = this.normalizeTags(data.artistTags || data.tags || data.badges)
       const intro = data.intro || data.bio || data.resume || '暂未补充艺术家介绍'
@@ -253,6 +274,57 @@ export default {
       ]
     },
 
+    /** 从商品服务接口拉取实时价格并覆盖 works 中的价格 */
+    async fetchRealTimePrices(artistName) {
+      this.priceLoading = true
+      this.priceError = false
+      try {
+        const res = await getProductList({ authorName: artistName, pageSize: 100 })
+        const records = res?.records || []
+        if (records.length === 0) {
+          this.priceError = true
+          return
+        }
+
+        // 构建 works 中已有的价格显示（防止实时价格请求失败时闪白）
+        const initialPrices = {}
+        this.works.forEach(w => { initialPrices[w.id] = w.priceDisplay })
+
+        // 创建 id -> realTimePrice 映射
+        const priceMap = {}
+        records.forEach(r => {
+          const cp = Number(r.currentPrice || r.price || 0)
+          if (cp > 0) {
+            priceMap[r.id] = { price: cp, currentPrice: cp }
+          }
+        })
+
+        // 用实时价格覆盖 works
+        this.works = this.works.map(w => {
+          const real = priceMap[w.id]
+          if (real) {
+            const formatted = '¥' + this.formatPrice(real.currentPrice)
+            return { ...w, priceDisplay: formatted, priceError: false }
+          }
+          // 作品在 artistInfo 中但不在 productList 中：可能是已下架
+          return { ...w, priceError: true }
+        })
+
+        // 记录价格更新时间
+        const now = new Date()
+        const h = String(now.getHours()).padStart(2, '0')
+        const m = String(now.getMinutes()).padStart(2, '0')
+        this.priceUpdatedAt = h + ':' + m + ' 更新'
+      } catch (e) {
+        console.warn('[artist/home] 获取实时价格失败:', e)
+        this.priceError = true
+        // 保持原有价格显示，但标记为过期
+        this.works = this.works.map(w => ({ ...w, priceError: true }))
+      } finally {
+        this.priceLoading = false
+      }
+    },
+
     normalizeTags(rawValue) {
       if (Array.isArray(rawValue)) {
         return rawValue.map(item => String(item || '').trim()).filter(Boolean)
@@ -266,6 +338,11 @@ export default {
     formatPrice(v) {
       if (!v) return '0'
       return String(Math.round(v / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    },
+    resolveCurrentPrice(item = {}) {
+      const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
+      if (currentPrice > 0) return currentPrice
+      return Number(item.price || 0)
     },
     goBack() {
       const pages = getCurrentPages()
@@ -347,6 +424,7 @@ export default {
     consult() { uni.showToast({ title: '已为你连接收藏顾问', icon: 'none' }) },
     goGallery() { uni.navigateTo({ url: `/pages/artist/gallery/index?id=${this.artist.id}` }) },
     goWorks() { uni.navigateTo({ url: `/pages/artist/works/index?id=${this.artist.id}` }) },
+    goAnalytics() { uni.navigateTo({ url: `/pages/artist/analytics?id=${this.artist.id}` }) },
     goWork(id) { uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` }) },
     goIndex() { uni.reLaunch({ url: '/pages/index/index' }) },
     goPublish() { uni.navigateTo({ url: '/pages/artist/publish' }) },
@@ -516,6 +594,8 @@ $gold-line: rgba(215, 165, 29, 0.65);
 }
 
 .tag {
+  flex-shrink: 0;
+  white-space: nowrap;
   height: 42rpx;
   padding: 0 16rpx;
   display: inline-flex;
@@ -1090,6 +1170,8 @@ button::after {
 }
 
 .tag {
+  flex-shrink: 0;
+  white-space: nowrap;
   height: 40rpx;
   padding: 0 14rpx;
   border-radius: 7rpx;
@@ -1255,6 +1337,24 @@ button::after {
   font-size: 18rpx;
 }
 
+/* 价格更新时间戳与错误状态 */
+.work-bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.price-updated {
+  color: #7d7d7d;
+  font-size: 18rpx;
+}
+
+.price-error {
+  color: #e74c3c !important;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
 .circulation-section {
   margin-top: 30rpx;
 }
@@ -1376,6 +1476,35 @@ button::after {
   border-radius: 10rpx;
   font-size: 24rpx;
   font-weight: 800;
+}
+
+.analytics-btn {
+  height: 80rpx;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+  border: 1rpx solid rgba(214, 168, 39, 0.35);
+  background: transparent;
+  color: #d6a827;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 0 24rpx;
+  min-width: 140rpx;
+}
+
+.analytics-btn__icon {
+  width: 32rpx;
+  height: 32rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.analytics-btn__icon image {
+  width: 24rpx;
+  height: 24rpx;
 }
 
 .all-works-btn {

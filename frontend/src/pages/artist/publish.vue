@@ -243,7 +243,7 @@
 
     <view class="submit-bar">
       <view class="save-draft" @click="saveDraft">保存草稿</view>
-      <view class="submit-btn" @click="submit">发布作品</view>
+      <view class="submit-btn" :class="{ disabled: submitting }" @click="submit" @touchstart.prevent="submit">{{ submitting ? '提交中...' : '发布作品' }}</view>
     </view>
 
   </view>
@@ -296,6 +296,9 @@ export default {
       ],
       categoryRange: [],
       showCategoryDropdown: false,
+      submitting: false, // 防重复提交
+      lastContentHash: '', // 上一次提交的内容hash
+      lastSubmitTime: 0,  // 上一次提交的时间戳
     }
   },
 
@@ -667,6 +670,20 @@ export default {
 
     async submit() {
       if (!this.validate()) return
+      if (this.submitting) return
+
+      // ---- 客户端内容 hash 防重：30 秒内相同内容直接拦截 ----
+      const now = Date.now()
+      const contentForHash = `${this.formData.title.trim()}|${this.artistKeyword.trim()}|${this.formData.cover}`
+      const currentHash = this.simpleHash(contentForHash)
+      if (currentHash === this.lastContentHash && now - this.lastSubmitTime < 30000) {
+        uni.showToast({ title: '请勿重复提交', icon: 'none' })
+        return
+      }
+      this.lastContentHash = currentHash
+      this.lastSubmitTime = now
+
+      this.submitting = true
 
       uni.showLoading({ title: '提交中...' })
 
@@ -711,7 +728,8 @@ export default {
           stock: this.formData.stock ? Number(this.formData.stock) : 1,
           description: this.formData.description,
           status: 1,
-          ownershipType: 1
+          ownershipType: 1,
+          requestId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
         }
 
         if (this.isEdit) {
@@ -728,8 +746,24 @@ export default {
       } catch (e) {
         console.error('发布作品失败', e)
         uni.hideLoading()
-        uni.showToast({ title: e.message || '发布失败，请重试', icon: 'none' })
+        this.submitting = false // 仅失败时允许重新提交
+        if (e.message && e.message.includes('重复')) {
+          uni.showToast({ title: '请勿重复提交', icon: 'none' })
+        } else {
+          uni.showToast({ title: e.message || '发布失败，请重试', icon: 'none' })
+        }
       }
+    },
+
+    /** 简易字符串哈希（不依赖外部库） */
+    simpleHash(str) {
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash |= 0
+      }
+      return hash.toString(36)
     },
 
     async ensureUploaded(path) {
@@ -1562,5 +1596,11 @@ export default {
 .submit-btn {
   color: #111;
   background: linear-gradient(180deg, #f5d36f, #d8b24c);
+}
+
+.submit-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none !important;
+  background: #c0c0c0 !important;
 }
 </style>

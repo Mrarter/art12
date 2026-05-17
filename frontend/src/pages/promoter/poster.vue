@@ -123,7 +123,7 @@ export default {
         this.qrcodeUrl = res.data.qrCodeUrl
         this.posterData.qrCodeUrl = res.data.qrCodeUrl
       } catch (e) {
-        // 使用模拟数据
+        // API 加载失败，使用默认占位图（待对接真实二维码接口后移除）
         this.qrcodeUrl = '/static/qrcode-demo.png'
         this.posterData.qrCodeUrl = '/static/qrcode-demo.png'
       }
