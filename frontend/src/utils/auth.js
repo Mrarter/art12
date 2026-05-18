@@ -19,7 +19,6 @@ const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'userInfo'
 const REDIRECT_KEY = 'login_redirect'
 const TOKEN_EXPIRE_BUFFER = 5 * 60 * 1000  // 提前 5 分钟刷新
-const REFRESH_COOLDOWN = 30 * 1000         // 刷新冷却 30 秒
 const REDIRECT_MAX_AGE = 5 * 60 * 1000    // 重定向URL有效期 5 分钟
 
 // ==================== Token 存储结构 ====================
@@ -162,8 +161,15 @@ export function isGuestUser() {
 let isRefreshing = false
 let refreshSubscribers = []
 let lastRefreshTime = 0
-let lastRefreshResult = null  // null=未刷新, 'success'=成功, 'failed'=失败
-let lastRefreshFailedTime = 0  // 上次刷新失败的时间
+// 永久死亡标记：refresh token 本身已失效，不再尝试任何刷新
+let _refreshPermanentlyDead = false
+
+/**
+ * 检查刷新是否已永久失效
+ */
+export function isRefreshPermanentlyDead() {
+  return _refreshPermanentlyDead
+}
 
 /**
  * 重置刷新状态（当确定无法刷新时调用）
@@ -172,8 +178,7 @@ export function resetRefreshState() {
   isRefreshing = false
   refreshSubscribers = []
   lastRefreshTime = 0
-  lastRefreshResult = null
-  lastRefreshFailedTime = 0
+  _refreshPermanentlyDead = false
 }
 
 /**
@@ -201,9 +206,9 @@ function onTokenRefreshed(newToken, isFinal = false) {
 export async function executeTokenRefresh() {
   const now = Date.now()
 
-  // 检查是否是终态失败（短时间内刷新失败过）
-  if (lastRefreshResult === 'failed' && (now - lastRefreshFailedTime) < REFRESH_COOLDOWN) {
-    console.log('[Auth] Token 刷新处于失败冷却期，不再尝试')
+  // 永久死亡：refresh token 本身已失效，立即失败，不再尝试
+  if (_refreshPermanentlyDead) {
+    console.warn('[Auth] 刷新已永久失效，不再尝试')
     return { success: false, token: null, canRetry: false }
   }
 
@@ -229,7 +234,7 @@ export async function executeTokenRefresh() {
     const result = await refreshToken()
 
     if (result?.token) {
-      // 假设新 token 有效期为 7 天（根据后端实际配置调整）
+      // 新 token 有效期为 7 天（与后端 JWT 配置一致）
       const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
 
       setTokenData({
@@ -240,7 +245,6 @@ export async function executeTokenRefresh() {
       })
 
       console.log('[Auth] Token 刷新成功')
-      lastRefreshResult = 'success'
       onTokenRefreshed(result.token, false)
       isRefreshing = false
       return { success: true, token: result.token, canRetry: true }
@@ -249,14 +253,14 @@ export async function executeTokenRefresh() {
     throw new Error('刷新返回数据异常')
   } catch (e) {
     console.error('[Auth] Token 刷新失败:', e.message || e)
-    
-    // 刷新失败，设置为终态
-    lastRefreshResult = 'failed'
-    lastRefreshFailedTime = now
-    
+
+    // 刷新失败 → 标记为永久死亡（refresh token 本身已失效）
+    // 关键：不调用 resetRefreshState，永久死亡标记由 handleAuthFailure 清除
+    _refreshPermanentlyDead = true
+
     onTokenRefreshed(null, true)  // 通知等待者这是终态
     isRefreshing = false
-    
+
     return { success: false, token: null, canRetry: false }
   }
 }
@@ -301,8 +305,8 @@ let lastSavedRedirectTime = 0
 export function saveRedirectUrl(url) {
   if (!url || url.includes('/pages/login')) return
 
-  // 避免循环重定向
-  if (url.includes('/pages/index') && !url.includes('redirect')) return
+  // 仅阻止回到首页本身的循环，不拦截子页面（如 /pages/user/index）
+  if (url === '/pages/index/index' || url.startsWith('/pages/index/index?')) return
 
   const now = Date.now()
 

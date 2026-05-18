@@ -219,6 +219,14 @@ export default {
           action: '管理',
           path: '/pages/artist/home'
         })
+        cards.push({
+          key: 'artist-signature',
+          short: '签',
+          title: '艺术家手写签名',
+          desc: '用于收藏证书签发区展示',
+          action: '创建',
+          path: '/pages/artist/signature'
+        })
       } else {
         cards.push({
           key: 'artist',

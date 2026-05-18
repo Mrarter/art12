@@ -1,4 +1,4 @@
-import request from './request'
+import request, { rawRefreshRequest } from './request'
 
 // 用户登录 (使用微信登录接口)
 export const login = (data) => {
@@ -19,8 +19,9 @@ export const wxLogin = (data) => {
 }
 
 // 刷新 Token（无感刷新）
+// 关键：必须使用 rawRefreshRequest 绕过拦截器，否则刷新 401 时会递归进入 401 处理 → 死锁
 export const refreshToken = () => {
-  return request({
+  return rawRefreshRequest({
     url: '/user/auth/refresh',
     method: 'POST'
   })
@@ -29,7 +30,8 @@ export const refreshToken = () => {
 // 获取用户信息
 export const getUserInfo = () => {
   return request({
-    url: '/user/info'
+    url: '/user/info',
+    requireAuth: true
   })
 }
 
@@ -85,7 +87,8 @@ export const becomeArtist = (data) => {
 // 获取个人中心数据
 export const getUserCenter = () => {
   return request({
-    url: '/user/center'
+    url: '/user/center',
+    requireAuth: true
   })
 }
 

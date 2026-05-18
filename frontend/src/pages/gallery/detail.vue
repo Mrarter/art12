@@ -92,8 +92,10 @@
         <view class="artist-info-block">
           <view class="artist-name-row">
             <text class="artist-name">{{ authorName }}</text>
-            <text class="score-badge">{{ artistScoreBadge }}</text>
-            <text class="score-text">{{ artistScoreText }}</text>
+            <template v-if="isArtistProfile">
+              <text class="score-badge">{{ artistScoreBadge }}</text>
+              <text class="score-text">{{ artistScoreText }}</text>
+            </template>
           </view>
           <view class="artist-meta-row">
             <text class="artist-subtitle">{{ authorSubtitle }}</text>
@@ -203,7 +205,7 @@
         </view>
       </view>
 
-      <view class="card cert-card">
+      <view class="card cert-card" @click="goCertificate">
         <view class="section-top">
           <view class="section-title">
             <text class="section-icon">▣</text>
@@ -236,7 +238,7 @@
             </view>
           </view>
           <view class="cert-preview">
-            <image class="cert-image" :src="images[0] || fallbackCover" mode="aspectFill"></image>
+            <image class="cert-image" :src="certificateThumbnailUrl" mode="aspectFit"></image>
           </view>
         </view>
       </view>
@@ -266,7 +268,11 @@
         <view class="chat-mark"></view>
         <text>咨询</text>
       </button>
-      <button class="collect-btn" :class="{ 'is-loading': buyLoading }" :disabled="buyLoading" @click="handleDirectBuy">{{ buyLoading ? '购买中...' : '立即购买' }}</button>
+      <button class="collect-btn" :class="{ 'is-loading': buyLoading, 'is-sold-out': detail.status === 2 }" :disabled="buyLoading || detail.status !== 1" @click="handleDirectBuy">
+        <template v-if="detail.status === 2">已收藏</template>
+        <template v-else-if="detail.status === 0">已下架</template>
+        <template v-else>{{ buyLoading ? '购买中...' : '立即购买' }}</template>
+      </button>
     </view>
 
     <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
@@ -335,6 +341,7 @@ import { getProductCommission } from '@/api/promoter'
 import { triggerCollectIncrease } from '@/api/artworkPrice'
 import { getArtworkTrades, getArtworkResaleStats } from '@/api/resale'
 import { directBuy } from '@/api/order'
+import { getAccessToken, isGuestUser, saveRedirectUrl, getCurrentPagePath } from '@/utils/auth'
 
 const FALLBACK_COVER = '/static/images/artwork-fallback.png'
 
@@ -393,6 +400,10 @@ export default {
     },
     authorCertified() {
       return !!(this.artistProfile?.certified || this.artistProfile?.certStatus === 1 || this.detail.authorIdentity === 'artist')
+    },
+    isArtistProfile() {
+      if (!this.artistProfile) return true // 未加载时默认展示
+      return this.artistProfile.isArtist || this.artistProfile.identities?.includes('artist')
     },
     authorUidDisplay() {
       const profileUid = this.profileMatchesDetailAuthor ? this.artistProfile?.uid : ''
@@ -468,6 +479,36 @@ export default {
       const year = String(this.artworkYear || '2024').replace(/[^\d]/g, '') || '2024'
       return `AW${year}-0751`
     },
+    certificateThumbnailUrl() {
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(this.certificateThumbnailSvg)}`
+    },
+    certificateThumbnailSvg() {
+      const title = this.escapeXml(this.detail.title || '未命名作品')
+      const author = this.escapeXml(this.detail.authorRealName || this.detail.artistRealName || this.detail.realName || this.detail.authorName || '未知艺术家')
+      const artworkCode = this.escapeXml(this.certificateCode)
+      const cover = this.escapeXml(this.images[0] || this.fallbackCover)
+      return `
+        <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+          <defs>
+            <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#fcf8ef"/>
+              <stop offset="100%" stop-color="#f6ecd8"/>
+            </linearGradient>
+          </defs>
+          <rect width="320" height="180" rx="8" fill="url(#paper)"/>
+          <rect x="6" y="6" width="308" height="168" rx="6" fill="none" stroke="#c7a56d" stroke-width="2"/>
+          <text x="160" y="28" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="16" fill="#4d2e16">美术作品收藏证书</text>
+          <rect x="22" y="48" width="104" height="78" fill="#fffaf0" stroke="#cfb27b"/>
+          <image href="${cover}" x="26" y="52" width="96" height="70" preserveAspectRatio="xMidYMid slice"/>
+          <text x="145" y="62" font-family="STKaiti, KaiTi, serif" font-size="10" fill="#4f3217">作品名称：${title}</text>
+          <text x="145" y="82" font-family="STKaiti, KaiTi, serif" font-size="10" fill="#4f3217">艺术家：${author}</text>
+          <text x="145" y="102" font-family="STKaiti, KaiTi, serif" font-size="10" fill="#4f3217">作品编号：${artworkCode}</text>
+          <circle cx="250" cy="132" r="18" fill="none" stroke="#a43d28" stroke-width="2"/>
+          <text x="250" y="136" text-anchor="middle" font-family="Georgia, serif" font-size="12" fill="#a43d28">SYJ</text>
+          <path d="M278 132 C290 124 296 136 306 122" fill="none" stroke="#4f3217" stroke-width="1.5"/>
+        </svg>
+      `.trim()
+    },
     artistStats() {
       const workCount = Number(this.artistProfile?.artworkCount || this.artistProfile?.workCount || this.detail.authorWorkCount || 0)
       const dealCount = Number(this.detail.authorDealCount || this.detail.saleCount || 0)
@@ -489,17 +530,30 @@ export default {
       return this.detail.authorScoreLevel ? '艺术家评级' : '艺术家评分'
     },
     circulationRows() {
+      if (this.resaleTrades.length) {
+        return this.resaleTrades.map((trade, index) => ({
+          date: this.formatRecordDate(trade.createdTime),
+          event: trade.tradeType === 'first_sale'
+            ? '首次成交'
+            : `第${trade.tradeRound || index + 1}次流通`,
+          price: this.formatCirculationPrice(Number(trade.tradePrice || 0)),
+          current: index === this.resaleTrades.length - 1
+        }))
+      }
+
       const currentPrice = Number(this.displayPrice || 0)
       const basePrice = this.startingPrice
-      const middlePrice = this.middlePrice
       const startDate = this.formatRecordDate(this.detail.createTime, 0)
-      const middleDate = this.formatRecordDate(this.detail.createTime, 82)
-      const currentDate = this.formatRecordDate(this.detail.createTime, 185)
-      return [
-        { date: startDate, event: '首次上架', price: this.formatPrice(basePrice) },
-        { date: middleDate, event: '热度上涨', price: this.formatPrice(middlePrice) },
-        { date: currentDate, event: '当前收藏价', price: this.formatPrice(currentPrice), current: true }
-      ]
+      const currentDate = this.formatRecordDate(new Date(), 0)
+      const rows = [{ date: startDate, event: '首次上架', price: this.formatCirculationPrice(basePrice) }]
+
+      if (currentDate !== startDate || currentPrice !== basePrice) {
+        rows.push({ date: currentDate, event: '当前收藏价', price: this.formatCirculationPrice(currentPrice), current: true })
+      } else {
+        rows[0].current = true
+      }
+
+      return rows
     },
     startingPrice() {
       const currentPrice = Number(this.displayPrice || 0)
@@ -727,6 +781,11 @@ export default {
       finally { this.loadingResale = false }
     },
 
+    goCertificate() {
+      if (!this.detail?.id) return
+      uni.navigateTo({ url: `/pages/gallery/certificate?id=${this.detail.id}` })
+    },
+
     saveBrowseHistory(item) {
       if (!item || !item.id) return
       const record = {
@@ -770,6 +829,14 @@ export default {
       const month = String(source.getMonth() + 1).padStart(2, '0')
       const day = String(source.getDate()).padStart(2, '0')
       return `${year}.${month}.${day}`
+    },
+    escapeXml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;')
     },
 
     initPriceGrowth(data) {
@@ -897,7 +964,9 @@ export default {
 
     async handleDirectBuy() {
       const userStore = useUserStore()
-      if (!userStore.isLogin || userStore.userInfo?.isGuest) {
+      // 双重检查：Pinia store 可能在 handleAuthFailure 后仍存旧值
+      if (!userStore.isLogin || userStore.userInfo?.isGuest || !getAccessToken()) {
+        saveRedirectUrl(getCurrentPagePath())
         uni.navigateTo({ url: '/pages/login/index' })
         return
       }
@@ -953,6 +1022,15 @@ export default {
         console.error('[购买] 失败:', e)
 
         const errMsg = e.message || '系统繁忙'
+
+        // 鉴权类错误 → 直接跳转登录，避免弹窗后再跳转的割裂体验
+        if (errMsg === '请先登录' || errMsg.includes('请先登录') || errMsg.includes('登录已过期') || errMsg === 'NOT_FOUND') {
+          uni.showToast({ title: '请先登录', icon: 'none' })
+          saveRedirectUrl(getCurrentPagePath())
+          setTimeout(() => uni.navigateTo({ url: '/pages/login/index' }), 600)
+          return
+        }
+
         this.buyErrorMessage = errMsg
 
         // 区分"重试后失败"和"直接失败"的消息
@@ -1149,9 +1227,17 @@ export default {
     },
 
     onArtworkImageError(index) {
+      // 防止重复替换（已经替换过的图片不再处理）
+      if (this.images[index] === FALLBACK_COVER) return
+      const failedUrl = this.images[index]
       const next = [...this.images]
       next[index] = FALLBACK_COVER
       this.images = next
+      console.warn('[Detail] 图片加载失败，已切换占位图:', {
+        index,
+        failedUrl,
+        fallback: FALLBACK_COVER
+      })
     },
 
     onAuthorAvatarError() {
@@ -1191,6 +1277,15 @@ export default {
       if (!price) return '¥0'
       const yuan = Math.round(Number(price) / 100)
       return `¥${yuan.toLocaleString()}`
+    },
+
+    formatCirculationPrice(price) {
+      const yuan = Number(price || 0) / 100
+      if (yuan <= 0) return '¥0'
+      return `¥${yuan.toLocaleString(undefined, {
+        minimumFractionDigits: Number.isInteger(yuan) ? 0 : 2,
+        maximumFractionDigits: 2
+      })}`
     },
 
     formatPriceSmall(price) {
@@ -2739,7 +2834,6 @@ $gold-bright: #f0c83a;
   width: 100%;
   height: 100%;
   border-radius: 8rpx;
-  opacity: 0.62;
   border: 1rpx solid rgba(216, 170, 69, 0.2);
 }
 
@@ -2849,6 +2943,14 @@ $gold-bright: #f0c83a;
 
 .collect-btn.is-loading {
   opacity: 0.7;
+  pointer-events: none;
+}
+
+.collect-btn.is-sold-out {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+  box-shadow: none;
   pointer-events: none;
 }
 

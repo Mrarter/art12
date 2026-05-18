@@ -71,6 +71,22 @@
       }
     },
     {
+      "path": "pages/gallery/certificate",
+      "style": {
+        "navigationBarTitleText": "收藏证书",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0D0D0D"
+      }
+    },
+    {
+      "path": "pages/artist/signature",
+      "style": {
+        "navigationBarTitleText": "艺术家签名",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0D0D0D"
+      }
+    },
+    {
       "path": "pages/cart/index",
       "style": {
         "navigationBarTitleText": "购物车"

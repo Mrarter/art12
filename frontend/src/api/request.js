@@ -50,7 +50,6 @@ const pendingRequests = new Map()
 
 // 防止重复触发401处理
 let isHandling401 = false
-let handling401Timer = null
 
 // ==================== 日志 ====================
 
@@ -139,12 +138,9 @@ const normalizeResourceUrls = (value) => {
     if (value.startsWith('http://localhost:8087') || value.startsWith('http://127.0.0.1:8087')) {
       return FILE_ORIGIN + value.slice(value.indexOf(':8087') + 5)
     }
-    if (value.startsWith('http://192.168.')) {
-      return value.replace(/^http:\/\/192\.168\.\d+\.\d+:(8080|8087|9443|9447)/, (_, port) => {
-        if (port === '8087' || port === '9447') return FILE_ORIGIN
-        return GATEWAY_ORIGIN
-      })
-    }
+    // 注意：不再将 192.168.* 地址重写为 FILE_ORIGIN/GATEWAY_ORIGIN
+    // 原因：图片服务器地址由后端直接返回（如 192.168.1.109:8087），不应被覆盖
+    // 如果该地址不可达，由页面的 @error 处理（显示占位图），而非强制替换地址
     return value
   }
   if (Array.isArray(value)) return value.map(normalizeResourceUrls)
@@ -196,88 +192,142 @@ const showErrorToast = (msg) => {
 
 const requestKey = (url, method) => `${method}:${url}`
 
-// ==================== 401 处理 ====================
+// ==================== 401 处理（统一入口）====================
+
+// 防止并发请求多次触发登录跳转
+let _isNavigatingToLogin = false
+let _navigateTimer = null
+
+// 等待刷新结果的待处理请求队列
+let _pending401Queue = []
 
 /**
- * 处理认证失败 - 强制跳转登录
- * @param {string} reason 失败原因
+ * 统一跳转登录页（防重复触发）
  */
-const handleUnauthorized = (reason = '') => {
-  // 防止多次触发
-  if (isHandling401) {
-    log.warn('正在处理401，跳过重复请求')
-    return true
-  }
-  
-  isHandling401 = true
-  
-  // 清除可能存在的延迟重置定时器
-  if (handling401Timer) {
-    clearTimeout(handling401Timer)
+const navigateToLogin = () => {
+  if (_isNavigatingToLogin) return
+  _isNavigatingToLogin = true
+
+  const currentPath = getCurrentPagePath()
+  if (currentPath && !currentPath.includes('/pages/login')) {
+    log.warn('[Auth] 401 无效，跳转登录页')
+    uni.navigateTo({ url: '/pages/login/index' })
   }
 
-  // 强制清除登录态和刷新状态
-  handleAuthFailure(true, true)
-
-  // 友好提示
-  if (reason) {
-    uni.showToast({ title: reason, icon: 'none', duration: 2000 })
-  }
-
-  // 延迟跳转登录页
-  handling401Timer = setTimeout(() => {
-    const currentPath = getCurrentPagePath()
-    
-    // 检查是否已登录页面，避免循环
-    if (currentPath && !currentPath.includes('/pages/login')) {
-      log.api('401处理：跳转到登录页')
-      uni.navigateTo({ url: '/pages/login/index' })
-    }
-    
-    // 重置标志（给足够的时间避免快速重复触发）
-    handling401Timer = setTimeout(() => {
-      isHandling401 = false
-    }, 3000)
-  }, 800)
-
-  return true
+  // 3 秒后允许下一次跳转
+  clearTimeout(_navigateTimer)
+  _navigateTimer = setTimeout(() => {
+    _isNavigatingToLogin = false
+    // 重置全局 401 处理标记
+    isHandling401 = false
+  }, 3000)
 }
 
 /**
- * 尝试刷新 Token
+ * 处理所有排队的请求（刷新成功或失败时统一调用）
+ */
+const flushPending401Queue = (success, message) => {
+  const queue = _pending401Queue.slice()
+  _pending401Queue = []
+  queue.forEach(({ options, resolve, reject }) => {
+    if (success) {
+      resolve(requestWithRetry(options))
+    } else {
+      reject(new Error(message || '登录已过期'))
+    }
+  })
+}
+
+/**
+ * 处理 401 并尝试刷新 Token
+ *
+ * 场景 1：无 Token / 游客 → 拒绝 + 跳转登录（不清除 guest token，仅清空登录态）
+ * 场景 2：已有刷新进行中 → 加入队列等待刷新完成
+ * 场景 3：首次 401 → 触发刷新，成功后重试所有排队请求
+ */
+const handle401WithRefresh = (options, resolve, reject, message) => {
+  const token = getAccessToken()
+  const isGuest = isGuestUser()
+
+  // 场景 1：无 Token → 拒绝 + 跳转登录（仅清除无效 Token，保留 guest token）
+  if (!token) {
+    log.warn('[401] 无 Token，直接拒绝请求:', options.url)
+    handleAuthFailure(true, true) // 清除 Token + 保存重定向 URL
+    navigateToLogin()
+    reject(new Error('请先登录'))
+    return
+  }
+
+  // 场景 1b：游客 → 拒绝 + 跳转登录（不调用 handleAuthFailure，避免清除 guest token）
+  if (isGuest) {
+    log.warn('[401] 游客，直接拒绝请求:', options.url)
+    navigateToLogin()
+    reject(new Error('请先登录'))
+    return
+  }
+
+  // 场景 2：已有其他请求正在处理 401 → 加入队列，等待刷新完成
+  if (isHandling401) {
+    log.warn('[401] 正在处理中，加入等待队列:', options.url)
+    _pending401Queue.push({ options, resolve, reject })
+    return
+  }
+
+  // 场景 3：首次 401，尝试刷新
+  isHandling401 = true
+  log.api('[401] 尝试刷新 Token...')
+
+  tryRefreshToken().then((result) => {
+    if (result.success && result.token) {
+      // 刷新成功 → 重试当前请求 + 所有排队请求
+      log.api('[401] 刷新成功，重试请求:', options.url)
+      flushPending401Queue(true)
+      isHandling401 = false
+      resolve(requestWithRetry(options))
+    } else {
+      // 刷新失败 → 所有排队请求一起拒绝
+      log.warn('[401] 刷新失败，跳转登录页')
+      handleAuthFailure(true, true)
+      navigateToLogin()
+      flushPending401Queue(false, message || '登录已过期')
+      isHandling401 = false
+      reject(new Error(message || '登录已过期'))
+    }
+  }).catch((e) => {
+    log.error('[401] 刷新异常:', e)
+    handleAuthFailure(true, true)
+    navigateToLogin()
+    flushPending401Queue(false, '登录状态异常')
+    isHandling401 = false
+    reject(new Error('登录状态异常'))
+  })
+}
+
+// ==================== Token 刷新检查 ====================
+
+/**
+ * 尝试刷新 Token（供 request.js 内部使用）
  * @returns {Promise<{success: boolean, token: string|null, canRetry: boolean}>}
  */
 const tryRefreshToken = async () => {
   // 游客模式不刷新
   if (isGuestUser()) {
-    log.warn('游客模式，跳过 Token 刷新')
     return { success: false, token: null, canRetry: false }
   }
 
   try {
     const result = await executeTokenRefresh()
     if (result.success) {
-      log.api('Token 刷新成功')
+      log.api('[Refresh] 刷新成功')
       return result
     }
-    
-    // 刷新失败，检查是否是终态
-    if (!result.canRetry) {
-      log.warn('Token 刷新失败且不可重试，标记为终态')
-      // 立即重置刷新状态，不再等待冷却
-      resetRefreshState()
-    }
-    
+    // 刷新失败（已由 executeTokenRefresh 设置 _refreshPermanentlyDead）
     return result
   } catch (e) {
-    log.error('Token 刷新异常:', e)
-    // 异常时也重置状态
-    resetRefreshState()
+    log.error('[Refresh] 刷新异常:', e)
     return { success: false, token: null, canRetry: false }
   }
 }
-
-// ==================== Token 刷新检查 ====================
 
 const checkAndRefreshToken = async () => {
   const check = checkTokenValid()
@@ -285,6 +335,59 @@ const checkAndRefreshToken = async () => {
     log.api('检测到 Token 即将过期，触发无感刷新')
     await tryRefreshToken()
   }
+}
+
+// ==================== 原始请求（供 Token 刷新专用）====================
+
+/**
+ * 使用原生 uni.request 发送请求，完全绕过 requestWithRetry 拦截器。
+ * 关键：遇到 401 时不会递归调用 401 处理逻辑，不会进入 executeTokenRefresh。
+ * @param {object} opts { url, method, data }
+ * @returns {Promise<any>}
+ */
+export const rawRefreshRequest = (opts) => {
+  return new Promise((resolve, reject) => {
+    const url = BASE_URL + opts.url
+    const token = getAccessToken()
+    const tokenData = getTokenData()
+    const userId = tokenData?.userId || ''
+
+    const header = { 'Content-Type': 'application/json' }
+    if (token) header['Authorization'] = 'Bearer ' + token
+    if (userId) header['X-User-Id'] = String(userId)
+
+    log.api('[Raw] ➡', opts.method || 'GET', url)
+
+    uni.request({
+      url,
+      method: opts.method || 'GET',
+      data: opts.data,
+      header,
+      timeout: TIMEOUT,
+      success: (res) => {
+        log.res(opts.method || 'GET', url, res.statusCode, res.data)
+        if (res.statusCode === 200) {
+          const body = res.data
+          // 业务 code 为 401（如 refresh token 失效），不递归处理，直接 reject
+          if (body?.code === 401) {
+            log.warn('[Raw] 刷新返回 401，直接 reject，不走拦截器')
+            reject(new Error(body?.message || 'refresh_expired'))
+            return
+          }
+          resolve(body?.data)
+        } else {
+          // HTTP 401/其他错误，不递归处理，直接 reject
+          log.warn('[Raw] HTTP', res.statusCode, '直接 reject，不走拦截器')
+          reject(new Error(`HTTP ${res.statusCode}`))
+        }
+      },
+      fail: (err) => {
+        const errMsg = err?.errMsg || err?.message || 'network_error'
+        log.error('[Raw] 请求失败:', errMsg)
+        reject(new Error(errMsg))
+      }
+    })
+  })
 }
 
 // ==================== 核心请求封装 ====================
@@ -334,7 +437,11 @@ const requestWithRetry = (options, retryCount = 0) => {
             resolve(normalizeResourceUrls(body.data))
           } else if (body && body.code === 401) {
             // ===== API 返回 401 =====
-            log.warn('API 401: code=', body.code, body?.message)
+            log.warn('[API] 业务 401:', {
+              url,
+              body,
+              tokenAttached: !!token
+            })
             handle401WithRefresh(options, resolve, reject, body?.message || '登录已过期')
           } else {
             log.warn('API 错误:', body?.code, body?.message)
@@ -342,11 +449,16 @@ const requestWithRetry = (options, retryCount = 0) => {
           }
         } else if (res.statusCode === 401) {
           // ===== HTTP 401 =====
-          log.warn('HTTP 401')
+          log.warn('[API] HTTP 401:', {
+            url,
+            body: res.data,
+            tokenAttached: !!token,
+            tokenPrefix: token ? token.substring(0, 20) : '无'
+          })
           handle401WithRefresh(options, resolve, reject, '登录已过期，请重新登录')
         } else if (res.statusCode === 404) {
-          log.error('接口不存在:', url)
-          reject(new Error('接口不存在 (404)'))
+          log.api('API 404 (新用户无数据或接口未就绪):', url)
+          reject(new Error('NOT_FOUND'))
         } else if (res.statusCode === 500) {
           log.error('服务器错误:', url)
           uni.showToast({ title: '服务器内部错误', icon: 'none' })
@@ -384,59 +496,22 @@ const requestWithRetry = (options, retryCount = 0) => {
   })
 }
 
-/**
- * 处理 401 并尝试刷新 Token
- */
-const handle401WithRefresh = (options, resolve, reject, message) => {
-  // 已经是处理中的状态，跳过
-  if (isHandling401) {
-    reject(new Error('正在处理登录状态'))
-    return
-  }
-
-  // 游客直接跳转登录
-  if (isGuestUser()) {
-    handleUnauthorized('请先登录')
-    reject(new Error('请先登录'))
-    return
-  }
-
-  // 首次401，尝试刷新
-  if (options._retryCount === undefined) {
-    options._retryCount = 0
-  }
-
-  if (options._retryCount === 0) {
-    options._retryCount = 1
-    log.api('401处理：尝试刷新 Token...')
-
-    tryRefreshToken().then((result) => {
-      if (result.success && result.token) {
-        // 刷新成功，重试请求
-        log.api('Token 刷新成功，重试请求')
-        resolve(requestWithRetry(options))
-      } else {
-        // 刷新失败，跳转登录
-        log.warn('Token 刷新失败，跳转登录页')
-        handleUnauthorized(message)
-        reject(new Error(message))
-      }
-    })
-    return
-  }
-
-  // 已经重试过，直接跳转登录
-  log.warn('Token 刷新已重试过，直接跳转登录')
-  handleUnauthorized(message)
-  reject(new Error(message))
-}
-
 // ==================== 导出 ====================
 
+/**
+ * request(options)
+ * @param {object} options
+ * @param {boolean} [options.requireAuth=false] - true 表示该接口需要登录态，无 Token 时直接拒绝
+ */
 const request = (options) => {
-  // 清理内部重试计数
-  delete options._retryCount
   checkAndRefreshToken()
+
+  // 需要鉴权但无 Token → 直接拒绝，避免无效的网络往返和 401 流程
+  if (options.requireAuth && !getAccessToken()) {
+    log.warn('[Request] 需鉴权但无 Token，跳过请求:', options.url)
+    return Promise.reject(new Error('请先登录'))
+  }
+
   return requestWithRetry(options)
 }
 

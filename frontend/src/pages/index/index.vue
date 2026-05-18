@@ -97,10 +97,13 @@
               <view class="holder-line" v-if="getHolderName(item)">作品发布人/持有者：{{ getHolderName(item) }}</view>
               <view class="artwork-footer">
                 <view class="price-info">
-                  <text class="price-value">{{ formatPrice(getDisplayPrice(item)) }}</text>
-                  <text class="rise-badge" v-if="getRiseBadgeText(item)">{{ getRiseBadgeText(item) }}</text>
-                  <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
-                  <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
+                  <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
+                  <template v-else>
+                    <text class="price-value">{{ formatPrice(getDisplayPrice(item)) }}</text>
+                    <text class="rise-badge" v-if="getRiseBadgeText(item)">{{ getRiseBadgeText(item) }}</text>
+                    <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
+                    <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
+                  </template>
                 </view>
               </view>
               <view class="rise-tip" v-if="showRiseTip(item)">{{ getRiseTipText(item) }}</view>
@@ -136,10 +139,13 @@
               <view class="holder-line" v-if="getHolderName(item)">作品发布人/持有者：{{ getHolderName(item) }}</view>
               <view class="artwork-footer">
                 <view class="price-info">
-                  <text class="price-value">{{ formatPrice(getDisplayPrice(item)) }}</text>
-                  <text class="rise-badge" v-if="getRiseBadgeText(item)">{{ getRiseBadgeText(item) }}</text>
-                  <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
-                  <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
+                  <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
+                  <template v-else>
+                    <text class="price-value">{{ formatPrice(getDisplayPrice(item)) }}</text>
+                    <text class="rise-badge" v-if="getRiseBadgeText(item)">{{ getRiseBadgeText(item) }}</text>
+                    <text class="price-change up" v-if="item.priceChange > 0">+{{ item.priceChange }}%</text>
+                    <text class="price-change down" v-else-if="item.priceChange < 0">{{ item.priceChange }}%</text>
+                  </template>
                 </view>
               </view>
               <view class="rise-tip" v-if="showRiseTip(item)">{{ getRiseTipText(item) }}</view>
@@ -471,8 +477,12 @@ const getHolderName = (item) => {
   return holder
 }
 
+const isSoldArtwork = (item) => {
+  return Number(item.status) === 2
+}
+
 const showRiseTip = (item) => {
-  return !!getRiseTipText(item)
+  return !isSoldArtwork(item) && !!getRiseTipText(item)
 }
 
 const getRiseTipText = (item) => {
@@ -897,6 +907,12 @@ $price-down: #4CAF50;
         font-size: 22rpx;
         margin-right: 2rpx;
       }
+    }
+
+    .sold-label {
+      color: $accent-gold;
+      font-size: 28rpx;
+      font-weight: 600;
     }
 
     .rise-badge {

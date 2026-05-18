@@ -15,4 +15,9 @@ spring:
       database: 0
 
 wxpay:
-  notify-url: ${WXPAY_NOTIFY_URL:http://127.0.0.1:8080/pay/callback/notify}
+  app-id: wx4b7015f42a4fa49c
+  mini-app-id: wx4b7015f42a4fa49c
+  mch-id: 1743449441
+  mch-key: 2kl4khj788793498fjhksdoisafy9f93
+  api-key: 2kl4khj788793498fjhksdoisafy9f93
+  notify-url: http://127.0.0.1:8080/pay/callback/notify

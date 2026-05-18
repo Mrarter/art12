@@ -34,7 +34,7 @@ export const getCirculationDetail = (artworkId) => {
  * POST /order/orders/resale
  */
 export const createResaleOrder = (data) => {
-  return request.post('/order/orders/resale', data)
+  return request({ url: '/order/orders/resale', method: 'POST', data, requireAuth: true })
 }
 
 // ===== 以下为 confirm.vue 等已有页面依赖的 API =====
@@ -52,7 +52,7 @@ export const createOrderFromCart = (data) => {
 }
 
 export const directBuy = (data) => {
-  return request({ url: '/order/orders/direct', method: 'POST', data })
+  return request({ url: '/order/orders/direct', method: 'POST', data, requireAuth: true })
 }
 
 export const getOrderList = (params) => {

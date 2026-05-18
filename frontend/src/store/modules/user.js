@@ -126,6 +126,11 @@ export const useUserStore = defineStore('user', {
 
     // 获取用户信息
     async fetchUserInfo() {
+      // 无 Token → 跳过 API 调用，避免触发 401 流程
+      if (!this.token || isGuestUser()) {
+        return null
+      }
+
       try {
         const info = await getUserInfo()
         this.setUserInfo(info)

@@ -573,7 +573,7 @@ export default {
         sourceType: ['album', 'camera'],
         success: (res) => {
           const path = res.tempFilePaths[0]
-          openCropper(path, { ratio: '4:3', shape: 'square' }).then(cropped => {
+          openCropper(path, { ratio: 'auto', shape: 'square' }).then(cropped => {
             this.formData.cover = cropped
           }).catch(() => {
             this.formData.cover = path

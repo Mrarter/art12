@@ -61,7 +61,7 @@ const uploadFileByFetch = async (filePath, type, token) => {
  */
 export const openCropper = (src, opts = {}) => {
   return new Promise((resolve, reject) => {
-    const { ratio = '1:1', shape = 'square' } = opts
+    const { ratio = 'auto', shape = 'square' } = opts
     const route = encodeURIComponent(src)
     const handler = (result) => { uni.$off('cropResult', handler); resolve(result) }
     uni.$on('cropResult', handler)

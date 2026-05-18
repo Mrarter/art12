@@ -96,7 +96,7 @@ export default {
       lastScale: 1,
       isTouching: false,
       // 配置
-      currentRatio: '1:1',
+      currentRatio: 'auto',
       shape: 'square',
       outputSize: 800,
       showCanvas: false,
@@ -134,6 +134,7 @@ export default {
 
     ratioOptions() {
       return [
+        { label: '原图', value: 'auto' },
         { label: '自由', value: 'free' },
         { label: '1:1', value: '1:1' },
         { label: '4:3', value: '4:3' },
@@ -149,8 +150,8 @@ export default {
   },
 
   onLoad(options) {
-    this.imageSrc = decodeURIComponent(options.src || '')
-    this.currentRatio = options.ratio || '1:1'
+    this.imageSrc = this.decodeRouteValue(options.src || '')
+    this.currentRatio = options.ratio || 'auto'
     this.shape = options.shape || 'square'
 
     const sys = uni.getSystemInfoSync()
@@ -165,17 +166,47 @@ export default {
   },
 
   methods: {
+    decodeRouteValue(value) {
+      let decoded = String(value || '')
+      for (let i = 0; i < 3; i += 1) {
+        const next = decodeURIComponent(decoded)
+        if (next === decoded) break
+        decoded = next
+      }
+      return decoded
+    },
+
     loadImageInfo() {
+      if (process.env.UNI_PLATFORM === 'h5' && typeof Image !== 'undefined') {
+        const image = new Image()
+        image.onload = () => {
+          this.applyImageInfo(image.naturalWidth, image.naturalHeight)
+        }
+        image.onerror = () => {
+          uni.showToast({ title: '图片加载失败', icon: 'none' })
+        }
+        image.src = this.imageSrc
+        return
+      }
+
       uni.getImageInfo({
         src: this.imageSrc,
         success: (res) => {
-          this.imageNaturalW = res.width
-          this.imageNaturalH = res.height
+          this.applyImageInfo(res.width, res.height)
         },
         fail: () => {
           uni.showToast({ title: '图片加载失败', icon: 'none' })
         },
       })
+    },
+
+    applyImageInfo(width, height) {
+      this.imageNaturalW = width
+      this.imageNaturalH = height
+      if (this.currentRatio === 'auto') {
+        this.initCropWindow()
+        this.onReset()
+      }
     },
 
     initCropWindow() {
@@ -190,7 +221,7 @@ export default {
         this.cropW = maxW
         this.cropH = maxH
       } else {
-        const [rw, rh] = this.currentRatio.split(':').map(Number)
+        const [rw, rh] = this.getRatioParts()
         if (maxW / maxH > rw / rh) {
           this.cropH = maxH
           this.cropW = this.cropH * rw / rh
@@ -207,6 +238,13 @@ export default {
       this.currentRatio = val
       this.initCropWindow()
       this.onReset()
+    },
+
+    getRatioParts() {
+      if (this.currentRatio === 'auto') {
+        return [this.imageNaturalW || 1, this.imageNaturalH || 1]
+      }
+      return this.currentRatio.split(':').map(Number)
     },
 
     // ========== 触摸处理 ==========

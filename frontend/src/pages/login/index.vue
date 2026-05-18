@@ -97,7 +97,16 @@
 <script>
 import { wxLogin, phoneLogin, sendSmsCode } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
+import { getAndClearRedirectUrl } from '@/utils/auth'
 import loginBrandLogo from '@/static/logo.png'
+
+const TAB_BAR_PAGES = new Set([
+  '/pages/index/index',
+  '/pages/gallery/index',
+  '/pages/auction/index',
+  '/pages/cart/index',
+  '/pages/user/index'
+])
 
 export default {
   data() {
@@ -137,8 +146,8 @@ export default {
     initLogin(options = {}) {
       this.redirect = this.decodeRedirect(options.redirect || '')
       const userStore = useUserStore()
-      // 如果已登录，直接跳转
-      if (userStore.isAuthenticated) {
+      // 正式用户已登录时跳过登录页（游客弹回首页循环，留在登录页）
+      if (userStore.isLogin) {
         this.afterLogin()
       }
     },
@@ -272,25 +281,30 @@ export default {
     afterLogin() {
       // 优先使用 URL 参数指定的跳转
       if (this.redirect) {
-        uni.navigateTo({ url: this.redirect })
+        this.safeNavigate(this.redirect)
         return
       }
-      
-      // 尝试从 auth 模块恢复之前保存的重定向 URL
-      // 这个机制用于：用户在某页面操作时登录过期 → 跳转登录 → 登录后恢复原页面
-      try {
-        const { getAndClearRedirectUrl } = require('@/utils/auth')
-        const savedRedirect = getAndClearRedirectUrl()
-        if (savedRedirect && savedRedirect !== '/pages/index/index') {
-          uni.navigateTo({ url: savedRedirect })
-          return
-        }
-      } catch (e) {
-        // 模块加载失败，使用默认跳转
+
+      // 从 auth 模块恢复之前保存的重定向 URL
+      // 机制：页面登录过期 → 401 处理保存原页面 → 登录后恢复
+      const savedRedirect = getAndClearRedirectUrl()
+      if (savedRedirect && savedRedirect !== '/pages/index/index') {
+        this.safeNavigate(savedRedirect)
+        return
       }
-      
+
       // 默认跳转到首页
       uni.switchTab({ url: '/pages/index/index' })
+    },
+
+    // tabBar 页用 switchTab，其余用 navigateTo
+    safeNavigate(url) {
+      const purePath = url.split('?')[0]
+      if (TAB_BAR_PAGES.has(purePath)) {
+        uni.switchTab({ url: purePath })
+      } else {
+        uni.navigateTo({ url })
+      }
     },
 
     async resolveWechatLoginCode() {

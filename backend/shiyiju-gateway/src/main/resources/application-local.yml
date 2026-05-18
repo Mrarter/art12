@@ -7,6 +7,8 @@ spring:
     name: shiyiju-gateway
   cloud:
     gateway:
+      default-filters:
+        - XUserId
       discovery:
         locator:
           enabled: false
@@ -187,3 +189,6 @@ logging:
   level:
     root: INFO
     com.shiyiju: DEBUG
+
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing

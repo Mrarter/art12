@@ -60,8 +60,12 @@ export default {
           { key: 'internet', name: '互联网资质', desc: '艺术博主身份、粉丝、内容转化', value: score.internetScore || 0, max: 50 }
         ]
       } catch (e) {
-        console.error('加载评分失败', e)
-        uni.showToast({ title: '加载评分失败', icon: 'none' })
+        // 404（新用户无评分数据）不弹 toast，保持默认值显示
+        if (e?.message === 'NOT_FOUND') {
+          console.warn('评分数据暂未生成（新用户）')
+        } else {
+          console.warn('加载评分失败', e)
+        }
       }
     }
   }

@@ -64,9 +64,14 @@
         <text class="amount-label">应付</text>
         <text class="amount-value">¥{{ orderInfo.payAmount }}</text>
       </view>
-      <button class="pay-btn" @click="doPay" :loading="paying">
-        {{ paying ? '支付中...' : '立即支付' }}
-      </button>
+      <view class="footer-btns">
+        <button class="pay-btn" @click="doPay" :loading="paying">
+          {{ paying ? '支付中...' : '立即支付' }}
+        </button>
+        <button class="pay-btn mock-btn" v-if="payFailed" @click="devMockPay">
+          模拟支付（开发环境）
+        </button>
+      </view>
     </view>
 
     <!-- 支付成功弹窗 -->
@@ -114,9 +119,19 @@ const selectedPay = ref('wechat')
 const paying = ref(false)
 const showSuccess = ref(false)
 const orderId = ref(null)
+const payFailed = ref(false)
 
 const selectPay = (item) => {
   selectedPay.value = item.id
+}
+
+/**
+ * 开发环境：模拟支付成功
+ */
+const devMockPay = () => {
+  console.log('[Dev] 模拟支付成功')
+  paying.value = false
+  showSuccess.value = true
 }
 
 /**
@@ -145,7 +160,20 @@ const doPay = async () => {
     }
 
     // 1. 请求后端获取JSAPI支付参数
-    const payParams = await getJsApiPayParams(orderId.value, openId)
+    let payParams
+    try {
+      payParams = await getJsApiPayParams(orderId.value, openId)
+    } catch (e) {
+      console.warn('[Pay] 获取支付参数失败(后端可能未配置微信支付):', e.message)
+      // 开发环境：显示模拟支付按钮
+      const isDev = process.env.NODE_ENV !== 'production' || location.hostname === 'localhost'
+      if (isDev) {
+        payFailed.value = true
+        paying.value = false
+        return
+      }
+      throw e
+    }
 
     // 2. 调起微信支付
     uni.requestPayment({
@@ -171,8 +199,11 @@ const doPay = async () => {
     })
   } catch (e) {
     paying.value = false
-    console.error('获取支付参数失败:', e)
-    uni.showToast({ title: e.message || '支付下单失败', icon: 'none' })
+    // 开发环境已在内部处理，这里只处理非开发环境的异常
+    if (!(process.env.NODE_ENV !== 'production' || location.hostname === 'localhost')) {
+      console.error('获取支付参数失败:', e)
+      uni.showToast({ title: e.message || '支付下单失败', icon: 'none' })
+    }
   }
 }
 
@@ -196,7 +227,7 @@ onMounted(async () => {
       if (detail) {
         orderInfo.value = {
           orderNo: detail.orderNo || detail.order_no || options.orderId,
-          goodsAmount: detail.goodsAmount || detail.goods_amount || detail.totalAmount || 0,
+          goodsAmount: detail.goodsAmount || detail.goods_amount || detail.totalAmount || detail.payAmount || 0,
           freight: detail.freightAmount || detail.freight_amount || 0,
           couponAmount: detail.discountAmount || detail.discount_amount || 0,
           payAmount: detail.payAmount || detail.pay_amount || 0
@@ -395,6 +426,11 @@ onMounted(async () => {
     }
   }
 
+  .footer-btns {
+    display: flex;
+    gap: 16rpx;
+  }
+
   .pay-btn {
     width: 280rpx;
     height: 96rpx;
@@ -411,6 +447,12 @@ onMounted(async () => {
     &::after {
       border: none;
     }
+  }
+
+  .mock-btn {
+    width: 260rpx;
+    background: #ff4d4f;
+    font-size: 26rpx;
   }
 }
 
