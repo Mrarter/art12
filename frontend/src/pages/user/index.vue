@@ -429,14 +429,23 @@ export default {
 
   methods: {
     async initPage() {
+      // 1. 先设置状态栏高度（同步，不阻塞）
       const systemInfo = uni.getSystemInfoSync()
       this.statusBarHeight = systemInfo.statusBarHeight || 20
-      await this.userStore.initUserInfo()
-      if (this.isLoggedIn) {
-        this.syncDefaultWorkspace()
-        this.loadLocalStats()
-        this.loadOrderCounts()
-      }
+      
+      // 2. 初始化基础状态（同步）
+      this.syncDefaultWorkspace()
+      this.loadLocalStats()
+      
+      // 3. 后台获取用户信息（不阻塞 UI）
+      // 如果 401，会触发登录流程，不影响页面渲染
+      this.userStore.initUserInfo().then((info) => {
+        if (info) {
+          this.loadOrderCounts()
+        }
+      }).catch(() => {
+        // 获取失败不处理，让页面保持游客状态
+      })
     },
     syncDefaultWorkspace() {
       const hasActive = this.availableWorkspaces.some(item => item.value === this.activeWorkspace)

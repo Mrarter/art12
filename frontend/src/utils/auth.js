@@ -1,16 +1,14 @@
 /**
  * =====================================================
  *  Token 管理模块 - utils/auth.js
- *  解决登录状态频繁过期问题
+ *  解决登录状态频繁过期问题 v2.0
  * =====================================================
  *
- * 功能清单：
- *  1. Token 结构化存储（包含过期时间）
- *  2. Token 有效性检测
- *  3. 无感刷新机制（即将过期自动续期）
- *  4. 智能重定向（保存当前路由，登录后恢复）
- *  5. 并发刷新防抖（避免多个请求同时刷新）
- *  6. 游客模式识别
+ * 核心修复：
+ *  1. refresh 401时立即清除冷却标记，不再等待
+ *  2. 防止重定向URL重复保存
+ *  3. 增强刷新状态机，防止死循环
+ *  4. 明确区分"可刷新"和"不可刷新"的401
  */
 
 import { refreshToken } from '@/api/user'
@@ -21,7 +19,8 @@ const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'userInfo'
 const REDIRECT_KEY = 'login_redirect'
 const TOKEN_EXPIRE_BUFFER = 5 * 60 * 1000  // 提前 5 分钟刷新
-const REFRESH_COOLDOWN = 60 * 1000        // 刷新冷却 60 秒
+const REFRESH_COOLDOWN = 30 * 1000         // 刷新冷却 30 秒
+const REDIRECT_MAX_AGE = 5 * 60 * 1000    // 重定向URL有效期 5 分钟
 
 // ==================== Token 存储结构 ====================
 
@@ -89,6 +88,8 @@ export function setTokenData(data) {
 export function clearTokenData() {
   uni.removeStorageSync(TOKEN_KEY)
   uni.removeStorageSync(USER_KEY)
+  // 重置刷新状态
+  resetRefreshState()
 }
 
 // ==================== Token 有效性判断 ====================
@@ -157,9 +158,23 @@ export function isGuestUser() {
 
 // ==================== 刷新 Token 机制 ====================
 
+// 刷新状态机
 let isRefreshing = false
 let refreshSubscribers = []
 let lastRefreshTime = 0
+let lastRefreshResult = null  // null=未刷新, 'success'=成功, 'failed'=失败
+let lastRefreshFailedTime = 0  // 上次刷新失败的时间
+
+/**
+ * 重置刷新状态（当确定无法刷新时调用）
+ */
+export function resetRefreshState() {
+  isRefreshing = false
+  refreshSubscribers = []
+  lastRefreshTime = 0
+  lastRefreshResult = null
+  lastRefreshFailedTime = 0
+}
 
 /**
  * 添加到刷新等待队列
@@ -170,30 +185,38 @@ function subscribeTokenRefresh(callback) {
 
 /**
  * 通知所有等待者
+ * @param {string|null} newToken 新token或null表示失败
+ * @param {boolean} isFinal 是否为终态（不会再刷新）
  */
-function onTokenRefreshed(newToken) {
-  refreshSubscribers.forEach(callback => callback(newToken))
+function onTokenRefreshed(newToken, isFinal = false) {
+  refreshSubscribers.forEach(callback => callback(newToken, isFinal))
   refreshSubscribers = []
 }
 
 /**
  * 执行 Token 刷新
  * 使用单例模式 + 防抖，避免并发刷新
+ * @returns {Promise<{success: boolean, token: string|null, canRetry: boolean}>}
  */
 export async function executeTokenRefresh() {
   const now = Date.now()
 
-  // 冷却期内直接返回失败
-  if (now - lastRefreshTime < REFRESH_COOLDOWN && lastRefreshTime > 0) {
-    console.log('[Auth] Token 刷新冷却中，等待...')
-    return null
+  // 检查是否是终态失败（短时间内刷新失败过）
+  if (lastRefreshResult === 'failed' && (now - lastRefreshFailedTime) < REFRESH_COOLDOWN) {
+    console.log('[Auth] Token 刷新处于失败冷却期，不再尝试')
+    return { success: false, token: null, canRetry: false }
   }
 
   // 已有刷新在进行，等待结果
   if (isRefreshing) {
+    console.log('[Auth] 已有刷新在进行，等待结果...')
     return new Promise((resolve) => {
-      subscribeTokenRefresh((newToken) => {
-        resolve(newToken)
+      subscribeTokenRefresh((newToken, isFinal) => {
+        if (newToken) {
+          resolve({ success: true, token: newToken, canRetry: true })
+        } else {
+          resolve({ success: false, token: null, canRetry: !isFinal })
+        }
       })
     })
   }
@@ -217,17 +240,24 @@ export async function executeTokenRefresh() {
       })
 
       console.log('[Auth] Token 刷新成功')
-      onTokenRefreshed(result.token)
+      lastRefreshResult = 'success'
+      onTokenRefreshed(result.token, false)
       isRefreshing = false
-      return result.token
+      return { success: true, token: result.token, canRetry: true }
     }
 
     throw new Error('刷新返回数据异常')
   } catch (e) {
-    console.error('[Auth] Token 刷新失败:', e)
+    console.error('[Auth] Token 刷新失败:', e.message || e)
+    
+    // 刷新失败，设置为终态
+    lastRefreshResult = 'failed'
+    lastRefreshFailedTime = now
+    
+    onTokenRefreshed(null, true)  // 通知等待者这是终态
     isRefreshing = false
-    onTokenRefreshed(null)
-    return null
+    
+    return { success: false, token: null, canRetry: false }
   }
 }
 
@@ -251,8 +281,8 @@ export async function ensureValidToken() {
   // 即将过期，触发刷新
   if (check.reason === 'about_to_expire') {
     console.log('[Auth] Token 即将过期，触发自动刷新')
-    const newToken = await executeTokenRefresh()
-    return newToken || getAccessToken()  // 刷新失败也返回原 token
+    const result = await executeTokenRefresh()
+    return result.token || getAccessToken()
   }
 
   return getAccessToken()
@@ -260,8 +290,13 @@ export async function ensureValidToken() {
 
 // ==================== 路由恢复机制 ====================
 
+// 防止重复保存的标志
+let lastSavedRedirectUrl = ''
+let lastSavedRedirectTime = 0
+
 /**
  * 保存登录后需要跳转的页面
+ * 增加去重逻辑，防止重复保存相同URL
  */
 export function saveRedirectUrl(url) {
   if (!url || url.includes('/pages/login')) return
@@ -269,11 +304,34 @@ export function saveRedirectUrl(url) {
   // 避免循环重定向
   if (url.includes('/pages/index') && !url.includes('redirect')) return
 
+  const now = Date.now()
+
+  // 防重复：5秒内不重复保存同一URL
+  if (url === lastSavedRedirectUrl && (now - lastSavedRedirectTime) < 5000) {
+    console.log('[Auth] 跳过重复保存重定向URL:', url)
+    return
+  }
+
+  // 检查是否已有有效的重定向（5分钟内保存过）
+  try {
+    const existing = uni.getStorageSync(REDIRECT_KEY)
+    if (existing?.url && existing?.timestamp) {
+      if (now - existing.timestamp < REDIRECT_MAX_AGE && existing.url === url) {
+        console.log('[Auth] 重定向URL已存在且未过期，跳过保存:', url)
+        return
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
   try {
     uni.setStorageSync(REDIRECT_KEY, {
       url,
-      timestamp: Date.now()
+      timestamp: now
     })
+    lastSavedRedirectUrl = url
+    lastSavedRedirectTime = now
     console.log('[Auth] 保存重定向页面:', url)
   } catch (e) {
     console.error('[Auth] 保存重定向 URL 失败:', e)
@@ -287,10 +345,12 @@ export function getAndClearRedirectUrl(defaultUrl = '/pages/index/index') {
   try {
     const redirect = uni.getStorageSync(REDIRECT_KEY)
     uni.removeStorageSync(REDIRECT_KEY)
+    lastSavedRedirectUrl = ''
+    lastSavedRedirectTime = 0
 
     if (redirect?.url) {
-      // 5 分钟内有效
-      if (Date.now() - redirect.timestamp < 5 * 60 * 1000) {
+      // 检查是否在有效期内
+      if (Date.now() - redirect.timestamp < REDIRECT_MAX_AGE) {
         console.log('[Auth] 恢复重定向页面:', redirect.url)
         return redirect.url
       }
@@ -306,26 +366,31 @@ export function getAndClearRedirectUrl(defaultUrl = '/pages/index/index') {
  * 获取当前页面路径（用于登录后恢复）
  */
 export function getCurrentPagePath() {
-  const pages = getCurrentPages()
-  if (!pages.length) return ''
+  try {
+    const pages = getCurrentPages()
+    if (!pages.length) return ''
 
-  const currentPage = pages[pages.length - 1]
-  const { route, options } = currentPage
+    const currentPage = pages[pages.length - 1]
+    const { route, options } = currentPage
 
-  let path = `/${route}`
-  const queryParts = []
+    let path = `/${route}`
+    const queryParts = []
 
-  for (const key in options) {
-    if (key && options[key] !== undefined && key !== 'scene') {
-      queryParts.push(`${key}=${encodeURIComponent(options[key])}`)
+    for (const key in options) {
+      if (key && options[key] !== undefined && key !== 'scene') {
+        queryParts.push(`${key}=${encodeURIComponent(options[key])}`)
+      }
     }
-  }
 
-  if (queryParts.length) {
-    path += '?' + queryParts.join('&')
-  }
+    if (queryParts.length) {
+      path += '?' + queryParts.join('&')
+    }
 
-  return path
+    return path
+  } catch (e) {
+    console.error('[Auth] 获取当前页面路径失败:', e)
+    return ''
+  }
 }
 
 // ==================== 登录状态管理 ====================
@@ -334,6 +399,9 @@ export function getCurrentPagePath() {
  * 处理登录成功
  */
 export function handleLoginSuccess(token, userInfo, isGuest = false) {
+  // 重置刷新状态
+  resetRefreshState()
+  
   // 假设 token 有效期 7 天
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
 
@@ -351,17 +419,26 @@ export function handleLoginSuccess(token, userInfo, isGuest = false) {
 
 /**
  * 处理登录过期/失效
+ * @param {boolean} redirectToLogin 是否跳转到登录页
+ * @param {boolean} forceClear 是否强制清除（用于refresh 401时）
  */
-export function handleAuthFailure(redirectToLogin = true) {
-  const currentPath = getCurrentPagePath()
+export function handleAuthFailure(redirectToLogin = true, forceClear = false) {
+  // 强制清除时重置所有状态
+  if (forceClear) {
+    resetRefreshState()
+  }
+  
   clearTokenData()
 
-  // 保存当前页面，登录后恢复
-  if (redirectToLogin && currentPath) {
-    saveRedirectUrl(currentPath)
+  // 保存当前页面，登录后恢复（仅在需要跳转时）
+  if (redirectToLogin) {
+    const currentPath = getCurrentPagePath()
+    if (currentPath) {
+      saveRedirectUrl(currentPath)
+    }
   }
 
-  return currentPath
+  return getCurrentPagePath()
 }
 
 /**
@@ -370,6 +447,7 @@ export function handleAuthFailure(redirectToLogin = true) {
 export function handleLogout() {
   clearTokenData()
   uni.removeStorageSync(REDIRECT_KEY)
+  resetRefreshState()
 }
 
 // ==================== 导出快捷方法 ====================
@@ -385,6 +463,7 @@ export default {
   checkTokenValid,
   ensureValidToken,
   executeTokenRefresh,
+  resetRefreshState,
 
   // 路由恢复
   saveRedirectUrl,
