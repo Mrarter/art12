@@ -747,8 +747,8 @@ public class OrderService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
         }
 
-        // 计算订单金额(转为分)
-        long totalAmount = order.getPayAmount().multiply(BigDecimal.valueOf(100)).longValue();
+        // 订单金额沿用商品链路的“分”单位，微信支付也要求传分，不能再次放大 100 倍
+        long totalAmount = order.getPayAmount().longValue();
         
         // 商品描述
         List<OrderItem> items = orderItemMapper.selectList(
@@ -808,7 +808,7 @@ public class OrderService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
         }
 
-        long totalAmount = order.getPayAmount().multiply(BigDecimal.valueOf(100)).longValue();
+        long totalAmount = order.getPayAmount().longValue();
         
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId)
@@ -1064,9 +1064,9 @@ public class OrderService {
         OrderVO vo = new OrderVO();
         vo.setId(order.getId());
         vo.setOrderNo(order.getOrderNo());
-        vo.setTotalAmount(order.getTotalAmount() != null ? order.getTotalAmount().longValue() : 0L);
-        vo.setDiscountAmount(order.getDiscountAmount() != null ? order.getDiscountAmount().longValue() : 0L);
-        vo.setPayAmount(order.getPayAmount() != null ? order.getPayAmount().longValue() : 0L);
+        vo.setTotalAmount(order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO);
+        vo.setDiscountAmount(order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO);
+        vo.setPayAmount(order.getPayAmount() != null ? order.getPayAmount() : BigDecimal.ZERO);
         
         // 构建地址VO
         AddressVO addressVO = new AddressVO();
@@ -1104,7 +1104,7 @@ public class OrderService {
         vo.setCreateTime(order.getCreateTime() != null ? order.getCreateTime().toString() : null);
         
         // 运费
-        vo.setFreight(order.getFreightAmount() != null ? order.getFreightAmount().longValue() : 0L);
+        vo.setFreight(order.getFreightAmount() != null ? order.getFreightAmount() : BigDecimal.ZERO);
         // 物流信息
         vo.setTrackingNo(order.getTrackingNo());
         vo.setExpressName(order.getExpressName());

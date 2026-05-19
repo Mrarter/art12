@@ -8,12 +8,17 @@
 
     <view class="form">
       <view class="card">
-        <view class="field">
+        <view class="work-info-row" v-if="artworkTitle">
+          <text class="work-info-label">作品</text>
+          <text class="work-info-value">{{ artworkTitle }}</text>
+          <text class="work-info-id">#{{ artworkId }}</text>
+        </view>
+        <view class="field" v-else>
           <text class="field-label">作品ID</text>
-          <input class="field-input" v-model="artworkId" type="text" placeholder="请输入作品ID" />
+          <input class="field-input" v-model="artworkId" type="text" placeholder="请输入作品ID" :disabled="!!artworkTitle" />
         </view>
         <view class="field">
-          <text class="field-label">转售价格</text>
+          <text class="field-label">转售价格（元）</text>
           <view class="price-input">
             <text class="currency">¥</text>
             <input class="field-input" v-model="resalePrice" type="digit" placeholder="请输入转售价格" />
@@ -56,13 +61,16 @@
 
 <script>
 import { publishResale } from '@/api/resale'
+import { getProductDetail } from '@/api/product'
 
 export default {
   data() {
     return {
       artworkId: '',
       resalePrice: '',
-      submitting: false
+      artworkTitle: '',
+      submitting: false,
+      loadingInfo: false
     }
   },
   computed: {
@@ -72,9 +80,40 @@ export default {
     sellerIncome() { return (this.computedPrice * 0.85).toFixed(2) },
     canPublish() { return this.artworkId && this.resalePrice > 0 && !this.submitting }
   },
+
+  onLoad(options) {
+    if (options.artworkId) {
+      this.artworkId = options.artworkId
+      // 预填建议转售价（从作品当前价换算：分→元）
+      if (options.price) {
+        this.resalePrice = String(Math.round(Number(options.price) / 100))
+      }
+      this.loadArtworkInfo(options.artworkId)
+    }
+  },
+
   methods: {
     formatPrice(p) { return Number(p).toFixed(2) },
     goBack() { uni.navigateBack() },
+
+    async loadArtworkInfo(id) {
+      this.loadingInfo = true
+      try {
+        const detail = await getProductDetail(id)
+        if (detail) {
+          this.artworkTitle = detail.title || ''
+          // 未传 price 参数时从作品信息中预填
+          if (!this.resalePrice && detail.currentPrice) {
+            this.resalePrice = String(Math.round(Number(detail.currentPrice) / 100))
+          }
+        }
+      } catch (e) {
+        console.warn('[发布转售] 加载作品信息失败:', e)
+      } finally {
+        this.loadingInfo = false
+      }
+    },
+
     async handlePublish() {
       if (this.submitting) return
       if (!this.artworkId || !this.resalePrice) {
@@ -95,7 +134,8 @@ export default {
         if (res) {
           uni.showToast({ title: '发布成功', icon: 'success' })
           setTimeout(() => {
-            uni.navigateTo({ url: '/pages/resale/my' })
+            // 跳转到转售市场首页，让用户看到自己的发布
+            uni.navigateTo({ url: '/pages/resale/market' })
           }, 1500)
         }
       } catch (e) {
@@ -116,8 +156,12 @@ export default {
 .card { background: #1A1A1A; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; border: 1rpx solid #333; }
 .field { margin-bottom: 24rpx; }
 .field-label { font-size: 26rpx; color: #999; display: block; margin-bottom: 10rpx; }
-.field-input { width: 100%; background: #0D0D0D; border: 1rpx solid #333; border-radius: 12rpx; padding: 20rpx; font-size: 28rpx; color: #E8E0D0; }
+.field-input { width: 100%; background: #0D0D0D; border: 1rpx solid #333; border-radius: 12rpx; padding: 20rpx; font-size: 28rpx; color: #E8E0D0; box-sizing: border-box; }
 .price-input { display: flex; align-items: center; }
+.work-info-row { display: flex; align-items: center; padding: 10rpx 0 20rpx; border-bottom: 1rpx solid #2A2A2A; margin-bottom: 20rpx; }
+.work-info-label { font-size: 24rpx; color: #999; margin-right: 12rpx; }
+.work-info-value { font-size: 28rpx; color: #D4AF37; flex: 1; font-weight: 500; }
+.work-info-id { font-size: 22rpx; color: #666; }
 .currency { font-size: 32rpx; color: #D4AF37; margin-right: 12rpx; font-weight: 600; }
 .section-title { font-size: 28rpx; color: #D4AF37; font-weight: 500; margin-bottom: 20rpx; border-bottom: 1rpx solid #2A2A2A; padding-bottom: 12rpx; }
 .preview-row { display: flex; justify-content: space-between; padding: 10rpx 0; font-size: 26rpx; color: #E8E0D0; }

@@ -9,20 +9,20 @@
       <view class="info-list">
         <view class="info-item">
           <text class="label">商品金额</text>
-          <text class="value">¥{{ orderInfo.goodsAmount }}</text>
+          <text class="value">¥{{ formatMoney(orderInfo.goodsAmount) }}</text>
         </view>
         <view class="info-item">
           <text class="label">运费</text>
-          <text class="value">¥{{ orderInfo.freight }}</text>
+          <text class="value">¥{{ formatMoney(orderInfo.freight) }}</text>
         </view>
         <view class="info-item" v-if="orderInfo.couponAmount > 0">
           <text class="label">优惠券</text>
-          <text class="value discount">-¥{{ orderInfo.couponAmount }}</text>
+          <text class="value discount">-¥{{ formatMoney(orderInfo.couponAmount) }}</text>
         </view>
       </view>
       <view class="info-total">
         <text class="total-label">应付金额</text>
-        <text class="total-price">¥{{ orderInfo.payAmount }}</text>
+        <text class="total-price">¥{{ formatMoney(orderInfo.payAmount) }}</text>
       </view>
     </view>
 
@@ -62,7 +62,7 @@
     <view class="pay-footer">
       <view class="footer-left">
         <text class="amount-label">应付</text>
-        <text class="amount-value">¥{{ orderInfo.payAmount }}</text>
+        <text class="amount-value">¥{{ formatMoney(orderInfo.payAmount) }}</text>
       </view>
       <view class="footer-btns">
         <button class="pay-btn" @click="doPay" :loading="paying">
@@ -120,6 +120,14 @@ const paying = ref(false)
 const showSuccess = ref(false)
 const orderId = ref(null)
 const payFailed = ref(false)
+
+const formatMoney = (value) => {
+  if (value === null || value === undefined || value === '') return '0.00'
+  return (Number(value) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
 
 const selectPay = (item) => {
   selectedPay.value = item.id
@@ -208,7 +216,7 @@ const doPay = async () => {
 }
 
 const goOrderDetail = () => {
-  uni.redirectTo({ url: `/pages/order/detail?orderId=${orderInfo.value.orderNo}` })
+  uni.redirectTo({ url: `/pages/order/detail?id=${orderId.value}` })
 }
 
 const goHome = () => {
@@ -228,7 +236,7 @@ onMounted(async () => {
         orderInfo.value = {
           orderNo: detail.orderNo || detail.order_no || options.orderId,
           goodsAmount: detail.goodsAmount || detail.goods_amount || detail.totalAmount || detail.payAmount || 0,
-          freight: detail.freightAmount || detail.freight_amount || 0,
+          freight: detail.freight ?? detail.freightAmount ?? detail.freight_amount ?? 0,
           couponAmount: detail.discountAmount || detail.discount_amount || 0,
           payAmount: detail.payAmount || detail.pay_amount || 0
         }

@@ -31,3 +31,6 @@ Standard Commons Logging discovery in action with spring-jcl: please remove comm
 2026-05-17T22:02:57.931+08:00  INFO 14086 --- [           main] com.shiyiju.common.util.AESUtil          : AES 密钥已通过配置注入
 2026-05-17T22:02:58.989+08:00  INFO 14086 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8086 (http) with context path ''
 2026-05-17T22:02:59.098+08:00  INFO 14086 --- [           main] c.s.community.CommunityApplication       : Started CommunityApplication in 6.387 seconds (process running for 7.622)
+2026-05-18T13:52:55.747+08:00  INFO 14086 --- [nio-8086-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-18T13:52:55.754+08:00  INFO 14086 --- [nio-8086-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-18T13:52:55.829+08:00  INFO 14086 --- [nio-8086-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 74 ms

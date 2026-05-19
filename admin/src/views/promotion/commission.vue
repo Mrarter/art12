@@ -58,13 +58,13 @@
         </template>
       </el-table-column>
       <el-table-column label="订单金额" width="120">
-        <template #default="{ row }">¥{{ row.orderAmount }}</template>
+        <template #default="{ row }">¥{{ formatFen(row.orderAmount) }}</template>
       </el-table-column>
       <el-table-column label="佣金比例" width="100">
         <template #default="{ row }">{{ (row.rate * 100).toFixed(1) }}%</template>
       </el-table-column>
       <el-table-column label="佣金金额" width="120">
-        <template #default="{ row }" class="amount">¥{{ row.commission }}</template>
+        <template #default="{ row }" class="amount">¥{{ formatFen(row.commission) }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
@@ -104,11 +104,11 @@
             <span v-else>用户ID: {{ orderDetail.userId }}</span>
             <span v-if="orderDetail.buyerPhone" class="phone">{{ orderDetail.buyerPhone }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="商品金额">¥{{ orderDetail.goodsAmount }}</el-descriptions-item>
-          <el-descriptions-item label="运费">¥{{ orderDetail.freightAmount || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="优惠金额">-¥{{ orderDetail.discountAmount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="商品金额">¥{{ formatFen(orderDetail.goodsAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="运费">¥{{ formatFen(orderDetail.freightAmount || 0) }}</el-descriptions-item>
+          <el-descriptions-item label="优惠金额">-¥{{ formatFen(orderDetail.discountAmount || 0) }}</el-descriptions-item>
           <el-descriptions-item label="实付金额" class="highlight">
-            <strong>¥{{ orderDetail.payAmount }}</strong>
+            <strong>¥{{ formatFen(orderDetail.payAmount) }}</strong>
           </el-descriptions-item>
           <el-descriptions-item label="支付状态">
             <el-tag :type="orderDetail.paymentStatus === 'PAID' ? 'success' : 'warning'" size="small">
@@ -131,10 +131,10 @@
           </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" align="center" />
           <el-table-column label="单价" width="120" align="right">
-            <template #default="{ row }">¥{{ row.price }}</template>
+            <template #default="{ row }">¥{{ formatFen(row.price) }}</template>
           </el-table-column>
           <el-table-column label="小计" width="120" align="right">
-            <template #default="{ row }">¥{{ (row.price * row.quantity).toFixed(2) }}</template>
+            <template #default="{ row }">¥{{ formatFen(row.price * row.quantity) }}</template>
           </el-table-column>
         </el-table>
       </div>
@@ -155,6 +155,14 @@ const loading = ref(false)
 const tableData = ref([])
 const orderDialogVisible = ref(false)
 const orderDetail = ref(null)
+
+const formatFen = (value) => {
+  if (value === null || value === undefined || value === '') return '0.00'
+  return (Number(value) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
 
 const searchForm = reactive({
   userId: '',

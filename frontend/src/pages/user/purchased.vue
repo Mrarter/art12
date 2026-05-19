@@ -32,11 +32,16 @@
       </view>
     </view>
 
+    <!-- 加载中 -->
+    <view class="loading-state" v-if="loading && !loaded">
+      <text>加载中...</text>
+    </view>
+
     <!-- 订单列表 -->
-    <view class="order-list">
+    <view class="order-list" v-if="loaded">
       <view class="order-card" v-for="order in filteredOrders" :key="order.id">
         <view class="order-header">
-          <view class="order-time">{{ order.createTime }}</view>
+          <view class="order-time">{{ formatTime(order.createTime) }}</view>
           <view class="order-status" :class="'status-' + order.status">
             {{ getStatusText(order.status) }}
           </view>
@@ -50,7 +55,7 @@
               <view class="item-artist">{{ item.artist }}</view>
             </view>
             <view class="item-price">
-              <text>¥{{ item.price }}</text>
+              <text>¥{{ formatPrice(item.price) }}</text>
               <text class="item-num">x{{ item.num }}</text>
             </view>
           </view>
@@ -59,7 +64,7 @@
         <view class="order-footer">
           <view class="order-total">
             <text>共{{ order.items.length }}件商品</text>
-            <text class="total-price">合计：¥{{ order.total }}</text>
+            <text class="total-price">合计：¥{{ formatPrice(order.total) }}</text>
           </view>
           <view class="order-actions">
             <template v-if="order.status === 'pending'">
@@ -70,8 +75,8 @@
               <view class="action-btn primary" @click.stop="confirmReceive(order)">确认收货</view>
             </template>
             <template v-else-if="order.status === 'completed'">
+              <view class="action-btn primary" @click.stop="goResale(order)">去转售</view>
               <view class="action-btn secondary" @click.stop="goReview(order)">去评价</view>
-              <view class="action-btn secondary" @click.stop="buyAgain(order)">再次购买</view>
             </template>
           </view>
         </view>
@@ -79,7 +84,7 @@
     </view>
 
     <!-- 空状态 -->
-    <view class="empty-state" v-if="filteredOrders.length === 0">
+    <view class="empty-state" v-if="loaded && filteredOrders.length === 0">
       <image class="empty-icon" src="/static/icons/order-empty.png" mode="aspectFit"></image>
       <text class="empty-text">暂无相关订单</text>
       <view class="empty-btn" @click="goGallery">去逛逛</view>
@@ -88,52 +93,98 @@
 </template>
 
 <script>
+import { getOrderList, confirmReceive } from '@/api/order'
+
+const normalizeImage = (url) => {
+  if (!url || typeof url !== 'string') return ''
+  const t = url.trim()
+  if (!t || t === '[]' || t === '{}') return ''
+  if (t.startsWith('http://') || t.startsWith('https://')) return t
+  if (t.startsWith('/')) {
+    const app = getApp()
+    const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
+    return domain ? domain + t : t
+  }
+  return t
+}
+
 export default {
   data() {
     return {
       currentFilter: 'all',
-      orders: [
-        {
-          id: 1,
-          createTime: '2024-01-15 14:30',
-          status: 'pending',
-          items: [
-            { id: 1, cover: 'https://picsum.photos/200/200?random=20', title: '山水之间', artist: '李明', price: '8888', num: 1 }
-          ],
-          total: '8888.00'
-        },
-        {
-          id: 2,
-          createTime: '2024-01-12 09:20',
-          status: 'shipped',
-          items: [
-            { id: 2, cover: 'https://picsum.photos/200/200?random=21', title: '春意盎然', artist: '王芳', price: '12800', num: 1 }
-          ],
-          total: '12800.00'
-        },
-        {
-          id: 3,
-          createTime: '2024-01-08 16:45',
-          status: 'completed',
-          items: [
-            { id: 3, cover: 'https://picsum.photos/200/200?random=22', title: '都市夜景', artist: '张伟', price: '15600', num: 1 }
-          ],
-          total: '15600.00'
-        }
-      ]
+      orders: [],
+      loading: false,
+      loaded: false
     }
   },
 
   computed: {
     filteredOrders() {
-      if (this.currentFilter === 'all') {
-        return this.orders
-      }
-      return this.orders.filter(order => order.status === this.currentFilter)
+      if (this.currentFilter === 'all') return this.orders
+      return this.orders.filter(o => o.status === this.currentFilter)
     }
   },
 
+  onLoad() { this.fetchOrders() },
+
+  onShow() {
+    // 从发布转售页面返回时刷新
+    if (this.loaded) this.fetchOrders()
+  },
+
   methods: {
+    async fetchOrders() {
+      if (this.loading) return
+      this.loading = true
+      try {
+        const data = await getOrderList({ page: 1, pageSize: 50 })
+        const rawList = data?.records || data?.list || data || []
+        const list = Array.isArray(rawList) ? rawList : []
+
+        // 后端状态映射为前端 short status
+        const statusMap = {
+          PENDING_PAYMENT: 'pending_payment',
+          PAID: 'paid',
+          SHIPPED: 'shipped',
+          RECEIVED: 'received',
+          COMPLETED: 'completed',
+          CANCELLED: 'cancelled',
+          REFUNDING: 'refunding',
+          REFUNDED: 'refunded'
+        }
+
+        this.orders = list.map(order => {
+          const items = (order.items || order.goods || order.orderItems || []).map(item => ({
+            id: item.id || item.artworkId,
+            cover: normalizeImage(item.coverImage || item.cover || item.image),
+            title: item.title || item.name || '未命名',
+            artist: item.artistName || item.authorName || item.sellerName || '',
+            price: item.price || item.currentPrice || 0,
+            num: item.quantity || item.num || 1
+          }))
+          let shortStatus = statusMap[order.status] || order.status
+          // 已付款/已收货统一归入"待发货"范围
+          if (shortStatus === 'paid' || shortStatus === 'pending_payment') shortStatus = 'pending'
+          if (shortStatus === 'received') shortStatus = 'completed'
+
+          return {
+            id: order.id,
+            createTime: order.createTime || order.createdAt || '',
+            status: shortStatus,
+            items,
+            total: order.payAmount || order.amount || order.totalAmount || 0
+          }
+        }).filter(o => o.status !== 'cancelled' && o.status !== 'refunding' && o.status !== 'refunded')
+
+        this.loaded = true
+      } catch (e) {
+        console.warn('[已购作品] 加载失败:', e)
+        this.orders = []
+      } finally {
+        this.loading = false
+      }
+    },
+
     switchFilter(filter) {
       this.currentFilter = filter
     },
@@ -148,51 +199,65 @@ export default {
       return map[status] || status
     },
 
+    formatPrice(price) {
+      if (!price && price !== 0) return ''
+      const yuan = Number(price) / 100
+      return yuan.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    },
+
     goOrderDetail(id) {
-      uni.navigateTo({
-        url: `/pages/order/detail?id=${id}`
-      })
+      uni.navigateTo({ url: `/pages/order/detail?id=${id}` })
     },
 
-    applyRefund(order) {
-      uni.navigateTo({
-        url: `/pages/order/refund?orderId=${order.id}`
-      })
-    },
-
-    viewLogistics(order) {
-      uni.navigateTo({
-        url: `/pages/order/logistics?orderId=${order.id}`
-      })
-    },
-
-    confirmReceive(order) {
+    async confirmReceive(order) {
       uni.showModal({
         title: '确认收货',
         content: '确认已收到商品？',
-        success: (res) => {
-          if (res.confirm) {
+        success: async (res) => {
+          if (!res.confirm) return
+          try {
+            await confirmReceive(order.id)
             order.status = 'completed'
             uni.showToast({ title: '确认收货成功', icon: 'success' })
+          } catch (e) {
+            uni.showToast({ title: '操作失败', icon: 'none' })
           }
         }
       })
     },
 
+    applyRefund(order) {
+      uni.navigateTo({ url: `/pages/order/refund?orderId=${order.id}` })
+    },
+
+    viewLogistics(order) {
+      uni.navigateTo({ url: `/pages/order/logistics?orderId=${order.id}` })
+    },
+
     goReview(order) {
-      uni.navigateTo({
-        url: `/pages/order/review?orderId=${order.id}`
-      })
+      uni.navigateTo({ url: `/pages/order/review?orderId=${order.id}` })
     },
 
     buyAgain(order) {
       uni.showToast({ title: '已加入购物车', icon: 'success' })
     },
 
+    goResale(order) {
+      // 跳转到发布转售页，携带第一个作品的 artworkId
+      const artworkId = order.items[0]?.id
+      if (!artworkId) return
+      uni.navigateTo({ url: `/pages/resale/publish?artworkId=${artworkId}` })
+    },
+
+    formatTime(time) {
+      if (!time) return ''
+      const d = new Date(time)
+      if (isNaN(d.getTime())) return String(time).substring(0, 16).replace('T', ' ')
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+    },
+
     goGallery() {
-      uni.switchTab({
-        url: '/pages/gallery/index'
-      })
+      uni.switchTab({ url: '/pages/gallery/index' })
     }
   }
 }
@@ -366,6 +431,15 @@ export default {
       }
     }
   }
+}
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 120rpx 0;
+  font-size: 28rpx;
+  color: #8f8a80;
 }
 
 .empty-state {

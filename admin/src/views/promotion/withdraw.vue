@@ -46,7 +46,7 @@
         </template>
       </el-table-column>
       <el-table-column label="提现金额" width="120">
-        <template #default="{ row }" class="amount">¥{{ row.amount }}</template>
+        <template #default="{ row }" class="amount">¥{{ formatFen(row.amount) }}</template>
       </el-table-column>
       <el-table-column label="提现方式" width="120">
         <template #default="{ row }">
@@ -109,7 +109,7 @@
           <el-descriptions-item label="艺荐官">{{ currentRecord.userName }}</el-descriptions-item>
           <el-descriptions-item label="手机号">{{ currentRecord.phone }}</el-descriptions-item>
           <el-descriptions-item label="提现金额">
-            <span class="amount">¥{{ currentRecord.amount }}</span>
+            <span class="amount">¥{{ formatFen(currentRecord.amount) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="提现方式">
             {{ currentRecord.type === 'wechat' ? '微信' : currentRecord.type === 'alipay' ? '支付宝' : '银行卡' }}
@@ -143,6 +143,14 @@ const rejectVisible = ref(false)
 const detailVisible = ref(false)
 const currentRecord = ref({})
 const rejectReason = ref('')
+
+const formatFen = (value) => {
+  if (value === null || value === undefined || value === '') return '0.00'
+  return (Number(value) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
 
 const searchForm = reactive({
   userId: '',

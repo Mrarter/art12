@@ -285,7 +285,7 @@ export default {
     profileStats() {
       return [
         { label: '关注', value: this.formatCount(this.userStats.following), path: '/pages/user/following' },
-        { label: '收藏', value: this.formatCount(this.userStats.favorites), path: '/pages/user/favorites' },
+        { label: '喜欢', value: this.formatCount(this.userStats.favorites), path: '/pages/user/favorites' },
         { label: '浏览', value: this.formatCount(this.userStats.history), path: '/pages/user/history' },
         { label: '积分', value: this.formatCount(this.userStats.points), path: '/pages/user/points' }
       ]
@@ -300,7 +300,7 @@ export default {
     },
     assetItems() {
       return [
-        { label: '我的收藏', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
+        { label: '我的关注', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
         { label: '已购作品', desc: `${this.assetStats.purchased} 件藏品`, icon: '购', iconPath: '/static/art-icons/icon-certificate.svg', tone: 'green', path: '/pages/user/purchased' },
         { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
         { label: '浏览记录', desc: '最近看过', icon: '览', iconPath: '/static/art-icons/icon-preview.svg', tone: 'blue', path: '/pages/user/history' },
@@ -325,12 +325,12 @@ export default {
           desc: '管理收藏、订单和关注的艺术家',
           status: '默认身份',
           metrics: [
-            { label: '收藏', value: this.formatCount(this.userStats.favorites) },
+            { label: '喜欢', value: this.formatCount(this.userStats.favorites) },
             { label: '已购', value: this.formatCount(this.assetStats.purchased) },
             { label: '关注', value: this.formatCount(this.userStats.following) }
           ],
           actions: [
-            { label: '我的收藏', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
+            { label: '我的关注', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
             { label: '已购作品', desc: '查看藏品', icon: '购', iconPath: '/static/art-icons/icon-certificate.svg', tone: 'green', path: '/pages/user/purchased' },
             { label: '我的关注', desc: '关注的艺术家', icon: '关', iconPath: '/static/art-icons/icon-follow.svg', tone: 'blue', path: '/pages/user/following' },
             { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
@@ -346,7 +346,7 @@ export default {
           metrics: [
             { label: '作品', value: this.formatCount(this.artistStats.works) },
             { label: '浏览', value: this.formatCount(this.artistStats.views) },
-            { label: '收藏', value: this.formatCount(this.artistStats.favorites) }
+            { label: '喜欢', value: this.formatCount(this.artistStats.favorites) }
           ],
           actions: [
             { label: '艺术家主页', desc: '查看公开主页', icon: '页', iconPath: '/static/art-icons/icon-artist.svg', tone: 'gold', path: `/pages/artist/home?id=${this.userInfo.id || ''}` },

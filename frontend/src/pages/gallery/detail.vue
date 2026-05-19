@@ -52,17 +52,22 @@
           </view>
         </view>
         <view class="market-content">
-          <view class="price-block">
+          <view class="price-block" :class="{ 'is-sold': isSoldArtwork }">
             <view class="label-line">
-              <text>当前收藏价</text>
+              <text>{{ isSoldArtwork ? '作品状态' : '当前收藏价' }}</text>
               <text class="question">?</text>
             </view>
             <view class="price">
-              <text class="price-symbol">¥</text>
-              <text>{{ priceNumber }}</text>
+              <template v-if="isSoldArtwork">
+                <text class="sold-status">已收藏</text>
+              </template>
+              <template v-else>
+                <text class="price-symbol">¥</text>
+                <text>{{ priceNumber }}</text>
+              </template>
             </view>
-            <view class="rise-line">↗ 预计上涨 {{ growthRangeDisplay }}</view>
-            <view class="collect-line">♙ 已被 {{ displayLikeCount }} 位藏家收藏</view>
+            <view class="rise-line" v-if="!isSoldArtwork">↗ 预计上涨 {{ growthRangeDisplay }}</view>
+            <view class="collect-line">♙ 已被 {{ displayLikeCount }} 位藏家喜欢</view>
           </view>
           <view class="model-panel">
             <view class="model-title">♙ 涨跌趋势</view>
@@ -262,7 +267,7 @@
     <view class="bottom-bar safe-area-bottom" v-if="!isEmpty">
       <button class="bar-action" @click="onFavorite">
         <text class="bar-icon">{{ detail.isFavorite ? '♥' : '♡' }}</text>
-        <text>{{ detail.isFavorite ? '已收藏' : '收藏' }}</text>
+        <text>{{ detail.isFavorite ? '已喜欢' : '喜欢' }}</text>
       </button>
       <button class="bar-action consult-action" @click="contactArtist">
         <view class="chat-mark"></view>
@@ -373,14 +378,15 @@ export default {
       priceGrowth: {
         growthRate: '+0%',
         collectCount: 0,
-        nextCondition: '收藏人数增加后可能涨价'
+        nextCondition: '喜欢人数增加后可能涨价'
       },
       // 转售/流通数据
       resaleTrades: [],
       resaleStats: null,
       loadingResale: false,
       buyLoading: false,
-      buyErrorMessage: ''
+      buyErrorMessage: '',
+      favoriteCountOverride: null
     }
   },
 
@@ -406,25 +412,36 @@ export default {
       return this.artistProfile.isArtist || this.artistProfile.identities?.includes('artist')
     },
     authorUidDisplay() {
+      // 优先使用 artistProfile 的 uid（用户 UID），匹配失败时才回退到 detail.authorUid
       const profileUid = this.profileMatchesDetailAuthor ? this.artistProfile?.uid : ''
-      const uid = this.detail.authorUid || this.detail.displayAuthorId || profileUid
+      const uid = profileUid || this.detail.authorUid || this.detail.displayAuthorId
       if (!uid) return ''
       return `UID ${uid}`
     },
     profileMatchesDetailAuthor() {
       if (!this.artistProfile || !this.detail) return false
+      // 1. 优先比较数字 ID（最可靠，不受 UID/artistCode 格式影响）
+      const detailAuthorId = String(this.detail.authorId || '').trim()
+      const profileUserId = String(this.artistProfile.userId || this.artistProfile.id || '').trim()
+      if (detailAuthorId && profileUserId && detailAuthorId === profileUserId) {
+        return true
+      }
+      // 2. 比较 UID（detail.authorUid 可能是 artistCode 或 userUid）
       const detailUid = String(this.detail.authorUid || '').trim()
       const profileUid = String(this.artistProfile.uid || '').trim()
       if (detailUid && profileUid) {
+        // 可能是 artistCode(ART...) vs userUid(USR...)，或者旧格式，都做统一比较
         return detailUid === profileUid
       }
+      // 3. 名称回退（最后手段，名称可能重复）
       const detailName = String(this.detail.authorName || '').trim()
       const profileName = String(this.artistProfile.nickname || this.artistProfile.realName || '').trim()
       return !!(detailName && profileName && detailName === profileName)
     },
     displayLikeCount() {
-      // 优先使用真实收藏数，避免展示口径与后台运营数据不一致
-      return this.detail.realFavoriteCount ?? this.detail.favoriteCount ?? this.detail.displayLikeCount ?? this.detail.likeCount ?? 0
+      if (this.favoriteCountOverride !== null) return this.favoriteCountOverride
+      // 用户侧展示使用后台配置后的收藏数，真实收藏数仅作兜底。
+      return this.detail.displayLikeCount ?? this.detail.likeCount ?? this.detail.realFavoriteCount ?? this.detail.favoriteCount ?? 0
     },
     artworkYear() {
       return this.detail.year || this.detail.createYear || '2024'
@@ -470,6 +487,9 @@ export default {
       const price = Number(this.displayPrice || 804000)
       return Math.round(price / 100).toLocaleString()
     },
+    isSoldArtwork() {
+      return Number(this.detail.status) === 2
+    },
     growthRangeDisplay() {
       return (this.tomorrowIncreaseRange || '¥1.6 - ¥2.4').replace(/\s*-\s*/g, ' - ')
     },
@@ -488,36 +508,52 @@ export default {
       const artworkCode = this.escapeXml(this.certificateCode)
       const cover = this.escapeXml(this.images[0] || this.fallbackCover)
       return `
-        <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
           <defs>
             <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
               <stop offset="0%" stop-color="#fcf8ef"/>
               <stop offset="100%" stop-color="#f6ecd8"/>
             </linearGradient>
+            <pattern id="waves" width="34" height="18" patternUnits="userSpaceOnUse">
+              <path d="M0 9 Q8 3 17 9 T34 9" fill="none" stroke="#ddcfb3" stroke-width="1" opacity="0.35"/>
+            </pattern>
           </defs>
-          <rect width="320" height="180" rx="8" fill="url(#paper)"/>
-          <rect x="6" y="6" width="308" height="168" rx="6" fill="none" stroke="#c7a56d" stroke-width="2"/>
-          <text x="160" y="28" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="16" fill="#4d2e16">美术作品收藏证书</text>
-          <rect x="22" y="48" width="104" height="78" fill="#fffaf0" stroke="#cfb27b"/>
-          <image href="${cover}" x="26" y="52" width="96" height="70" preserveAspectRatio="xMidYMid slice"/>
-          <text x="145" y="62" font-family="STKaiti, KaiTi, serif" font-size="10" fill="#4f3217">作品名称：${title}</text>
-          <text x="145" y="82" font-family="STKaiti, KaiTi, serif" font-size="10" fill="#4f3217">艺术家：${author}</text>
-          <text x="145" y="102" font-family="STKaiti, KaiTi, serif" font-size="10" fill="#4f3217">作品编号：${artworkCode}</text>
-          <circle cx="250" cy="132" r="18" fill="none" stroke="#a43d28" stroke-width="2"/>
-          <text x="250" y="136" text-anchor="middle" font-family="Georgia, serif" font-size="12" fill="#a43d28">SYJ</text>
-          <path d="M278 132 C290 124 296 136 306 122" fill="none" stroke="#4f3217" stroke-width="1.5"/>
+          <rect width="1600" height="1120" fill="url(#paper)"/>
+          <rect width="1600" height="1120" fill="url(#waves)"/>
+          <rect x="28" y="28" width="1544" height="1064" fill="none" stroke="#c7a56d" stroke-width="6"/>
+          <rect x="42" y="42" width="1516" height="1036" fill="none" stroke="#ceb078" stroke-width="2"/>
+          <text x="800" y="246" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="82" fill="#4d2e16">美术作品收藏证书</text>
+          <text x="800" y="308" text-anchor="middle" font-family="Georgia, serif" font-size="26" letter-spacing="10" fill="#624421">ARTWORK COLLECTION CERTIFICATE</text>
+          <rect x="168" y="360" width="486" height="352" rx="6" fill="#fffaf0" stroke="#c9a86b" stroke-width="3"/>
+          <rect x="154" y="346" width="514" height="380" rx="8" fill="none" stroke="#d8bf8b" stroke-width="2"/>
+          <image href="${cover}" x="186" y="380" width="450" height="314" preserveAspectRatio="xMidYMid slice"/>
+          <text x="411" y="768" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="30" fill="#4f3217">《${title}》</text>
+          <text x="411" y="808" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="22" fill="#5a4630">${author}</text>
+          <text x="790" y="388" font-family="STKaiti, KaiTi, serif" font-size="26" fill="#3f2b18">兹证明您收藏的美术作品信息如下：</text>
+          <text x="790" y="446" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#3f2b18">作品名称：</text>
+          <text x="930" y="446" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#4f3217">${title}</text>
+          <line x1="930" y1="458" x2="1435" y2="458" stroke="#d8c39c" stroke-width="1"/>
+          <text x="790" y="500" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#3f2b18">艺术家：</text>
+          <text x="930" y="500" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#4f3217">${author}</text>
+          <line x1="930" y1="512" x2="1435" y2="512" stroke="#d8c39c" stroke-width="1"/>
+          <text x="790" y="554" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#3f2b18">作品编号：</text>
+          <text x="930" y="554" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#4f3217">${artworkCode}</text>
+          <line x1="930" y1="566" x2="1435" y2="566" stroke="#d8c39c" stroke-width="1"/>
+          <circle cx="1080" cy="952" r="96" fill="none" stroke="#a43d28" stroke-width="5"/>
+          <circle cx="1080" cy="952" r="78" fill="none" stroke="#a43d28" stroke-width="2"/>
+          <text x="1080" y="978" text-anchor="middle" font-family="Georgia, serif" font-size="44" fill="#a43d28">SYJ</text>
         </svg>
       `.trim()
     },
     artistStats() {
       const workCount = Number(this.artistProfile?.artworkCount || this.artistProfile?.workCount || this.detail.authorWorkCount || 0)
-      const dealCount = Number(this.detail.authorDealCount || this.detail.saleCount || 0)
+      const dealCount = Number(this.artistProfile?.dealCount || this.artistProfile?.soldCount || this.detail.authorDealCount || this.detail.saleCount || 0)
       const dealRate = workCount > 0 ? `${Math.round((dealCount / workCount) * 100)}%` : '0%'
       const averageRiseValue = Number(this.detail.priceRise || 0) * 100
       return [
         { label: '作品数', value: String(workCount) },
         { label: '成交数', value: String(dealCount) },
-        { label: '成交率', value: this.detail.authorDealRate || dealRate },
+        { label: '成交率', value: this.artistProfile?.dealRate || this.detail.authorDealRate || dealRate },
         { label: '平均涨幅', value: this.detail.authorAverageRise || `${averageRiseValue >= 0 ? '+' : ''}${averageRiseValue.toFixed(1)}%` }
       ]
     },
@@ -717,6 +753,7 @@ export default {
         const data = await getProductDetail(id)
         if (data) {
           this.detail = data
+          this.favoriteCountOverride = null
           this.initPriceGrowth(data)
           this.currentImageIndex = 0
           this.heroHeight = 442
@@ -845,7 +882,7 @@ export default {
       this.priceGrowth = {
         growthRate: rise > 0 ? `+${(rise * 100).toFixed(1)}%` : '+0%',
         collectCount: data.collectCount || data.favoriteCount || 0,
-        nextCondition: '每新增10位藏家收藏，作品价格可能上涨0.5%'
+        nextCondition: '每新增10人喜欢，作品价格可能上涨0.5%'
       }
     },
 
@@ -1063,7 +1100,7 @@ export default {
         if (newPrice) this.detail.currentPrice = newPrice
         this.priceGrowth.collectCount = (this.priceGrowth.collectCount || 0) + 1
         this.priceGrowth.growthRate = `+${changeRate.toFixed(1)}%`
-        uni.showToast({ title: '收藏成功，作品热度提升', icon: 'none' })
+        uni.showToast({ title: '喜欢成功，作品热度提升', icon: 'none' })
       } catch (e) {
         console.warn('收藏触发涨价失败', e)
       }
@@ -1245,8 +1282,12 @@ export default {
     },
 
     bumpLikeCount(step) {
-      const nextFavorite = Math.max((this.detail.favoriteCount || 0) + step, 0)
-      const nextDisplay = Math.max((this.detail.displayLikeCount || this.detail.likeCount || this.detail.favoriteCount || 0) + step, 0)
+      const baseReal = this.detail.realFavoriteCount ?? this.detail.favoriteCount ?? 0
+      const baseDisplay = this.detail.displayLikeCount ?? this.detail.likeCount ?? baseReal
+      const nextFavorite = Math.max(baseReal + step, 0)
+      const nextDisplay = Math.max(baseDisplay + step, 0)
+      this.favoriteCountOverride = Math.max(Number(this.displayLikeCount || 0) + step, 0)
+      this.detail.realFavoriteCount = nextFavorite
       this.detail.favoriteCount = nextFavorite
       this.detail.displayLikeCount = nextDisplay
       this.detail.likeCount = nextDisplay
@@ -1539,6 +1580,12 @@ $gold-bright: #f0c83a;
   font-size: 42rpx;
   font-weight: 800;
   line-height: 1;
+}
+
+.sold-status {
+  color: $gold-bright;
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
 .forecast {
@@ -2311,6 +2358,10 @@ $gold-bright: #f0c83a;
   justify-content: flex-end;
 }
 
+.price-block.is-sold {
+  justify-content: center;
+}
+
 .label-line {
   display: flex;
   align-items: center;
@@ -2819,8 +2870,8 @@ $gold-bright: #f0c83a;
 }
 
 .cert-preview {
-  width: 168rpx;
-  height: 94rpx;
+  width: 188rpx;
+  height: 132rpx;
   padding: 8rpx;
   border-radius: 12rpx;
   border: 1rpx solid rgba(216, 170, 69, 0.18);
@@ -2875,6 +2926,7 @@ $gold-bright: #f0c83a;
 }
 
 .bottom-bar {
+  bottom: 60rpx;
   grid-template-columns: 104rpx 104rpx minmax(0, 1fr);
   gap: 18rpx;
   padding: 16rpx 30rpx calc(16rpx + env(safe-area-inset-bottom));
@@ -3046,8 +3098,8 @@ $gold-bright: #f0c83a;
   }
 
   .cert-preview {
-    width: 150rpx;
-    height: 86rpx;
+    width: 176rpx;
+    height: 124rpx;
     justify-self: end;
   }
 

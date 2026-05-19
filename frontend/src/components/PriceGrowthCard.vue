@@ -11,8 +11,8 @@
     </view>
 
     <view class="growth-row">
-      <text class="row-label">收藏热度</text>
-      <text class="row-value">{{ collectCount || 0 }} 人收藏</text>
+      <text class="row-label">喜欢热度</text>
+      <text class="row-value">{{ collectCount || 0 }} 人喜欢</text>
     </view>
 
     <view class="next-condition">
@@ -28,7 +28,7 @@ export default {
     price: { type: Number, default: 0 },
     growthRate: { type: String, default: '+0%' },
     collectCount: { type: Number, default: 0 },
-    nextCondition: { type: String, default: '收藏人数增加后可能涨价' }
+    nextCondition: { type: String, default: '喜欢人数增加后可能涨价' }
   },
   methods: {
     formatPrice(price) {

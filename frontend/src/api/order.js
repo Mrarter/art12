@@ -59,8 +59,8 @@ export const getOrderList = (params) => {
   return request({ url: '/order/orders', data: params })
 }
 
-export const getOrderDetail = (orderNo) => {
-  return request({ url: `/order/orders/${orderNo}` })
+export const getOrderDetail = (orderId) => {
+  return request({ url: `/order/orders/${orderId}` })
 }
 
 export const getOrderCounts = () => {

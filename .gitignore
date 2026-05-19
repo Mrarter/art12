@@ -47,3 +47,6 @@ uploads/
 
 # 监控脚本
 scripts/monitor-service.sh
+logs/
+deploy/services/
+deploy/services.tar.gz

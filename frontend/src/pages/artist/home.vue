@@ -174,7 +174,7 @@ export default {
       ],
       stats: [
         { label: '作品', value: '0' },
-        { label: '收藏', value: '0' },
+        { label: '喜欢', value: '0' },
         { label: '粉丝', value: '0' }
       ],
       priceUpdatedAt: '',
@@ -269,7 +269,7 @@ export default {
       this.followed = !!data.followed
       this.stats = [
         { label: '作品', value: String(data.workCount || data.artworkCount || works.length || 0) },
-        { label: '收藏', value: String(data.collectCount || data.favoriteCount || 0) },
+        { label: '喜欢', value: String(data.collectCount || data.favoriteCount || 0) },
         { label: '粉丝', value: String(data.fansCount || data.followerCount || 0) }
       ]
     },

@@ -211,7 +211,7 @@ export default {
         this.metrics = [
           { key: 'works', label: '作品总数', value: data.works ?? 0, unit: '件' },
           { key: 'views', label: '总浏览量', value: this.fmt(data.views ?? 0), unit: '' },
-          { key: 'favorites', label: '总收藏', value: this.fmt(data.favorites ?? 0), unit: '' },
+          { key: 'favorites', label: '总喜欢', value: this.fmt(data.favorites ?? 0), unit: '' },
           { key: 'followers', label: '粉丝', value: this.fmt(data.followers ?? 0), unit: '' },
           { key: 'engagement', label: '互动率', value: data.engagementRate ?? 0, unit: '%' },
           { key: 'sales', label: '已售', value: this.fmt(data.sales ?? 0), unit: '件' }

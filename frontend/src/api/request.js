@@ -29,6 +29,12 @@ import {
 const PLATFORM = process.env.UNI_PLATFORM || 'h5'
 const IS_MP = PLATFORM === 'mp-weixin'
 const IS_DEV = process.env.NODE_ENV !== 'production'
+const IS_TEST = import.meta.env?.VITE_ENV === 'test' || import.meta.env?.MODE === 'test'
+
+// 测试环境日志标识
+if (IS_TEST) {
+  console.log('%c[测试环境] 当前为测试环境，API: ' + (import.meta.env?.VITE_API_BASE_URL || '—'), 'color:#ff4d4f;font-weight:bold')
+}
 
 const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
 

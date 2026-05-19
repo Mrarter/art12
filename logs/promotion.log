@@ -55,3 +55,8 @@ Standard Commons Logging discovery in action with spring-jcl: please remove comm
 2026-05-17T22:03:33.926+08:00  INFO 14084 --- [nio-8085-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
 2026-05-17T22:03:33.931+08:00  INFO 14084 --- [nio-8085-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 5 ms
 2026-05-17T22:03:33.952+08:00  WARN 14084 --- [nio-8085-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.promotion.controller.PromotionController
+2026-05-17T22:36:01.452+08:00  WARN 14084 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s871ms), soft-evicting connections from pool.
+2026-05-18T01:39:04.055+08:00  WARN 14084 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s848ms), soft-evicting connections from pool.
+2026-05-18T02:25:34.632+08:00  WARN 14084 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s869ms), soft-evicting connections from pool.
+2026-05-18T14:42:58.024+08:00  INFO 14084 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-05-18T14:42:58.034+08:00  INFO 14084 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.

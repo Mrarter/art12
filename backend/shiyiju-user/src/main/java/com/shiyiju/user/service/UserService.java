@@ -21,6 +21,7 @@ import com.shiyiju.user.mapper.PromoterRecordMapper;
 import com.shiyiju.user.mapper.UserMapper;
 import com.shiyiju.user.vo.LoginVO;
 import com.shiyiju.user.vo.UserInfoVO;
+import com.shiyiju.user.vo.UserInteractionStatsVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
 import com.shiyiju.user.util.PinyinUtil;
 import com.shiyiju.common.result.PageResult;
@@ -649,6 +650,7 @@ public class UserService {
             .map(Number.class::cast)
             .mapToInt(Number::intValue)
             .sum();
+        int soldCount = countArtistSoldWorks(artistId);
 
         String profileResume = stringValue(profile.get("resume"));
         String profileBio = stringValue(profile.get("bio"));
@@ -689,6 +691,9 @@ public class UserService {
         data.put("fansCount", artist.getFollowerCount() != null ? artist.getFollowerCount() : 0);
         data.put("artworkCount", works.size());
         data.put("workCount", works.size());
+        data.put("dealCount", soldCount);
+        data.put("soldCount", soldCount);
+        data.put("dealRate", works.isEmpty() ? "0%" : Math.round((soldCount * 100.0) / works.size()) + "%");
         data.put("works", works);
         data.put("artworks", works);
         data.put("quote", "");
@@ -828,6 +833,19 @@ public class UserService {
             works.add(item);
         }
         return works;
+    }
+
+    private int countArtistSoldWorks(Long artistId) {
+        String artworkTable = firstExistingTable("artwork", "artworks");
+        if (artworkTable == null || firstExistingColumn(artworkTable, "status") == null) {
+            return 0;
+        }
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(1) FROM " + artworkTable + " WHERE author_id = ? AND status = 2",
+            Integer.class,
+            artistId
+        );
+        return count != null ? count : 0;
     }
 
     private List<String> determinePublicTags(List<String> identities, Map<String, Object> profile, List<Map<String, Object>> works) {
@@ -2169,5 +2187,131 @@ public class UserService {
             log.error("刷新 Token 异常: {}", e.getMessage(), e);
             return null;
         }
+    }
+
+    // ======================== 互动数据校验 ========================
+
+    /**
+     * 校验用户真实互动数据（关注数/收藏数/点赞数）
+     * 从数据库中精准聚合，排除虚假/无效数据
+     *
+     * @param userId 用户 ID
+     * @return 互动统计数据及校验状态
+     */
+    public UserInteractionStatsVO verifyInteractionStats(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "用户 ID 不能为空");
+        }
+
+        // 验证用户是否存在
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND.getCode(), "用户不存在: " + userId);
+        }
+
+        List<String> issues = new ArrayList<>();
+
+        // 1. 关注数 —— 直接从 user_follows 表按 user_id 聚合
+        Integer followingCount = 0;
+        try {
+            followingCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(1) FROM user_follows WHERE user_id = ?",
+                    Integer.class, userId);
+            if (followingCount == null) followingCount = 0;
+        } catch (Exception e) {
+            log.warn("[互动校验] 查询关注数失败: {}", e.getMessage());
+            issues.add("关注表(user_follows)查询异常");
+        }
+
+        // 2. 收藏数 —— 从 artwork_favorites 表统计，仅算作品仍存在的有效记录
+        Integer favoriteCount = 0;
+        try {
+            // 尝试校验作品是否存在（排除已删除作品的无效收藏）
+            String artworkTable = firstExistingTable("artwork", "artworks");
+            if (artworkTable != null) {
+                favoriteCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(1) FROM artwork_favorites f "
+                                + "INNER JOIN " + artworkTable + " a ON f.artwork_id = a.id "
+                                + "WHERE f.user_id = ?",
+                        Integer.class, userId);
+            } else {
+                favoriteCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(1) FROM artwork_favorites WHERE user_id = ?",
+                        Integer.class, userId);
+            }
+            if (favoriteCount == null) favoriteCount = 0;
+        } catch (Exception e) {
+            log.warn("[互动校验] 查询收藏数失败: {}", e.getMessage());
+            issues.add("收藏表(artwork_favorites)查询异常");
+        }
+
+        // 3. 点赞数 —— 从 post_likes 表统计，仅算帖子仍存在的有效记录
+        Integer likeCount = 0;
+        try {
+            String postTable = firstExistingTable("posts", "post", "community_posts");
+            if (postTable != null) {
+                likeCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(1) FROM post_likes l "
+                                + "INNER JOIN " + postTable + " p ON l.post_id = p.id "
+                                + "WHERE l.user_id = ?",
+                        Integer.class, userId);
+            } else {
+                likeCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(1) FROM post_likes WHERE user_id = ?",
+                        Integer.class, userId);
+            }
+            if (likeCount == null) likeCount = 0;
+        } catch (Exception e) {
+            log.warn("[互动校验] 查询点赞数失败: {}", e.getMessage());
+            issues.add("点赞表(post_likes)查询异常");
+        }
+
+        // 4. 与 users 表中的 recorded 字段对比，检测差异
+        Integer recordedFollowing = user.getFollowingCount() != null ? user.getFollowingCount() : 0;
+        boolean followingDiscrepancy = !recordedFollowing.equals(followingCount);
+        if (followingDiscrepancy) {
+            issues.add(String.format("关注数不一致：数据库实际 %d，用户表记录 %d", followingCount, recordedFollowing));
+        }
+
+        // 5. 构建校验状态
+        boolean favoriteAnomaly = favoriteCount < 0;
+        boolean likeAnomaly = likeCount < 0;
+        boolean passed = !followingDiscrepancy && !favoriteAnomaly && !likeAnomaly && issues.isEmpty();
+
+        String level;
+        String summary;
+        if (passed) {
+            level = "GREEN";
+            summary = "所有互动数据一致，校验通过";
+        } else if (followingDiscrepancy) {
+            level = "YELLOW";
+            summary = String.format("数据存在 %d 处差异，关注数不一致", issues.size());
+        } else {
+            level = "RED";
+            summary = String.format("数据存在 %d 处异常，建议核查", issues.size());
+        }
+
+        UserInteractionStatsVO.VerificationStatus status = UserInteractionStatsVO.VerificationStatus.builder()
+                .passed(passed)
+                .level(level)
+                .summary(summary)
+                .build();
+
+        UserInteractionStatsVO.VerificationDetail detail = UserInteractionStatsVO.VerificationDetail.builder()
+                .followingDiscrepancy(followingDiscrepancy)
+                .favoriteAnomaly(favoriteAnomaly)
+                .likeAnomaly(likeAnomaly)
+                .issues(issues)
+                .build();
+
+        return UserInteractionStatsVO.builder()
+                .userId(userId)
+                .followingCount(followingCount)
+                .favoriteCount(favoriteCount)
+                .likeCount(likeCount)
+                .recordedFollowingCount(recordedFollowing)
+                .verificationStatus(status)
+                .verificationDetail(detail)
+                .build();
     }
 }

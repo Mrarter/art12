@@ -2,6 +2,7 @@ package com.shiyiju.order.vo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import java.math.BigDecimal;
 import java.io.Serializable;
 import java.util.List;
 
@@ -12,12 +13,12 @@ public class OrderVO implements Serializable {
     
     /** 商品总金额 */
     @JsonProperty("goodsAmount")
-    private Long totalAmount;
+    private BigDecimal totalAmount;
     
-    private Long discountAmount;
+    private BigDecimal discountAmount;
     
     /** 实付金额 */
-    private Long payAmount;
+    private BigDecimal payAmount;
     
     /** 收货人信息 */
     private AddressVO address;
@@ -52,7 +53,7 @@ public class OrderVO implements Serializable {
     private String sellerName;
     
     /** 运费 */
-    private Long freight;
+    private BigDecimal freight;
     
     /** 物流单号 */
     private String trackingNo;

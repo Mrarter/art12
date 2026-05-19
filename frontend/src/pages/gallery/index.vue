@@ -38,8 +38,11 @@
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
-                  <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                  <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
+                  <template v-else>
+                    <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
+                    <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                  </template>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   
@@ -69,8 +72,11 @@
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
-                  <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                  <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
+                  <template v-else>
+                    <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
+                    <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                  </template>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   
@@ -379,15 +385,19 @@ export default {
       return holder
     },
 
-    // 获取实时价格（优先使用 currentPrice，否则 fallback 到 price）
+    isSoldArtwork(item) {
+      return Number(item.status) === 2
+    },
+
+    // 获取实时价格（与详情页 resolveCurrentPrice 保持一致的字段优先级）
     getCurrentPrice(item) {
-      const current = Number(item.currentPrice || 0)
-      if (current > 0) return current
+      const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
+      if (currentPrice > 0) return currentPrice
       return Number(item.price || 0)
     },
 
     showRiseTip(item) {
-      return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
+      return !this.isSoldArtwork(item) && (item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0)
     },
 
     getRiseTipText(item) {
@@ -792,6 +802,12 @@ $accent-gold-light: #e6c65c;
     font-size: 20rpx;
     font-weight: 500;
   }
+}
+
+.sold-label {
+  color: $accent-gold;
+  font-size: 28rpx;
+  font-weight: 600;
 }
 
 .original-price {

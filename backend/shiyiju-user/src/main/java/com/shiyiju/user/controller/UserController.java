@@ -7,6 +7,7 @@ import com.shiyiju.user.entity.User;
 import com.shiyiju.user.service.UserService;
 import com.shiyiju.user.vo.LoginVO;
 import com.shiyiju.user.vo.UserInfoVO;
+import com.shiyiju.user.vo.UserInteractionStatsVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -313,6 +314,21 @@ public class UserController {
             return Result.fail(401, "请先登录");
         }
         return Result.success(userService.getRealnameCertStatus(userId));
+    }
+
+    /**
+     * 校验用户真实互动数据 (GET /user/interaction/stats)
+     * 从数据库精准聚合关注数、收藏数、点赞数，排除虚假/无效记录
+     *
+     * @param userId 用户 ID（必填）
+     */
+    @GetMapping("/interaction/stats")
+    public Result<UserInteractionStatsVO> verifyInteractionStats(@RequestParam Long userId) {
+        if (userId == null || userId <= 0) {
+            return Result.fail(400, "无效的用户 ID");
+        }
+        UserInteractionStatsVO vo = userService.verifyInteractionStats(userId);
+        return Result.success(vo);
     }
 
 }

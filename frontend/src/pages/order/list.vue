@@ -164,13 +164,22 @@ const fetchOrderList = async (reset = false) => {
     
     const result = await getOrderList(params)
     
-    // 处理 PageResult 格式：{ records: [], total: xxx }
-    const list = result?.records || result?.list || result || []
+    // 处理 PageResult 格式：{ records: [], total: xxx } 或直接数组
+    const rawList = result?.records || result?.list || result || []
+    const list = Array.isArray(rawList) ? rawList : []
+    
+    // 数据归一化：确保每项有 items 数组、合理的默认值
+    const normalized = list.map(item => ({
+      ...item,
+      items: item.items || item.goods || item.orderItems || [],
+      payAmount: item.payAmount || item.amount || item.totalAmount || 0,
+      orderNo: item.orderNo || item.orderNumber || item.id || ''
+    }))
     
     if (reset) {
-      orderList.value = list
+      orderList.value = normalized
     } else {
-      orderList.value = [...orderList.value, ...list]
+      orderList.value = [...orderList.value, ...normalized]
     }
     
     pendingPayCount.value = result?.pendingPayCount || 0
@@ -181,6 +190,7 @@ const fetchOrderList = async (reset = false) => {
       page.value++
     }
   } catch (e) {
+    console.warn('[订单列表] 加载失败:', e)
     if (reset) orderList.value = []
   } finally {
     loading.value = false
@@ -274,11 +284,13 @@ const getStatusText = (status) => {
   return map[status] || '未知'
 }
 
-// 格式化价格（后端返回分为单位，需除以100）
+// 订单链路沿用“分”单位，展示时统一转元
 const formatPrice = (price) => {
-  if (!price && price !== 0) return '0'
-  const yuan = Math.round(Number(price) / 100)
-  return yuan.toLocaleString()
+  if (price === null || price === undefined || price === '') return '0.00'
+  return (Number(price) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 // 格式化时间

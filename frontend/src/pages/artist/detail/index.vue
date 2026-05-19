@@ -111,7 +111,7 @@ export default {
     stats() {
       return [
         { label: '作品', value: '36' },
-        { label: '收藏', value: '128' },
+        { label: '喜欢', value: '128' },
         { label: '粉丝', value: '2381' }
       ]
     }

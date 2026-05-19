@@ -82,8 +82,8 @@ export default {
       activeTab: 'ALL',
       tabs: [
         { label: '全部', value: 'ALL' },
-        { label: '可收藏', value: 'ON_SALE' },
-        { label: '已收藏', value: 'COLLECTED' },
+        { label: '可喜欢', value: 'ON_SALE' },
+        { label: '已喜欢', value: 'COLLECTED' },
         { label: '再次流通', value: 'CAN_APPLY' },
         { label: '代表作', value: 'FEATURED' }
       ],
