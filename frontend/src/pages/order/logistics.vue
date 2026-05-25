@@ -84,66 +84,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { getOrderDetail, getOrderLogistics } from '@/api/order'
+import { getFullImageUrl } from '@/utils/image'
 
 const logisticsInfo = ref({
-  expressName: '顺丰速运',
-  expressNo: 'SF1234567890123',
-  statusText: '派送中',
-  statusCode: 'delivering',
-  receiver: '张三',
-  phone: '138****8888',
-  address: '广东省深圳市南山区科技园xx路xx号',
-  traces: [
-    {
-      desc: '您的订单已由【深圳科技园营业部】收取，正在派送途中，请您保持手机畅通',
-      time: '2024-01-15 14:30:22',
-      location: '深圳'
-    },
-    {
-      desc: '快件已到达【深圳科技园营业部】',
-      time: '2024-01-15 09:15:00',
-      location: '深圳'
-    },
-    {
-      desc: '快件已从【深圳分拨中心】发出，正在送往【深圳科技园营业部】',
-      time: '2024-01-15 02:30:00',
-      location: '深圳'
-    },
-    {
-      desc: '快件已到达【深圳分拨中心】',
-      time: '2024-01-14 22:00:00',
-      location: '深圳'
-    },
-    {
-      desc: '快件已从【广州分拨中心】发出，正在送往【深圳分拨中心】',
-      time: '2024-01-14 18:30:00',
-      location: '广州'
-    },
-    {
-      desc: '快件已到达【广州分拨中心】',
-      time: '2024-01-14 15:00:00',
-      location: '广州'
-    },
-    {
-      desc: '商家已发货，快件正在运输中',
-      time: '2024-01-14 10:30:00',
-      location: ''
-    }
-  ]
+  expressName: '--',
+  expressNo: '--',
+  statusText: '暂无物流',
+  statusCode: 'pending',
+  receiver: '--',
+  phone: '--',
+  address: '--',
+  traces: []
 })
 
 const orderInfo = ref({
-  orderNo: 'ORD202401011234567890',
-  goods: [
-    {
-      cover: 'https://pic.imgdb.cn/item/1.jpg',
-      title: '山水意境·云起',
-      spec: '原作/带框',
-      price: '8888',
-      count: 1
-    }
-  ]
+  orderNo: '',
+  goods: []
 })
 
 const statusClass = computed(() => {
@@ -155,7 +114,77 @@ const statusClass = computed(() => {
   return map[logisticsInfo.value.statusCode] || ''
 })
 
+const statusCodeMap = {
+  1: 'pending',
+  2: 'delivering',
+  3: 'delivering',
+  4: 'completed'
+}
+
+const formatTime = (value) => {
+  if (!value) return ''
+  return String(value).replace('T', ' ')
+}
+
+const formatPrice = (value) => {
+  const amount = Number(value || 0)
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2)
+}
+
+const normalizeGoods = (goods = []) => goods.map(item => ({
+  cover: getFullImageUrl(item.goodsImage || item.coverImage || item.cover || ''),
+  title: item.goodsName || item.title || item.itemTitle || '作品',
+  spec: item.specName || item.spec || item.artType || '',
+  price: formatPrice(item.price || item.unitPrice || 0),
+  count: item.count || item.quantity || 1
+}))
+
+const normalizeTrace = (item) => ({
+  desc: item.desc || item.description || '物流状态已更新',
+  time: formatTime(item.time || item.trackTime || item.track_time),
+  location: item.location || ''
+})
+
+const loadLogistics = async (orderId) => {
+  try {
+    const [logistics, detail] = await Promise.all([
+      getOrderLogistics(orderId).catch(() => null),
+      getOrderDetail(orderId).catch(() => null)
+    ])
+
+    if (detail) {
+      orderInfo.value = {
+        orderNo: detail.orderNo || detail.order_no || orderId,
+        goods: normalizeGoods(detail.goodsList || detail.items || [])
+      }
+    }
+
+    if (!logistics) {
+      logisticsInfo.value.traces = [{ desc: '商家暂未发货', time: '', location: '' }]
+      return
+    }
+
+    const traces = (logistics.tracks || logistics.traces || []).map(normalizeTrace)
+    logisticsInfo.value = {
+      expressName: logistics.companyName || logistics.expressName || '--',
+      expressNo: logistics.trackingNo || logistics.expressNo || '--',
+      statusText: logistics.statusText || '已发货',
+      statusCode: statusCodeMap[Number(logistics.status)] || 'delivering',
+      receiver: logistics.receiverName || logistics.receiver || '--',
+      phone: logistics.receiverPhone || logistics.phone || '--',
+      address: logistics.receiverAddress || logistics.address || '--',
+      traces: traces.length ? traces : [{ desc: '商家已发货，等待物流揽收', time: formatTime(logistics.shipTime), location: '' }]
+    }
+  } catch (error) {
+    uni.showToast({ title: error?.message || '物流加载失败', icon: 'none' })
+  }
+}
+
 const copyExpressNo = () => {
+  if (!logisticsInfo.value.expressNo || logisticsInfo.value.expressNo === '--') {
+    uni.showToast({ title: '暂无快递单号', icon: 'none' })
+    return
+  }
   uni.setClipboardData({
     data: logisticsInfo.value.expressNo,
     success: () => {
@@ -173,15 +202,13 @@ const contactExpress = () => {
   })
 }
 
-onMounted(() => {
-  // 获取物流信息
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const options = currentPage.options || {}
-  
-  if (options.orderId) {
-    // 实际应该从API获取物流信息
-    orderInfo.value.orderNo = options.orderId
+onLoad((options = {}) => {
+  const orderId = options.id || options.orderId || ''
+  if (orderId) {
+    orderInfo.value.orderNo = orderId
+    loadLogistics(orderId)
+  } else {
+    uni.showToast({ title: '缺少订单参数', icon: 'none' })
   }
 })
 </script>

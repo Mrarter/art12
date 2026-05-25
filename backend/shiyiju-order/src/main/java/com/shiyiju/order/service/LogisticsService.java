@@ -2,7 +2,9 @@ package com.shiyiju.order.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shiyiju.common.constant.OrderConstant;
+import com.shiyiju.common.entity.Address;
 import com.shiyiju.common.exception.BusinessException;
+import com.shiyiju.common.mapper.AddressMapper;
 import com.shiyiju.common.result.ResultCode;
 import com.shiyiju.order.dto.ShipOrderDTO;
 import com.shiyiju.order.entity.Logistics;
@@ -36,6 +38,7 @@ public class LogisticsService {
     private final LogisticsMapper logisticsMapper;
     private final LogisticsTrackMapper logisticsTrackMapper;
     private final OrderMapper orderMapper;
+    private final AddressMapper addressMapper;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -60,9 +63,10 @@ public class LogisticsService {
         logistics.setTrackingNo(dto.getTrackingNo());
         logistics.setShipTime(LocalDateTime.now());
         logistics.setStatus(1); // 已发货
-        logistics.setReceiverName(order.getReceiverName());
-        logistics.setReceiverPhone(order.getReceiverPhone());
-        logistics.setReceiverAddress(order.getReceiverAddress());
+        ReceiverInfo receiver = resolveReceiverInfo(order);
+        logistics.setReceiverName(receiver.name());
+        logistics.setReceiverPhone(receiver.phone());
+        logistics.setReceiverAddress(receiver.address());
         logistics.setRemark(dto.getRemark());
         logistics.setCreateTime(LocalDateTime.now());
         logistics.setUpdateTime(LocalDateTime.now());
@@ -86,12 +90,18 @@ public class LogisticsService {
      * 获取订单物流信息
      */
     public LogisticsVO getOrderLogistics(Long orderId) {
-        Logistics logistics = logisticsMapper.selectOne(
-                new LambdaQueryWrapper<Logistics>()
-                        .eq(Logistics::getOrderId, orderId)
-                        .orderByDesc(Logistics::getCreateTime)
-                        .last("LIMIT 1")
-        );
+        Logistics logistics;
+        try {
+            logistics = logisticsMapper.selectOne(
+                    new LambdaQueryWrapper<Logistics>()
+                            .eq(Logistics::getOrderId, orderId)
+                            .orderByDesc(Logistics::getCreateTime)
+                            .last("LIMIT 1")
+            );
+        } catch (Exception ex) {
+            log.warn("订单{}物流信息读取失败", orderId, ex);
+            return null;
+        }
 
         if (logistics == null) {
             return null;
@@ -147,11 +157,17 @@ public class LogisticsService {
      */
     @Transactional
     public void confirmReceive(Long orderId, Long userId) {
-        Logistics logistics = logisticsMapper.selectOne(
-                new LambdaQueryWrapper<Logistics>()
-                        .eq(Logistics::getOrderId, orderId)
-                        .last("LIMIT 1")
-        );
+        Logistics logistics;
+        try {
+            logistics = logisticsMapper.selectOne(
+                    new LambdaQueryWrapper<Logistics>()
+                            .eq(Logistics::getOrderId, orderId)
+                            .last("LIMIT 1")
+            );
+        } catch (Exception ex) {
+            log.warn("订单{}确认收货时物流信息读取失败", orderId, ex);
+            return;
+        }
 
         if (logistics != null) {
             logistics.setStatus(4); // 已签收
@@ -286,6 +302,40 @@ public class LogisticsService {
         log.info("查询物流单号: {}", trackingNo);
         return "包裹正在运输中";
     }
+
+    private ReceiverInfo resolveReceiverInfo(Order order) {
+        String name = order.getReceiverName();
+        String phone = order.getReceiverPhone();
+        String addressText = order.getReceiverAddress();
+
+        if ((name == null || name.isBlank() || phone == null || phone.isBlank() || addressText == null || addressText.isBlank())
+                && order.getAddressId() != null && order.getAddressId() > 0) {
+            Address address = addressMapper.selectById(order.getAddressId());
+            if (address != null) {
+                if (name == null || name.isBlank()) {
+                    name = address.getReceiverName();
+                }
+                if (phone == null || phone.isBlank()) {
+                    phone = address.getReceiverPhone();
+                }
+                if (addressText == null || addressText.isBlank()) {
+                    addressText = String.join("",
+                            nullToEmpty(address.getProvince()),
+                            nullToEmpty(address.getCity()),
+                            nullToEmpty(address.getDistrict()),
+                            nullToEmpty(address.getDetailAddress()));
+                }
+            }
+        }
+
+        return new ReceiverInfo(nullToEmpty(name), nullToEmpty(phone), nullToEmpty(addressText));
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private record ReceiverInfo(String name, String phone, String address) {}
 
     /**
      * 物流公司内部类

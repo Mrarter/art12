@@ -40,7 +40,9 @@
         </view>
       </view>
       <view class="hero-actions">
-        <button class="gold-btn" @click="followArtist">{{ followed ? '已关注' : '关注' }}</button>
+        <button class="gold-btn" :disabled="followLoading" @click="followArtist">
+          {{ followed ? '已关注' : '关注' }}
+        </button>
         <button class="outline-btn" @click="consult">咨询顾问</button>
       </view>
     </view>
@@ -72,9 +74,15 @@
               <view class="work-title">{{ work.title }}</view>
               <view class="work-meta">{{ work.material }} / {{ work.size }} / {{ work.year }}</view>
               <view class="work-bottom">
-                <text class="price" :class="{ 'price-error': work.priceError }">{{ work.priceDisplay }}</text>
+                <text
+                  class="price"
+                  :class="{ 'price-error': work.priceError, 'collector-label': work.collected }"
+                >
+                  {{ work.collected ? work.collectorLabel : work.priceDisplay }}
+                </text>
                 <view class="work-bottom-right">
-                  <text v-if="!work.priceError" class="price-updated">{{ priceUpdatedAt }}</text>
+                  <text v-if="work.collected" class="collect-tag">已收藏</text>
+                  <text v-else-if="!work.priceError" class="price-updated">{{ priceUpdatedAt }}</text>
                   <text v-else class="collect-tag">价格待更新</text>
                 </view>
               </view>
@@ -152,6 +160,7 @@ export default {
   data() {
     return {
       followed: false,
+      followLoading: false,
       introExpanded: false,
       loading: true,
       artist: {
@@ -248,6 +257,9 @@ export default {
         priceText: w.priceText || (this.resolveCurrentPrice(w) ? '¥' + this.formatPrice(this.resolveCurrentPrice(w)) : ''),
         cover: w.cover || w.coverImage || w.coverUrl || '/static/images/museum-v12-work-boat.png',
         priceDisplay: w.priceText || '',
+        collected: !!(w.collected || w.isCollected || w.sold || Number(w.status) === 2),
+        collectorRegion: w.collectorRegion || '',
+        collectorLabel: w.collectorLabel || this.buildCollectorLabel(w.collectorRegion),
         priceError: false
       }))
       const artistTags = this.normalizeTags(data.artistTags || data.tags || data.badges)
@@ -301,6 +313,9 @@ export default {
 
         // 用实时价格覆盖 works
         this.works = this.works.map(w => {
+          if (w.collected) {
+            return { ...w, priceError: false }
+          }
           const real = priceMap[w.id]
           if (real) {
             const formatted = '¥' + this.formatPrice(real.currentPrice)
@@ -344,6 +359,12 @@ export default {
       if (currentPrice > 0) return currentPrice
       return Number(item.price || 0)
     },
+    buildCollectorLabel(region) {
+      const value = String(region || '').trim()
+      if (!value) return '藏家收藏'
+      if (value.endsWith('地区') || value.endsWith('藏家')) return `${value}收藏`
+      return `${value}地区藏家收藏`
+    },
     goBack() {
       const pages = getCurrentPages()
       if (pages && pages.length > 1) {
@@ -353,17 +374,33 @@ export default {
       }
     },
     async followArtist() {
+      if (this.followLoading) return
+      this.followLoading = true
       try {
         if (this.followed) {
           await userApi.unfollowArtist(this.artist.id)
           this.followed = false
+          this.adjustFansCount(-1)
+          uni.showToast({ title: '已取消关注', icon: 'success' })
         } else {
           await userApi.followArtist(this.artist.id)
           this.followed = true
+          this.adjustFansCount(1)
+          uni.showToast({ title: '关注成功', icon: 'success' })
         }
       } catch (e) {
         console.error('关注操作失败', e)
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } finally {
+        this.followLoading = false
       }
+    },
+    adjustFansCount(step) {
+      this.stats = this.stats.map(item => {
+        if (item.label !== '粉丝') return item
+        const current = Number(String(item.value || '0').replace(/,/g, '')) || 0
+        return { ...item, value: String(Math.max(current + step, 0)) }
+      })
     },
     async shareArtist() {
       const shareUrl = typeof window !== 'undefined'
@@ -836,6 +873,14 @@ $gold-line: rgba(215, 165, 29, 0.65);
   color: $gold-light;
   font-size: 27rpx;
   font-weight: 900;
+}
+
+.collector-label {
+  max-width: 132rpx;
+  font-size: 21rpx;
+  line-height: 1.2;
+  white-space: normal;
+  word-break: break-all;
 }
 
 .collect-tag {

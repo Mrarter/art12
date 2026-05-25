@@ -2,6 +2,7 @@ package com.shiyiju.user.controller;
 
 import com.shiyiju.common.result.Result;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.user.service.UserService;
@@ -209,8 +210,17 @@ public class UserController {
      * 获取艺术家主页信息 (GET /artist/{userId})
      */
     @GetMapping("/artist/{artistId}")
-    public Result<Map<String, Object>> getArtistHomepage(@PathVariable Long artistId) {
-        return Result.success(userService.getArtistHomepage(artistId));
+    public Result<Map<String, Object>> getArtistHomepage(
+            @PathVariable Long artistId,
+            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId
+    ) {
+        Map<String, Object> data = userService.getArtistHomepage(artistId);
+        if (currentUserId != null) {
+            boolean following = userService.isFollowing(currentUserId, artistId);
+            data.put("isFollowing", following);
+            data.put("followed", following);
+        }
+        return Result.success(data);
     }
 
     /**
@@ -227,10 +237,18 @@ public class UserController {
      * 用于作品服务关联艺术家信息
      */
     @GetMapping("/artist/info/{artistId}")
-    public Result<java.util.Map<String, Object>> getArtistInfo(@PathVariable Long artistId) {
+    public Result<java.util.Map<String, Object>> getArtistInfo(
+            @PathVariable Long artistId,
+            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId
+    ) {
         java.util.Map<String, Object> data = userService.getArtistInfo(artistId);
         if (data == null) {
             return Result.fail(404, "艺术家不存在");
+        }
+        if (currentUserId != null) {
+            boolean following = userService.isFollowing(currentUserId, artistId);
+            data.put("isFollowing", following);
+            data.put("followed", following);
         }
         return Result.success(data);
     }
@@ -329,6 +347,51 @@ public class UserController {
         }
         UserInteractionStatsVO vo = userService.verifyInteractionStats(userId);
         return Result.success(vo);
+    }
+
+    /**
+     * 用户注册 (POST /user/register)
+     * 手机号 + 验证码注册
+     */
+    @PostMapping("/register")
+    public Result<LoginVO> register(@Valid @RequestBody RegisterDTO dto) {
+        log.info("用户注册请求, phone: {}", dto.getPhone());
+        LoginVO vo = userService.register(dto);
+        return Result.success(vo);
+    }
+
+    /**
+     * 手机号登录 (POST /user/phone-login)
+     * 手机号 + 验证码登录（已注册用户）
+     */
+    @PostMapping("/phone-login")
+    public Result<LoginVO> phoneLogin(@Valid @RequestBody RegisterDTO dto) {
+        log.info("手机号登录请求, phone: {}", dto.getPhone());
+        LoginVO vo = userService.phoneLogin(dto);
+        return Result.success(vo);
+    }
+
+    /**
+     * 密码登录 (POST /user/password-login)
+     * 手机号 + 密码登录（已注册用户）
+     */
+    @PostMapping("/password-login")
+    public Result<LoginVO> passwordLogin(@RequestBody RegisterDTO dto) {
+        log.info("密码登录请求, phone: {}", dto.getPhone());
+        LoginVO vo = userService.passwordLogin(dto);
+        return Result.success(vo);
+    }
+
+    /**
+     * 发送短信验证码 (POST /user/sms-code)
+     */
+    @PostMapping("/sms-code")
+    public Result<Void> sendSmsCode(@RequestBody Map<String, String> params) {
+        String phone = params.get("phone");
+        String type = params.get("type");
+        log.info("发送短信验证码请求, phone: {}, type: {}", phone, type);
+        userService.sendSmsCode(phone, type);
+        return Result.success();
     }
 
 }

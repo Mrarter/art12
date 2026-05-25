@@ -70,8 +70,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: test_password_2026
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      WECHAT_APPID: ${WECHAT_APPID:-wx_test_appid}
-      WECHAT_SECRET: ${WECHAT_SECRET:-test_secret}
+      WECHAT_APPID: ${WECHAT_APPID:-wx53de6703ba23756d}
+      WECHAT_SECRET: ${WECHAT_SECRET:-181653dd5e2aa1fcca1b34c61155d15c2}
     depends_on:
       mysql:
         condition: service_healthy
@@ -93,8 +93,8 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: test_password_2026
       SPRING_DATA_REDIS_HOST: redis
-      WECHAT_APPID: ${WECHAT_APPID:-wx_test_appid}
-      WECHAT_SECRET: ${WECHAT_SECRET:-test_secret}
+      WECHAT_APPID: ${WECHAT_APPID:-wx53de6703ba23756d}
+      WECHAT_SECRET: ${WECHAT_SECRET:-181653dd5e2aa1fcca1b34c61155d15c2}
     depends_on:
       - mysql
       - redis

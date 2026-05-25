@@ -1126,7 +1126,7 @@ public class ProductService {
             // 调用 user 服务的艺术家查询接口
             String url = "http://localhost:8081/artist/by-name?name=" + java.net.URLEncoder.encode(artistName.trim(), "UTF-8");
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response != null && response.get("code") != null && ((Number) response.get("code")).intValue() == 0) {
+            if (isSuccessResponse(response)) {
                 return (Map<String, Object>) response.get("data");
             }
             log.warn("获取艺术家信息失败: artistName={}, response={}", artistName, response);
@@ -1337,7 +1337,7 @@ public class ProductService {
             // 调用 user 服务的艺术家详情接口
             String url = "http://localhost:8081/user/artist/info/" + authorId;
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response != null && response.get("code") != null && ((Number) response.get("code")).intValue() == 0) {
+            if (isSuccessResponse(response)) {
                 Map<String, Object> data = (Map<String, Object>) response.get("data");
                 if (data != null) {
                     return mapToArtistInfoVO(data);
@@ -1348,6 +1348,14 @@ public class ProductService {
             log.error("调用艺术家详情接口失败: authorId={}, error={}", authorId, e.getMessage());
         }
         return null;
+    }
+
+    private boolean isSuccessResponse(Map<String, Object> response) {
+        if (response == null || response.get("code") == null) {
+            return false;
+        }
+        int code = ((Number) response.get("code")).intValue();
+        return code == 0 || code == 200;
     }
 
     /**

@@ -439,8 +439,10 @@ export default {
       
       // 3. 后台获取用户信息（不阻塞 UI）
       // 如果 401，会触发登录流程，不影响页面渲染
-      this.userStore.initUserInfo().then((info) => {
+      this.userStore.initUserInfo().then(async (info) => {
         if (info) {
+          await this.userStore.fetchCenterData()
+          this.loadLocalStats()
           this.loadOrderCounts()
         }
       }).catch(() => {

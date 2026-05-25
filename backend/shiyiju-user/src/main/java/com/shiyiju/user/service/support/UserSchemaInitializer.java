@@ -21,11 +21,13 @@ public class UserSchemaInitializer {
     @PostConstruct
     public void init() {
         ensureUsersTable();
+        ensureUsersColumns();
         ensureArtistProfileTable();
         ensureArtistCertificationsTable();
         ensureArtistProfileColumns();
         ensureRealnameTable();
         ensureRealnameColumns();
+        ensureUserFollowsTable();
         ensurePayAccountTable();
         ensureWalletTables();
         ensureCommissionRecordTable();
@@ -42,6 +44,7 @@ public class UserSchemaInitializer {
               nickname VARCHAR(100) DEFAULT NULL,
               avatar VARCHAR(255) DEFAULT NULL,
               phone VARCHAR(20) DEFAULT NULL,
+              password VARCHAR(255) DEFAULT NULL,
               gender INT DEFAULT 0,
               birthday VARCHAR(32) DEFAULT NULL,
               bio VARCHAR(500) DEFAULT NULL,
@@ -60,6 +63,11 @@ public class UserSchemaInitializer {
               UNIQUE KEY uk_users_openid (openid)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """);
+    }
+
+    private void ensureUsersColumns() {
+        addColumnIfMissing("users", "password",
+            "ALTER TABLE users ADD COLUMN password VARCHAR(255) DEFAULT NULL COMMENT '登录密码哈希' AFTER phone");
     }
 
     private void backfillUsersFromLegacyTables() {
@@ -292,6 +300,23 @@ public class UserSchemaInitializer {
               KEY idx_realname_user_id (user_id),
               KEY idx_realname_status (status),
               UNIQUE KEY uk_realname_user_id (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensureUserFollowsTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS user_follows (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '关注者用户ID',
+              follow_user_id BIGINT NOT NULL COMMENT '被关注艺术家用户ID',
+              create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              deleted TINYINT DEFAULT 0,
+              PRIMARY KEY (id),
+              UNIQUE KEY uk_user_follow (user_id, follow_user_id),
+              KEY idx_user_follows_user_id (user_id),
+              KEY idx_user_follows_follow_user_id (follow_user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """);
     }

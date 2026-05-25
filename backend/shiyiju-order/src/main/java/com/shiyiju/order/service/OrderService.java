@@ -62,6 +62,8 @@ public class OrderService {
     private final WalletRestClient walletClient;
     private final FinanceEventPublisher financeEventPublisher;
     private final OrderFailRecorder orderFailRecorder;
+    private final LogisticsMapper logisticsMapper;
+    private final LogisticsService logisticsService;
     private final PlatformTransactionManager transactionManager;
     private final ObjectMapper objectMapper;
 
@@ -704,6 +706,7 @@ public class OrderService {
         order.setStatus(OrderConstant.STATUS_COMPLETED);
         order.setReceiveTime(LocalDateTime.now());
         orderMapper.updateById(order);
+        logisticsService.confirmReceive(orderId, userId);
     }
 
     /** 申请售后 */
@@ -1106,8 +1109,30 @@ public class OrderService {
         // 运费
         vo.setFreight(order.getFreightAmount() != null ? order.getFreightAmount() : BigDecimal.ZERO);
         // 物流信息
-        vo.setTrackingNo(order.getTrackingNo());
-        vo.setExpressName(order.getExpressName());
+        Logistics logistics = null;
+        try {
+            logistics = logisticsMapper.selectOne(
+                    new LambdaQueryWrapper<Logistics>()
+                            .eq(Logistics::getOrderId, order.getId())
+                            .orderByDesc(Logistics::getCreateTime)
+                            .last("LIMIT 1")
+            );
+        } catch (Exception ex) {
+            log.warn("订单{}物流信息读取失败，继续返回订单详情", order.getId(), ex);
+        }
+        if (logistics != null) {
+            vo.setTrackingNo(logistics.getTrackingNo());
+            vo.setExpressName(logistics.getCompanyName());
+            if (logistics.getShipTime() != null) {
+                vo.setShipTime(logistics.getShipTime().toString());
+            }
+            if (logistics.getReceiveTime() != null) {
+                vo.setReceiveTime(logistics.getReceiveTime().toString());
+            }
+        } else {
+            vo.setTrackingNo(order.getTrackingNo());
+            vo.setExpressName(order.getExpressName());
+        }
 
         vo.setSourceText(getSourceText(order.getSource()));
         vo.setStatusText(getStatusText(order.getStatus()));

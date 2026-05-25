@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.shiyiju.common.util.JwtUtil;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.entity.ArtistCertification;
 import com.shiyiju.user.entity.ArtistProfile;
 import com.shiyiju.user.entity.PromoterRecord;
@@ -52,6 +53,7 @@ public class UserService {
     private final com.shiyiju.user.mapper.RealnameCertificationMapper realnameCertMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final JdbcTemplate jdbcTemplate;
+    private final SmsService smsService;
     
     @org.springframework.beans.factory.annotation.Value("${wechat.appid:}")
     private String wechatAppId;
@@ -569,24 +571,35 @@ public class UserService {
         if (userId.equals(artistId)) {
             throw new BusinessException("不能关注自己");
         }
-        
-        // 增加艺术家的粉丝数
+
         User artist = userMapper.selectById(artistId);
         if (artist == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
-        
-        artist.setFollowerCount(artist.getFollowerCount() == null ? 1 : artist.getFollowerCount() + 1);
-        artist.setUpdateTime(LocalDateTime.now());
-        userMapper.updateById(artist);
-        
-        // 增加关注者的关注数
         User user = userMapper.selectById(userId);
-        user.setFollowingCount(user.getFollowingCount() == null ? 1 : user.getFollowingCount() + 1);
-        user.setUpdateTime(LocalDateTime.now());
-        userMapper.updateById(user);
-        
-        // 存储关注关系到 Redis
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+
+        if (isFollowing(userId, artistId)) {
+            redisTemplate.opsForSet().add("follow:" + userId, artistId);
+            return;
+        }
+
+        int inserted = jdbcTemplate.update(
+            "INSERT IGNORE INTO user_follows (user_id, follow_user_id, create_time, update_time, deleted) VALUES (?, ?, NOW(), NOW(), 0)",
+            userId,
+            artistId
+        );
+        if (inserted > 0) {
+            artist.setFollowerCount(artist.getFollowerCount() == null ? 1 : artist.getFollowerCount() + 1);
+            artist.setUpdateTime(LocalDateTime.now());
+            userMapper.updateById(artist);
+
+            user.setFollowingCount(user.getFollowingCount() == null ? 1 : user.getFollowingCount() + 1);
+            user.setUpdateTime(LocalDateTime.now());
+            userMapper.updateById(user);
+        }
         redisTemplate.opsForSet().add("follow:" + userId, artistId);
     }
 
@@ -595,23 +608,29 @@ public class UserService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void unfollowArtist(Long userId, Long artistId) {
-        // 减少艺术家的粉丝数
-        User artist = userMapper.selectById(artistId);
-        if (artist != null && artist.getFollowerCount() != null && artist.getFollowerCount() > 0) {
-            artist.setFollowerCount(artist.getFollowerCount() - 1);
-            artist.setUpdateTime(LocalDateTime.now());
-            userMapper.updateById(artist);
+        int deleted = 0;
+        if (tableExists("user_follows")) {
+            deleted = jdbcTemplate.update(
+                "DELETE FROM user_follows WHERE user_id = ? AND follow_user_id = ?",
+                userId,
+                artistId
+            );
         }
-        
-        // 减少关注者的关注数
-        User user = userMapper.selectById(userId);
-        if (user != null && user.getFollowingCount() != null && user.getFollowingCount() > 0) {
-            user.setFollowingCount(user.getFollowingCount() - 1);
-            user.setUpdateTime(LocalDateTime.now());
-            userMapper.updateById(user);
+        if (deleted > 0) {
+            User artist = userMapper.selectById(artistId);
+            if (artist != null && artist.getFollowerCount() != null && artist.getFollowerCount() > 0) {
+                artist.setFollowerCount(artist.getFollowerCount() - 1);
+                artist.setUpdateTime(LocalDateTime.now());
+                userMapper.updateById(artist);
+            }
+
+            User user = userMapper.selectById(userId);
+            if (user != null && user.getFollowingCount() != null && user.getFollowingCount() > 0) {
+                user.setFollowingCount(user.getFollowingCount() - 1);
+                user.setUpdateTime(LocalDateTime.now());
+                userMapper.updateById(user);
+            }
         }
-        
-        // 从 Redis 中移除
         redisTemplate.opsForSet().remove("follow:" + userId, artistId);
     }
 
@@ -663,6 +682,8 @@ public class UserService {
         String artistTitle = firstNonBlank(stringValue(profile.get("artistTitle")), stringValue(profile.get("artistLevel")), isArtist ? "认证艺术家" : "");
         List<String> tags = mergeTags(profile.get("artistTags"), determinePublicTags(identityList, profile, works));
         String homepageCover = firstNonBlank(stringValue(profile.get("homepageCover")), works.isEmpty() ? "" : stringValue(works.get(0).get("cover")), avatar);
+        int followerCount = artist.getFollowerCount() != null ? artist.getFollowerCount() : 0;
+        int followingCount = artist.getFollowingCount() != null ? artist.getFollowingCount() : 0;
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("userId", artist.getId());
@@ -684,11 +705,11 @@ public class UserService {
         data.put("tags", tags);
         data.put("homepageCover", homepageCover);
         data.put("cover", homepageCover);
-        data.put("followerCount", artist.getFollowerCount() != null ? artist.getFollowerCount() : 0);
-        data.put("followingCount", artist.getFollowingCount() != null ? artist.getFollowingCount() : 0);
+        data.put("followerCount", followerCount);
+        data.put("followingCount", followingCount);
         data.put("collectCount", favoriteCount);
         data.put("favoriteCount", favoriteCount);
-        data.put("fansCount", artist.getFollowerCount() != null ? artist.getFollowerCount() : 0);
+        data.put("fansCount", followerCount);
         data.put("artworkCount", works.size());
         data.put("workCount", works.size());
         data.put("dealCount", soldCount);
@@ -809,10 +830,14 @@ public class UserService {
         String favoriteColumn = firstExistingColumn(artworkTable, "favorite_count");
         String sizeColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "size"), "NULL");
         String yearColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "year"), "NULL");
+        String statusColumn = firstExistingColumn(artworkTable, "status");
+        String holderColumn = firstExistingColumn(artworkTable, "holder_id");
         String orderColumn = firstExistingColumn(artworkTable, "weight", "create_time", "id");
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             ("SELECT id, title, " + coverColumn + " AS cover, " + materialColumn + " AS material, "
                 + sizeColumn + " AS size, " + yearColumn + " AS year, price, "
+                + (statusColumn != null ? statusColumn : "NULL") + " AS status, "
+                + (holderColumn != null ? holderColumn : "NULL") + " AS holder_id, "
                 + (favoriteColumn != null ? favoriteColumn : "0") + " AS favorite_count "
                 + "FROM " + artworkTable + " WHERE author_id = ? ORDER BY " + orderColumn + " DESC LIMIT ?"),
             artistId,
@@ -830,9 +855,81 @@ public class UserService {
             item.put("price", row.get("price"));
             item.put("priceText", row.get("price") == null ? "" : "¥" + formatFen(row.get("price")));
             item.put("favoriteCount", toInt(row.get("favorite_count"), 0));
+            int status = toInt(row.get("status"), 0);
+            String collectorRegion = loadArtworkCollectorRegion(toLong(row.get("id"), 0), toLong(row.get("holder_id"), 0));
+            boolean collected = status == 2 || !collectorRegion.isBlank();
+            item.put("collected", collected);
+            item.put("collectorRegion", collectorRegion);
+            item.put("collectorLabel", collectorRegion.isBlank() ? "藏家收藏" : collectorRegion + "藏家收藏");
             works.add(item);
         }
         return works;
+    }
+
+    private String loadArtworkCollectorRegion(Long artworkId, Long holderId) {
+        String holderRegion = loadUserRegion(holderId);
+        if (!holderRegion.isBlank()) {
+            return holderRegion;
+        }
+
+        String orderTable = firstExistingTable("trade_order", "orders", "order_info");
+        String itemTable = firstExistingTable("trade_order_item", "order_items", "order_item");
+        if (artworkId == null || orderTable == null || itemTable == null) {
+            return "";
+        }
+        String buyerColumn = firstExistingColumn(orderTable, "buyer_user_id", "user_id");
+        String orderIdColumn = firstExistingColumn(itemTable, "order_id");
+        String artworkColumn = firstExistingColumn(itemTable, "artwork_id");
+        if (buyerColumn == null || orderIdColumn == null || artworkColumn == null) {
+            return "";
+        }
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT o.").append(buyerColumn).append(" AS buyer_id ")
+            .append("FROM ").append(orderTable).append(" o ")
+            .append("JOIN ").append(itemTable).append(" i ON i.").append(orderIdColumn).append(" = o.id ")
+            .append("WHERE i.").append(artworkColumn).append(" = ? ");
+        sql.append(deletedCondition(orderTable, "o")).append(" ORDER BY o.id DESC LIMIT 1");
+
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), artworkId);
+            if (rows.isEmpty()) {
+                return "";
+            }
+            return loadUserRegion(toLong(rows.get(0).get("buyer_id"), 0));
+        } catch (Exception e) {
+            log.warn("查询作品{}藏家地区失败: {}", artworkId, e.getMessage());
+            return "";
+        }
+    }
+
+    private String loadUserRegion(Long userId) {
+        if (userId == null || !tableExists("users")) {
+            return "";
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT region FROM users WHERE id = ? LIMIT 1",
+                userId
+            );
+            if (rows.isEmpty()) {
+                return "";
+            }
+            return normalizeCollectorRegion(stringValue(rows.get(0).get("region")));
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String normalizeCollectorRegion(String region) {
+        if (region == null || region.isBlank()) {
+            return "";
+        }
+        String value = region.trim();
+        if (value.endsWith("地区") || value.endsWith("藏家")) {
+            return value;
+        }
+        return value + "地区";
     }
 
     private int countArtistSoldWorks(Long artistId) {
@@ -982,25 +1079,258 @@ public class UserService {
         List<String> identityList = Arrays.asList(user.getIdentities().split(","));
         data.put("isArtist", identityList.contains(UserConstant.IDENTITY_ARTIST));
         data.put("isPromoter", identityList.contains(UserConstant.IDENTITY_PROMOTER));
-        
-        // TODO: 从订单服务获取订单数量
-        data.put("pendingPayCount", 0);
-        data.put("pendingShipCount", 0);
-        data.put("pendingReceiveCount", 0);
-        
-        // TODO: 从收藏表获取收藏数
-        data.put("favoriteCount", 0);
-        
-        // TODO: 从足迹表获取足迹数
-        data.put("historyCount", 0);
-        
+
+        UserCenterStats stats = loadUserCenterStats(userId);
+        data.put("pendingPayCount", stats.pendingPayCount());
+        data.put("pendingShipCount", stats.pendingShipCount());
+        data.put("pendingReceiveCount", stats.pendingReceiveCount());
+        data.put("pendingReviewCount", stats.pendingReviewCount());
+        data.put("favoriteCount", stats.favoriteCount());
+        data.put("favorites", stats.favoriteCount());
+        data.put("followingCount", stats.followingCount());
+        data.put("following", stats.followingCount());
+        data.put("historyCount", stats.historyCount());
+        data.put("purchasedCount", stats.purchasedCount());
+        data.put("cartCount", stats.cartCount());
+        data.put("couponCount", stats.couponCount());
+        data.put("balance", stats.balance());
+        data.put("points", queryUserPoints(userId));
+        data.put("unreadCount", stats.unreadCount());
+
         return data;
     }
+
+    private UserCenterStats loadUserCenterStats(Long userId) {
+        long pendingPay = 0;
+        long pendingShip = 0;
+        long pendingReceive = 0;
+        long pendingReview = 0;
+        long purchased = 0;
+
+        String orderTable = firstExistingTable("trade_order", "order_info", "orders");
+        if (orderTable != null) {
+            String userColumn = firstExistingColumn(orderTable, "buyer_user_id", "user_id");
+            String statusColumn = firstExistingColumn(orderTable, "order_status", "status");
+            String paymentColumn = firstExistingColumn(orderTable, "payment_status");
+            String deletedCondition = deletedCondition(orderTable, "o");
+            if (userColumn != null && statusColumn != null) {
+                try {
+                    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                            "SELECT o." + statusColumn + " AS status"
+                                    + (paymentColumn != null ? ", o." + paymentColumn + " AS payment_status" : "")
+                                    + " FROM " + orderTable + " o WHERE o." + userColumn + " = ?" + deletedCondition,
+                            userId);
+                    for (Map<String, Object> row : rows) {
+                        String status = stringValue(row.get("status")).toUpperCase(Locale.ROOT);
+                        String paymentStatus = stringValue(row.get("payment_status")).toUpperCase(Locale.ROOT);
+                        boolean paid = paymentColumn == null || "PAID".equals(paymentStatus);
+                        if (isPendingPayStatus(status)) {
+                            pendingPay++;
+                        }
+                        if (isPendingShipStatus(status) && paid) {
+                            pendingShip++;
+                            purchased++;
+                        } else if (isPendingReceiveStatus(status)) {
+                            pendingReceive++;
+                            purchased++;
+                        } else if (isCompletedStatus(status)) {
+                            pendingReview++;
+                            purchased++;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("统计用户{}订单数据失败: {}", userId, e.getMessage());
+                }
+            }
+        }
+
+        long favorites = countRows(firstExistingTable("artwork_favorites", "artwork_favorite"), "user_id", userId);
+        long following = countRows(firstExistingTable("user_follows", "user_follow", "artist_follow"), "user_id", userId);
+        long history = countRows(firstExistingTable("user_browse_history", "browse_history"), "user_id", userId);
+        long cart = countRows(firstExistingTable("cart", "shopping_cart"), "user_id", userId);
+        long coupons = countUsableCoupons(userId);
+        long unread = countUnreadMessages(userId);
+        String balance = queryWalletBalance(userId);
+
+        return new UserCenterStats(
+                pendingPay,
+                pendingShip,
+                pendingReceive,
+                pendingReview,
+                favorites,
+                following,
+                history,
+                purchased,
+                cart,
+                coupons,
+                balance,
+                unread
+        );
+    }
+
+    private boolean isPendingPayStatus(String status) {
+        return "PENDING_PAYMENT".equals(status) || "UNPAID".equals(status) || "1".equals(status);
+    }
+
+    private boolean isPendingShipStatus(String status) {
+        return "PAID".equals(status) || "WAIT_DELIVER".equals(status) || "WAIT_SHIP".equals(status) || "2".equals(status);
+    }
+
+    private boolean isPendingReceiveStatus(String status) {
+        return "SHIPPED".equals(status) || "DELIVERED".equals(status) || "3".equals(status) || "4".equals(status);
+    }
+
+    private boolean isCompletedStatus(String status) {
+        return "COMPLETED".equals(status) || "RECEIVED".equals(status) || "5".equals(status);
+    }
+
+    private long countRows(String tableName, String userColumn, Long userId) {
+        if (tableName == null || userColumn == null || firstExistingColumn(tableName, userColumn) == null) {
+            return 0;
+        }
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(1) FROM " + tableName + " t WHERE t." + userColumn + " = ?" + deletedCondition(tableName, "t"),
+                    Long.class,
+                    userId);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("统计表{}用户{}数据失败: {}", tableName, userId, e.getMessage());
+            return 0;
+        }
+    }
+
+    private long countUsableCoupons(Long userId) {
+        String couponTable = firstExistingTable("user_coupon", "user_coupons", "coupon_user");
+        if (couponTable == null || firstExistingColumn(couponTable, "user_id") == null) {
+            return 0;
+        }
+        String statusColumn = firstExistingColumn(couponTable, "status", "use_status");
+        String condition = deletedCondition(couponTable, "t");
+        if (statusColumn != null) {
+            condition += " AND (t." + statusColumn + " IN (0, 1, 'UNUSED', 'unused', 'AVAILABLE', 'available'))";
+        }
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(1) FROM " + couponTable + " t WHERE t.user_id = ?" + condition,
+                    Long.class,
+                    userId);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("统计用户{}优惠券失败: {}", userId, e.getMessage());
+            return 0;
+        }
+    }
+
+    private long countUnreadMessages(Long userId) {
+        String messageTable = firstExistingTable("user_message", "user_messages", "message", "messages");
+        if (messageTable == null || firstExistingColumn(messageTable, "user_id", "receiver_id") == null) {
+            return 0;
+        }
+        String userColumn = firstExistingColumn(messageTable, "user_id", "receiver_id");
+        String readColumn = firstExistingColumn(messageTable, "is_read", "read_status", "status");
+        String condition = deletedCondition(messageTable, "t");
+        if (readColumn != null) {
+            condition += " AND (t." + readColumn + " = 0 OR t." + readColumn + " = 'UNREAD')";
+        }
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(1) FROM " + messageTable + " t WHERE t." + userColumn + " = ?" + condition,
+                    Long.class,
+                    userId);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("统计用户{}未读消息失败: {}", userId, e.getMessage());
+            return 0;
+        }
+    }
+
+    private String queryWalletBalance(Long userId) {
+        String walletTable = firstExistingTable("user_wallet", "wallet");
+        if (walletTable == null || firstExistingColumn(walletTable, "user_id") == null) {
+            return "0.00";
+        }
+        String balanceColumn = firstExistingColumn(walletTable, "balance", "available_balance");
+        if (balanceColumn == null) {
+            return "0.00";
+        }
+        try {
+            BigDecimal balance = jdbcTemplate.queryForObject(
+                    "SELECT COALESCE(" + balanceColumn + ", 0) FROM " + walletTable + " WHERE user_id = ? LIMIT 1",
+                    BigDecimal.class,
+                    userId);
+            return (balance != null ? balance : BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
+        } catch (Exception e) {
+            log.warn("查询用户{}钱包余额失败: {}", userId, e.getMessage());
+            return "0.00";
+        }
+    }
+
+    private long queryUserPoints(Long userId) {
+        String userTable = firstExistingTable("users", "user_account", "sys_user");
+        if (userTable == null) {
+            return 0;
+        }
+        String idColumn = firstExistingColumn(userTable, "id");
+        String pointsColumn = firstExistingColumn(userTable, "points", "point", "score");
+        if (idColumn == null || pointsColumn == null) {
+            return 0;
+        }
+        try {
+            Long points = jdbcTemplate.queryForObject(
+                    "SELECT COALESCE(" + pointsColumn + ", 0) FROM " + userTable + " WHERE " + idColumn + " = ? LIMIT 1",
+                    Long.class,
+                    userId);
+            return points != null ? points : 0;
+        } catch (Exception e) {
+            log.warn("查询用户{}积分失败: {}", userId, e.getMessage());
+            return 0;
+        }
+    }
+
+    private String deletedCondition(String tableName, String alias) {
+        String deletedColumn = firstExistingColumn(tableName, "deleted", "is_deleted");
+        if (deletedColumn == null) {
+            return "";
+        }
+        return " AND " + alias + "." + deletedColumn + " = 0";
+    }
+
+    private record UserCenterStats(
+            long pendingPayCount,
+            long pendingShipCount,
+            long pendingReceiveCount,
+            long pendingReviewCount,
+            long favoriteCount,
+            long followingCount,
+            long historyCount,
+            long purchasedCount,
+            long cartCount,
+            long couponCount,
+            String balance,
+            long unreadCount
+    ) {}
 
     /**
      * 检查是否已关注艺术家
      */
     public Boolean isFollowing(Long userId, Long artistId) {
+        if (userId == null || artistId == null) {
+            return false;
+        }
+        if (tableExists("user_follows")) {
+            Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM user_follows WHERE user_id = ? AND follow_user_id = ?",
+                Long.class,
+                userId,
+                artistId
+            );
+            boolean following = count != null && count > 0;
+            if (following) {
+                redisTemplate.opsForSet().add("follow:" + userId, artistId);
+            }
+            return following;
+        }
         Boolean following = (Boolean) redisTemplate.opsForSet().isMember("follow:" + userId, artistId);
         return following != null && following;
     }
@@ -2198,6 +2528,247 @@ public class UserService {
      * @param userId 用户 ID
      * @return 互动统计数据及校验状态
      */
+    // ===================== 用户注册 =====================
+
+    /**
+     * 用户注册
+     * 手机号 + 验证码注册
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public LoginVO register(RegisterDTO dto) {
+        // 1. 验证短信验证码
+        validateSmsCode(dto.getPhone(), dto.getCode(), "register");
+
+        // 2. 检查手机号是否已注册
+        User existingUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone())
+        );
+        if (existingUser != null) {
+            throw new BusinessException(400, "该手机号已注册，请直接登录");
+        }
+
+        // 3. 创建新用户
+        User user = new User();
+        user.setUid(UserIdUtil.generateUid());
+        user.setPhone(dto.getPhone());
+        if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+            validatePassword(dto.getPassword());
+            user.setPassword(hashPassword(dto.getPassword()));
+        }
+        user.setNickname(dto.getNickname() != null && !dto.getNickname().trim().isEmpty()
+                ? dto.getNickname().trim() : "用户" + dto.getPhone().substring(7));
+        user.setAvatar("");
+        user.setGender(0);
+        user.setIdentities(UserConstant.IDENTITY_COLLECTOR);
+        user.setStatus(1);
+        user.setFollowerCount(0);
+        user.setFollowingCount(0);
+        user.setRegisterTime(LocalDateTime.now());
+        user.setLastLoginTime(LocalDateTime.now());
+        userMapper.insert(user);
+
+        log.info("用户注册成功: phone={}, userId={}", dto.getPhone(), user.getId());
+
+        // 4. 处理邀请码
+        if (dto.getInviteCode() != null && !dto.getInviteCode().trim().isEmpty()) {
+            try {
+                handleInvite(user.getId(), dto.getInviteCode().trim());
+            } catch (Exception e) {
+                log.warn("处理邀请码失败: {}", e.getMessage());
+            }
+        }
+
+        // 5. 生成Token
+        String token = JwtUtil.generateToken(user.getId(), null);
+        redisTemplate.opsForValue().set("token:" + user.getId(), token, 7, TimeUnit.DAYS);
+
+        // 6. 构建返回结果
+        LoginVO vo = new LoginVO();
+        vo.setToken(token);
+        vo.setIsNewUser(true);
+        vo.setUserId(user.getId());
+        vo.setUid(user.getUid());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setPhone(user.getPhone());
+        vo.setIdentities(user.getIdentities());
+        vo.setOpenId("");
+
+        return vo;
+    }
+
+    /**
+     * 手机号登录
+     */
+    public LoginVO phoneLogin(RegisterDTO dto) {
+        // 1. 验证短信验证码
+        validateSmsCode(dto.getPhone(), dto.getCode(), "login");
+
+        // 2. 查找用户
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone())
+        );
+        if (user == null) {
+            throw new BusinessException(400, "该手机号未注册，请先注册");
+        }
+
+        // 3. 更新最后登录时间
+        user.setLastLoginTime(LocalDateTime.now());
+        userMapper.updateById(user);
+
+        // 4. 生成Token
+        String token = JwtUtil.generateToken(user.getId(), user.getOpenid());
+        redisTemplate.opsForValue().set("token:" + user.getId(), token, 7, TimeUnit.DAYS);
+
+        // 5. 构建返回结果
+        LoginVO vo = new LoginVO();
+        vo.setToken(token);
+        vo.setIsNewUser(false);
+        vo.setUserId(user.getId());
+        vo.setUid(user.getUid());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setPhone(user.getPhone());
+        vo.setIdentities(user.getIdentities());
+        vo.setOpenId(user.getOpenid());
+
+        return vo;
+    }
+
+    /**
+     * 密码登录
+     */
+    public LoginVO passwordLogin(RegisterDTO dto) {
+        if (dto.getPhone() == null || !dto.getPhone().matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException(400, "手机号格式不正确");
+        }
+        validatePassword(dto.getPassword());
+
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone())
+        );
+        if (user == null || user.getPassword() == null || user.getPassword().isBlank()
+                || !matchesPassword(dto.getPassword(), user.getPassword())) {
+            throw new BusinessException(400, "手机号或密码错误");
+        }
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new BusinessException(403, "账号已被禁用，请联系客服");
+        }
+
+        user.setLastLoginTime(LocalDateTime.now());
+        userMapper.updateById(user);
+
+        String token = JwtUtil.generateToken(user.getId(), user.getOpenid());
+        redisTemplate.opsForValue().set("token:" + user.getId(), token, 7, TimeUnit.DAYS);
+
+        LoginVO vo = new LoginVO();
+        vo.setToken(token);
+        vo.setIsNewUser(false);
+        vo.setUserId(user.getId());
+        vo.setUid(user.getUid());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setPhone(user.getPhone());
+        vo.setIdentities(user.getIdentities());
+        vo.setOpenId(user.getOpenid());
+
+        return vo;
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 6 || password.length() > 32) {
+            throw new BusinessException(400, "密码长度需为6-32位");
+        }
+    }
+
+    private String hashPassword(String password) {
+        return sha256("shiyiju:user:password:" + password);
+    }
+
+    private boolean matchesPassword(String rawPassword, String storedPassword) {
+        return hashPassword(rawPassword).equalsIgnoreCase(storedPassword);
+    }
+
+    /**
+     * 发送短信验证码
+     * 通过腾讯云 SMS 服务发送，配置不完整时自动降级为日志模拟
+     */
+    public void sendSmsCode(String phone, String type) {
+        // 1. 验证手机号格式
+        if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException(400, "手机号格式不正确");
+        }
+
+        // 2. 检查发送频率（60秒内只能发送一次）
+        String rateKey = "sms:rate:" + phone;
+        if (redisTemplate.hasKey(rateKey)) {
+            throw new BusinessException(429, "操作过于频繁，请60秒后再试");
+        }
+
+        // 3. 生成6位随机验证码
+        String code = String.format("%06d", (int)(Math.random() * 1000000));
+
+        // 4. 通过腾讯云 SMS 发送验证码（配置不完整时自动降级为日志模拟）
+        // 注意：首次使用需在腾讯云短信控制台完成：
+        //   a) 创建短信应用 → 获取 SDK App ID
+        //   b) 申请短信签名（如"拾艺局"）
+        //   c) 申请短信模板（如"您的验证码是{1}，{2}分钟内有效，请勿泄露。"）
+        //   d) 获取 API 密钥（SecretId / SecretKey）
+        //   控制台地址：https://console.cloud.tencent.com/smsv2
+        boolean sent = smsService.sendVerifyCode(phone, code);
+        if (!sent) {
+            throw new BusinessException(500, "短信发送失败，请稍后再试");
+        }
+
+        // 开发/测试阶段：未启用真实短信时，在日志中高亮显示验证码
+        if (!smsService.isRealSendEnabled()) {
+            log.info("╔══════════════════════════════════════════╗");
+            log.info("║  【测试验证码】 phone={}                  ║", phone);
+            log.info("║  【验证码】 {}                            ║", code);
+            log.info("║  【万能码】 888888（跳过短信直接验证）     ║");
+            log.info("╚══════════════════════════════════════════╝");
+        }
+
+        // 5. 存储验证码到Redis（10000分钟有效）
+        String codeKey = "sms:code:" + phone + ":" + type;
+        redisTemplate.opsForValue().set(codeKey, code, 10000, TimeUnit.MINUTES);
+
+        // 6. 设置频率限制（60秒）
+        redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 验证短信验证码
+     * 开发/测试模式下，万能验证码 888888 始终有效
+     */
+    private void validateSmsCode(String phone, String code, String type) {
+        if (phone == null || code == null) {
+            throw new BusinessException(400, "手机号和验证码不能为空");
+        }
+
+        // 开发/测试万能验证码（仅短信未启用时生效）
+        boolean realSendEnabled = smsService.isRealSendEnabled();
+        log.info("【短信-校验】phone={}, code={}, isRealSend={}", phone, code, realSendEnabled);
+        if ("888888".equals(code) && !realSendEnabled) {
+            log.info("【短信-测试】使用万能验证码 phone={}, code=888888", phone);
+            return;
+        }
+
+        String codeKey = "sms:code:" + phone + ":" + type;
+        String storedCode = (String) redisTemplate.opsForValue().get(codeKey);
+
+        if (storedCode == null) {
+            throw new BusinessException(400, "验证码已过期，请重新获取");
+        }
+
+        if (!storedCode.equals(code)) {
+            throw new BusinessException(400, "验证码错误");
+        }
+
+        // 验证成功后删除验证码
+        redisTemplate.delete(codeKey);
+    }
+
     public UserInteractionStatsVO verifyInteractionStats(Long userId) {
         if (userId == null) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "用户 ID 不能为空");

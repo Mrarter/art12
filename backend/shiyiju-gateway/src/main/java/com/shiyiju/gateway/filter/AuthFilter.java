@@ -25,6 +25,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
     private static final List<String> WHITE_LIST = Arrays.asList(
             "/user/login", "/user/auth/wx-login", "/user/wxlogin",
+            "/user/register", "/user/phone-login", "/user/password-login", "/user/sms-code",
             "/admin/login", "/admin/info", "/admin/dashboard", "/admin/",
             "/admin/product/list", "/admin/product/categories", "/admin/product/audit/list",
             "/admin/order/list", "/admin/order/aftersale/list",

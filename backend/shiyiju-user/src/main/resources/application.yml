@@ -54,3 +54,17 @@ resale:
   platform-fee-rate: 0.10
   # 平台收款钱包用户ID（如需入账到平台账户，设为对应 user_id）
   platform-wallet-user-id: 0
+
+# ===================== 腾讯云短信配置 =====================
+sms:
+  # API密钥（留空则使用日志模拟模式）
+  secret-id: ${TENCENT_SMS_SECRET_ID:}
+  secret-key: ${TENCENT_SMS_SECRET_KEY:}
+  # 短信应用ID
+  sdk-app-id: ${TENCENT_SMS_SDK_APP_ID:}
+  # 短信签名
+  sign-name: ${TENCENT_SMS_SIGN_NAME:拾艺局}
+  # 短信模板ID（验证码模板）
+  template-id: ${TENCENT_SMS_TEMPLATE_ID:}
+  # 是否启用真实短信发送（需配置完整的secret-id/secret-key/sdk-app-id/template-id）
+  enabled: ${TENCENT_SMS_ENABLED:false}

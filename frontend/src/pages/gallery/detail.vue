@@ -47,7 +47,7 @@
                 <text class="gold-tag">平台托管</text>
               </view>
             </view>
-            <text class="work-artist">{{ detail.authorName || '孟儒' }}</text>
+            <text class="work-artist">{{ authorName }}</text>
             <text class="work-meta">{{ artworkMetaLine }}</text>
           </view>
         </view>
@@ -231,7 +231,7 @@
               <view class="cert-icon">♕</view>
               <view>
                 <text class="cert-label">艺术家认证</text>
-                <text class="cert-value">{{ detail.authorName || '孟儒' }} 亲笔签名</text>
+                <text class="cert-value">{{ authorName }} 亲笔签名</text>
               </view>
             </view>
             <view class="cert-item">
@@ -316,7 +316,7 @@
         </view>
         <view class="contact-artist-info">
           <image class="artist-avatar" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
-          <text class="artist-name">{{ detail.authorName || '艺术家' }}</text>
+          <text class="artist-name">{{ authorName }}</text>
         </view>
         <view class="contact-actions">
           <view class="contact-item" @click="sendMessage">
@@ -402,7 +402,10 @@ export default {
       return this.normalizeResourceUrl(profileAvatar || this.detail.authorAvatar) || this.defaultAvatar
     },
     authorName() {
-      return this.detail.authorName || this.artistProfile?.nickname || this.artistProfile?.realName || '艺术家'
+      if (this.profileMatchesDetailAuthor) {
+        return this.artistProfile?.nickname || this.artistProfile?.name || this.artistProfile?.realName || this.detail.authorName || '艺术家'
+      }
+      return this.detail.authorName || this.artistProfile?.nickname || this.artistProfile?.name || this.artistProfile?.realName || '艺术家'
     },
     authorCertified() {
       return !!(this.artistProfile?.certified || this.artistProfile?.certStatus === 1 || this.detail.authorIdentity === 'artist')
@@ -435,7 +438,7 @@ export default {
       }
       // 3. 名称回退（最后手段，名称可能重复）
       const detailName = String(this.detail.authorName || '').trim()
-      const profileName = String(this.artistProfile.nickname || this.artistProfile.realName || '').trim()
+      const profileName = String(this.artistProfile.nickname || this.artistProfile.name || this.artistProfile.realName || '').trim()
       return !!(detailName && profileName && detailName === profileName)
     },
     displayLikeCount() {
@@ -484,7 +487,7 @@ export default {
       return this.resolveCurrentPrice(this.detail)
     },
     priceNumber() {
-      const price = Number(this.displayPrice || 804000)
+      const price = Number(this.displayPrice || 0)
       return Math.round(price / 100).toLocaleString()
     },
     isSoldArtwork() {
@@ -687,7 +690,7 @@ export default {
         { label: '作品尺寸', value: this.artworkSize },
         { label: '作品类型', value: this.artworkType },
         { label: '题材', value: this.subjectText },
-        { label: '作者', value: this.detail.authorName || '孟儒' },
+        { label: '作者', value: this.authorName },
         { label: '签名', value: this.detail.signature || '画背签名' },
         { label: '保存状态', value: this.detail.condition || '完好' }
       ]

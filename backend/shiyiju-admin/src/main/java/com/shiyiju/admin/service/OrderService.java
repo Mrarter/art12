@@ -126,7 +126,13 @@ public class OrderService {
         order.put("status", normalizeOrderStatus((String) rows.get(0).get("order_status"), (String) rows.get(0).get("payment_status")));
         order.put("buyerNickname", rows.get(0).get("buyer_nickname"));
         order.put("buyerUid", rows.get(0).get("buyer_uid"));
+        ReceiverInfo receiver = resolveReceiverInfo(rows.get(0));
+        order.put("buyerName", receiver.name().isBlank() ? rows.get(0).get("buyer_nickname") : receiver.name());
+        order.put("buyerPhone", receiver.phone());
+        order.put("address", receiver.address());
         order.put("items", getOrderItems(id));
+        order.put("products", getOrderItems(id));
+        order.put("logistics", getOrderLogistics(id));
         return order;
     }
     
@@ -144,8 +150,15 @@ public class OrderService {
         // 添加买家信息
         order.put("buyerNickname", rows.get(0).get("buyer_nickname"));
         order.put("buyerUid", rows.get(0).get("buyer_uid"));
+        ReceiverInfo receiver = resolveReceiverInfo(rows.get(0));
+        order.put("buyerName", receiver.name().isBlank() ? rows.get(0).get("buyer_nickname") : receiver.name());
+        order.put("buyerPhone", receiver.phone());
+        order.put("address", receiver.address());
         // 获取订单商品信息
-        order.put("items", getOrderItems(((Number) order.get("id")).longValue()));
+        Long id = ((Number) order.get("id")).longValue();
+        order.put("items", getOrderItems(id));
+        order.put("products", getOrderItems(id));
+        order.put("logistics", getOrderLogistics(id));
         return order;
     }
 
@@ -163,11 +176,224 @@ public class OrderService {
 
     @Transactional
     public void shipOrder(Long id, String expressCompany, String expressNo) {
-        // 更新发货信息需要 shipment_order 表
+        if (expressCompany == null || expressCompany.isBlank()) {
+            throw new IllegalArgumentException("请选择快递公司");
+        }
+        if (expressNo == null || expressNo.isBlank()) {
+            throw new IllegalArgumentException("请输入快递单号");
+        }
+        ensureLogisticsTables();
+
+        List<Map<String, Object>> orders = jdbcTemplate.queryForList(
+            "SELECT id, order_status, payment_status, address_id FROM trade_order WHERE id = ? AND deleted = 0",
+            id);
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("订单不存在");
+        }
+        Map<String, Object> order = orders.get(0);
+        String orderStatus = String.valueOf(order.get("order_status"));
+        if (!("PAID".equalsIgnoreCase(orderStatus) || "WAIT_DELIVER".equalsIgnoreCase(orderStatus)
+                || "WAIT_SHIP".equalsIgnoreCase(orderStatus))) {
+            throw new IllegalStateException("订单状态不允许发货");
+        }
+
+        ReceiverInfo receiver = resolveReceiverInfo(order);
+        String companyCode = logisticsCompanyCode(expressCompany);
+        List<Map<String, Object>> existing = jdbcTemplate.queryForList(
+            "SELECT id FROM logistics WHERE order_id = ? ORDER BY create_time DESC LIMIT 1", id);
+        Long logisticsId;
+        if (existing.isEmpty()) {
+            jdbcTemplate.update("""
+                INSERT INTO logistics (
+                  order_id, company_code, company_name, tracking_no, ship_time, status,
+                  receiver_name, receiver_phone, receiver_address, create_time, update_time
+                ) VALUES (?, ?, ?, ?, NOW(), 1, ?, ?, ?, NOW(), NOW())
+                """, id, companyCode, expressCompany, expressNo.trim(),
+                receiver.name(), receiver.phone(), receiver.address());
+            logisticsId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        } else {
+            logisticsId = ((Number) existing.get(0).get("id")).longValue();
+            jdbcTemplate.update("""
+                UPDATE logistics
+                SET company_code = ?, company_name = ?, tracking_no = ?, ship_time = COALESCE(ship_time, NOW()),
+                    status = 1, receiver_name = ?, receiver_phone = ?, receiver_address = ?, update_time = NOW()
+                WHERE id = ?
+                """, companyCode, expressCompany, expressNo.trim(),
+                receiver.name(), receiver.phone(), receiver.address(), logisticsId);
+        }
+
+        jdbcTemplate.update("""
+            INSERT INTO logistics_track (logistics_id, tracking_no, track_time, status, description, create_time)
+            VALUES (?, ?, NOW(), '已发货', '包裹已发出，等待快递员取件', NOW())
+            """, logisticsId, expressNo.trim());
+
+        String updateColumn = schemaInspector.firstExistingColumn("trade_order", "updated_at", "update_time");
+        String updateAssignment = updateColumn != null && schemaInspector.hasColumn("trade_order", updateColumn)
+            ? ", " + updateColumn + " = NOW()"
+            : "";
         jdbcTemplate.update(
-            "UPDATE trade_order SET order_status = 'SHIPPED' WHERE id = ?",
+            "UPDATE trade_order SET order_status = 'SHIPPED'" + updateAssignment + " WHERE id = ?",
             id);
     }
+
+    private void ensureLogisticsTables() {
+        if (schemaInspector.getColumns("logistics").isEmpty()) {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS `logistics` (
+                    `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    `order_id` BIGINT NOT NULL COMMENT '订单ID',
+                    `company_code` VARCHAR(50) COMMENT '快递公司编码',
+                    `company_name` VARCHAR(100) COMMENT '快递公司名称',
+                    `tracking_no` VARCHAR(100) NOT NULL COMMENT '快递单号',
+                    `ship_time` DATETIME COMMENT '发货时间',
+                    `receive_time` DATETIME COMMENT '收货时间',
+                    `status` TINYINT DEFAULT 1 COMMENT '物流状态: 1-已发货, 2-运输中, 3-派送中, 4-已签收',
+                    `receiver_name` VARCHAR(100) COMMENT '收货人姓名',
+                    `receiver_phone` VARCHAR(20) COMMENT '收货人电话',
+                    `receiver_address` VARCHAR(500) COMMENT '收货地址',
+                    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_order_id` (`order_id`),
+                    INDEX `idx_tracking_no` (`tracking_no`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物流信息表'
+                """);
+            schemaInspector.evictColumns("logistics");
+        }
+        if (schemaInspector.getColumns("logistics_track").isEmpty()) {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS `logistics_track` (
+                    `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    `logistics_id` BIGINT NOT NULL COMMENT '物流ID',
+                    `tracking_no` VARCHAR(100) NOT NULL COMMENT '快递单号',
+                    `track_time` DATETIME NOT NULL COMMENT '轨迹时间',
+                    `status` VARCHAR(50) COMMENT '轨迹状态',
+                    `description` VARCHAR(500) COMMENT '轨迹描述',
+                    `location` VARCHAR(100) COMMENT '位置',
+                    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_logistics_id` (`logistics_id`),
+                    INDEX `idx_tracking_no` (`tracking_no`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物流轨迹表'
+                """);
+            schemaInspector.evictColumns("logistics_track");
+        }
+    }
+
+    private Map<String, Object> getOrderLogistics(Long orderId) {
+        if (schemaInspector.getColumns("logistics").isEmpty()) {
+            return null;
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+            SELECT id, company_code, company_name, tracking_no, ship_time, receive_time, status,
+                   receiver_name, receiver_phone, receiver_address, create_time, update_time
+            FROM logistics
+            WHERE order_id = ?
+            ORDER BY create_time DESC, id DESC
+            LIMIT 1
+            """, orderId);
+        if (rows.isEmpty()) {
+            return null;
+        }
+
+        Map<String, Object> row = rows.get(0);
+        int status = toInt(row.get("status"), 1);
+        Map<String, Object> logistics = new LinkedHashMap<>();
+        logistics.put("id", row.get("id"));
+        logistics.put("companyCode", row.get("company_code"));
+        logistics.put("companyName", row.get("company_name"));
+        logistics.put("expressName", row.get("company_name"));
+        logistics.put("trackingNo", row.get("tracking_no"));
+        logistics.put("expressNo", row.get("tracking_no"));
+        logistics.put("shipTime", row.get("ship_time"));
+        logistics.put("receiveTime", row.get("receive_time"));
+        logistics.put("status", status);
+        logistics.put("statusText", logisticsStatusText(status));
+        logistics.put("receiverName", row.get("receiver_name"));
+        logistics.put("receiverPhone", row.get("receiver_phone"));
+        logistics.put("receiverAddress", row.get("receiver_address"));
+        logistics.put("traces", getOrderTracks(((Number) row.get("id")).longValue()));
+        return logistics;
+    }
+
+    private List<Map<String, Object>> getOrderTracks(Long logisticsId) {
+        if (schemaInspector.getColumns("logistics_track").isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            """
+            SELECT track_time, status, description, location
+            FROM logistics_track
+            WHERE logistics_id = ?
+            ORDER BY track_time DESC, id DESC
+            """, logisticsId);
+        List<Map<String, Object>> tracks = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> track = new LinkedHashMap<>();
+            track.put("time", row.get("track_time"));
+            track.put("desc", row.get("description"));
+            track.put("status", row.get("status"));
+            track.put("location", row.get("location"));
+            tracks.add(track);
+        }
+        return tracks;
+    }
+
+    private ReceiverInfo resolveReceiverInfo(Map<String, Object> order) {
+        Object addressId = order.get("address_id");
+        if (addressId == null || schemaInspector.getColumns("user_address").isEmpty()) {
+            return new ReceiverInfo("", "", "");
+        }
+
+        String deletedCondition = schemaInspector.hasColumn("user_address", "deleted") ? " AND deleted = 0" : "";
+        List<Map<String, Object>> addresses = jdbcTemplate.queryForList(
+            """
+            SELECT receiver_name, phone, province, city, district, detail_address
+            FROM user_address
+            WHERE id = ?
+            """ + deletedCondition + " LIMIT 1",
+            addressId);
+        if (addresses.isEmpty()) {
+            return new ReceiverInfo("", "", "");
+        }
+        Map<String, Object> address = addresses.get(0);
+        String fullAddress = String.join("",
+            nullToEmpty(address.get("province")),
+            nullToEmpty(address.get("city")),
+            nullToEmpty(address.get("district")),
+            nullToEmpty(address.get("detail_address")));
+        return new ReceiverInfo(
+            nullToEmpty(address.get("receiver_name")),
+            nullToEmpty(address.get("phone")),
+            fullAddress);
+    }
+
+    private String logisticsCompanyCode(String companyName) {
+        if (companyName == null) {
+            return "";
+        }
+        if (companyName.contains("顺丰")) return "SF";
+        if (companyName.contains("中通")) return "ZTO";
+        if (companyName.contains("圆通")) return "YTO";
+        if (companyName.contains("韵达")) return "YD";
+        if (companyName.contains("申通")) return "STO";
+        if (companyName.contains("邮政") || companyName.contains("EMS")) return "EMS";
+        return companyName.trim();
+    }
+
+    private String logisticsStatusText(int status) {
+        return switch (status) {
+            case 2 -> "运输中";
+            case 3 -> "派送中";
+            case 4 -> "已签收";
+            default -> "已发货";
+        };
+    }
+
+    private String nullToEmpty(Object value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private record ReceiverInfo(String name, String phone, String address) {}
 
     @Transactional
     public void cancelOrder(Long orderId, String reason) {

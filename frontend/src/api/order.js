@@ -63,6 +63,10 @@ export const getOrderDetail = (orderId) => {
   return request({ url: `/order/orders/${orderId}` })
 }
 
+export const getOrderLogistics = (orderId) => {
+  return request({ url: `/order/logistics/order/${orderId}` })
+}
+
 export const getOrderCounts = () => {
   const defaults = {
     pending: 0,

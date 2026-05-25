@@ -189,12 +189,30 @@ export const phoneLogin = (data) => {
   })
 }
 
+// 密码登录
+export const passwordLogin = (data) => {
+  return request({
+    url: '/user/password-login',
+    method: 'POST',
+    data
+  })
+}
+
 // 发送短信验证码
 export const sendSmsCode = (phone, type = 'login') => {
   return request({
     url: '/user/sms-code',
     method: 'POST',
     data: { phone, type }
+  })
+}
+
+// 用户注册
+export const register = (data) => {
+  return request({
+    url: '/user/register',
+    method: 'POST',
+    data
   })
 }
 

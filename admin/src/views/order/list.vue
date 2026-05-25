@@ -51,7 +51,8 @@
       <el-table-column label="作品信息" min-width="200">
         <template #default="{ row }">
           <div class="artwork-info">
-            <el-image :src="getFullImageUrl(row.cover)" style="width: 50px; height: 50px" fit="cover" />
+            <el-image v-if="row.cover" :src="getFullImageUrl(row.cover)" style="width: 50px; height: 50px" fit="cover" />
+            <div v-else class="no-cover"><el-icon><Picture /></el-icon></div>
             <span>{{ row.artworkTitle }}</span>
           </div>
         </template>
@@ -107,7 +108,8 @@
           <el-table-column label="作品" min-width="220">
             <template #default="{ row }">
               <div class="artwork-info">
-                <el-image :src="getFullImageUrl(row.cover_url || row.coverImage)" style="width: 48px; height: 48px" fit="cover" />
+                <el-image v-if="row.cover_url || row.coverImage" :src="getFullImageUrl(row.cover_url || row.coverImage)" style="width: 48px; height: 48px" fit="cover" />
+                <div v-else class="no-cover"><el-icon><Picture /></el-icon></div>
                 <span>{{ row.item_title || row.artwork_title || '-' }}</span>
               </div>
             </template>
@@ -128,6 +130,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Picture } from '@element-plus/icons-vue'
 import request, { getFullImageUrl as getUrl } from '@/api/request'
 
 const getFullImageUrl = getUrl
@@ -237,5 +240,18 @@ onMounted(() => {
 
 .detail-items {
   margin-top: 16px;
+}
+
+.no-cover {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border-radius: 4px;
+  color: #c0c4cc;
+  font-size: 24px;
+  flex-shrink: 0;
 }
 </style>

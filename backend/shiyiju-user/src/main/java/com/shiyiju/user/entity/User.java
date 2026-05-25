@@ -37,6 +37,9 @@ public class User implements Serializable {
     /** 手机号 */
     private String phone;
 
+    /** 登录密码哈希 */
+    private String password;
+
     /** 性别：0-未知，1-男，2-女 */
     private Integer gender;
 

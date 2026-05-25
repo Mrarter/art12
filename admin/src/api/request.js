@@ -147,8 +147,13 @@ export const uploadFile = async (file, onProgress) => {
 // 图片完整 URL 处理
 export const getFullImageUrl = (url) => {
   if (!url) return ''
-  // 已有完整域名（包括 http://, https://, // 协议相对 URL）
+  // 已有完整域名（包括 http://, https://）
   if (url.startsWith('http://') || url.startsWith('https://')) {
+    // 本地文件服务的绝对路径 → 转为相对路径走 Vite 代理
+    if (url.includes('localhost:8087') || url.includes('127.0.0.1:8087')) {
+      const path = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8087/, '')
+      return ensureUploadPrefix(path)
+    }
     return url
   }
   if (url.startsWith('//')) {
@@ -159,8 +164,17 @@ export const getFullImageUrl = (url) => {
   if (CDN_URL) {
     return CDN_URL + url
   }
-  // 无 CDN 时，以相对路径返回（浏览器会自动拼接当前域名）
-  return url
+  // 无 CDN 时，确保路径以 /upload/ 或 /uploads/ 开头走 Vite 代理
+  return ensureUploadPrefix(url)
+}
+
+// 确保路径经过 upload 代理
+const ensureUploadPrefix = (path) => {
+  if (path.startsWith('/upload/') || path.startsWith('/uploads/')) return path
+  // /images/ 走 admin 服务代理
+  if (path.startsWith('/images/')) return path
+  // 其他情况补 /upload/ 前缀
+  return '/upload' + (path.startsWith('/') ? path : '/' + path)
 }
 
 export default request
