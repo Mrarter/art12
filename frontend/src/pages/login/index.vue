@@ -433,8 +433,12 @@ export default {
       if (!this.canSendLoginCaptcha || this.loginCountdown > 0) return
 
       try {
-        await sendSmsCode(this.loginForm.phone, 'login')
-        uni.showToast({ title: '验证码已发送', icon: 'success' })
+        const result = await sendSmsCode(this.loginForm.phone, 'login')
+        if (result?.mock) {
+          uni.showToast({ title: `测试验证码 ${result.code}`, icon: 'none', duration: 2500 })
+        } else {
+          uni.showToast({ title: '验证码已发送', icon: 'success' })
+        }
         this.startCountdown('login')
       } catch (e) {
         this.handleRequestError(e, '发送失败')
@@ -445,8 +449,12 @@ export default {
       if (!this.canSendRegisterCaptcha || this.registerCountdown > 0) return
 
       try {
-        await sendSmsCode(this.registerForm.phone, 'register')
-        uni.showToast({ title: '验证码已发送', icon: 'success' })
+        const result = await sendSmsCode(this.registerForm.phone, 'register')
+        if (result?.mock) {
+          uni.showToast({ title: `测试验证码 ${result.code}`, icon: 'none', duration: 2500 })
+        } else {
+          uni.showToast({ title: '验证码已发送', icon: 'success' })
+        }
         this.startCountdown('register')
       } catch (e) {
         this.handleRequestError(e, '发送失败')

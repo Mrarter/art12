@@ -385,10 +385,17 @@ export default {
       })
     },
 
-    sendCode() {
+    async sendCode() {
       if (this.countdown > 0) return
-      if (!this.form.phone || this.form.phone.length !== 11) {
+      if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
         uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+        return
+      }
+      let result
+      try {
+        result = await sendSmsCode(this.form.phone, 'artist_cert')
+      } catch (e) {
+        uni.showToast({ title: e.message || '验证码发送失败', icon: 'none' })
         return
       }
       this.countdown = 60
@@ -398,7 +405,11 @@ export default {
           clearInterval(timer)
         }
       }, 1000)
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      if (result?.mock) {
+        uni.showToast({ title: `测试验证码 ${result.code}`, icon: 'none', duration: 2500 })
+      } else {
+        uni.showToast({ title: '验证码已发送', icon: 'success' })
+      }
     },
 
     agreeAgreement() {
