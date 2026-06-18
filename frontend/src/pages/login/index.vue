@@ -202,7 +202,7 @@
     <view class="third-party-section">
       <button class="btn-wechat" @click="onWechatLogin" :loading="wechatLoading">
         <text class="btn-icon">💬</text>
-        <text>微信登录</text>
+        <text>{{ wechatLoginLabel }}</text>
       </button>
 
       <button class="btn-guest" @click="onGuestLogin">
@@ -232,6 +232,7 @@ const TAB_BAR_PAGES = new Set([
   '/pages/cart/index',
   '/pages/user/index'
 ])
+const IS_MP_WEIXIN = process.env.UNI_PLATFORM === 'mp-weixin'
 
 export default {
   data() {
@@ -272,6 +273,14 @@ export default {
   },
 
   computed: {
+    wechatLoginSupported() {
+      return IS_MP_WEIXIN
+    },
+
+    wechatLoginLabel() {
+      return this.wechatLoginSupported ? '微信登录' : '微信小程序登录'
+    },
+
     indicatorLeft() {
       return this.activeTab === 'login' ? '0%' : '50%'
     },
@@ -475,6 +484,16 @@ export default {
     // ============ 微信登录 ===========
     async onWechatLogin() {
       if (this.wechatLoading) return
+
+      if (!this.wechatLoginSupported) {
+        uni.showModal({
+          title: '当前页面不支持微信授权',
+          content: 'H5 页面无法直接拉取微信头像昵称，请使用手机号登录，或前往微信小程序使用微信登录。',
+          showCancel: false
+        })
+        return
+      }
+
       this.wechatLoading = true
 
       try {
@@ -568,6 +587,10 @@ export default {
     },
 
     resolveWechatLoginCode() {
+      if (!this.wechatLoginSupported) {
+        return Promise.reject(new Error('当前环境不支持微信授权登录'))
+      }
+
       return new Promise((resolve, reject) => {
         uni.login({
           provider: 'weixin',
@@ -578,25 +601,18 @@ export default {
               reject(new Error('获取微信授权码失败'))
             }
           },
-          fail: (err) => {
-            if (typeof window !== 'undefined') {
-              resolve({ code: `h5_dev_${Date.now()}` })
-            } else {
-              reject(err || new Error('微信登录不可用'))
-            }
-          }
+          fail: (err) => reject(err || new Error('微信登录不可用'))
         })
       })
     },
 
     resolveWechatProfile() {
+      if (!this.wechatLoginSupported) {
+        return Promise.reject(new Error('当前环境不支持拉取微信资料'))
+      }
+
       if (typeof wx === 'undefined' || typeof wx.getUserProfile !== 'function') {
-        return Promise.resolve({
-          nickname: '微信用户',
-          avatar: loginBrandLogo,
-          gender: 0,
-          region: '本地调试'
-        })
+        return Promise.reject(new Error('当前微信能力不可用，请在微信小程序内重试'))
       }
 
       return new Promise((resolve, reject) => {
@@ -611,18 +627,7 @@ export default {
               region: [userInfo.country, userInfo.province, userInfo.city].filter(Boolean).join(' ')
             })
           },
-          fail: () => {
-            if (typeof window !== 'undefined') {
-              resolve({
-                nickname: '微信用户',
-                avatar: loginBrandLogo,
-                gender: 0,
-                region: '本地调试'
-              })
-            } else {
-              reject(new Error('未完成微信头像授权'))
-            }
-          }
+          fail: () => reject(new Error('未完成微信头像授权'))
         })
       })
     },
