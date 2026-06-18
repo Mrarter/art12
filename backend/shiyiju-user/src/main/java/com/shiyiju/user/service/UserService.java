@@ -61,6 +61,18 @@ public class UserService {
     @org.springframework.beans.factory.annotation.Value("${wechat.secret:}")
     private String wechatSecret;
 
+    @org.springframework.beans.factory.annotation.Value("${sms.code-length:6}")
+    private int smsCodeLength;
+
+    @org.springframework.beans.factory.annotation.Value("${sms.code-expire-minutes:5}")
+    private long smsCodeExpireMinutes;
+
+    @org.springframework.beans.factory.annotation.Value("${sms.resend-interval-seconds:60}")
+    private long smsResendIntervalSeconds;
+
+    @org.springframework.beans.factory.annotation.Value("${sms.test-code:888888}")
+    private String smsTestCode;
+
     /**
      * 启动时从 .env 文件加载微信密钥（IDE 开发环境兜底）
      * 优先级：系统环境变量 / application.yml > .env 文件
@@ -213,6 +225,8 @@ public class UserService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setPhone(user.getPhone());
+        vo.setEmail(user.getEmail());
+        vo.setWechat(user.getWechat());
         vo.setGender(user.getGender());
         vo.setBio(user.getBio());
         vo.setRegion(user.getRegion());
@@ -220,10 +234,13 @@ public class UserService {
         vo.setFollowingCount(user.getFollowingCount());
         vo.setRegisterTime(user.getRegisterTime() != null ? user.getRegisterTime().toString() : null);
 
-        // 解析身份列表
-        List<String> identityList = Arrays.asList(user.getIdentities().split(","));
+        // 解析身份列表。艺术家身份必须结合审核状态判断，避免待审核用户被前端误判为已认证。
+        List<String> identityList = splitToList(user.getIdentities());
+        Integer artistStatus = resolveArtistStatus(user.getId(), identityList);
         vo.setIdentities(identityList);
-        vo.setIsArtist(identityList.contains(UserConstant.IDENTITY_ARTIST));
+        vo.setArtistStatus(artistStatus);
+        vo.setArtistStatusText(getCertStatusText(artistStatus));
+        vo.setIsArtist(UserConstant.ARTIST_CERT_APPROVED.equals(artistStatus));
         vo.setIsAgent(identityList.contains(UserConstant.IDENTITY_AGENT));
         vo.setIsCollector(identityList.contains(UserConstant.IDENTITY_COLLECTOR));
         vo.setIsPromoter(identityList.contains(UserConstant.IDENTITY_PROMOTER));
@@ -246,6 +263,15 @@ public class UserService {
         if (userUpdate.getAvatar() != null) {
             user.setAvatar(userUpdate.getAvatar());
         }
+        if (userUpdate.getPhone() != null) {
+            user.setPhone(userUpdate.getPhone());
+        }
+        if (userUpdate.getEmail() != null) {
+            user.setEmail(userUpdate.getEmail());
+        }
+        if (userUpdate.getWechat() != null) {
+            user.setWechat(userUpdate.getWechat());
+        }
         if (userUpdate.getBio() != null) {
             user.setBio(userUpdate.getBio());
         }
@@ -260,6 +286,103 @@ public class UserService {
         }
 
         userMapper.updateById(user);
+    }
+
+    /**
+     * 更新艺术家主页版式
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateArtistHomepageStyle(Long userId, String style) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        String normalizedStyle = String.valueOf(style == null ? "" : style).trim();
+        if (!List.of("1", "2").contains(normalizedStyle)) {
+            throw new BusinessException("主页版式仅支持样式1或样式2");
+        }
+        if (!splitToList(user.getIdentities()).contains(UserConstant.IDENTITY_ARTIST)) {
+            throw new BusinessException("仅认证艺术家可设置主页版式");
+        }
+        if (!tableExists("artist_profile")) {
+            throw new BusinessException("艺术家档案不存在");
+        }
+        String styleColumn = firstExistingColumn("artist_profile", "homepage_style");
+        if (styleColumn == null) {
+            throw new BusinessException("当前环境未初始化主页版式字段");
+        }
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM artist_profile WHERE user_id = ?",
+            Integer.class,
+            userId
+        );
+        if (count != null && count > 0) {
+            jdbcTemplate.update(
+                "UPDATE artist_profile SET homepage_style = ?, updated_at = NOW() WHERE user_id = ?",
+                normalizedStyle,
+                userId
+            );
+            return;
+        }
+        jdbcTemplate.update(
+            """
+                INSERT INTO artist_profile (user_id, user_uid, artist_name, bio, status, homepage_style, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                """,
+            userId,
+            user.getUid(),
+            firstNonBlank(user.getNickname(), "艺术家"),
+            user.getBio(),
+            UserConstant.ARTIST_CERT_APPROVED,
+            normalizedStyle
+        );
+    }
+
+    /**
+     * 更新艺术家结构化履历
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateArtistResume(Long userId, String resume) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        if (!splitToList(user.getIdentities()).contains(UserConstant.IDENTITY_ARTIST)) {
+            throw new BusinessException("仅认证艺术家可编辑艺术履历");
+        }
+        if (!tableExists("artist_profile") || firstExistingColumn("artist_profile", "resume") == null) {
+            throw new BusinessException("当前环境未初始化艺术家履历字段");
+        }
+        String normalizedResume = String.valueOf(resume == null ? "" : resume).trim();
+        if (normalizedResume.length() > 50000) {
+            throw new BusinessException("艺术履历内容过长");
+        }
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM artist_profile WHERE user_id = ?",
+            Integer.class,
+            userId
+        );
+        if (count != null && count > 0) {
+            jdbcTemplate.update(
+                "UPDATE artist_profile SET resume = ?, updated_at = NOW() WHERE user_id = ?",
+                normalizedResume,
+                userId
+            );
+            return;
+        }
+        jdbcTemplate.update(
+            """
+                INSERT INTO artist_profile (user_id, user_uid, artist_name, bio, resume, status, homepage_style, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                """,
+            userId,
+            user.getUid(),
+            firstNonBlank(user.getNickname(), "艺术家"),
+            user.getBio(),
+            normalizedResume,
+            UserConstant.ARTIST_CERT_APPROVED,
+            "2"
+        );
     }
 
     /**
@@ -356,13 +479,13 @@ public class UserService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "微信授权码不能为空");
         }
 
-        // ==== 第一步：校验微信密钥配置 ====
-        validateWechatConfig();
-
-        // ==== 第二步：H5 开发环境降级（不调用真实微信 API） ====
+        // ==== 第一步：H5 开发环境降级（不调用真实微信 API） ====
         if (isDevMockCode(code)) {
             return getDevMockOpenId(code);
         }
+
+        // ==== 第二步：校验微信密钥配置 ====
+        validateWechatConfig();
 
         // ==== 第三步：调用微信 code2Session 接口 ====
         try {
@@ -543,11 +666,13 @@ public class UserService {
             vo.setIsArtist(cert.getStatus().equals(UserConstant.ARTIST_CERT_APPROVED));
         }
 
-        // 同时检查用户身份
+        // 兼容历史数据：仅在没有认证记录时，才用 identity=artist 兜底视为已认证。
         User user = userMapper.selectById(userId);
         if (user != null && user.getIdentities() != null) {
-            List<String> identityList = Arrays.asList(user.getIdentities().split(","));
-            if (identityList.contains(UserConstant.IDENTITY_ARTIST)) {
+            List<String> identityList = splitToList(user.getIdentities());
+            if (cert == null && identityList.contains(UserConstant.IDENTITY_ARTIST)) {
+                vo.setStatus(UserConstant.ARTIST_CERT_APPROVED);
+                vo.setStatusText(getCertStatusText(UserConstant.ARTIST_CERT_APPROVED));
                 vo.setIsArtist(true);
             }
         }
@@ -561,6 +686,32 @@ public class UserService {
         if (status.equals(UserConstant.ARTIST_CERT_APPROVED)) return "已通过";
         if (status.equals(UserConstant.ARTIST_CERT_REJECTED)) return "已拒绝";
         return "未知";
+    }
+
+    private Integer resolveArtistStatus(Long userId, List<String> identityList) {
+        ArtistCertification cert = artistCertMapper.selectOne(
+                new LambdaQueryWrapper<ArtistCertification>()
+                        .eq(ArtistCertification::getUserId, userId)
+                        .orderByDesc(ArtistCertification::getCreateTime)
+                        .last("LIMIT 1")
+        );
+        if (cert != null && cert.getStatus() != null) {
+            return cert.getStatus();
+        }
+
+        ArtistProfile profile = artistProfileMapper.selectOne(
+                new LambdaQueryWrapper<ArtistProfile>()
+                        .eq(ArtistProfile::getUserId, userId)
+                        .orderByDesc(ArtistProfile::getUpdatedAt)
+                        .last("LIMIT 1")
+        );
+        if (profile != null && profile.getStatus() != null) {
+            return profile.getStatus();
+        }
+
+        return identityList.contains(UserConstant.IDENTITY_ARTIST)
+                ? UserConstant.ARTIST_CERT_APPROVED
+                : null;
     }
 
     /**
@@ -675,7 +826,7 @@ public class UserService {
         String profileBio = stringValue(profile.get("bio"));
         boolean profileApproved = toInt(profile.get("status"), 0) == UserConstant.ARTIST_CERT_APPROVED;
         boolean isArtist = profileApproved || identityList.contains(UserConstant.IDENTITY_ARTIST);
-        String nickname = firstNonBlank(stringValue(account.get("nickname")), stringValue(profile.get("realName")), artist.getNickname(), "艺术家");
+        String nickname = firstNonBlank(stringValue(account.get("nickname")), artist.getNickname(), stringValue(profile.get("realName")), "艺术家");
         String avatar = firstNonBlank(stringValue(account.get("avatar")), artist.getAvatar(), "/static/images/artist-avatar.png");
         String phone = firstNonBlank(stringValue(account.get("phone")), artist.getPhone());
         String intro = firstNonBlank(profileBio, profileResume, artist.getBio(), "暂未补充艺术家介绍");
@@ -705,6 +856,8 @@ public class UserService {
         data.put("tags", tags);
         data.put("homepageCover", homepageCover);
         data.put("cover", homepageCover);
+        data.put("homepageStyle", firstNonBlank(stringValue(profile.get("homepageStyle")), "2"));
+        data.put("layoutStyle", firstNonBlank(stringValue(profile.get("homepageStyle")), "2"));
         data.put("followerCount", followerCount);
         data.put("followingCount", followingCount);
         data.put("collectCount", favoriteCount);
@@ -761,7 +914,8 @@ public class UserService {
                        artist_code,
                        artist_title,
                        homepage_cover,
-                       artist_tags
+                       artist_tags,
+                       homepage_style
                 FROM artist_profile
                 WHERE user_id = ?
                 ORDER BY id DESC
@@ -784,6 +938,7 @@ public class UserService {
         profile.put("artistTitle", row.get("artist_title"));
         profile.put("homepageCover", row.get("homepage_cover"));
         profile.put("artistTags", splitToList(stringValue(row.get("artist_tags"))));
+        profile.put("homepageStyle", row.get("homepage_style"));
         return profile;
     }
 
@@ -825,8 +980,8 @@ public class UserService {
         if (artworkTable == null) {
             return List.of();
         }
-        String coverColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "cover", "cover_image", "image", "thumbnail"), "NULL");
-        String materialColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "art_type", "medium"), "NULL");
+        String coverColumn = buildCoalesceExpression(artworkTable, "cover", "cover_image", "image", "thumbnail");
+        String materialColumn = buildCoalesceExpression(artworkTable, "art_type", "medium");
         String favoriteColumn = firstExistingColumn(artworkTable, "favorite_count");
         String sizeColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "size"), "NULL");
         String yearColumn = Objects.requireNonNullElse(firstExistingColumn(artworkTable, "year"), "NULL");
@@ -1028,6 +1183,22 @@ public class UserService {
         return null;
     }
 
+    private String buildCoalesceExpression(String tableName, String... columnNames) {
+        List<String> existingColumns = new ArrayList<>();
+        for (String columnName : columnNames) {
+            if (firstExistingColumn(tableName, columnName) != null) {
+                existingColumns.add(columnName);
+            }
+        }
+        if (existingColumns.isEmpty()) {
+            return "NULL";
+        }
+        if (existingColumns.size() == 1) {
+            return existingColumns.get(0);
+        }
+        return "COALESCE(" + String.join(", ", existingColumns) + ")";
+    }
+
     private String formatFen(Object value) {
         long amount = value instanceof Number number ? number.longValue() : 0L;
         return String.format("%,d", Math.round(amount / 100.0d));
@@ -1076,8 +1247,11 @@ public class UserService {
         data.put("nickname", user.getNickname());
         data.put("avatar", user.getAvatar());
         
-        List<String> identityList = Arrays.asList(user.getIdentities().split(","));
-        data.put("isArtist", identityList.contains(UserConstant.IDENTITY_ARTIST));
+        List<String> identityList = splitToList(user.getIdentities());
+        Integer artistStatus = resolveArtistStatus(user.getId(), identityList);
+        data.put("artistStatus", artistStatus);
+        data.put("artistStatusText", getCertStatusText(artistStatus));
+        data.put("isArtist", UserConstant.ARTIST_CERT_APPROVED.equals(artistStatus));
         data.put("isPromoter", identityList.contains(UserConstant.IDENTITY_PROMOTER));
 
         UserCenterStats stats = loadUserCenterStats(userId);
@@ -1096,6 +1270,13 @@ public class UserService {
         data.put("balance", stats.balance());
         data.put("points", queryUserPoints(userId));
         data.put("unreadCount", stats.unreadCount());
+
+        ArtistWorkspaceStats artistStats = loadArtistWorkspaceStats(userId);
+        data.put("artworkCount", artistStats.workCount());
+        data.put("workCount", artistStats.workCount());
+        data.put("viewCount", artistStats.viewCount());
+        data.put("artworkFavoriteCount", artistStats.favoriteCount());
+        data.put("soldCount", artistStats.soldCount());
 
         return data;
     }
@@ -1141,6 +1322,7 @@ public class UserService {
                 } catch (Exception e) {
                     log.warn("统计用户{}订单数据失败: {}", userId, e.getMessage());
                 }
+                purchased = countPurchasedArtworkItems(userId, orderTable, userColumn, statusColumn, paymentColumn);
             }
         }
 
@@ -1182,6 +1364,48 @@ public class UserService {
 
     private boolean isCompletedStatus(String status) {
         return "COMPLETED".equals(status) || "RECEIVED".equals(status) || "5".equals(status);
+    }
+
+    private long countPurchasedArtworkItems(Long userId, String orderTable, String userColumn, String statusColumn, String paymentColumn) {
+        String itemTable = firstExistingTable("trade_order_item", "order_items", "order_item");
+        if (itemTable == null) {
+            return 0;
+        }
+        String orderIdColumn = firstExistingColumn(itemTable, "order_id");
+        String artworkColumn = firstExistingColumn(itemTable, "artwork_id", "goods_id", "product_id");
+        String quantityColumn = firstExistingColumn(itemTable, "quantity", "num");
+        if (orderIdColumn == null) {
+            return 0;
+        }
+
+        StringBuilder sql = new StringBuilder();
+        if (artworkColumn != null) {
+            sql.append("SELECT COUNT(DISTINCT i.").append(artworkColumn).append(") ");
+        } else {
+            sql.append("SELECT COALESCE(SUM(")
+                    .append(quantityColumn != null ? "COALESCE(i." + quantityColumn + ", 1)" : "1")
+                    .append("), 0) ");
+        }
+        sql
+                .append("FROM ").append(orderTable).append(" o ")
+                .append("JOIN ").append(itemTable).append(" i ON i.").append(orderIdColumn).append(" = o.id ")
+                .append("WHERE o.").append(userColumn).append(" = ? ")
+                .append(deletedCondition(orderTable, "o"))
+                .append(deletedCondition(itemTable, "i"))
+                .append(" AND UPPER(CAST(o.").append(statusColumn).append(" AS CHAR)) IN (")
+                .append("'PAID','WAIT_DELIVER','WAIT_SHIP','SHIPPED','DELIVERED','RECEIVED','COMPLETED','FINISHED','2','3','4','5')");
+        if (paymentColumn != null) {
+            sql.append(" AND (o.").append(paymentColumn).append(" IS NULL OR UPPER(CAST(o.")
+                    .append(paymentColumn).append(" AS CHAR)) IN ('PAID','SUCCESS','SUCCESSFUL'))");
+        }
+
+        try {
+            Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, userId);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("统计用户{}已购作品数量失败: {}", userId, e.getMessage());
+            return 0;
+        }
     }
 
     private long countRows(String tableName, String userColumn, Long userId) {
@@ -1288,6 +1512,49 @@ public class UserService {
         }
     }
 
+    private ArtistWorkspaceStats loadArtistWorkspaceStats(Long userId) {
+        String artworkTable = firstExistingTable("artwork", "artworks");
+        if (artworkTable == null) {
+            return new ArtistWorkspaceStats(0, 0, 0, 0);
+        }
+
+        String artistColumn = firstExistingColumn(artworkTable, "author_id", "artist_id", "user_id");
+        if (artistColumn == null) {
+            return new ArtistWorkspaceStats(0, 0, 0, 0);
+        }
+
+        String viewColumn = firstExistingColumn(artworkTable, "view_count", "views");
+        String favoriteColumn = firstExistingColumn(artworkTable, "favorite_count", "like_count", "likes");
+        String saleColumn = firstExistingColumn(artworkTable, "sale_count", "display_sale_count", "sold_count");
+        String deletedCondition = deletedCondition(artworkTable, "a");
+
+        StringBuilder sql = new StringBuilder("SELECT COUNT(1) AS work_count");
+        sql.append(", COALESCE(SUM(")
+                .append(viewColumn != null ? "COALESCE(a." + viewColumn + ", 0)" : "0")
+                .append("), 0) AS view_count");
+        sql.append(", COALESCE(SUM(")
+                .append(favoriteColumn != null ? "COALESCE(a." + favoriteColumn + ", 0)" : "0")
+                .append("), 0) AS favorite_count");
+        sql.append(", COALESCE(SUM(")
+                .append(saleColumn != null ? "COALESCE(a." + saleColumn + ", 0)" : "0")
+                .append("), 0) AS sold_count");
+        sql.append(" FROM ").append(artworkTable).append(" a WHERE a.").append(artistColumn).append(" = ?")
+                .append(deletedCondition);
+
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(sql.toString(), userId);
+            return new ArtistWorkspaceStats(
+                    toLong(row.get("work_count"), 0),
+                    toLong(row.get("view_count"), 0),
+                    toLong(row.get("favorite_count"), 0),
+                    toLong(row.get("sold_count"), 0)
+            );
+        } catch (Exception e) {
+            log.warn("统计用户{}艺术家工作台数据失败: {}", userId, e.getMessage());
+            return new ArtistWorkspaceStats(0, 0, 0, 0);
+        }
+    }
+
     private String deletedCondition(String tableName, String alias) {
         String deletedColumn = firstExistingColumn(tableName, "deleted", "is_deleted");
         if (deletedColumn == null) {
@@ -1309,6 +1576,13 @@ public class UserService {
             long couponCount,
             String balance,
             long unreadCount
+    ) {}
+
+    private record ArtistWorkspaceStats(
+            long workCount,
+            long viewCount,
+            long favoriteCount,
+            long soldCount
     ) {}
 
     /**
@@ -2698,15 +2972,22 @@ public class UserService {
         if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
             throw new BusinessException(400, "手机号格式不正确");
         }
-
-        // 2. 检查发送频率（60秒内只能发送一次）
-        String rateKey = "sms:rate:" + phone;
-        if (redisTemplate.hasKey(rateKey)) {
-            throw new BusinessException(429, "操作过于频繁，请60秒后再试");
+        if (!"login".equals(type) && !"register".equals(type)) {
+            throw new BusinessException(400, "验证码类型不正确");
         }
 
-        // 3. 生成6位随机验证码
-        String code = String.format("%06d", (int)(Math.random() * 1000000));
+        // 2. 检查发送频率
+        long resendIntervalSeconds = Math.max(10, smsResendIntervalSeconds);
+        long codeExpireMinutes = Math.max(1, smsCodeExpireMinutes);
+        String rateKey = "sms:rate:" + phone;
+        if (redisTemplate.hasKey(rateKey)) {
+            throw new BusinessException(429, "操作过于频繁，请" + resendIntervalSeconds + "秒后再试");
+        }
+
+        // 3. 生成短信验证码
+        int codeLength = Math.max(4, Math.min(smsCodeLength, 8));
+        int bound = (int) Math.pow(10, codeLength);
+        String code = String.format("%0" + codeLength + "d", (int)(Math.random() * bound));
 
         // 4. 通过腾讯云 SMS 发送验证码（配置不完整时自动降级为日志模拟）
         // 注意：首次使用需在腾讯云短信控制台完成：
@@ -2725,16 +3006,16 @@ public class UserService {
             log.info("╔══════════════════════════════════════════╗");
             log.info("║  【测试验证码】 phone={}                  ║", phone);
             log.info("║  【验证码】 {}                            ║", code);
-            log.info("║  【万能码】 888888（跳过短信直接验证）     ║");
+            log.info("║  【万能码】 {}（跳过短信直接验证）     ║", smsTestCode);
             log.info("╚══════════════════════════════════════════╝");
         }
 
-        // 5. 存储验证码到Redis（10000分钟有效）
+        // 5. 存储验证码到Redis
         String codeKey = "sms:code:" + phone + ":" + type;
-        redisTemplate.opsForValue().set(codeKey, code, 10000, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(codeKey, code, codeExpireMinutes, TimeUnit.MINUTES);
 
-        // 6. 设置频率限制（60秒）
-        redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
+        // 6. 设置频率限制
+        redisTemplate.opsForValue().set(rateKey, "1", resendIntervalSeconds, TimeUnit.SECONDS);
     }
 
     /**
@@ -2749,8 +3030,8 @@ public class UserService {
         // 开发/测试万能验证码（仅短信未启用时生效）
         boolean realSendEnabled = smsService.isRealSendEnabled();
         log.info("【短信-校验】phone={}, code={}, isRealSend={}", phone, code, realSendEnabled);
-        if ("888888".equals(code) && !realSendEnabled) {
-            log.info("【短信-测试】使用万能验证码 phone={}, code=888888", phone);
+        if (smsTestCode != null && smsTestCode.equals(code) && !realSendEnabled) {
+            log.info("【短信-测试】使用万能验证码 phone={}, code={}", phone, smsTestCode);
             return;
         }
 

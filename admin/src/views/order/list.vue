@@ -48,19 +48,19 @@
           <p class="phone">{{ row.buyerUid || row.buyerPhone || '-' }}</p>
         </template>
       </el-table-column>
-      <el-table-column label="作品信息" min-width="200">
+      <el-table-column label="作品信息" min-width="260">
         <template #default="{ row }">
           <div class="artwork-info">
-            <el-image v-if="row.cover" :src="getFullImageUrl(row.cover)" style="width: 50px; height: 50px" fit="cover" />
+            <el-image v-if="row.cover" :src="getFullImageUrl(row.cover)" class="artwork-thumb" fit="cover" />
             <div v-else class="no-cover"><el-icon><Picture /></el-icon></div>
-            <span>{{ row.artworkTitle }}</span>
+            <span class="artwork-title" :title="row.artworkTitle">{{ row.artworkTitle || '-' }}</span>
           </div>
         </template>
       </el-table-column>
       <el-table-column label="订单金额" width="120">
         <template #default="{ row }">
-          <p class="price">¥{{ row.amount }}</p>
-          <p class="freight" v-if="row.freight > 0">+运费: ¥{{ row.freight }}</p>
+          <p class="price">{{ formatAmount(resolveDisplayAmount(row)) }}</p>
+          <p class="freight" v-if="row.freight > 0">+运费: {{ formatAmount(row.freight) }}</p>
         </template>
       </el-table-column>
       <el-table-column label="订单状态" width="100">
@@ -99,27 +99,31 @@
           <el-descriptions-item label="买家UID">{{ currentOrder.buyerUid || '-' }}</el-descriptions-item>
           <el-descriptions-item label="支付状态">{{ currentOrder.paymentStatus || '-' }}</el-descriptions-item>
           <el-descriptions-item label="支付时间">{{ currentOrder.paidAt || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="商品金额">¥{{ currentOrder.goodsAmount || currentOrder.totalAmount || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="实付金额">¥{{ currentOrder.payAmount || currentOrder.amount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="商品金额">{{ formatAmount(resolveDetailGoodsAmount(currentOrder)) }}</el-descriptions-item>
+          <el-descriptions-item label="实付金额">{{ formatAmount(resolveDetailPayAmount(currentOrder)) }}</el-descriptions-item>
           <el-descriptions-item label="下单时间" :span="2">{{ currentOrder.createTime || '-' }}</el-descriptions-item>
         </el-descriptions>
 
         <el-table :data="currentOrder.items || []" border class="detail-items">
-          <el-table-column label="作品" min-width="220">
+          <el-table-column label="作品" min-width="320">
             <template #default="{ row }">
-              <div class="artwork-info">
-                <el-image v-if="row.cover_url || row.coverImage" :src="getFullImageUrl(row.cover_url || row.coverImage)" style="width: 48px; height: 48px" fit="cover" />
+              <div class="artwork-info detail-artwork-info">
+                <el-image v-if="row.cover || row.cover_url || row.coverImage" :src="getFullImageUrl(row.cover || row.cover_url || row.coverImage)" style="width: 48px; height: 48px" fit="cover" />
                 <div v-else class="no-cover"><el-icon><Picture /></el-icon></div>
-                <span>{{ row.item_title || row.artwork_title || '-' }}</span>
+                <div class="detail-artwork-meta">
+                  <p class="detail-artwork-title">{{ row.item_title || row.artwork_title || '-' }}</p>
+                  <p class="detail-artwork-artist">{{ row.artist_name || '-' }}</p>
+                  <p class="detail-artwork-extra">{{ formatArtworkDetail(row) }}</p>
+                </div>
               </div>
             </template>
           </el-table-column>
           <el-table-column label="单价" width="120">
-            <template #default="{ row }">¥{{ row.unit_price || 0 }}</template>
+            <template #default="{ row }">{{ formatAmount(resolveItemUnitPrice(row)) }}</template>
           </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" />
           <el-table-column label="小计" width="120">
-            <template #default="{ row }">¥{{ row.subtotal_amount || 0 }}</template>
+            <template #default="{ row }">{{ formatAmount(resolveItemSubtotal(row)) }}</template>
           </el-table-column>
         </el-table>
       </div>
@@ -161,6 +165,65 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   const map = { pending: '待付款', paid: '已付款', shipped: '已发货', completed: '已完成', cancelled: '已取消', refunding: '退款中', refunded: '已退款' }
   return map[status] || status
+}
+
+const formatAmount = (value) => {
+  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
+}
+
+const normalizeAmountScale = (rawValue, referenceValue = 0) => {
+  const amount = Number(rawValue || 0)
+  const reference = Number(referenceValue || 0)
+  if (amount <= 0) {
+    return reference > 0 ? reference : 0
+  }
+  if (reference > 0 && amount > reference * 10) {
+    return reference
+  }
+  return amount
+}
+
+const resolveDisplayAmount = (row = {}) => {
+  const rawAmount = row.amount || row.payAmount || row.totalAmount || row.goodsAmount || 0
+  const reference = row.firstItemSubtotal || row.firstItemPrice || 0
+  return normalizeAmountScale(rawAmount, reference)
+}
+
+const resolveItemUnitPrice = (row = {}) => {
+  const rawPrice = row.unit_price || row.price || 0
+  const artworkReference = row.artwork_original_price || row.artwork_price || 0
+  return normalizeAmountScale(rawPrice, artworkReference)
+}
+
+const resolveItemSubtotal = (row = {}) => {
+  const quantity = Number(row.quantity || 1)
+  const unitPrice = resolveItemUnitPrice(row)
+  const rawSubtotal = row.subtotal_amount || row.subtotal || 0
+  return normalizeAmountScale(rawSubtotal, unitPrice * quantity)
+}
+
+const resolveDetailGoodsAmount = (order = {}) => {
+  const derived = (order.items || []).reduce((sum, item) => sum + resolveItemSubtotal(item), 0)
+  return normalizeAmountScale(order.goodsAmount || order.totalAmount || 0, derived)
+}
+
+const resolveDetailPayAmount = (order = {}) => {
+  const goodsAmount = resolveDetailGoodsAmount(order)
+  const freight = Number(order.freightAmount || order.freight || 0)
+  const discount = Number(order.discountAmount || order.discount || 0)
+  const derived = Math.max(goodsAmount + freight - discount, 0)
+  return normalizeAmountScale(order.payAmount || order.amount || 0, derived)
+}
+
+const formatArtworkDetail = (row = {}) => {
+  const info = []
+  if (row.size) info.push(row.size)
+  if (row.art_type) info.push(row.art_type)
+  if (row.artwork_year) info.push(`${row.artwork_year}年`)
+  return info.join(' / ') || '-'
 }
 
 const loadData = async () => {
@@ -223,6 +286,23 @@ onMounted(() => {
   gap: 8px;
 }
 
+.artwork-thumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.artwork-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #303133;
+  line-height: 1.4;
+  word-break: break-all;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .phone {
   font-size: 12px;
   color: #999;
@@ -253,5 +333,27 @@ onMounted(() => {
   color: #c0c4cc;
   font-size: 24px;
   flex-shrink: 0;
+}
+
+.detail-artwork-info {
+  align-items: flex-start;
+}
+
+.detail-artwork-meta {
+  min-width: 0;
+}
+
+.detail-artwork-title {
+  color: #303133;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.detail-artwork-artist,
+.detail-artwork-extra {
+  margin-top: 2px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

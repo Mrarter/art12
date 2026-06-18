@@ -221,7 +221,7 @@ export default {
    * @param {number} lotId - 拍品ID
    */
   connectAuction(lotId) {
-    const baseUrl = getApp().globalData.wsBaseUrl || 'wss://api.shiyiju.com'
+    const baseUrl = getApp().globalData.wsBaseUrl || import.meta.env?.VITE_WS_BASE_URL || 'wss://shiyiju.online'
     const wsUrl = `${baseUrl}/ws/auction/lot/${lotId}`
     return wsManager.connect(wsUrl)
   },

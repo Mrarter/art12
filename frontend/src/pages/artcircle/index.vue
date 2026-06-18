@@ -134,6 +134,7 @@
 
 <script>
 import { getPosts, getTopics, likePost, unlikePost } from '@/api/community'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -242,7 +243,7 @@ export default {
         artist: '艺术家',
         gallery: '画廊',
         dealer: '画商',
-        promoter: '艺荐官',
+        promoter: '经纪人',
         collector: '收藏家'
       }
       return labels[type] || ''
@@ -268,9 +269,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     },
 
     previewImages(images, index) {

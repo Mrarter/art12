@@ -52,7 +52,8 @@
             <image class="item-image" :src="item.cover" mode="aspectFill"></image>
             <view class="item-info">
               <view class="item-title">{{ item.title }}</view>
-              <view class="item-artist">{{ item.artist }}</view>
+              <view class="item-artist" v-if="item.artist">{{ item.artist }}</view>
+              <view class="item-meta" v-if="item.meta">{{ item.meta }}</view>
             </view>
             <view class="item-price">
               <text>¥{{ formatPrice(item.price) }}</text>
@@ -63,7 +64,7 @@
 
         <view class="order-footer">
           <view class="order-total">
-            <text>共{{ order.items.length }}件商品</text>
+            <text>共{{ order.itemCount }}件商品</text>
             <text class="total-price">合计：¥{{ formatPrice(order.total) }}</text>
           </view>
           <view class="order-actions">
@@ -94,18 +95,66 @@
 
 <script>
 import { getOrderList, confirmReceive } from '@/api/order'
+import { getFullImageUrl } from '@/utils/image.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 const normalizeImage = (url) => {
-  if (!url || typeof url !== 'string') return ''
+  if (!url || typeof url !== 'string') return '/static/images/placeholder.png'
   const t = url.trim()
-  if (!t || t === '[]' || t === '{}') return ''
-  if (t.startsWith('http://') || t.startsWith('https://')) return t
-  if (t.startsWith('/')) {
-    const app = getApp()
-    const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
-    return domain ? domain + t : t
+  if (!t || t === '[]' || t === '{}') return '/static/images/placeholder.png'
+  return getFullImageUrl(t, '/static/images/placeholder.png')
+}
+
+const firstValue = (...values) => values.find(value => value !== undefined && value !== null && value !== '')
+
+const isPurchasedOrder = (order = {}) => {
+  const status = String(order.status || '').toUpperCase()
+  const paymentStatus = String(order.paymentStatus || '').toUpperCase()
+  if (status === 'PENDING_PAYMENT' || paymentStatus === 'UNPAID') return false
+  return true
+}
+
+const normalizeOrderItem = (item = {}, order = {}) => {
+  const material = firstValue(item.material, item.medium, item.artType, item.category, item.type)
+  const size = firstValue(item.size, item.specName)
+  const year = firstValue(item.year, item.createYear)
+  const meta = [material, size, year].filter(Boolean).join(' / ')
+
+  return {
+    id: firstValue(item.id, item.orderItemId, item.artworkId, item.goodsId, item.productId, order.id),
+    artworkId: firstValue(item.artworkId, item.goodsId, item.productId, item.id),
+    cover: normalizeImage(firstValue(item.goodsImage, item.coverImage, item.cover, item.image, item.picUrl, item.thumbnail)),
+    title: firstValue(item.goodsName, item.title, item.name, item.artworkTitle, item.productName, order.goodsName, order.title, '未命名作品'),
+    artist: firstValue(item.artistName, item.authorName, item.sellerName, order.sellerName, ''),
+    meta,
+    price: firstValue(item.price, item.currentPrice, item.salePrice, item.payAmount, item.amount, item.subtotal, order.payAmount, order.amount, order.totalAmount, 0),
+    num: Number(firstValue(item.quantity, item.count, item.num, 1)) || 1
   }
-  return t
+}
+
+const extractOrderItems = (order = {}) => {
+  const rawItems = firstValue(
+    order.goodsList,
+    order.items,
+    order.goods,
+    order.orderItems,
+    order.details,
+    order.products
+  )
+  if (Array.isArray(rawItems) && rawItems.length > 0) {
+    return rawItems.map(item => normalizeOrderItem(item, order))
+  }
+
+  const hasTopLevelGoods = firstValue(
+    order.goodsName,
+    order.title,
+    order.artworkTitle,
+    order.coverImage,
+    order.goodsImage,
+    order.artworkId,
+    order.goodsId
+  )
+  return hasTopLevelGoods ? [normalizeOrderItem(order, order)] : []
 }
 
 export default {
@@ -125,7 +174,13 @@ export default {
     }
   },
 
-  onLoad() { this.fetchOrders() },
+  onLoad(options = {}) {
+    const filter = String(options.type || '').toLowerCase()
+    if (['all', 'pending', 'shipped', 'completed'].includes(filter)) {
+      this.currentFilter = filter
+    }
+    this.fetchOrders()
+  },
 
   onShow() {
     // 从发布转售页面返回时刷新
@@ -153,18 +208,11 @@ export default {
           REFUNDED: 'refunded'
         }
 
-        this.orders = list.map(order => {
-          const items = (order.items || order.goods || order.orderItems || []).map(item => ({
-            id: item.id || item.artworkId,
-            cover: normalizeImage(item.coverImage || item.cover || item.image),
-            title: item.title || item.name || '未命名',
-            artist: item.artistName || item.authorName || item.sellerName || '',
-            price: item.price || item.currentPrice || 0,
-            num: item.quantity || item.num || 1
-          }))
+        this.orders = list.filter(isPurchasedOrder).map(order => {
+          const items = extractOrderItems(order)
           let shortStatus = statusMap[order.status] || order.status
           // 已付款/已收货统一归入"待发货"范围
-          if (shortStatus === 'paid' || shortStatus === 'pending_payment') shortStatus = 'pending'
+          if (shortStatus === 'paid') shortStatus = 'pending'
           if (shortStatus === 'received') shortStatus = 'completed'
 
           return {
@@ -172,6 +220,7 @@ export default {
             createTime: order.createTime || order.createdAt || '',
             status: shortStatus,
             items,
+            itemCount: items.reduce((sum, item) => sum + (Number(item.num) || 1), 0),
             total: order.payAmount || order.amount || order.totalAmount || 0
           }
         }).filter(o => o.status !== 'cancelled' && o.status !== 'refunding' && o.status !== 'refunded')
@@ -201,8 +250,7 @@ export default {
 
     formatPrice(price) {
       if (!price && price !== 0) return ''
-      const yuan = Number(price) / 100
-      return yuan.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return formatYuanNumber(fenToYuan(price))
     },
 
     goOrderDetail(id) {
@@ -244,7 +292,7 @@ export default {
 
     goResale(order) {
       // 跳转到发布转售页，携带第一个作品的 artworkId
-      const artworkId = order.items[0]?.id
+      const artworkId = order.items[0]?.artworkId || order.items[0]?.id
       if (!artworkId) return
       uni.navigateTo({ url: `/pages/resale/publish?artworkId=${artworkId}` })
     },
@@ -361,6 +409,13 @@ export default {
             font-size: 24rpx;
             color: #999;
             margin-top: 8rpx;
+          }
+
+          .item-meta {
+            font-size: 23rpx;
+            color: #9b958a;
+            margin-top: 8rpx;
+            line-height: 1.35;
           }
         }
 
@@ -527,6 +582,10 @@ export default {
         }
 
         .item-artist {
+          color: #8f8a80;
+        }
+
+        .item-meta {
           color: #8f8a80;
         }
       }

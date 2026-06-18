@@ -1,10 +1,10 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <span class="title">艺荐官管理</span>
+      <span class="title">经纪人管理</span>
       <el-button type="primary" @click="showAddDialog">
         <el-icon><Plus /></el-icon>
-        添加艺荐官
+        添加经纪人
       </el-button>
       <el-button type="success" link @click="handleExport" :loading="exportLoading">
         导出CSV
@@ -44,9 +44,9 @@
         <el-form-item label="等级">
           <el-select v-model="searchForm.level" placeholder="全部" clearable style="width: 130px">
             <el-option label="全部" value="" />
-            <el-option label="普通艺荐官" value="1" />
-            <el-option label="高级艺荐官" value="2" />
-            <el-option label="金牌艺荐官" value="3" />
+            <el-option label="普通经纪人" value="1" />
+            <el-option label="高级经纪人" value="2" />
+            <el-option label="金牌经纪人" value="3" />
           </el-select>
         </el-form-item>
         <el-form-item label="时间范围">
@@ -68,7 +68,7 @@
     
     <!-- 批量操作栏 -->
     <div v-if="selectedRows.length > 0" class="batch-actions">
-      <span class="selected-count">已选择 {{ selectedRows.length }} 个艺荐官</span>
+      <span class="selected-count">已选择 {{ selectedRows.length }} 个经纪人</span>
       <el-button type="primary" link @click="clearSelection">取消选择</el-button>
       <el-divider direction="vertical" />
       <el-button type="success" @click="handleBatchApprove" :loading="batchLoading">批量通过</el-button>
@@ -86,7 +86,7 @@
       <el-table-column label="用户信息" min-width="200">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="getFullImageUrl(row.avatar || row.userAvatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
+            <el-avatar :src="getAvatarUrl(row.avatar || row.userAvatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
             <div class="user-detail">
               <p class="nickname">
                 {{ row.nickname || row.userNickname || '未知用户' }}
@@ -100,14 +100,14 @@
       </el-table-column>
       <el-table-column prop="level" label="等级" width="120">
         <template #default="{ row }">
-          <el-tag v-if="row.level === 3" type="success" size="small">金牌艺荐官</el-tag>
-          <el-tag v-else-if="row.level === 2" type="warning" size="small">高级艺荐官</el-tag>
-          <el-tag v-else type="info" size="small">普通艺荐官</el-tag>
+          <el-tag v-if="row.level === 3" type="success" size="small">金牌经纪人</el-tag>
+          <el-tag v-else-if="row.level === 2" type="warning" size="small">高级经纪人</el-tag>
+          <el-tag v-else type="info" size="small">普通经纪人</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="teamCount" label="团队人数" width="100" />
       <el-table-column prop="directCount" label="直接推荐" width="100" />
-      <el-table-column label="累计佣金" width="120">
+      <el-table-column label="累计分成" width="120">
         <template #default="{ row }">¥{{ row.totalCommission || 0 }}</template>
       </el-table-column>
       <el-table-column label="认证状态" width="100">
@@ -176,7 +176,7 @@
         <!-- 用户基本信息 -->
         <div class="profile-header">
           <div class="avatar-wrapper">
-            <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
+            <el-avatar :src="getAvatarUrl(profileForm.avatar)" :size="80" fit="cover" />
             <el-upload
               class="avatar-uploader"
               :show-file-list="false"
@@ -198,7 +198,7 @@
             </div>
             <div class="identity-tags">
               <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
-              <el-tag v-if="currentUser.isPromoter || currentUser.certified" type="warning" size="small">艺荐官</el-tag>
+              <el-tag v-if="currentUser.isPromoter || currentUser.certified" type="warning" size="small">经纪人</el-tag>
               <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter && !currentUser.certified" type="info" size="small">普通用户</el-tag>
             </div>
           </div>
@@ -253,13 +253,13 @@
             <el-col :span="8">
               <div class="info-item">
                 <span class="label">账户余额</span>
-                <span class="value">¥{{ currentUser.balance || 0 }}</span>
+                <span class="value">¥{{ formatAmount(currentUser.balance) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
               <div class="info-item">
                 <span class="label">累计消费</span>
-                <span class="value">¥{{ currentUser.totalConsume || 0 }}</span>
+                <span class="value">¥{{ formatAmount(currentUser.totalConsume) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
@@ -291,10 +291,10 @@
               <el-table :data="userSales.list" size="small" border>
                 <el-table-column prop="orderNo" label="订单号" width="150" />
                 <el-table-column prop="amount" label="订单金额" width="100">
-                  <template #default="{ row }">¥{{ row.amount || 0 }}</template>
+                  <template #default="{ row }">¥{{ formatAmount(row.amount) }}</template>
                 </el-table-column>
-                <el-table-column prop="commission" label="佣金" width="100">
-                  <template #default="{ row }">¥{{ row.commission || 0 }}</template>
+                <el-table-column prop="commission" label="分成" width="100">
+                  <template #default="{ row }">¥{{ formatAmount(row.commission) }}</template>
                 </el-table-column>
                 <el-table-column prop="artworkId" label="作品ID" width="80" />
                 <el-table-column prop="orderTime" label="下单时间" />
@@ -347,15 +347,15 @@
       </template>
     </el-dialog>
 
-    <!-- 添加艺荐官弹窗 -->
-    <el-dialog v-model="addVisible" title="添加艺荐官" width="600px" destroy-on-close>
+    <!-- 添加经纪人弹窗 -->
+    <el-dialog v-model="addVisible" title="添加经纪人" width="600px" destroy-on-close>
       <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="90px">
         <el-alert type="info" :closable="false" style="margin-bottom: 15px;">
-          创建后将同时创建艺荐官认证记录
+          创建后将同时创建经纪人认证记录
         </el-alert>
         <div class="add-form-header">
           <div class="avatar-section">
-            <el-avatar :src="getFullImageUrl(addForm.avatar)" :size="80" fit="cover" />
+            <el-avatar :src="getAvatarUrl(addForm.avatar)" :size="80" fit="cover" />
             <el-upload
               class="avatar-uploader"
               :show-file-list="false"
@@ -375,7 +375,7 @@
             </el-row>
           </div>
         </div>
-        <el-divider content-position="left">艺荐官信息</el-divider>
+        <el-divider content-position="left">经纪人信息</el-divider>
         <el-form-item label="真实姓名" prop="realName">
           <el-input v-model="addForm.realName" placeholder="请输入真实姓名（必填）" />
         </el-form-item>
@@ -399,9 +399,9 @@
         </el-form-item>
         <el-form-item label="认证等级" prop="level">
           <el-select v-model="addForm.level" placeholder="请选择认证等级">
-            <el-option label="普通艺荐官" :value="1" />
-            <el-option label="高级艺荐官" :value="2" />
-            <el-option label="金牌艺荐官" :value="3" />
+            <el-option label="普通经纪人" :value="1" />
+            <el-option label="高级经纪人" :value="2" />
+            <el-option label="金牌经纪人" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item label="备注">
@@ -420,16 +420,16 @@
     </el-dialog>
 
     <!-- 设置等级弹窗 -->
-    <el-dialog v-model="levelVisible" title="设置艺荐官等级" width="400px">
+    <el-dialog v-model="levelVisible" title="设置经纪人等级" width="400px">
       <el-form label-width="100px">
         <el-form-item label="当前用户">
           {{ currentRecord?.nickname || currentRecord?.userNickname }}
         </el-form-item>
         <el-form-item label="认证等级">
           <el-select v-model="selectedLevel" placeholder="请选择认证等级">
-            <el-option label="普通艺荐官" :value="1" />
-            <el-option label="高级艺荐官" :value="2" />
-            <el-option label="金牌艺荐官" :value="3" />
+            <el-option label="普通经纪人" :value="1" />
+            <el-option label="高级经纪人" :value="2" />
+            <el-option label="金牌经纪人" :value="3" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -447,6 +447,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
 import { copyId } from '@/utils/id'
+
+const DEFAULT_AVATAR_URL = '/images/default-avatar.png'
+const getAvatarUrl = (avatar) => getFullImageUrl(avatar || DEFAULT_AVATAR_URL)
 
 const loading = ref(false)
 const exportLoading = ref(false)
@@ -470,7 +473,7 @@ const batchRejectReason = ref('')
 const tblRef = ref()
 
 const selectedLevel = ref(1)
-const activeTab = ref('pending')
+const activeTab = ref('all')
 const searchForm = reactive({
   keyword: '',
   phone: '',
@@ -550,6 +553,13 @@ const getSourceText = (source) => {
   return map[source] || source || '-'
 }
 
+const formatAmount = (value) => {
+  return (Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
 const formatParent = (user) => {
   if (!user) return '无'
   const uid = user.parentUid || user.inviterUid
@@ -593,7 +603,7 @@ const openUserProfile = async (row) => {
     phone: row.phone || row.userPhone || '',
     email: row.email || '',
     avatar: row.avatar || row.userAvatar || '',
-    inviterUid: row.inviterUid || row.parentUid || '',
+    inviterUid: row.parentUid || row.inviterUid || '',
     teamCount: row.teamCount || 0
   })
 
@@ -707,7 +717,7 @@ const saveProfile = async () => {
     })
     await request.put(`/user/promoter/${userId}/relation`, {
       realName: profileForm.realName,
-      inviterUid: profileForm.inviterUid,
+      inviterUid: String(profileForm.inviterUid || '').trim(),
       teamCount: profileForm.teamCount
     })
     detailVisible.value = false
@@ -754,12 +764,12 @@ const handleExport = async () => {
     const list = data.records || data.list || []
     if (list.length === 0) { ElMessage.warning('没有数据可以导出'); return }
     
-    const headers = ['ID', '昵称', '手机号', '等级', '团队人数', '直接推荐', '累计佣金', '认证状态', '成为时间']
+    const headers = ['ID', '昵称', '手机号', '等级', '团队人数', '直接推荐', '累计分成', '认证状态', '成为时间']
     const rows = list.map(item => [
       item.displayId || item.id || '',
       item.nickname || item.userNickname || '',
       item.phone || item.userPhone || '',
-      item.level === 3 ? '金牌艺荐官' : item.level === 2 ? '高级艺荐官' : '普通艺荐官',
+      item.level === 3 ? '金牌经纪人' : item.level === 2 ? '高级经纪人' : '普通经纪人',
       item.teamCount || 0,
       item.directCount || 0,
       item.totalCommission || 0,
@@ -773,7 +783,7 @@ const handleExport = async () => {
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `艺荐官列表_${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `经纪人列表_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
     URL.revokeObjectURL(link.href)
     ElMessage.success(`成功导出 ${list.length} 条数据`)
@@ -822,7 +832,7 @@ const handleTabChange = () => {
 
 const handleApprove = async (row) => {
   try {
-    await ElMessageBox.confirm('确定通过该艺荐官认证吗？', '提示', { type: 'success' })
+    await ElMessageBox.confirm('确定通过该经纪人认证吗？', '提示', { type: 'success' })
     await request.post('/user/promoter/approve', { id: row.id })
     ElMessage.success('已通过认证')
     await loadData()
@@ -861,7 +871,7 @@ const clearSelection = () => {
 
 const handleBatchApprove = async () => {
   try {
-    await ElMessageBox.confirm(`确定批量通过 ${selectedRows.value.length} 个艺荐官吗？`, '提示', { type: 'success' })
+    await ElMessageBox.confirm(`确定批量通过 ${selectedRows.value.length} 个经纪人吗？`, '提示', { type: 'success' })
     const ids = selectedRows.value.map(row => row.id)
     await request.post('/user/promoter/batchApprove', { ids })
     ElMessage.success('批量通过成功')
@@ -892,7 +902,7 @@ const confirmBatchReject = async () => {
 
 const handleBatchDelete = async () => {
   try {
-    await ElMessageBox.confirm(`确定批量删除 ${selectedRows.value.length} 个艺荐官吗？`, '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm(`确定批量删除 ${selectedRows.value.length} 个经纪人吗？`, '删除确认', { type: 'warning' })
     const ids = selectedRows.value.map(row => row.id)
     await request.post('/user/promoter/batchDelete', { ids })
     ElMessage.success('批量删除成功')
@@ -904,7 +914,7 @@ const handleBatchDelete = async () => {
 // 取消认证
 const handleRevoke = async (row) => {
   try {
-    await ElMessageBox.confirm('确定取消该艺荐官认证吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm('确定取消该经纪人认证吗？', '提示', { type: 'warning' })
     await request.post('/user/promoter/revoke', { id: row.id })
     ElMessage.success('已取消认证')
     await loadData()
@@ -921,10 +931,10 @@ const handleReapply = async (row) => {
   } catch (e) {}
 }
 
-// 删除艺荐官认证
+// 删除经纪人认证
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定要删除艺荐官"${row.nickname || row.userNickname}"的认证记录吗？`, '删除确认', {
+    await ElMessageBox.confirm(`确定要删除经纪人"${row.nickname || row.userNickname}"的认证记录吗？`, '删除确认', {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning'
@@ -939,7 +949,7 @@ const handleDelete = async (row) => {
   }
 }
 
-// 添加艺荐官
+// 添加经纪人
 const showAddDialog = () => {
   Object.assign(addForm, { 
     phone: '', 
@@ -955,7 +965,7 @@ const showAddDialog = () => {
   addVisible.value = true
 }
 
-// 添加艺荐官 - 上传头像
+// 添加经纪人 - 上传头像
 const handleAddAvatarUpload = async (options) => {
   const { file, onSuccess, onError } = options
   

@@ -60,6 +60,13 @@ const loading = ref(false)
 
 onMounted(() => { refresh() })
 
+function formatAmount(value) {
+  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
+}
+
 async function refresh(){
   loading.value = true
   try {
@@ -73,7 +80,7 @@ async function refresh(){
       sub: `当前持有人：${item.buyerName || ''}`,
       statusText: item.rawStatus === 'DONE' ? '已完成' : '已收藏',
       badgeClass: item.rawStatus === 'DONE' ? 'green' : 'gray',
-      amountText: `¥${(Number(item.totalAmount) || 0).toLocaleString()}`,
+      amountText: formatAmount(item.totalAmount || item.payAmount || item.amount || 0),
       extra: (item.createTime || '').slice(0, 10),
       tags: ['已生成证书'],
       updatedAt: (item.createTime || '').slice(0, 16),

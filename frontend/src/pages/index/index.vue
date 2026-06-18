@@ -179,8 +179,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
-import { getBanners, getRecommend, getFollowingWorks, getProductList } from '@/api/product'
+import { getBanners, getRecommend, getFollowingWorks, getProductList, normalizeImageUrl } from '@/api/product'
 import { useUserStore } from '@/store/modules/user'
+import { formatYuanNumber } from '@/utils/price'
 
 const userStore = useUserStore()
 
@@ -213,6 +214,13 @@ const pageSize = 10
 const normalizeListResult = (result) => {
   if (Array.isArray(result)) return result
   return result?.records || result?.list || []
+}
+
+const shuffleList = (list = []) => {
+  return list
+    .map(item => ({ item, sortKey: Math.random() }))
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map(entry => entry.item)
 }
 
 // 金刚区配置 - 深色主题
@@ -254,7 +262,7 @@ const fetchProductList = async (reset = false) => {
 
   loading.value = true
   try {
-    const params = { page: page.value, pageSize }
+    const params = { page: page.value, pageSize, status: 1 }
     let list = []
 
     if (currentTab.value === 'recommend' && isH5Browser()) {
@@ -287,6 +295,11 @@ const fetchProductList = async (reset = false) => {
       }
     }
 
+    list = (list || []).filter(isListedArtwork)
+    if (currentTab.value === 'recommend') {
+      list = shuffleList(list)
+    }
+
     // 分页处理
     if (reset) {
       productList.value = list || []
@@ -302,7 +315,10 @@ const fetchProductList = async (reset = false) => {
   } catch (e) {
     console.error('获取作品列表失败:', e)
     try {
-      const fallbackList = await fetchProductListByBrowser()
+      let fallbackList = (await fetchProductListByBrowser()).filter(isListedArtwork)
+      if (currentTab.value === 'recommend') {
+        fallbackList = shuffleList(fallbackList)
+      }
       if (fallbackList.length) {
         if (reset) {
           productList.value = fallbackList
@@ -336,7 +352,7 @@ const isH5Browser = () => {
 const fetchProductListByBrowser = async () => {
   // H5 下直接使用同源 fetch，避免 uni.request 在本地代理场景偶发等待超时。
   if (!isH5Browser()) return []
-  const response = await fetch(`/api/product/list?page=${page.value}&pageSize=${pageSize}`)
+  const response = await fetch(`/api/product/list?page=${page.value}&pageSize=${pageSize}&status=1`)
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`)
   }
@@ -345,7 +361,7 @@ const fetchProductListByBrowser = async () => {
   const list = normalizeListResult(data)
   return list.map(item => ({
     ...item,
-    cover: item.coverImage || item.cover,
+    cover: normalizeImageUrl(item.coverImage || item.cover),
     artistName: item.artistName || item.authorName,
     artistId: item.artistId || item.authorId,
     artistUid: item.artistUid || item.authorUid || item.displayAuthorId
@@ -436,14 +452,18 @@ const goArtistHome = (userId) => {
   uni.navigateTo({ url: `/pages/artist/home?userId=${userId}` })
 }
 
-// 格式化价格（精确到个位数）
+// 格式化价格，作品接口价格为分，转售价格进入这里前也统一转成分。
 const formatPrice = (price) => {
-  if (!price) return '0'
-  const yuan = Math.round(price / 100)  // 分转元，取整
-  return yuan.toLocaleString()
+  return formatYuanNumber(Number(price || 0) / 100)
 }
 
 const getDisplayPrice = (item) => {
+  const resaleListing = item.activeResaleListing || item.resaleListing
+  const resaleStatus = String(resaleListing?.status || '').toLowerCase()
+  const resalePrice = Number(resaleListing?.resalePrice || 0)
+  if (resalePrice > 0 && (!resaleStatus || resaleStatus === 'pending')) {
+    return Math.round(resalePrice * 100)
+  }
   const currentPrice = Number(item.currentPrice || 0)
   if (currentPrice > 0) return currentPrice
   return Number(item.price || 0)
@@ -481,6 +501,10 @@ const isSoldArtwork = (item) => {
   return Number(item.status) === 2
 }
 
+const isListedArtwork = (item) => {
+  return Number(item.status) === 1
+}
+
 const showRiseTip = (item) => {
   return !isSoldArtwork(item) && !!getRiseTipText(item)
 }
@@ -507,13 +531,8 @@ const getRiseBadgeText = (item) => {
 
 const formatRiseAmount = (fen) => {
   const yuan = Number(fen || 0) / 100
-  if (yuan <= 0) return '¥0'
-  if (yuan < 1) return `¥${yuan.toFixed(2)}`
-  if (yuan < 100) {
-    const fixed = yuan.toFixed(1)
-    return `¥${fixed.endsWith('.0') ? Math.round(yuan) : fixed}`
-  }
-  return `¥${Math.round(yuan).toLocaleString()}`
+  if (yuan <= 0) return '¥0.00'
+  return `¥${formatYuanNumber(yuan)}`
 }
 
 const formatRiseRange = (item, compact = false) => {
@@ -541,7 +560,7 @@ const getIdentityText = (identity) => {
   const map = {
     artist: '艺术家',
     agent: '经纪人',
-    promoter: '艺荐官',
+    promoter: '经纪人',
     collector: '持有者',
     master: '大师'
   }

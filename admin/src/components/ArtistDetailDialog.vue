@@ -23,7 +23,7 @@
               <p class="user-id">ID: {{ currentUser.displayId || currentUser.userId || currentUser.id }}</p>
               <div class="identity-tags">
                 <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
-                <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
+                <el-tag v-if="currentUser.isPromoter" type="warning" size="small">经纪人</el-tag>
                 <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter" type="info" size="small">普通用户</el-tag>
               </div>
             </div>
@@ -91,16 +91,16 @@
             <el-form-item label="身份">
               <el-checkbox-group v-model="profileForm.identities">
                 <el-checkbox label="artist">艺术家</el-checkbox>
-                <el-checkbox label="promoter">艺荐官</el-checkbox>
+                <el-checkbox label="promoter">经纪人</el-checkbox>
               </el-checkbox-group>
             </el-form-item>
             <el-divider content-position="left">账户信息</el-divider>
             <el-row :gutter="20">
               <el-col :span="8">
-                <div class="info-item"><span class="label">账户余额</span><span class="value">¥{{ currentUser.balance || 0 }}</span></div>
+                <div class="info-item"><span class="label">账户余额</span><span class="value">¥{{ formatAmount(currentUser.balance) }}</span></div>
               </el-col>
               <el-col :span="8">
-                <div class="info-item"><span class="label">累计消费</span><span class="value">¥{{ currentUser.totalConsume || 0 }}</span></div>
+                <div class="info-item"><span class="label">累计消费</span><span class="value">¥{{ formatAmount(currentUser.totalConsume) }}</span></div>
               </el-col>
               <el-col :span="8">
                 <div class="info-item"><span class="label">订单数量</span><span class="value">{{ currentUser.orderCount || 0 }}</span></div>
@@ -204,7 +204,7 @@
               </div>
               <div class="artwork-info">
                 <p class="artwork-title">{{ artwork.title }}</p>
-                <p class="artwork-price">¥{{ artwork.price || 0 }}</p>
+                <p class="artwork-price">¥{{ formatAmount(artwork.price) }}</p>
               </div>
             </div>
           </div>
@@ -316,6 +316,13 @@ const scoreItems = () => [
 const getSourceText = (source) => {
   const map = { wx: '微信小程序', app: '手机应用', h5: 'H5页面', admin: '后台导入', weixin: '微信小程序' }
   return map[source] || source || '未知'
+}
+
+const formatAmount = (value) => {
+  return (Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 // 打开用户资料弹窗

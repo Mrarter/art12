@@ -3,6 +3,7 @@ package com.shiyiju.admin.config;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -10,6 +11,21 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    private static final String[] ADMIN_FRONTEND_ROUTES = {
+            "/login",
+            "/dashboard",
+            "/user/**",
+            "/product/**",
+            "/order/**",
+            "/auction/**",
+            "/promotion/**",
+            "/community/**",
+            "/trade/**",
+            "/price-control/**",
+            "/resale/**",
+            "/system/**"
+    };
 
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {
@@ -28,5 +44,12 @@ public class WebConfig implements WebMvcConfigurer {
         // 需要在此处代理到文件服务或本地目录
         registry.addResourceHandler("/upload/**")
                 .addResourceLocations("file:/Users/master/CodeBuddy/art12/uploads/");
+    }
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        for (String route : ADMIN_FRONTEND_ROUTES) {
+            registry.addViewController(route).setViewName("forward:/index.html");
+        }
     }
 }

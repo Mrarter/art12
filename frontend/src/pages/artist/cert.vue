@@ -6,8 +6,35 @@
         
       </view>
       <view class="header-text">
-        <text class="title">成为认证艺术家</text>
-        <text class="desc">认证后可享受专属权益，包括专属标识、优先推荐、数据分析等功能</text>
+        <text class="title">{{ headerTitle }}</text>
+        <text class="desc">{{ headerDesc }}</text>
+      </view>
+    </view>
+
+    <view class="guide-card" v-if="certStatus.status === 'none' || certStatus.status === 'rejected'">
+      <view class="guide-kicker">提交申请开始前的准备</view>
+      <view class="guide-title">认证指南</view>
+      <view class="guide-desc">当前阶段，分享平台并邀请好友完成注册，可获得平台赠送的 3,600 元年度服务费权益。</view>
+
+      <view class="guide-steps">
+        <view class="guide-step" v-for="item in guideSteps" :key="item.no">
+          <text class="step-no">{{ item.no }}</text>
+          <view class="step-copy">
+            <text class="step-title">{{ item.title }}</text>
+            <text class="step-desc">{{ item.desc }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="fee-panel">
+        <view class="fee-item">
+          <text class="fee-label">年度服务费</text>
+          <text class="fee-value">¥3,600 / 年</text>
+        </view>
+        <view class="fee-item">
+          <text class="fee-label">平台服务分成</text>
+          <text class="fee-value">每笔消费 15%</text>
+        </view>
       </view>
     </view>
 
@@ -18,7 +45,13 @@
         <text class="status-text">{{ certStatus.text }}</text>
       </view>
       <view class="status-detail" v-if="certStatus.status === 'pending'">
-        <text>您的认证申请正在审核中，预计1-3个工作日完成</text>
+        <text>您的艺术家身份认证正在审核中，运营后台通过后才会开通艺术家主页、作品发布与艺术家工作台。</text>
+      </view>
+      <view class="status-detail" v-else-if="certStatus.status === 'approved'">
+        <text>您的艺术家身份认证已通过，可以发布作品并管理艺术家主页。</text>
+      </view>
+      <view class="status-detail" v-else-if="certStatus.status === 'rejected'">
+        <text>{{ certStatus.rejectReason ? `未通过原因：${certStatus.rejectReason}` : '本次认证未通过，可补充资料后重新提交。' }}</text>
       </view>
     </view>
 
@@ -26,7 +59,7 @@
     <view class="cert-form" v-if="certStatus.status === 'none' || certStatus.status === 'rejected'">
       <!-- 基本信息 -->
       <view class="form-section">
-        <view class="section-title">基本信息</view>
+        <view class="section-title">录入信息</view>
         
         <view class="form-item">
           <view class="item-label">
@@ -119,8 +152,8 @@
 
       <!-- 作品展示 -->
       <view class="form-section">
-        <view class="section-title">作品展示<text class="section-hint">（可选）</text></view>
-        <view class="upload-tips">上传10张代表作品，有助于审核通过</view>
+        <view class="section-title">提供 20 件作品</view>
+        <view class="upload-tips">请提供 20 件本人代表作品，平台将用于判断作品风格、创作稳定性与销售适配度。当前已上传 {{ form.artworks.length }}/{{ MAX_ARTWORK_COUNT }} 件。</view>
         
         <view class="works-uploader">
           <view class="works-list">
@@ -157,7 +190,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { becomeArtist } from '@/api/user.js'
+import { becomeArtist, getArtistCertStatus } from '@/api/user.js'
 import { getCategories } from '@/api/product.js'
 import { openCropper } from '@/api/file.js'
 
@@ -165,8 +198,25 @@ const artFields = ref([
   { id: '', name: '加载中...' }
 ])
 
-const MAX_ARTWORK_COUNT = 10
+const MAX_ARTWORK_COUNT = 20
 const idCardError = ref('')
+const guideSteps = [
+  {
+    no: '01',
+    title: '阅读认证指南',
+    desc: '了解平台审核标准、3,600 元年度服务费、每笔消费 15% 平台服务分成，以及当前邀请好友赠送年费的阶段权益。'
+  },
+  {
+    no: '02',
+    title: '录入真实个人信息',
+    desc: '填写真实姓名、身份证号、艺术领域和个人简介，并完成身份证照片与本人核验，避免冒用他人作品或身份。'
+  },
+  {
+    no: '03',
+    title: '提供 20 件代表作品',
+    desc: '上传 20 件本人原创代表作品，平台将结合题材、风格、完成度和连续创作能力进行审核。'
+  }
+]
 
 const form = ref({
   realName: '',
@@ -184,7 +234,22 @@ const certStatus = ref({
   status: 'none',
   text: '',
   icon: '',
-  color: ''
+  color: '',
+  rejectReason: ''
+})
+
+const headerTitle = computed(() => {
+  if (certStatus.value.status === 'pending') return '艺术家身份认证中'
+  if (certStatus.value.status === 'approved') return '认证艺术家'
+  if (certStatus.value.status === 'rejected') return '艺术家认证未通过'
+  return '成为认证艺术家'
+})
+
+const headerDesc = computed(() => {
+  if (certStatus.value.status === 'pending') return '您的认证资料已提交，平台正在审核，请等待运营后台审核结果。'
+  if (certStatus.value.status === 'approved') return '您已获得平台认证标识、作品发布权限和作品流通能力。'
+  if (certStatus.value.status === 'rejected') return '请根据审核意见补充资料后重新提交认证申请。'
+  return '完成认证后可发布作品、进入艺术家主页、获得平台认证标识与作品流通能力'
 })
 
 const canSubmit = computed(() => {
@@ -194,7 +259,8 @@ const canSubmit = computed(() => {
          form.value.resume &&  // 改为resume
          form.value.idCardFront && 
          form.value.idCardBack &&
-         form.value.faceVerified
+         form.value.faceVerified &&
+         form.value.artworks.length >= MAX_ARTWORK_COUNT
 })
 
 const validateIdCard = (value) => {
@@ -247,7 +313,7 @@ const onFieldChange = (e) => {
 
 const chooseImage = (type) => {
   uni.chooseImage({
-    count: type === 'artworks' ? MAX_ARTWORK_COUNT - form.value.artworks.length : 1,
+    count: type === 'artworks' ? Math.min(MAX_ARTWORK_COUNT - form.value.artworks.length, 9) : 1,
     sizeType: ['compressed'],
     success: (res) => {
       if (type === 'idCardFront') {
@@ -300,6 +366,10 @@ const submitForm = async () => {
       uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
       return
     }
+    if (form.value.artworks.length < MAX_ARTWORK_COUNT) {
+      uni.showToast({ title: `请上传${MAX_ARTWORK_COUNT}件代表作品`, icon: 'none' })
+      return
+    }
     uni.showToast({ title: '请完善必填信息', icon: 'none' })
     return
   }
@@ -329,7 +399,56 @@ const reApply = () => {
   certStatus.value.status = 'none'
 }
 
+const normalizeCertStatus = (data = {}) => {
+  const status = data.status
+  if (status === 0 || status === '0' || status === 'pending') {
+    return {
+      status: 'pending',
+      text: '艺术家身份认证中',
+      icon: '',
+      color: '',
+      rejectReason: data.rejectReason || ''
+    }
+  }
+  if (status === 1 || status === '1' || status === 'approved' || data.isArtist === true) {
+    return {
+      status: 'approved',
+      text: '认证艺术家',
+      icon: '',
+      color: '',
+      rejectReason: ''
+    }
+  }
+  if (status === 2 || status === '2' || status === 'rejected') {
+    return {
+      status: 'rejected',
+      text: '艺术家认证未通过',
+      icon: '',
+      color: '',
+      rejectReason: data.rejectReason || ''
+    }
+  }
+  return {
+    status: 'none',
+    text: '',
+    icon: '',
+    color: '',
+    rejectReason: ''
+  }
+}
+
+const loadCertStatus = async () => {
+  try {
+    const data = await getArtistCertStatus()
+    certStatus.value = normalizeCertStatus(data)
+  } catch (e) {
+    certStatus.value = normalizeCertStatus()
+  }
+}
+
 onMounted(async () => {
+  await loadCertStatus()
+
   // 从API加载分类数据
   try {
     const list = await getCategories()
@@ -433,6 +552,97 @@ onMounted(async () => {
     margin-top: 20rpx;
     font-size: 24rpx;
     color: #666;
+  }
+}
+
+.guide-card {
+  margin: 20rpx;
+  padding: 36rpx;
+  border-radius: 28rpx;
+  color: #f4f4f4;
+  background: #1c1c1c;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20rpx 50rpx rgba(0, 0, 0, 0.18);
+
+  .guide-kicker {
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, 0.38);
+    margin-bottom: 12rpx;
+  }
+
+  .guide-title {
+    font-size: 44rpx;
+    font-weight: 700;
+    margin-bottom: 16rpx;
+  }
+
+  .guide-desc {
+    display: block;
+    font-size: 26rpx;
+    line-height: 1.6;
+    color: #d8bf79;
+    margin-bottom: 30rpx;
+  }
+
+  .guide-step {
+    display: flex;
+    gap: 24rpx;
+    padding: 28rpx 0;
+    border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+
+    .step-no {
+      width: 80rpx;
+      font-size: 44rpx;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.82);
+    }
+
+    .step-copy {
+      flex: 1;
+    }
+
+    .step-title {
+      display: block;
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #f7f7f7;
+      margin-bottom: 12rpx;
+    }
+
+    .step-desc {
+      display: block;
+      font-size: 25rpx;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.62);
+    }
+  }
+
+  .fee-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-top: 18rpx;
+  }
+
+  .fee-item {
+    padding: 22rpx;
+    border-radius: 18rpx;
+    background: rgba(216, 191, 121, 0.1);
+    border: 1rpx solid rgba(216, 191, 121, 0.24);
+  }
+
+  .fee-label {
+    display: block;
+    font-size: 22rpx;
+    color: rgba(255, 255, 255, 0.56);
+    margin-bottom: 8rpx;
+  }
+
+  .fee-value {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #d8bf79;
   }
 }
 

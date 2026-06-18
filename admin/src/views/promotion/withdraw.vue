@@ -6,7 +6,7 @@
     
     <div class="search-form">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="艺荐官">
+        <el-form-item label="经纪人">
           <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
         </el-form-item>
         <el-form-item label="状态">
@@ -39,7 +39,7 @@
           <IdCell :value="row.withdrawCode" success-message="已复制提现编号" />
         </template>
       </el-table-column>
-      <el-table-column label="艺荐官" min-width="150">
+      <el-table-column label="经纪人" min-width="150">
         <template #default="{ row }">
           <p>{{ row.userName }}</p>
           <p class="phone">{{ row.phone }}</p>
@@ -106,7 +106,7 @@
     <el-dialog v-model="detailVisible" title="提现详情" width="500px" destroy-on-close>
       <div v-if="currentRecord.id" class="withdraw-detail">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="艺荐官">{{ currentRecord.userName }}</el-descriptions-item>
+          <el-descriptions-item label="经纪人">{{ currentRecord.userName }}</el-descriptions-item>
           <el-descriptions-item label="手机号">{{ currentRecord.phone }}</el-descriptions-item>
           <el-descriptions-item label="提现金额">
             <span class="amount">¥{{ formatFen(currentRecord.amount) }}</span>
@@ -189,9 +189,9 @@ const loadData = async () => {
     pagination.total = data.total || 0
   } catch (e) {
     tableData.value = [
-      { id: 1, withdrawCode: 'WDR202604250001C2H7', userName: '艺荐官A', phone: '13900139001', amount: 5000, type: 'wechat', account: 'wx123456', realName: '张三', status: 'pending', createTime: '2024-01-21 10:00:00' },
-      { id: 2, withdrawCode: 'WDR202604250002G8T3', userName: '艺荐官B', phone: '13900139002', amount: 8000, type: 'alipay', account: '139****9002', realName: '李四', status: 'pending', createTime: '2024-01-20 14:30:00' },
-      { id: 3, withdrawCode: 'WDR202604250003M5F9', userName: '艺荐官C', phone: '13900139003', amount: 3000, type: 'bank', account: '6222****1234', realName: '王五', status: 'approved', createTime: '2024-01-19 09:00:00' }
+      { id: 1, withdrawCode: 'WDR202604250001C2H7', userName: '经纪人A', phone: '13900139001', amount: 5000, type: 'wechat', account: 'wx123456', realName: '张三', status: 'pending', createTime: '2024-01-21 10:00:00' },
+      { id: 2, withdrawCode: 'WDR202604250002G8T3', userName: '经纪人B', phone: '13900139002', amount: 8000, type: 'alipay', account: '139****9002', realName: '李四', status: 'pending', createTime: '2024-01-20 14:30:00' },
+      { id: 3, withdrawCode: 'WDR202604250003M5F9', userName: '经纪人C', phone: '13900139003', amount: 3000, type: 'bank', account: '6222****1234', realName: '王五', status: 'approved', createTime: '2024-01-19 09:00:00' }
     ]
     pagination.total = 3
   } finally {

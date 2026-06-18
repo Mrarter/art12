@@ -74,6 +74,7 @@
 <script>
 import { getProductList } from '@/api/product'
 import { getArtistInfo } from '@/api/user'
+import { formatPriceNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -142,7 +143,7 @@ export default {
         cover: item.coverImage || item.cover,
         statusLabel: label,
         metaText: metaParts.join(' / '),
-        priceText: item.price ? '¥' + (item.price / 100).toLocaleString() : '待估值'
+        priceText: item.price ? `¥${formatPriceNumber(item.price)}` : '待估值'
       }
     },
     matchTab(work, tab) {

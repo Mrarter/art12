@@ -16,8 +16,8 @@
         <text class="stat-label">推广订单</text>
       </view>
       <view class="stat-item">
-        <text class="stat-value">¥{{ memberInfo.totalCommission || 0 }}</text>
-        <text class="stat-label">贡献佣金</text>
+        <text class="stat-value">¥{{ formatMoney(memberInfo.totalCommission) }}</text>
+        <text class="stat-label">贡献分成</text>
       </view>
       <view class="stat-item">
         <text class="stat-value">{{ memberInfo.subCount || 0 }}</text>
@@ -25,10 +25,10 @@
       </view>
     </view>
 
-    <!-- 佣金明细 -->
+    <!-- 分成明细 -->
     <view class="commission-section">
       <view class="section-header">
-        <text class="section-title">佣金明细</text>
+        <text class="section-title">分成明细</text>
       </view>
       <view class="commission-list">
         <view class="commission-item" v-for="item in commissionList" :key="item.id">
@@ -36,10 +36,10 @@
             <text class="item-title">{{ item.title }}</text>
             <text class="item-time">{{ item.createTime }}</text>
           </view>
-          <text class="item-amount">+¥{{ item.amount }}</text>
+          <text class="item-amount">+¥{{ formatMoney(item.amount) }}</text>
         </view>
         <view class="empty-state" v-if="commissionList.length === 0">
-          <text>暂无佣金记录</text>
+          <text>暂无分成记录</text>
         </view>
       </view>
       <view class="load-more" v-if="hasMore" @click="loadMore">
@@ -51,6 +51,7 @@
 
 <script>
 import { getTeamMemberDetail } from '@/api/promoter.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -73,6 +74,9 @@ export default {
   },
 
   methods: {
+    formatMoney(value) {
+      return formatYuanNumber(fenToYuan(value))
+    },
     async loadData() {
       this.loading = true
       try {

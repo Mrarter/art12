@@ -6,6 +6,7 @@ import com.shiyiju.product.entity.ArtworkPriceLog;
 import com.shiyiju.product.mapper.ArtworkMapper;
 import com.shiyiju.product.mapper.ArtworkPriceLogMapper;
 import com.shiyiju.product.service.ArtworkPriceService;
+import com.shiyiju.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,7 @@ public class ArtworkPriceAdminController {
     private final ArtworkMapper artworkMapper;
     private final ArtworkPriceLogMapper priceLogMapper;
     private final ArtworkPriceService artworkPriceService;
+    private final ProductService productService;
     private final JdbcTemplate jdbcTemplate;
 
     @GetMapping("/list")
@@ -34,7 +36,7 @@ public class ArtworkPriceAdminController {
             m.put("artworkId", a.getId());
             m.put("title", a.getTitle());
             m.put("artistName", a.getAuthorName());
-            m.put("currentPrice", a.getPrice());
+            m.put("currentPrice", productService.calculateDisplayCurrentPrice(a.getId()));
             m.put("collectCount", a.getFavoriteCount());
             m.put("saleCount", a.getSaleCount());
             m.put("status", a.getStatus());

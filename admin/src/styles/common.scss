@@ -119,7 +119,20 @@ html, body {
 
 // 表格
 .el-table {
+  font-size: 13px;
+
+  th.el-table__cell,
+  td.el-table__cell {
+    padding: 10px 0;
+  }
+
+  th.el-table__cell {
+    font-weight: 600;
+  }
+
   .cell {
+    line-height: 1.5;
+
     .action-btn {
       padding: 0 5px;
     }

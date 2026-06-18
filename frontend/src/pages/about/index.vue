@@ -3,7 +3,7 @@
     <!-- Logo区域 -->
     <view class="logo-section">
       <image class="app-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="app-name">拾艺局</text>
+      <text class="app-name">艺本艺术</text>
       <text class="app-version">v1.0.0</text>
     </view>
 
@@ -53,7 +53,7 @@
 
     <!-- 底部信息 -->
     <view class="footer-section">
-      <text class="copyright">© 2024 拾艺局 All Rights Reserved</text>
+      <text class="copyright">© 2024 艺本艺术 All Rights Reserved</text>
       <text class="desc">让艺术走进生活</text>
     </view>
   </view>
@@ -66,7 +66,7 @@ export default {
   },
   methods: {
     goToAbout() {
-      uni.navigateTo({ url: '/pages/common/coming-soon?title=关于拾艺局&desc=详细介绍页还在整理中，当前版本先保留入口与基础信息。' })
+      uni.navigateTo({ url: '/pages/common/coming-soon?title=关于艺本艺术&desc=详细介绍页还在整理中，当前版本先保留入口与基础信息。' })
     },
     checkUpdate() {
       uni.showToast({ title: '已是最新版本', icon: 'success' })

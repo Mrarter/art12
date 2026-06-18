@@ -115,7 +115,7 @@ export default {
       const isRot90 = this.rotation === 90 || this.rotation === 270
       const displayW = isRot90 ? this.imageNaturalH : this.imageNaturalW
       const displayH = isRot90 ? this.imageNaturalW : this.imageNaturalH
-      const fitScale = Math.max(this.cropW / displayW, this.cropH / displayH) * 1.2
+      const fitScale = this.getImageFitScale(displayW, displayH)
       const baseW = displayW * fitScale
       const baseH = displayH * fitScale
       const w = baseW * this.scale
@@ -133,6 +133,11 @@ export default {
     },
 
     ratioOptions() {
+      if (this.shape === 'circle') {
+        return [
+          { label: '头像', value: '1:1' },
+        ]
+      }
       return [
         { label: '原图', value: 'auto' },
         { label: '自由', value: 'free' },
@@ -147,12 +152,18 @@ export default {
     cropRatio() {
       return this.cropW / this.cropH
     },
+
+    shouldFitWholeImage() {
+      return this.currentRatio === 'auto' || this.currentRatio === 'free'
+    },
   },
 
   onLoad(options) {
     this.imageSrc = this.decodeRouteValue(options.src || '')
     this.currentRatio = options.ratio || 'auto'
     this.shape = options.shape || 'square'
+    if (this.shape === 'circle') this.currentRatio = '1:1'
+    this.outputSize = Math.max(200, Math.min(1600, Number(options.outputSize) || 800))
 
     const sys = uni.getSystemInfoSync()
     this.containerW = sys.windowWidth
@@ -169,7 +180,12 @@ export default {
     decodeRouteValue(value) {
       let decoded = String(value || '')
       for (let i = 0; i < 3; i += 1) {
-        const next = decodeURIComponent(decoded)
+        let next = decoded
+        try {
+          next = decodeURIComponent(decoded)
+        } catch (e) {
+          break
+        }
         if (next === decoded) break
         decoded = next
       }
@@ -179,6 +195,7 @@ export default {
     loadImageInfo() {
       if (process.env.UNI_PLATFORM === 'h5' && typeof Image !== 'undefined') {
         const image = new Image()
+        if (/^https?:\/\//.test(this.imageSrc)) image.crossOrigin = 'anonymous'
         image.onload = () => {
           this.applyImageInfo(image.naturalWidth, image.naturalHeight)
         }
@@ -203,7 +220,7 @@ export default {
     applyImageInfo(width, height) {
       this.imageNaturalW = width
       this.imageNaturalH = height
-      if (this.currentRatio === 'auto') {
+      if (this.shouldFitWholeImage) {
         this.initCropWindow()
         this.onReset()
       }
@@ -218,8 +235,14 @@ export default {
 
     calcCropSize(maxW, maxH) {
       if (this.currentRatio === 'free') {
-        this.cropW = maxW
-        this.cropH = maxH
+        const [rw, rh] = this.getRatioParts()
+        if (maxW / maxH > rw / rh) {
+          this.cropH = maxH
+          this.cropW = this.cropH * rw / rh
+        } else {
+          this.cropW = maxW
+          this.cropH = this.cropW * rh / rw
+        }
       } else {
         const [rw, rh] = this.getRatioParts()
         if (maxW / maxH > rw / rh) {
@@ -235,16 +258,37 @@ export default {
     },
 
     switchRatio(val) {
+      if (this.shape === 'circle' && val !== '1:1') return
       this.currentRatio = val
       this.initCropWindow()
       this.onReset()
     },
 
     getRatioParts() {
-      if (this.currentRatio === 'auto') {
+      if (this.currentRatio === 'auto' || this.currentRatio === 'free') {
         return [this.imageNaturalW || 1, this.imageNaturalH || 1]
       }
       return this.currentRatio.split(':').map(Number)
+    },
+
+    getImageFitScale(displayW, displayH) {
+      if (!displayW || !displayH) return 1
+      const baseScale = Math.max(this.cropW / displayW, this.cropH / displayH)
+      return this.shouldFitWholeImage ? baseScale : baseScale * 1.2
+    },
+
+    getOutputSize() {
+      const ratio = this.cropRatio || 1
+      if (ratio >= 1) {
+        return {
+          width: this.outputSize,
+          height: Math.max(1, Math.round(this.outputSize / ratio))
+        }
+      }
+      return {
+        width: Math.max(1, Math.round(this.outputSize * ratio)),
+        height: this.outputSize
+      }
     },
 
     // ========== 触摸处理 ==========
@@ -344,7 +388,7 @@ export default {
       const refW = isRot90 ? naturalH : naturalW
       const refH = isRot90 ? naturalW : naturalH
 
-      const fitScale = Math.max(this.cropW / refW, this.cropH / refH) * 1.2
+      const fitScale = this.getImageFitScale(refW, refH)
       const baseW = refW * fitScale
       const baseH = refH * fitScale
       const scaledW = baseW * this.scale
@@ -382,12 +426,11 @@ export default {
     cropOnH5() {
       return new Promise((resolve, reject) => {
         const img = new Image()
-        img.crossOrigin = 'anonymous'
+        if (/^https?:\/\//.test(this.imageSrc)) img.crossOrigin = 'anonymous'
         img.onload = () => {
           try {
             const { srcX, srcY, srcW, srcH } = this.calcCropRegion(img.naturalWidth, img.naturalHeight)
-            const outW = this.cropW
-            const outH = this.cropH
+            const { width: outW, height: outH } = this.getOutputSize()
 
             const canvas = document.createElement('canvas')
             canvas.width = outW
@@ -425,8 +468,7 @@ export default {
           }
           const canvas = res[0].node
           const ctx = canvas.getContext('2d')
-          const outW = this.cropW
-          const outH = this.cropH
+          const { width: outW, height: outH } = this.getOutputSize()
           canvas.width = outW
           canvas.height = outH
 
@@ -461,8 +503,7 @@ export default {
     // 小程序旧版 canvas API 回退
     cropOnMPLegacy() {
       return new Promise((resolve, reject) => {
-        const outW = this.cropW
-        const outH = this.cropH
+        const { width: outW, height: outH } = this.getOutputSize()
         const ctx = uni.createCanvasContext('cropLegacyCanvas', this)
         const { srcX, srcY, srcW, srcH } = this.calcCropRegion(this.imageNaturalW, this.imageNaturalH)
 

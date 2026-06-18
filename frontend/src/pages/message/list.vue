@@ -98,7 +98,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import {
+  getUnreadCertificateSignNoticeCount,
+  getUserCertificateSignNotices,
+  markCertificateSignNoticeRead
+} from '@/utils/certificateNotice'
 
 const currentTab = ref('system')
 const loading = ref(false)
@@ -117,7 +123,7 @@ const unreadCount = ref({
   chat: 2
 })
 
-const messageList = ref([
+const baseMessages = ref([
   {
     id: 1,
     type: 'order',
@@ -152,6 +158,17 @@ const messageList = ref([
     tags: ['安全']
   }
 ])
+
+const systemMessages = ref([])
+
+const messageList = computed(() => {
+  const merged = [...systemMessages.value, ...baseMessages.value]
+    .sort((a, b) => Number(b.createTime || 0) - Number(a.createTime || 0))
+  if (currentTab.value === 'order') {
+    return merged.filter(item => item.type === 'order')
+  }
+  return merged.filter(item => item.type !== 'order')
+})
 
 const chatList = ref([
   {
@@ -191,7 +208,8 @@ const getIconName = (type) => {
     order: '单',
     promotion: '券',
     auction: '拍',
-    system: '系'
+    system: '系',
+    certificate: '证'
   }
   return icons[type] || '息'
 }
@@ -222,6 +240,15 @@ const switchTab = (tab) => {
   hasMore.value = true
 }
 
+const refreshCertificateMessages = () => {
+  const notices = getUserCertificateSignNotices().map(item => ({
+    ...item,
+    type: 'certificate'
+  }))
+  systemMessages.value = notices
+  unreadCount.value.system = getUnreadCertificateSignNoticeCount()
+}
+
 const loadMore = () => {
   if (!hasMore.value || loading.value) return
   loading.value = true
@@ -240,6 +267,10 @@ const loadMoreChat = () => {
 }
 
 const goMessageDetail = (item) => {
+  if (item.noticeType === 'certificate_sign') {
+    markCertificateSignNoticeRead(item.id)
+    refreshCertificateMessages()
+  }
   if (item.link) {
     uni.navigateTo({ url: item.link })
   }
@@ -254,8 +285,11 @@ const goMessageSettings = () => {
 }
 
 onMounted(() => {
-  // 获取消息列表
-  // getMessageList()
+  refreshCertificateMessages()
+})
+
+onShow(() => {
+  refreshCertificateMessages()
 })
 </script>
 

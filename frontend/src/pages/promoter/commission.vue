@@ -1,19 +1,19 @@
 <template>
   <view class="commission-page">
-    <!-- 佣金统计 -->
+    <!-- 分成统计 -->
     <view class="commission-stats">
       <view class="stat-item total">
         <text class="stat-value">¥{{ formatPrice(stats.totalCommission) }}</text>
-        <text class="stat-label">累计佣金</text>
+        <text class="stat-label">累计分成</text>
       </view>
       <view class="stat-row">
         <view class="stat-item">
           <text class="stat-value">¥{{ formatPrice(stats.level1Commission) }}</text>
-          <text class="stat-label">一级佣金</text>
+          <text class="stat-label">一级分成</text>
         </view>
         <view class="stat-item">
           <text class="stat-value">¥{{ formatPrice(stats.level2Commission) }}</text>
-          <text class="stat-label">二级佣金</text>
+          <text class="stat-label">二级分成</text>
         </view>
       </view>
       <view class="stat-row">
@@ -28,20 +28,20 @@
       </view>
     </view>
 
-    <!-- 佣金说明 -->
+    <!-- 分成说明 -->
     <view class="info-card">
       <view class="card-header">
         
-        <text class="card-title">佣金说明</text>
+        <text class="card-title">分成说明</text>
       </view>
       <view class="info-content">
         <view class="info-row">
           <view class="level-badge level-1">一级</view>
-          <text class="info-text">直接推广订单，享受订单金额的 {{ config.level1Rate || 10 }}% 佣金</text>
+          <text class="info-text">直接推广订单，享受订单金额的 {{ config.level1Rate || 10 }}% 分成</text>
         </view>
         <view class="info-row">
           <view class="level-badge level-2">二级</view>
-          <text class="info-text">间接推广订单，享受订单金额的 {{ config.level2Rate || 5 }}% 佣金</text>
+          <text class="info-text">间接推广订单，享受订单金额的 {{ config.level2Rate || 5 }}% 分成</text>
         </view>
       </view>
     </view>
@@ -57,15 +57,15 @@
         class="filter-tab"
         :class="{ active: filterType === 'level1' }"
         @click="changeFilter('level1')"
-      >一级佣金</view>
+      >一级分成</view>
       <view
         class="filter-tab"
         :class="{ active: filterType === 'level2' }"
         @click="changeFilter('level2')"
-      >二级佣金</view>
+      >二级分成</view>
     </view>
 
-    <!-- 佣金记录列表 -->
+    <!-- 分成记录列表 -->
     <scroll-view class="record-list" scroll-y @scrolltolower="loadMore">
       <view class="record-item" v-for="item in records" :key="item.id">
         <view class="record-left">
@@ -73,7 +73,7 @@
             <view class="type-badge" :class="'level-' + item.level">
               {{ item.level === 1 ? '一级' : '二级' }}
             </view>
-            <text class="record-desc">{{ item.orderTitle || '订单佣金' }}</text>
+            <text class="record-desc">{{ item.orderTitle || '订单分成' }}</text>
           </view>
           <text class="record-time">{{ item.createTime }}</text>
         </view>
@@ -95,8 +95,8 @@
       <!-- 空状态 -->
       <view class="empty-state" v-if="!loading && records.length === 0">
         <image class="empty-icon" src="/static/icons/commission-empty.png" mode="aspectFit"></image>
-        <text class="empty-text">暂无佣金记录</text>
-        <text class="empty-hint">推广订单即可获得佣金奖励</text>
+        <text class="empty-text">暂无分成记录</text>
+        <text class="empty-hint">推广订单即可获得分成奖励</text>
       </view>
     </scroll-view>
   </view>
@@ -104,6 +104,7 @@
 
 <script>
 import { getCommissionList, getCommissionConfig } from '@/api/promoter'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -144,7 +145,7 @@ export default {
           this.config = res
         }
       } catch (e) {
-        console.error('加载佣金配置失败', e)
+        console.error('加载分成配置失败', e)
       }
     },
 
@@ -168,7 +169,7 @@ export default {
 
         this.hasMore = res.records?.length >= this.pageSize
       } catch (e) {
-        console.error('加载佣金记录失败', e)
+        console.error('加载分成记录失败', e)
       } finally {
         this.loading = false
       }
@@ -190,9 +191,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     }
   }
 }
@@ -204,7 +203,7 @@ export default {
   background: #f5f5f5;
 }
 
-/* 佣金统计 */
+/* 分成统计 */
 .commission-stats {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 40rpx 30rpx;
@@ -256,7 +255,7 @@ export default {
   color: #ffe66d;
 }
 
-/* 佣金说明 */
+/* 分成说明 */
 .info-card {
   background: #fff;
   margin: 20rpx;

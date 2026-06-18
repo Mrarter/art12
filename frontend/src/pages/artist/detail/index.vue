@@ -1,7 +1,7 @@
 <template>
   <view class="artist-detail-page">
     <view class="hero">
-      <image class="hero-bg" src="/static/artist-ui/artist-homepage-dark.png" mode="aspectFill"></image>
+      <image class="hero-bg" src="../static/artist-ui/artist-homepage-dark.png" mode="aspectFill"></image>
       <view class="hero-mask"></view>
       <view class="topbar">
         <text class="back" @click="goBack">‹</text>
@@ -95,9 +95,9 @@ export default {
         intro: '孟儒长期关注日常光线与静物之间的情绪张力，以厚涂油画语言重构熟悉的生活片段。作品强调可收藏、可溯源与持续流通的艺术家品牌价值。'
       },
       works: [
-        { id: 49, title: '晨曦·归航', material: '布面油画', size: '100×80cm', year: '2024', priceText: '¥8,000', cover: '/static/artist-ui/personal-gallery.png' },
-        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥12,000', cover: '/static/artist-ui/circulation-entry.png' },
-        { id: 46, title: '静物 No.0751', material: '布面油画', size: '40×40cm', year: '2024', priceText: '¥3,200', cover: '/static/artist-ui/collection-trust.png' }
+        { id: 49, title: '晨曦·归航', material: '布面油画', size: '100×80cm', year: '2024', priceText: '¥8,000', cover: '/pages/artist/static/artist-ui/personal-gallery.png' },
+        { id: 47, title: '秋日', material: '布面油画', size: '80×60cm', year: '2024', priceText: '¥12,000', cover: '/pages/artist/static/artist-ui/circulation-entry.png' },
+        { id: 46, title: '静物 No.0751', material: '布面油画', size: '40×40cm', year: '2024', priceText: '¥3,200', cover: '/pages/artist/static/artist-ui/collection-trust.png' }
       ]
     }
   },

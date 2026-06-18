@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 管理员 - 用户、艺术家、艺荐官管理控制器
+ * 管理员 - 用户、艺术家、经纪人管理控制器
  */
 @RestController
 @RequestMapping("/admin/user")
@@ -60,6 +60,14 @@ public class UserManagementController {
         @RequestParam(required = false) String status
     ) {
         return Result.success(userAdminPersistenceService.listArtistUsers(page, size, keyword, status));
+    }
+
+    @GetMapping("/artist-search")
+    public Result<List<Map<String, Object>>> searchArtworkAuthors(
+        @RequestParam(required = false) String keyword,
+        @RequestParam(defaultValue = "20") int limit
+    ) {
+        return Result.success(userAdminPersistenceService.searchArtworkAuthors(keyword, limit));
     }
 
     @GetMapping("/stats")
@@ -273,7 +281,7 @@ public class UserManagementController {
         return Result.success();
     }
 
-    // ==================== 艺荐官批量操作 ====================
+    // ==================== 经纪人批量操作 ====================
 
     @PostMapping("/promoter/batchApprove")
     public Result<Void> batchApprovePromoter(@RequestBody Map<String, Object> params) {
@@ -282,7 +290,7 @@ public class UserManagementController {
             .map(Number::longValue)
             .collect(java.util.stream.Collectors.toList());
         if (ids.isEmpty()) {
-            return Result.fail(400, "请选择要操作的艺荐官");
+            return Result.fail(400, "请选择要操作的经纪人");
         }
         userAdminPersistenceService.batchApprovePromoters(ids);
         return Result.success();
@@ -296,7 +304,7 @@ public class UserManagementController {
             .collect(java.util.stream.Collectors.toList());
         String reason = Objects.toString(params.get("reason"), "不符合条件");
         if (ids.isEmpty()) {
-            return Result.fail(400, "请选择要操作的艺荐官");
+            return Result.fail(400, "请选择要操作的经纪人");
         }
         userAdminPersistenceService.batchRejectPromoters(ids, reason);
         return Result.success();
@@ -309,7 +317,7 @@ public class UserManagementController {
             .map(Number::longValue)
             .collect(java.util.stream.Collectors.toList());
         if (ids.isEmpty()) {
-            return Result.fail(400, "请选择要删除的艺荐官");
+            return Result.fail(400, "请选择要删除的经纪人");
         }
         userAdminPersistenceService.batchDeletePromoters(ids);
         return Result.success();
@@ -320,7 +328,7 @@ public class UserManagementController {
         Long numericId = parseUserId(userId);
         Map<String, Object> detail = userAdminPersistenceService.getPromoterDetail(numericId);
         if (detail == null) {
-            return Result.fail(404, "艺荐官不存在");
+            return Result.fail(404, "经纪人不存在");
         }
         return Result.success(detail);
     }
@@ -345,7 +353,7 @@ public class UserManagementController {
         return Result.success(userAdminPersistenceService.getPromoterCommission(numericId, page, size));
     }
 
-    // ==================== 艺荐官认证管理 ====================
+    // ==================== 经纪人认证管理 ====================
 
     @PostMapping("/promoter/approve")
     public Result<Void> approvePromoter(@RequestBody Map<String, Object> params) {
@@ -398,6 +406,16 @@ public class UserManagementController {
     ) {
         Long numericId = parseUserId(userId);
         return Result.success(userAdminPersistenceService.listUserArtworks(numericId, page, size));
+    }
+
+    @GetMapping("/{userId}/heldArtworks")
+    public Result<Map<String, Object>> getUserHeldArtworks(
+        @PathVariable String userId,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        Long numericId = parseUserId(userId);
+        return Result.success(userAdminPersistenceService.listUserHeldArtworks(numericId, page, size));
     }
 
     @GetMapping("/{userId}/sales")

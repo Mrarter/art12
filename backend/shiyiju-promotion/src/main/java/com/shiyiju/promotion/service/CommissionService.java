@@ -55,7 +55,7 @@ public class CommissionService {
         settleCommission(orderId, orderNo, orderAmount, promoterId, buyerId, artworkId, 1,
                 "promoter_reward", DIRECT_COMMISSION_RATE);
 
-        // 二级佣金：团队奖励
+        // 二级佣金：直接艺荐官的上级团队奖励
         settleTeamCommission(orderId, orderNo, orderAmount, buyerId, promoterId, artworkId);
     }
 
@@ -65,9 +65,8 @@ public class CommissionService {
     private void settleCommission(Long orderId, String orderNo, BigDecimal orderAmount,
                                    Long userId, Long sourceUserId, Long artworkId,
                                    int level, String commissionType, BigDecimal rate) {
-        BigDecimal commissionAmount = orderAmount.multiply(rate);
-        long amountLong = commissionAmount.longValue();
-        if (amountLong <= 0) return;
+        BigDecimal commissionAmount = orderAmount.multiply(rate).setScale(2, java.math.RoundingMode.DOWN);
+        if (commissionAmount.compareTo(BigDecimal.ZERO) <= 0) return;
 
         // 写入统一佣金记录表
         CommissionRecord record = new CommissionRecord();
@@ -78,9 +77,11 @@ public class CommissionService {
         record.setCommissionType(commissionType);
         record.setCommissionLevel(level);
         record.setRate(rate.multiply(new BigDecimal("100")));
-        record.setAmount(BigDecimal.valueOf(amountLong));
+        record.setAmount(commissionAmount);
         record.setStatus(STATUS_SETTLED);
         record.setRemark(commissionType + " " + orderNo);
+        record.setCreatedTime(java.time.LocalDateTime.now());
+        record.setUpdatedTime(java.time.LocalDateTime.now());
         commissionRecordMapper.insert(record);
 
         // 更新艺荐官统计
@@ -88,12 +89,12 @@ public class CommissionService {
 
         // 佣金入账到钱包
         try {
-            walletService.income(userId, BigDecimal.valueOf(amountLong),
+            walletService.income(userId, commissionAmount,
                     "commission", orderId, "order",
                     (level == 1 ? "一级推广佣金" : "二级团队奖励") + " " + orderNo);
-            log.info("佣金结算完成 - userId:{}, type:{}, amount:{}", userId, commissionType, amountLong);
+            log.info("佣金结算完成 - userId:{}, type:{}, amount:{}", userId, commissionType, commissionAmount);
         } catch (Exception e) {
-            log.error("佣金入账失败: userId={}, amount={}", userId, amountLong, e);
+            log.error("佣金入账失败: userId={}, amount={}", userId, commissionAmount, e);
         }
     }
 
@@ -102,17 +103,17 @@ public class CommissionService {
      */
     private void settleTeamCommission(Long orderId, String orderNo, BigDecimal orderAmount,
                                        Long buyerId, Long directPromoterId, Long artworkId) {
-        PromoterRecord buyerPromoter = promoterRecordMapper.selectOne(
+        PromoterRecord directPromoter = promoterRecordMapper.selectOne(
                 new LambdaQueryWrapper<PromoterRecord>()
-                        .eq(PromoterRecord::getUserId, buyerId)
+                        .eq(PromoterRecord::getUserId, directPromoterId)
                         .eq(PromoterRecord::getStatus, 1));
 
-        if (buyerPromoter == null) return;
+        if (directPromoter == null) return;
 
-        Long upperPromoterId = buyerPromoter.getParentId();
+        Long upperPromoterId = directPromoter.getParentId();
         if (upperPromoterId == null || upperPromoterId.equals(directPromoterId)) return;
 
-        settleCommission(orderId, orderNo, orderAmount, upperPromoterId, buyerId, artworkId,
+        settleCommission(orderId, orderNo, orderAmount, upperPromoterId, directPromoterId, artworkId,
                 2, "team_reward", TEAM_COMMISSION_RATE);
     }
 

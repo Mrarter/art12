@@ -1,14 +1,14 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <div><h1>正式订单</h1><p>管理艺术品成交订单、支付状态、平台佣金、艺术家结算、收藏证书与流通记录。</p></div>
+      <div><h1>正式订单</h1><p>管理艺术品成交订单、支付状态、平台分成、艺术家结算、收藏证书与流通记录。</p></div>
       <div class="actions"><button class="ghost" @click="resetFilters">重置筛选</button><button class="primary" @click="refresh">刷新</button></div>
     </div>
     <div class="stats">
       <div class="stat"><label>待支付</label><b>{{ stats.s0 }}</b></div>
       <div class="stat"><label>今日成交</label><b>{{ stats.s1 }}</b></div>
       <div class="stat"><label>待生成证书</label><b>{{ stats.s2 }}</b></div>
-      <div class="stat"><label>待结算金额</label><b>{{ stats.s3 }}</b></div>
+      <div class="stat"><label>待结算金额</label><b>{{ formatAmount(stats.s3) }}</b></div>
     </div>
     <div class="card">
       <div class="filters">
@@ -72,7 +72,7 @@ async function refresh(){
     stats.s0 = data.filter(i => i.status === 'pending' || i.rawStatus === 'WAIT_PAY').length
     stats.s1 = data.filter(i => i.rawStatus === 'PAID').length
     stats.s2 = data.filter(i => i.rawStatus === 'WAIT_DELIVER').length
-    stats.s3 = data.reduce((s, i) => s + (Number(i.totalAmount) || 0), 0)
+    stats.s3 = data.reduce((s, i) => s + (Number(i.totalAmount || i.goodsAmount || i.payAmount) || 0), 0)
   } catch (e) {
     console.error('加载订单列表失败', e)
     list.value = []
@@ -83,19 +83,24 @@ async function refresh(){
 
 function mapOrderRow(item) {
   const statusText = item.statusText || item.status || ''
+  const amount = item.payAmount || item.amount || item.totalAmount || item.goodsAmount || 0
   return {
     id: item.id,
     title: item.orderNo || '',
     sub: `${item.artworkTitle || ''}｜${item.buyerName || ''}`,
     statusText,
     badgeClass: item.rawStatus === 'WAIT_PAY' ? 'red' : item.rawStatus === 'PAID' ? 'green' : item.rawStatus === 'DONE' ? '' : 'gray',
-    amountText: `¥${(Number(item.totalAmount) || 0).toLocaleString()}`,
+    amountText: formatAmount(amount),
     extra: item.rawStatus === 'WAIT_DELIVER' ? '待发货' : `创建于${(item.createTime || '').slice(0, 10)}`,
     tags: [item.orderType === 'PRIMARY' ? '首次收藏' : '再次流通', item.paymentStatus === 'PAID' ? '已付款' : '待付款'].filter(Boolean),
     updatedAt: (item.createTime || '').slice(0, 16),
     coverUrl: item.cover || '',
     _raw: item
   }
+}
+
+function formatAmount(value) {
+  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function resetFilters(){ filters.keyword=''; filters.status=''; filters.visible=''; filters.type=''; refresh() }

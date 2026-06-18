@@ -37,6 +37,12 @@ public class User implements Serializable {
     /** 手机号 */
     private String phone;
 
+    /** 邮箱 */
+    private String email;
+
+    /** 微信号 */
+    private String wechat;
+
     /** 登录密码哈希 */
     private String password;
 

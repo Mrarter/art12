@@ -1,0 +1,43 @@
+# 测试环境配置
+server:
+  port: 8081
+
+spring:
+  application:
+    name: shiyiju-user
+  datasource:
+    url: jdbc:mysql://shiyiju-mysql:3306/shiyiju_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: test_password_2026
+  data:
+    redis:
+      host: shiyiju-redis
+      port: 6379
+      database: 0
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.shiyiju.user.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT 配置
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing
+  expiration: 604800000
+
+# ===== 微信测试号配置（请替换为实际值） =====
+# 测试号申请：https://mp.weixin.qq.com/debug/cgi-bin/sandboxinfo
+wechat:
+  appid: ${WECHAT_APPID:wx53de6703ba23756d}
+  secret: ${WECHAT_SECRET:181653dd5e2aa1fcca1b34c61155d15c2}
+
+logging:
+  level:
+    com.shiyiju: DEBUG

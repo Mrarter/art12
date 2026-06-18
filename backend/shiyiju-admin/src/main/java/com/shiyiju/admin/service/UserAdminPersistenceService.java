@@ -142,9 +142,9 @@ public class UserAdminPersistenceService {
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         
         String artistTable = artistTable();
-        // 艺术家审批列表同样需要关联 user_account 表
-        String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
-        String userUidCol = "user_account".equals(userTable) ? "user_uid" : "uid";
+        // 艺术家审批列表同样需要关联用户表
+        String userTable = schemaInspector.hasColumn("user_account", "uid") || schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
+        String userUidCol = userUidColumn(userTable);
         
         // 艺术家状态列（使用动态列名，与 listArtists 一致）
         String statusCol = artistStatusColumn(artistTable);
@@ -171,7 +171,7 @@ public class UserAdminPersistenceService {
             args.add("%" + keyword.trim() + "%");
         }
         
-        // user_uid 关联 user_account.user_uid，user_id (数字) 关联 user_account.id（与 listArtists 一致）
+        // user_uid 关联用户表 UID，user_id (数字) 关联用户表 id（与 listArtists 一致）
         String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
             ? "((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidCol + ") OR (a.user_uid IS NULL AND a.user_id = u.id))"
             : "a.user_id = u.id";
@@ -258,6 +258,92 @@ public class UserAdminPersistenceService {
         }).collect(Collectors.toList());
         
         return PageResult.of(total == null ? 0L : total, page, size, records);
+    }
+
+    public List<Map<String, Object>> searchArtworkAuthors(String keyword, int limit) {
+        String artworkTable = schemaInspector.resolveTable("artist_search_artwork", "artwork", "artworks", "products", "product");
+        if (artworkTable == null || schemaInspector.getColumns(artworkTable).isEmpty() || !schemaInspector.hasColumn(artworkTable, "author_name")) {
+            return List.of();
+        }
+
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        String userUidCol = userUidColumn(userTable);
+        String userAvatarCol = schemaInspector.firstExistingColumn(userTable, "avatar", "avatar_url");
+        String userNicknameCol = schemaInspector.firstExistingColumn(userTable, "nickname", "name");
+        String joinCondition = schemaInspector.hasColumn(artworkTable, "author_id")
+            ? "a.author_id = u." + userIdColumn
+            : "1 = 0";
+
+        List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE a.author_name IS NOT NULL AND TRIM(a.author_name) <> ''");
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" AND (a.author_name LIKE ?");
+            args.add("%" + keyword.trim() + "%");
+            if (schemaInspector.hasColumn(artworkTable, "author_uid")) {
+                where.append(" OR a.author_uid LIKE ?");
+                args.add("%" + keyword.trim() + "%");
+            }
+            if (userNicknameCol != null && !userNicknameCol.isBlank()) {
+                where.append(" OR u.").append(userNicknameCol).append(" LIKE ?");
+                args.add("%" + keyword.trim() + "%");
+            }
+            where.append(")");
+        }
+
+        int safeLimit = Math.min(Math.max(limit, 1), 100);
+        args.add(safeLimit);
+
+        String sql = """
+            SELECT
+              COALESCE(CAST(a.author_id AS CHAR), CAST(u.%s AS CHAR)) AS id,
+              COALESCE(a.author_uid, u.%s, CAST(u.%s AS CHAR)) AS uid,
+              a.author_name AS name,
+              COALESCE(u.%s, a.author_name) AS nickname,
+              a.author_name AS real_name,
+              COALESCE(u.%s, '%s') AS avatar,
+              COUNT(*) AS artwork_count
+            FROM %s a
+            LEFT JOIN %s u ON %s
+            %s
+            GROUP BY COALESCE(CAST(a.author_id AS CHAR), CAST(u.%s AS CHAR)),
+                     COALESCE(a.author_uid, u.%s, CAST(u.%s AS CHAR)),
+                     a.author_name,
+                     COALESCE(u.%s, a.author_name),
+                     COALESCE(u.%s, '%s')
+            ORDER BY artwork_count DESC, a.author_name ASC
+            LIMIT ?
+            """.formatted(
+                userIdColumn,
+                userUidCol,
+                userIdColumn,
+                userNicknameCol,
+                userAvatarCol,
+                DEFAULT_AVATAR_URL,
+                artworkTable,
+                userTable,
+                joinCondition,
+                where,
+                userIdColumn,
+                userUidCol,
+                userIdColumn,
+                userNicknameCol,
+                userAvatarCol,
+                DEFAULT_AVATAR_URL
+            );
+
+        return jdbcTemplate.queryForList(sql, args.toArray()).stream().map(row -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row.get("id"));
+            item.put("uid", row.get("uid"));
+            item.put("name", row.get("name"));
+            item.put("nickname", row.get("nickname"));
+            item.put("realName", row.get("real_name"));
+            item.put("avatar", row.get("avatar"));
+            item.put("artworkCount", row.get("artwork_count"));
+            item.put("certified", true);
+            return item;
+        }).collect(Collectors.toList());
     }
 
     public Map<String, Object> getUserStats() {
@@ -713,8 +799,8 @@ public class UserAdminPersistenceService {
         if (schemaInspector.getColumns(artistTable).isEmpty()) {
             return listArtistsByUserFallback(page, size, status, keyword, phone, userId, startDate, endDate, sortField, sortOrder, categoryId);
         }
-        // 艺术家列表需要关联 user_account 表（非 users 表），因为 artist_profile 的 user_id 对应的是 user_account.id
-        String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
+        // 艺术家列表需要关联用户表，因为 artist_profile 的 user_id 对应用户数字 ID
+        String userTable = schemaInspector.hasColumn("user_account", "uid") || schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : userTable();
         String artistStatusColumn = artistStatusColumn(artistTable);
         String artistResumeColumn = artistResumeColumn(artistTable);
         String artistWorksColumn = artistWorksColumn(artistTable);
@@ -787,14 +873,14 @@ public class UserAdminPersistenceService {
             }
         }
 
-        // 用户UID列名：user_account 表为 user_uid，users 表为 uid
-        String userUidCol = "user_account".equals(userTable) ? "user_uid" : "uid";
+        // 用户UID列名：按实际表/视图结构动态选择（本地 user_account 是 users 视图，列名为 uid）
+        String userUidCol = userUidColumn(userTable);
         String artistNameExpression = artistNameExpression(artistTable);
 
         // 过滤掉没有关联用户的孤立 artist_profile 记录
         where.append(" AND u.id IS NOT NULL");
 
-        // user_uid 关联 user_account.user_uid，user_id 关联 user_account.id
+        // user_uid 关联用户表 UID，user_id 关联用户表 id
         String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") 
             ? "((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidCol + ") OR (a.user_uid IS NULL AND a.user_id = u.id))"
             : "a.user_id = u.id";
@@ -1083,7 +1169,7 @@ public class UserAdminPersistenceService {
         // 拒绝原因（如果列存在）
         String rejectCol = rejectReasonColumn(artistTable);
         if (!"NULL".equals(rejectCol)) {
-            setClauses.add(rejectCol + " = ?");
+            setClauses.add(unqualifiedColumn(rejectCol) + " = ?");
             args.add(reason);
         }
         
@@ -1288,12 +1374,43 @@ public class UserAdminPersistenceService {
         String statusCol = schemaInspector.firstExistingColumn(promoterTable, "status", "agreement_status", "cert_status");
         String levelCol = schemaInspector.firstExistingColumn(promoterTable, "team_level", "level", "promoter_level");
         boolean hasStatusCol = schemaInspector.hasColumn(promoterTable, statusCol);
+        String teamSizeExpr = prefixedColumnOrDefault(promoterTable, "p", "0", "subordinate_count", "team_size");
+        String promoterCodeExpr = prefixedColumnOrDefault(promoterTable, "p", "NULL", "promoter_code", "invite_code", "distributor_code");
+        String walletTable = schemaInspector.resolveTable("user_wallet", "user_wallet", "wallet");
+        String totalCommissionExpr = firstNonBlankPrefixedExpr("0", promoterTable, "p", "total_commission", "commission_total");
+        if ("0".equals(totalCommissionExpr) && schemaInspector.hasColumn(userTable, "total_commission")
+                && schemaInspector.hasColumn(walletTable, "total_income")) {
+            totalCommissionExpr = "COALESCE(NULLIF(u.total_commission, 0), w.total_income, 0)";
+        } else if ("0".equals(totalCommissionExpr)) {
+            totalCommissionExpr = firstNonBlankPrefixedExpr("0", userTable, "u", "total_commission");
+        }
+        if ("0".equals(totalCommissionExpr) && schemaInspector.hasColumn(walletTable, "total_income")) {
+            totalCommissionExpr = "COALESCE(w.total_income, 0)";
+        }
+        String availableCommissionExpr = firstNonBlankPrefixedExpr("0", promoterTable, "p", "withdrawable_commission", "available_commission");
+        if ("0".equals(availableCommissionExpr) && schemaInspector.hasColumn(userTable, "available_commission")
+                && schemaInspector.hasColumn(walletTable, "balance")) {
+            availableCommissionExpr = "COALESCE(NULLIF(u.available_commission, 0), w.balance, 0)";
+        } else if ("0".equals(availableCommissionExpr)) {
+            availableCommissionExpr = firstNonBlankPrefixedExpr("0", userTable, "u", "available_commission");
+        }
+        if ("0".equals(availableCommissionExpr) && schemaInspector.hasColumn(walletTable, "balance")) {
+            availableCommissionExpr = "COALESCE(w.balance, 0)";
+        }
+        String parentIdExpr = schemaInspector.hasColumn(promoterTable, "parent_id") ? "p.parent_id" : "NULL";
+        boolean hasParentId = schemaInspector.hasColumn(promoterTable, "parent_id");
         
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         if (userId != null && !userId.isBlank()) {
-            where.append(" AND p.user_id = ?");
-            args.add(Long.parseLong(userId.trim()));
+            where.append(" AND (CAST(p.user_id AS CHAR) = ?");
+            args.add(userId.trim());
+            String userUidCol = userUidColumn(userTable);
+            if (schemaInspector.hasColumn(userTable, userUidCol)) {
+                where.append(" OR u.").append(userUidCol).append(" = ?");
+                args.add(userId.trim());
+            }
+            where.append(")");
         }
         if (level != null && !level.isBlank()) {
             where.append(" AND p.").append(levelCol).append(" = ?");
@@ -1328,8 +1445,22 @@ public class UserAdminPersistenceService {
         }
 
         List<Object> countArgs = new ArrayList<>(args);
+        // 优先使用用户UID关联；历史数据 user_uid 为空时使用数字 user_id 兜底。
+        boolean hasUserUid = schemaInspector.hasColumn(promoterTable, "user_uid");
+        String uidExpr = userUidExpression("u", "p", hasUserUid);
+        List<String> userJoinParts = new ArrayList<>();
+        userJoinParts.add("p.user_id = u.id");
+        if (hasUserUid) {
+            for (String uidCol : List.of("uid", "user_uid", "user_no")) {
+                if (schemaInspector.hasColumn(userTable, uidCol)) {
+                    userJoinParts.add("p.user_uid = u." + uidCol);
+                }
+            }
+        }
+        String userJoinCondition = "(" + String.join(" OR ", userJoinParts) + ")";
+
         Long total = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + promoterTable + " p" + where,
+            "SELECT COUNT(*) FROM " + promoterTable + " p LEFT JOIN " + userTable + " u ON " + userJoinCondition + where,
             Long.class,
             countArgs.toArray()
         );
@@ -1338,48 +1469,54 @@ public class UserAdminPersistenceService {
         queryArgs.add((page - 1) * size);
         queryArgs.add(size);
         
-        // 优先使用用户UID关联；历史数据 user_uid 为空时使用数字 user_id 兜底。
-        boolean hasUserUid = schemaInspector.hasColumn(promoterTable, "user_uid");
-        String uidExpr = userUidExpression("u", "p", hasUserUid);
-        String userJoinCondition = hasUserUid
-            ? "(p.user_id = u.id OR p.user_uid = u.uid OR p.user_uid = u.user_uid OR p.user_uid = u.user_no)"
-            : "p.user_id = u.id";
         String userIdField = "CAST(p.user_id AS CHAR)";
-        String inviterSelect = schemaInspector.hasColumn(promoterTable, "inviter_uid") ? ", p.inviter_uid AS inviter_uid" : "";
+        String inviterSelect = schemaInspector.hasColumn(promoterTable, "inviter_uid")
+            ? ", p.inviter_uid AS inviter_uid"
+            : ", " + parentIdExpr + " AS inviter_uid";
         String directCountCondition = schemaInspector.hasColumn(promoterTable, "inviter_uid")
             ? "child.inviter_uid = " + uidExpr
-            : (schemaInspector.hasColumn(promoterTable, "inviter_id") ? "child.inviter_id = p.user_id" : "1 = 0");
+            : (schemaInspector.hasColumn(promoterTable, "inviter_id")
+                ? "child.inviter_id = p.user_id"
+                : (hasParentId ? "child.parent_id = p.user_id" : "1 = 0"));
         
         // 动态构建 SELECT 语句
         String statusSelect = hasStatusCol ? ", p." + statusCol + " AS status" : "";
         boolean hasSignTimeCol = schemaInspector.hasColumn(promoterTable, signTimeCol);
         String signTimeSelect = hasSignTimeCol ? ", p." + signTimeCol + " AS sign_time" : "";
         String sql = """
-            SELECT p.id, %s AS user_id, %s AS uid_value, p.%s AS level, p.subordinate_count AS team_size%s%s%s,
-                   u.nickname, u.%s AS phone, u.%s AS avatar, p.promoter_code,
+            SELECT p.id, %s AS user_id, %s AS uid_value, p.%s AS level, %s AS team_size%s%s%s,
+                   u.nickname, u.%s AS phone, u.%s AS avatar, %s AS promoter_code,
                    %s AS promoter_level_value,
-                   p.total_commission AS total_commission_value,
-                   p.withdrawable_commission AS available_commission_value,
-                   parent.display_name AS parent_name,
-                   parent.user_uid AS parent_uid,
+                   %s AS total_commission_value,
+                   %s AS available_commission_value,
+                   parent_user.nickname AS parent_name,
+                   %s AS parent_uid,
                    (SELECT COUNT(*) FROM %s child WHERE %s) AS direct_count
             FROM %s p
             LEFT JOIN %s u ON %s
+            LEFT JOIN %s w ON w.user_id = p.user_id
             LEFT JOIN %s parent ON %s
+            LEFT JOIN %s parent_user ON parent.user_id = parent_user.id
             """.formatted(
                 userIdField,
                 uidExpr,
-                levelCol, statusSelect, signTimeSelect, inviterSelect,
+                levelCol, teamSizeExpr, statusSelect, signTimeSelect, inviterSelect,
                 schemaInspector.firstExistingColumn(userTable, "mobile", "phone"),
                 schemaInspector.firstExistingColumn(userTable, "avatar_url", "avatar"),
-                columnOrNull(userTable, "promoter_level"), 
+                promoterCodeExpr,
+                prefixedColumnOrDefault(userTable, "u", "NULL", "promoter_level"), 
+                totalCommissionExpr,
+                availableCommissionExpr,
+                prefixedColumnOrDefault(userTable, "parent_user", "NULL", "uid", "user_uid", "user_no"),
                 promoterTable,
                 directCountCondition,
                 promoterTable, userTable, userJoinCondition,
+                walletTable,
                 promoterTable,
-                schemaInspector.hasColumn(promoterTable, "inviter_uid")
-                    ? "parent.user_uid = p.inviter_uid"
-                    : "1 = 0"
+                hasParentId
+                    ? "parent.user_id = p.parent_id"
+                    : "1 = 0",
+                userTable
             )
             + where;
 
@@ -1724,11 +1861,14 @@ public class UserAdminPersistenceService {
         Set<String> allowedFields = Set.of("id", "sign_time", "total_commission", "team_size");
         String field = (sortField != null && allowedFields.contains(sortField)) ? sortField : "id";
         String order = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
+        String promoterTable = promoterTable();
+        String teamSizeExpr = prefixedColumnOrDefault(promoterTable, "p", "0", "subordinate_count", "team_size");
+        String totalCommissionExpr = prefixedColumnOrDefault(promoterTable, "p", "0", "total_commission", "commission_total", "total_sales");
 
         return switch (field) {
             case "sign_time" -> " ORDER BY p." + signTimeCol + " " + order;
-            case "total_commission" -> " ORDER BY p.total_commission " + order;
-            case "team_size" -> " ORDER BY p.subordinate_count " + order;
+            case "total_commission" -> " ORDER BY " + totalCommissionExpr + " " + order;
+            case "team_size" -> " ORDER BY " + teamSizeExpr + " " + order;
             default -> " ORDER BY p.id " + order;
         };
     }
@@ -1876,10 +2016,21 @@ public class UserAdminPersistenceService {
         List<String> setClauses = new ArrayList<>();
         List<Object> args = new ArrayList<>();
 
-        if (schemaInspector.hasColumn(promoterTable, "inviter_uid") && params.containsKey("inviterUid")) {
-            String inviterUid = Objects.toString(params.get("inviterUid"), "").trim();
-            setClauses.add("inviter_uid = ?");
-            args.add(inviterUid.isEmpty() ? null : inviterUid);
+        if (params.containsKey("inviterUid")) {
+            String inputUid = Objects.toString(params.get("inviterUid"), "").trim();
+            Long parentUserId = inputUid.isEmpty() ? null : resolveUserIdByIdOrUid(inputUid);
+            if (!inputUid.isEmpty() && parentUserId == null) {
+                throw new IllegalArgumentException("上级UID不存在：" + inputUid);
+            }
+            String parentUid = parentUserId == null ? null : getUserUidById(parentUserId);
+            if (schemaInspector.hasColumn(promoterTable, "inviter_uid")) {
+                setClauses.add("inviter_uid = ?");
+                args.add(parentUid);
+            }
+            if (schemaInspector.hasColumn(promoterTable, "parent_id")) {
+                setClauses.add("parent_id = ?");
+                args.add(parentUserId);
+            }
         }
         if (schemaInspector.hasColumn(promoterTable, "subordinate_count") && params.containsKey("teamCount")) {
             setClauses.add("subordinate_count = ?");
@@ -2340,8 +2491,10 @@ public class UserAdminPersistenceService {
         item.put("level", toInt(row.get("level"), 1));
         item.put("teamCount", toInt(row.get("team_size"), 0));
         item.put("directCount", toInt(row.get("direct_count"), 0));
-        item.put("inviterUid", row.get("inviter_uid"));
-        item.put("parentUid", row.get("parent_uid") != null ? row.get("parent_uid") : row.get("inviter_uid"));
+        Object parentUid = row.get("parent_uid") != null ? row.get("parent_uid") : row.get("inviter_uid");
+        item.put("inviterUid", parentUid);
+        item.put("parentId", row.get("inviter_uid"));
+        item.put("parentUid", parentUid);
         item.put("parentName", row.get("parent_name"));
         item.put("totalCommission", row.get("total_commission_value"));
         item.put("withdrawable", row.get("available_commission_value"));
@@ -2382,12 +2535,15 @@ public class UserAdminPersistenceService {
 
     private Long countArtistByStatus(int status) {
         String artistTable = artistTable();
-        String userTable = schemaInspector.hasColumn("user_account", "user_uid") ? "user_account" : schemaInspector.resolveTable("count_artist_user", "users", "sys_user");
+        String userTable = schemaInspector.hasColumn("user_account", "uid") || schemaInspector.hasColumn("user_account", "user_uid")
+            ? "user_account"
+            : schemaInspector.resolveTable("count_artist_user", "users", "sys_user");
+        String userUidCol = userUidColumn(userTable);
         String statusCol = artistStatusColumn(artistTable);
         if (userTable != null && schemaInspector.hasColumn(artistTable, "user_uid")) {
             return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM " + artistTable + " a "
-                + "INNER JOIN " + userTable + " u ON ((a.user_uid IS NOT NULL AND a.user_uid = u.user_uid) OR (a.user_uid IS NULL AND a.user_id = u.id)) "
+                + "INNER JOIN " + userTable + " u ON ((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidCol + ") OR (a.user_uid IS NULL AND a.user_id = u.id)) "
                 + "WHERE a." + statusCol + " = ?",
                 Long.class,
                 status
@@ -2623,21 +2779,32 @@ public class UserAdminPersistenceService {
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else if ("user_account".equals(userTable)) {
-            // user_account 表：存储到 user_uid 列
+            // user_account may be a compatibility view over users. Build the insert
+            // from real exposed columns instead of assuming create_time/user_uid.
             String avatarColumn = avatarColumn(userTable);
             String safeNickname = nickname.length() > 100 ? nickname.substring(0, 100) : nickname;
             String tempOpenid = "synced_" + System.currentTimeMillis() + "_" + new Random().nextInt(10000);
-            jdbcTemplate.update("""
-                INSERT INTO user_account (openid, nickname, phone, %s, status, create_time, update_time, user_uid)
-                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-                """.formatted(avatarColumn),
-                tempOpenid,
-                safeNickname,
-                phone,
-                finalAvatar,
-                now,
-                now,
-                userUid
+            List<String> columns = new ArrayList<>();
+            List<Object> values = new ArrayList<>();
+            addInsertValue(columns, values, userTable, "openid", tempOpenid);
+            addInsertValue(columns, values, userTable, "nickname", safeNickname);
+            addInsertValue(columns, values, userTable, "phone", phone);
+            addInsertValue(columns, values, userTable, avatarColumn, finalAvatar);
+            addInsertValue(columns, values, userTable, "identities", String.join(",", identities));
+            addInsertValue(columns, values, userTable, "identity", primaryIdentity(identities));
+            addInsertValue(columns, values, userTable, "identity_json", toIdentityJson(identities));
+            addInsertValue(columns, values, userTable, "status", 1);
+            addInsertValue(columns, values, userTable, "uid", userUid);
+            addInsertValue(columns, values, userTable, "user_uid", userUid);
+            addInsertValue(columns, values, userTable, "register_time", now);
+            addInsertValue(columns, values, userTable, "create_time", now);
+            addInsertValue(columns, values, userTable, "created_at", now);
+            addInsertValue(columns, values, userTable, "update_time", now);
+            addInsertValue(columns, values, userTable, "updated_at", now);
+            String placeholders = columns.stream().map(col -> "?").collect(Collectors.joining(", "));
+            jdbcTemplate.update(
+                "INSERT INTO " + userTable + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")",
+                values.toArray()
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else {
@@ -3002,6 +3169,25 @@ public class UserAdminPersistenceService {
      * @param uid 用户UID
      * @return 用户数字ID
      */
+    private Long resolveUserIdByIdOrUid(String idOrUid) {
+        if (idOrUid == null || idOrUid.isBlank()) {
+            return null;
+        }
+        String value = idOrUid.trim();
+        if (value.matches("\\d+")) {
+            Long userId = Long.parseLong(value);
+            String userTable = userTable();
+            String userIdColumn = userPrimaryKeyColumn(userTable);
+            Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + userTable + " WHERE " + userIdColumn + " = ?",
+                Integer.class,
+                userId
+            );
+            return count != null && count > 0 ? userId : null;
+        }
+        return getUserIdByUid(value);
+    }
+
     public Long getUserIdByUid(String uid) {
         if (uid == null || uid.isEmpty()) {
             return null;
@@ -3150,6 +3336,11 @@ public class UserAdminPersistenceService {
         return schemaInspector.firstExistingColumn(tableName, "avatar", "avatar_url", "head_url", "icon");
     }
 
+    private String userUidColumn(String tableName) {
+        String col = schemaInspector.firstExistingColumn(tableName, "uid", "user_uid", "user_no");
+        return schemaInspector.hasColumn(tableName, col) ? col : userPrimaryKeyColumn(tableName);
+    }
+
     private String artistStatusColumn(String tableName) {
         String col = schemaInspector.firstExistingColumn(tableName, "is_signed", "status", "cert_status");
         // 返回不带前缀的列名，由调用方决定是否加前缀
@@ -3192,12 +3383,17 @@ public class UserAdminPersistenceService {
 
     private String rejectReasonAssignment(String tableName) {
         String column = rejectReasonColumn(tableName);
-        return "NULL".equals(column) ? "" : column + " = ?";
+        return "NULL".equals(column) ? "" : unqualifiedColumn(column) + " = ?";
     }
 
     private String reviewTimeAssignment(String tableName) {
         String column = reviewTimeColumn(tableName);
-        return "NULL".equals(column) ? "" : column + " = ?";
+        return "NULL".equals(column) ? "" : unqualifiedColumn(column) + " = ?";
+    }
+
+    private String unqualifiedColumn(String columnExpression) {
+        int dotIndex = columnExpression.lastIndexOf('.');
+        return dotIndex >= 0 ? columnExpression.substring(dotIndex + 1) : columnExpression;
     }
 
     private String updateTimeAssignment(String tableName) {
@@ -3213,6 +3409,31 @@ public class UserAdminPersistenceService {
 
     private String columnOrNull(String tableName, String columnName) {
         return schemaInspector.hasColumn(tableName, columnName) ? columnName : "NULL";
+    }
+
+    private String prefixedColumnOrDefault(String tableName, String alias, String defaultValue, String... candidates) {
+        for (String candidate : candidates) {
+            if (schemaInspector.hasColumn(tableName, candidate)) {
+                return alias + "." + candidate;
+            }
+        }
+        return defaultValue;
+    }
+
+    private String firstNonBlankPrefixedExpr(String defaultValue, String tableName, String alias, String... candidates) {
+        List<String> columns = new ArrayList<>();
+        for (String candidate : candidates) {
+            if (schemaInspector.hasColumn(tableName, candidate)) {
+                columns.add("NULLIF(" + alias + "." + candidate + ", '')");
+            }
+        }
+        if (columns.isEmpty()) {
+            return defaultValue;
+        }
+        if (!"NULL".equalsIgnoreCase(defaultValue)) {
+            columns.add(defaultValue);
+        }
+        return "COALESCE(" + String.join(", ", columns) + ")";
     }
     
     private String artistColumnOrNull(String columnName) {
@@ -3292,6 +3513,14 @@ public class UserAdminPersistenceService {
         } catch (NumberFormatException ex) {
             return defaultValue;
         }
+    }
+
+    private double toDisplayPrice(Object value) {
+        if (value == null) {
+            return 0;
+        }
+        double raw = value instanceof Number number ? number.doubleValue() : Double.parseDouble(Objects.toString(value, "0"));
+        return raw / 100.0;
     }
 
     /**
@@ -3502,8 +3731,7 @@ public class UserAdminPersistenceService {
 
         // 动态获取列名
         String titleCol = schemaInspector.firstExistingColumn(artworkTable, "title", "name");
-        // cover 优先，cover_image 其次（因为数据库中 cover 有数据，cover_image 为 NULL）
-        String coverCol = schemaInspector.firstExistingColumn(artworkTable, "cover", "cover_image", "image", "thumbnail");
+        String coverExpr = firstNonBlankColumnExpr(artworkTable, "cover_image", "cover", "image", "thumbnail");
         String priceCol = schemaInspector.firstExistingColumn(artworkTable, "price", "reserve_price");
         String statusCol = schemaInspector.firstExistingColumn(artworkTable, "status", "audit_status");
         String createCol = createTimeColumn(artworkTable);
@@ -3523,7 +3751,7 @@ public class UserAdminPersistenceService {
             WHERE author_id = ?
             ORDER BY id DESC
             LIMIT ?, ?
-            """.formatted(titleCol, coverCol, priceCol, statusCol, createCol, artworkTable),
+            """.formatted(titleCol, coverExpr, priceCol, statusCol, createCol, artworkTable),
             userId, (page - 1) * size, size);
 
         List<Map<String, Object>> list = rows.stream().map(row -> {
@@ -3531,6 +3759,7 @@ public class UserAdminPersistenceService {
             item.put("id", row.get("id"));
             item.put("title", row.get("title"));
             item.put("cover", row.get("cover"));
+            item.put("coverImage", row.get("cover"));
             // price 存储的是分（整数）
             long priceInFen = row.get("price") != null ? ((Number) row.get("price")).longValue() : 0L;
             long originalPriceInFen = row.get("original_price") != null ? ((Number) row.get("original_price")).longValue() : 0L;
@@ -3557,6 +3786,72 @@ public class UserAdminPersistenceService {
         }).toList();
 
         return Map.of("list", list, "total", total);
+    }
+
+    public Map<String, Object> listUserHeldArtworks(Long userId, int page, int size) {
+        String artworkTable = schemaInspector.resolveTable("user_held_artworks_table", "artwork", "artworks", "products", "product");
+        if (artworkTable == null || schemaInspector.getColumns(artworkTable).isEmpty()
+            || !schemaInspector.hasColumn(artworkTable, "holder_id")) {
+            return Map.of("list", List.of(), "total", 0);
+        }
+
+        String titleCol = schemaInspector.firstExistingColumn(artworkTable, "title", "name");
+        String coverExpr = firstNonBlankColumnExpr(artworkTable, "cover_image", "cover", "image", "thumbnail");
+        String priceCol = schemaInspector.firstExistingColumn(artworkTable, "price", "reserve_price");
+        String statusCol = schemaInspector.firstExistingColumn(artworkTable, "status", "audit_status");
+        String createCol = createTimeColumn(artworkTable);
+        String holderSinceExpr = schemaInspector.hasColumn(artworkTable, "holder_since") ? "holder_since" : "NULL";
+        String artworkUidExpr = schemaInspector.hasColumn(artworkTable, "artwork_uid")
+            ? "artwork_uid"
+            : (schemaInspector.hasColumn(artworkTable, "artwork_code") ? "artwork_code" : "CAST(id AS CHAR)");
+
+        Long total = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + artworkTable + " WHERE holder_id = ? AND COALESCE(deleted, 0) = 0",
+            Long.class,
+            userId
+        );
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+            SELECT id, %s AS artwork_uid, %s AS title, %s AS cover, %s AS price,
+                   COALESCE(original_price, 0) AS original_price, COALESCE(price_rise, 0) AS price_rise,
+                   author_name, category_id, art_type, size, year, ownership_type, stock, description,
+                   %s AS status, %s AS holder_since, %s AS create_time
+            FROM %s
+            WHERE holder_id = ? AND COALESCE(deleted, 0) = 0
+            ORDER BY holder_since DESC, id DESC
+            LIMIT ?, ?
+            """.formatted(artworkUidExpr, titleCol, coverExpr, priceCol, statusCol, holderSinceExpr, createCol, artworkTable),
+            userId, (page - 1) * size, size
+        );
+
+        List<Map<String, Object>> list = rows.stream().map(row -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row.get("id"));
+            item.put("artworkUid", row.get("artwork_uid"));
+            item.put("title", row.get("title"));
+            item.put("cover", row.get("cover"));
+            item.put("coverImage", row.get("cover"));
+            double price = toDisplayPrice(row.get("price"));
+            double originalPrice = toDisplayPrice(row.get("original_price"));
+            double priceRise = row.get("price_rise") != null ? ((Number) row.get("price_rise")).doubleValue() : 0.0;
+            item.put("price", price);
+            item.put("originalPrice", originalPrice > 0 ? originalPrice : null);
+            item.put("priceRise", priceRise);
+            item.put("authorName", row.get("author_name"));
+            item.put("categoryId", row.get("category_id"));
+            item.put("artType", row.get("art_type"));
+            item.put("size", row.get("size"));
+            item.put("year", row.get("year"));
+            item.put("ownershipType", row.get("ownership_type"));
+            item.put("stock", row.get("stock"));
+            item.put("description", row.get("description"));
+            item.put("status", toInt(row.get("status"), 0));
+            item.put("holderSince", formatDateTime(row.get("holder_since")));
+            item.put("createTime", formatDateTime(row.get("create_time")));
+            return item;
+        }).toList();
+
+        return Map.of("list", list, "total", total == null ? 0 : total);
     }
 
     public Map<String, Object> listUserSales(Long userId, int page, int size) {
@@ -3665,5 +3960,18 @@ public class UserAdminPersistenceService {
         }).toList();
 
         return Map.of("list", list, "total", total);
+    }
+
+    private String firstNonBlankColumnExpr(String tableName, String... candidates) {
+        List<String> columns = new ArrayList<>();
+        for (String candidate : candidates) {
+            if (schemaInspector.hasColumn(tableName, candidate)) {
+                columns.add("NULLIF(" + candidate + ", '')");
+            }
+        }
+        if (columns.isEmpty()) {
+            return "NULL";
+        }
+        return "COALESCE(" + String.join(", ", columns) + ")";
     }
 }

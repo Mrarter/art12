@@ -96,6 +96,36 @@ public class ResaleController {
     }
 
     /**
+     * 调整转售价
+     * POST /user/resale/{id}/price
+     */
+    @PostMapping("/{id}/price")
+    public Result<ResaleRecord> updateResalePrice(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> params) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        BigDecimal resalePrice = params.get("resalePrice") != null
+                ? new BigDecimal(params.get("resalePrice").toString()) : null;
+        return Result.success(resaleService.updateResalePrice(id, userId, resalePrice));
+    }
+
+    /**
+     * 切换平台评估与热度涨价机制
+     * POST /user/resale/{id}/platform-pricing
+     */
+    @PostMapping("/{id}/platform-pricing")
+    public Result<ResaleRecord> updatePlatformPricing(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> params) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        Boolean enabled = params.get("enabled") != null
+                ? Boolean.parseBoolean(params.get("enabled").toString()) : null;
+        return Result.success(resaleService.updatePlatformPricing(id, userId, enabled));
+    }
+
+    /**
      * 作品交易链路
      * GET /user/resale/artwork/{artworkId}/trades
      */

@@ -313,7 +313,7 @@
                 <p class="user-id">ID: {{ currentUser.displayId || currentUser.userId || currentUser.id }}</p>
                 <div class="identity-tags">
                   <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
-                  <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
+                  <el-tag v-if="currentUser.isPromoter" type="warning" size="small">经纪人</el-tag>
                   <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter" type="info" size="small">普通用户</el-tag>
                 </div>
               </div>
@@ -395,7 +395,7 @@
               <el-form-item label="身份">
                 <el-checkbox-group v-model="profileForm.identities">
                   <el-checkbox label="artist">艺术家</el-checkbox>
-                  <el-checkbox label="promoter">艺荐官</el-checkbox>
+                  <el-checkbox label="promoter">经纪人</el-checkbox>
                 </el-checkbox-group>
               </el-form-item>
               
@@ -404,13 +404,13 @@
                 <el-col :span="8">
                   <div class="info-item">
                     <span class="label">账户余额</span>
-                    <span class="value">¥{{ currentUser.balance || 0 }}</span>
+                    <span class="value">¥{{ formatAmount(currentUser.balance) }}</span>
                   </div>
                 </el-col>
                 <el-col :span="8">
                   <div class="info-item">
                     <span class="label">累计消费</span>
-                    <span class="value">¥{{ currentUser.totalConsume || 0 }}</span>
+                    <span class="value">¥{{ formatAmount(currentUser.totalConsume) }}</span>
                   </div>
                 </el-col>
                 <el-col :span="8">
@@ -545,7 +545,7 @@
                 <el-image :src="getFullImageUrl(artwork.cover || artwork.coverImage || (artwork.images && artwork.images[0]))" :alt="artwork.title" fit="cover" class="artwork-cover" />
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
-                  <p class="artwork-price">¥{{ artwork.price || 0 }}</p>
+                  <p class="artwork-price">¥{{ formatAmount(artwork.price) }}</p>
                 </div>
               </div>
             </div>
@@ -798,7 +798,7 @@
                 <div class="work-info">
                   <p class="work-title">{{ work.title }}</p>
                   <p class="work-author">{{ work.authorName }}</p>
-                  <p class="work-price">¥{{ work.price }}</p>
+                  <p class="work-price">¥{{ formatAmount(work.price) }}</p>
                 </div>
                 <div v-if="selectedExistingId === work.id" class="selected-badge">
                   <el-icon><Check /></el-icon>
@@ -912,6 +912,12 @@ import { getArtistScoreList, recalculateArtistScore, manualAdjustArtistScore, ge
 import { getIdentityAuditList, getIdentityDetail, auditArtistIdentity, saveArtistIdentity } from '@/api/artistIdentity'
 
 const route = useRoute()
+const formatAmount = (value) => {
+  return (Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
 const loading = ref(false)
 const materialsVisible = ref(false)
 const rejectVisible = ref(false)

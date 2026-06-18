@@ -1119,6 +1119,13 @@ public class ProductAdminPersistenceService {
             ? " LEFT JOIN " + authorUserTable + " au ON au." + authorUserIdColumn + " = a.author_id"
             : "";
         String authorUserUidSelect = authorUserUidColumn != null ? "au." + authorUserUidColumn : "NULL";
+        String holderUserJoin = hasAuthorUserTable && authorUserIdColumn != null
+            ? " LEFT JOIN " + authorUserTable + " hu ON hu." + authorUserIdColumn + " = a.holder_id"
+            : "";
+        String holderUserUidSelect = authorUserUidColumn != null ? "hu." + authorUserUidColumn : "NULL";
+        String holderUserNicknameSelect = hasAuthorUserTable && schemaInspector.hasColumn(authorUserTable, "nickname")
+            ? "hu.nickname"
+            : "NULL";
         boolean hasArtistCertifications = !schemaInspector.getColumns("artist_certifications").isEmpty();
         String artistCertificationJoin = hasArtistCertifications
             ? " LEFT JOIN artist_certifications ac ON ac.user_id = a.author_id"
@@ -1134,7 +1141,7 @@ public class ProductAdminPersistenceService {
                 categoryJoin = " LEFT JOIN " + categoryTable() + " c ON a.category_name = c.name";
             }
         }
-        String authorJoins = artistProfileJoin + authorUserJoin + artistCertificationJoin + categoryJoin;
+        String authorJoins = artistProfileJoin + authorUserJoin + holderUserJoin + artistCertificationJoin + categoryJoin;
 
         Long total = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM artwork a" + authorJoins + where,
@@ -1156,6 +1163,13 @@ public class ProductAdminPersistenceService {
             : "COALESCE(" + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))";
         String yearSelect = schemaInspector.hasColumn("artwork", "year") ? "a.year" :
             (schemaInspector.hasColumn("artwork", "create_year") ? "a.create_year" : "NULL");
+        String holderIdSelect = schemaInspector.hasColumn("artwork", "holder_id") ? "a.holder_id" : "NULL";
+        String holderArtworkUidSelect = schemaInspector.hasColumn("artwork", "holder_uid")
+            ? "CASE WHEN a.holder_uid REGEXP '^[A-Z]{3}[0-9]{8}' THEN a.holder_uid ELSE NULL END"
+            : "NULL";
+        String holderUidSelect = schemaInspector.hasColumn("artwork", "holder_uid")
+            ? "COALESCE(" + holderArtworkUidSelect + ", " + holderUserUidSelect + ")"
+            : holderUserUidSelect;
         String favoriteCountSelect = schemaInspector.hasColumn("artwork", "favorite_count") ? "a.favorite_count" : "0";
         String viewCountSelect = schemaInspector.hasColumn("artwork", "view_count") ? "a.view_count" : "0";
         String descriptionSelect = schemaInspector.hasColumn("artwork", "description") ? "a.description" : "NULL";
@@ -1182,7 +1196,8 @@ public class ProductAdminPersistenceService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
             SELECT a.id, a.title, a.author_name, %s AS cover_image, a.price, a.status,
-                   a.author_id, %s AS artwork_code, %s AS author_uid, a.size, %s AS artwork_year,
+                   a.author_id, %s AS artwork_code, %s AS author_uid, %s AS holder_id,
+                   %s AS holder_uid, %s AS holder_nickname, a.size, %s AS artwork_year,
                    a.art_type, %s AS favorite_count, %s AS weight_value, %s AS ownership_type,
                    %s AS distribution_enabled, %s AS commission_rate, %s AS view_count,
                    %s AS description, %s AS daily_view_count, %s AS daily_like_count,
@@ -1194,6 +1209,9 @@ public class ProductAdminPersistenceService {
                 coverImageSelect,
                 artworkCodeSelect,
                 authorUidSelect,
+                holderIdSelect,
+                holderUidSelect,
+                holderUserNicknameSelect,
                 yearSelect,
                 favoriteCountSelect,
                 weightSelect,
@@ -1245,23 +1263,58 @@ public class ProductAdminPersistenceService {
                 priceRise = calculateAdminPriceRise(row, displayViewCount, displayLikeCount);
             }
             BigDecimal currentPrice = calculateAdminCurrentPrice(basePrice, priceRise);
+            Long artworkId = toLong(row.get("id"));
+            Long authorId = toLong(row.get("author_id"));
+            Long holderId = toLong(row.get("holder_id"));
+            String authorUid = Objects.toString(row.get("author_uid"), "").trim();
+            String holderUid = Objects.toString(row.get("holder_uid"), "").trim();
+            String holderNickname = Objects.toString(row.get("holder_nickname"), "").trim();
+            Map<String, Object> resaleListing = findActiveResaleListing(artworkId);
+            if ((holderUid.isBlank() || holderNickname.isBlank()) && resaleListing != null) {
+                if (holderUid.isBlank()) {
+                    holderUid = Objects.toString(resaleListing.get("sellerUid"), "").trim();
+                }
+                if (holderNickname.isBlank()) {
+                    holderNickname = Objects.toString(resaleListing.get("sellerNickname"), "").trim();
+                }
+                if (holderUid.isBlank() || holderNickname.isBlank()) {
+                    Map<String, Object> resaleHolder = findUserSummaryAcrossTables(toLong(resaleListing.get("sellerUserId")));
+                    if (resaleHolder != null) {
+                        if (holderUid.isBlank()) {
+                            holderUid = Objects.toString(resaleHolder.get("uid"), "").trim();
+                        }
+                        if (holderNickname.isBlank()) {
+                            holderNickname = Objects.toString(resaleHolder.get("nickname"), "").trim();
+                        }
+                    }
+                }
+            }
+            boolean transferredByUid = !authorUid.isBlank() && !holderUid.isBlank() && !authorUid.equals(holderUid);
+            boolean transferredById = authorId != null && holderId != null && !authorId.equals(holderId);
+            boolean isResaleArtwork = resaleListing != null || transferredByUid || transferredById;
+
             item.put("id", row.get("id"));
-            item.put("artworkId", row.get("id"));
+            item.put("artworkId", artworkId);
             item.put("displayArtworkId", String.format("%04d", toInt(row.get("id"), 0)));
             item.put("artworkCode", row.get("artwork_code"));
             item.put("artworkUid", row.get("artwork_code"));
-            item.put("authorId", row.get("author_id"));
+            item.put("authorId", authorId);
             item.put("displayAuthorId", row.get("author_uid"));
-            item.put("authorUid", row.get("author_uid"));
+            item.put("authorUid", authorUid.isBlank() ? null : authorUid);
+            item.put("holderId", holderId);
+            item.put("holderUid", holderUid.isBlank() ? null : holderUid);
+            item.put("holderNickname", holderNickname.isBlank() ? null : holderNickname);
+            item.put("isResaleArtwork", isResaleArtwork);
             item.put("title", row.get("title"));
             item.put("artistName", row.get("author_name"));
             item.put("authorName", row.get("author_name"));
             item.put("cover", row.get("cover_image"));
-            // 价格单位：数据库存分，此处转元（保留2位小数）
-            item.put("price", toDouble(row.get("price")) / 100.0);
-            item.put("originalPrice", toDouble(row.get("original_price")) / 100.0);
-            item.put("currentPrice", currentPrice.doubleValue() / 100.0);
+            // 当前 artwork.price / original_price 已按“元”存储，后台列表直接返回元值。
+            item.put("price", toDouble(row.get("price")));
+            item.put("originalPrice", toDouble(row.get("original_price")));
+            item.put("currentPrice", currentPrice.doubleValue());
             item.put("priceRise", priceRise);
+            item.put("resaleListing", resaleListing);
             item.put("categoryName", row.get("category_name"));
             item.put("artType", row.get("art_type"));
             item.put("size", row.get("size"));
@@ -1290,6 +1343,87 @@ public class ProductAdminPersistenceService {
         result.put("page", page);
         result.put("size", size);
         return result;
+    }
+
+    private Map<String, Object> findActiveResaleListing(Long artworkId) {
+        if (artworkId == null || schemaInspector.getColumns("resale_record").isEmpty()) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT rr.id, rr.artwork_id AS artworkId, rr.seller_user_id AS sellerUserId,
+                       rr.buyer_user_id AS buyerUserId, rr.resale_price AS resalePrice,
+                       rr.status, rr.created_time AS createdTime, rr.updated_time AS updatedTime
+                FROM resale_record rr
+                WHERE rr.artwork_id = ? AND rr.status = 'pending'
+                ORDER BY rr.updated_time DESC, rr.id DESC
+                LIMIT 1
+                """,
+                artworkId
+            );
+            Map<String, Object> row = rows.isEmpty() ? null : rows.get(0);
+            if (row == null) {
+                return null;
+            }
+            Map<String, Object> listing = new LinkedHashMap<>(row);
+            Map<String, Object> seller = findUserSummaryAcrossTables(toLong(row.get("sellerUserId")));
+            if (seller != null) {
+                listing.put("sellerUid", seller.get("uid"));
+                listing.put("sellerNickname", seller.get("nickname"));
+            }
+            listing.put("resalePrice", toDouble(row.get("resalePrice")));
+            listing.put("createdTime", formatDateTime(row.get("createdTime")));
+            listing.put("updatedTime", formatDateTime(row.get("updatedTime")));
+            return listing;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> findUserSummaryAcrossTables(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        for (String tableName : List.of("user_account", "users", "sys_user")) {
+            Map<String, Object> user = findUserSummaryByTable(tableName, userId);
+            if (user != null) {
+                String uid = Objects.toString(user.get("uid"), "").trim();
+                String nickname = Objects.toString(user.get("nickname"), "").trim();
+                if (!uid.isBlank() || !nickname.isBlank()) {
+                    return user;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> findUserSummaryByTable(String tableName, Long userId) {
+        if (tableName == null || userId == null || schemaInspector.getColumns(tableName).isEmpty()) {
+            return null;
+        }
+        String userIdColumn = firstAvailableColumn(tableName, "id", "user_id");
+        String uidColumn = firstAvailableColumn(tableName, "uid", "user_uid", "user_no");
+        String nicknameColumn = firstAvailableColumn(tableName, "nickname", "name", "real_name");
+        if (userIdColumn == null || (uidColumn == null && nicknameColumn == null)) {
+            return null;
+        }
+        String uidSelect = uidColumn != null ? uidColumn : "NULL";
+        String nicknameSelect = nicknameColumn != null ? nicknameColumn : "NULL";
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT %s AS uid, %s AS nickname
+                FROM %s
+                WHERE %s = ?
+                LIMIT 1
+                """.formatted(uidSelect, nicknameSelect, tableName, userIdColumn),
+                userId
+            );
+            return rows.isEmpty() ? null : rows.get(0);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private BigDecimal calculateAdminPriceRise(Map<String, Object> row, int displayViewCount, int displayLikeCount) {

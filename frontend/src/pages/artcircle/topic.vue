@@ -82,7 +82,7 @@ export default {
 
   onShareAppMessage() {
     return {
-      title: '拾艺局艺术圈 - 话题广场',
+      title: '艺本艺术圈 - 话题广场',
       path: '/pages/artcircle/topic'
     }
   },

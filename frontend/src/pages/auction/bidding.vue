@@ -150,6 +150,7 @@
 <script>
 import { getLotDetail, placeBid, getLotBids } from '@/api/auction'
 import websocket from '@/utils/websocket.js'
+import { formatYuanNumber } from '@/utils/price'
 const { connectAuction, disconnectAuction, onBid, onNewBid, onAuctionEnd } = websocket
 
 export default {
@@ -386,8 +387,7 @@ export default {
 
     formatPrice(price) {
       if (!price && price !== 0) return '0'
-      const num = Number(price)
-      return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return formatYuanNumber(Number(price))
     },
 
     formatCountdown(seconds) {

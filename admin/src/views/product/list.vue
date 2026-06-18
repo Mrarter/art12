@@ -170,10 +170,11 @@
           <div class="artwork-info">
             <div class="cover-wrapper" @click="handleEdit(row)">
               <el-image 
-                :src="row.cover" 
-                :preview-src-list="row.cover ? [row.cover] : []" 
+                :src="getArtworkCoverUrl(row)" 
+                :preview-src-list="getArtworkCoverUrl(row) ? [getArtworkCoverUrl(row)] : []" 
                 style="width: 80px; height: 80px" 
                 fit="cover"
+                preview-teleported
               >
                 <template #error>
                   <div class="image-placeholder">
@@ -191,9 +192,19 @@
                 {{ row.artistName }}
                 <span class="artist-id-inline">UID: {{ getAuthorUid(row) }}</span>
               </p>
+              <p v-if="row.isResaleArtwork" class="holder-info">
+                持有者 {{ row.holderNickname || '-' }}
+                <span class="artist-id-inline">UID: {{ getHolderUid(row) }}</span>
+              </p>
               <p class="category">
-                <el-tag v-if="row.categoryName" size="small" type="info">{{ row.categoryName }}</el-tag>
-                <el-tag v-if="row.artType" size="small" type="warning">{{ row.artType }}</el-tag>
+                <el-tag
+                  v-for="tag in getArtworkCategoryTags(row)"
+                  :key="tag.key"
+                  size="small"
+                  :type="tag.type"
+                >
+                  {{ tag.label }}
+                </el-tag>
               </p>
             </div>
           </div>
@@ -201,10 +212,11 @@
       </el-table-column>
       <el-table-column label="价格" width="150">
         <template #default="{ row }">
-          <p>¥{{ getDisplayPrice(row).toLocaleString() }}</p>
+          <p>{{ formatMoneyYuan(getDisplayPrice(row)) }}</p>
           <p class="size-year" v-if="formatSizeYear(row)">{{ formatSizeYear(row) }}</p>
-          <p class="original" v-if="row.currentPrice && row.currentPrice !== row.price">基础价: ¥{{ Number(row.price || 0).toLocaleString() }}</p>
-          <p class="original" v-else-if="row.originalPrice">原价: ¥{{ Number(row.originalPrice).toLocaleString() }}</p>
+          <p class="original" v-if="row.activeResaleListing">转售挂单价: {{ formatMoneyYuan(getDisplayPrice(row)) }}</p>
+          <p class="original" v-else-if="row.currentPrice && row.currentPrice !== row.price">发布价格: {{ formatMoneyYuan(getReleasePriceYuan(row)) }}</p>
+          <p class="original" v-else-if="getReleasePriceYuan(row)">发布价格: {{ formatMoneyYuan(getReleasePriceYuan(row)) }}</p>
           <p class="price-rise" v-if="row.priceRise > 0" style="color: #ff4d4f; font-size: 12px;">
             涨幅 +{{ (row.priceRise * 100).toFixed(1) }}%
           </p>
@@ -212,8 +224,8 @@
       </el-table-column>
       <el-table-column label="类型" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.ownershipType === 1 ? 'success' : 'warning'" size="small">
-            {{ row.ownershipType === 1 ? '原创' : '收藏' }}
+          <el-tag :type="row.isResaleArtwork ? 'warning' : 'success'" size="small">
+            {{ row.isResaleArtwork ? '转售' : '原创' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -315,7 +327,7 @@
           <el-switch v-model="distForm.distributionEnabled" active-text="开启分销" inactive-text="关闭分销" />
         </el-form-item>
         
-        <el-form-item label="佣金比例" prop="commissionRate">
+        <el-form-item label="分成比例" prop="commissionRate">
           <el-input-number 
             v-model="distForm.commissionRate" 
             :min="0" 
@@ -324,14 +336,14 @@
             :disabled="!distForm.distributionEnabled"
           />
           <span class="unit">%</span>
-          <span class="tip">（订单金额的百分比作为佣金）</span>
+          <span class="tip">（订单金额的百分比作为分成）</span>
         </el-form-item>
         
-        <el-form-item label="佣金计算">
+        <el-form-item label="分成计算">
           <div class="calc-preview">
             <p>商品售价：¥{{ distForm.price || 0 }}</p>
-            <p>佣金比例：{{ distForm.commissionRate || 0 }}%</p>
-            <p class="result">预估佣金：¥{{ ((distForm.price || 0) * (distForm.commissionRate || 0) / 100).toFixed(2) }}</p>
+            <p>分成比例：{{ distForm.commissionRate || 0 }}%</p>
+            <p class="result">预估分成：¥{{ ((distForm.price || 0) * (distForm.commissionRate || 0) / 100).toFixed(2) }}</p>
           </div>
         </el-form-item>
         
@@ -347,7 +359,7 @@
           </el-col>
           <el-col :span="8">
             <div class="stat-card">
-              <p class="label">分销佣金</p>
+              <p class="label">分销分成</p>
               <p class="value">{{ distForm.distributionEarnings || 0 }}</p>
               <p class="unit">元</p>
             </div>
@@ -367,7 +379,7 @@
               <el-button @click="copyLink">复制</el-button>
             </template>
           </el-input>
-          <p class="link-tip">推广员可通过此链接分享作品获得佣金</p>
+          <p class="link-tip">推广员可通过此链接分享作品获得分成</p>
         </el-form-item>
       </el-form>
       
@@ -449,13 +461,31 @@
             <div class="upload-tip">支持 JPG/PNG，大小不超过 10MB</div>
           </div>
         </el-form-item>
-        <el-form-item label="价格" prop="price">
-          <el-input-number v-model="editForm.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
-          <span style="color: #999; font-size: 12px;">单位：元</span>
+        <el-form-item :label="isEditResaleLocked ? '当前实时价格' : '价格'" prop="price">
+          <el-input-number
+            v-model="editForm.price"
+            :min="0"
+            :precision="2"
+            :controls="false"
+            :disabled="isEditResaleLocked"
+            style="width: 100%"
+          />
+          <span style="color: #999; font-size: 12px;">
+            {{ isEditResaleLocked ? '转售中展示前台成交价，保存时不回写上线价格' : '单位：元' }}
+          </span>
         </el-form-item>
-        <el-form-item label="原价" prop="originalPrice">
-          <el-input-number v-model="editForm.originalPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
-          <span style="color: #999; font-size: 12px;">单位：元</span>
+        <el-form-item label="发布价格" prop="originalPrice">
+          <el-input-number
+            v-model="editForm.originalPrice"
+            :min="0"
+            :precision="2"
+            :controls="false"
+            :disabled="Boolean(editForm.artworkId)"
+            style="width: 100%"
+          />
+          <span style="color: #999; font-size: 12px;">
+            {{ editForm.artworkId ? '最初上线时的定价，不可修改' : '最初上线时的定价，单位：元' }}
+          </span>
         </el-form-item>
         <el-form-item label="作品类型" prop="ownershipType">
           <el-radio-group v-model="editForm.ownershipType">
@@ -519,18 +549,26 @@
             </el-button>
             <span v-else class="tip">新增作品保存后可单独配置涨价规则</span>
           </el-form-item>
+          <el-alert
+            v-if="isEditResaleLocked"
+            class="price-config-alert"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="该作品正在转售，前台展示与购买流程使用转售挂单价，并继续参与自动涨价。"
+          />
           <div class="price-growth-preview">
             <div>
-              <span>基础价</span>
-              <b>{{ formatMoneyYuan(editForm.basePrice) }}</b>
+              <span>最早上线价格</span>
+              <b>{{ formatMoneyYuan(editEarliestOnlinePrice) }}</b>
             </div>
             <div>
-              <span>当前价格</span>
-              <b>{{ formatMoneyYuan(editForm.price) }}</b>
+              <span>{{ editCurrentPriceLabel }}</span>
+              <b>{{ formatMoneyYuan(editDisplayPrice) }}</b>
             </div>
             <div>
               <span>累计涨幅</span>
-              <b style="color: #ff4d4f;">+{{ (editForm.priceRise * 100).toFixed(2) }}%</b>
+              <b style="color: #ff4d4f;">{{ editGrowthText }}</b>
             </div>
             <div>
               <span>预计每日涨价</span>
@@ -677,6 +715,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Picture, Edit, Setting, Search } from '@element-plus/icons-vue'
+import { pinyin } from 'pinyin-pro'
 import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import { requestApi } from '@/api/request'
@@ -685,6 +724,8 @@ import { getArtworkPriceLogs } from '@/api/artworkPrice'
 import ImageCropper from '@/components/ImageCropper.vue'
 import ArtistDetailDialog from '@/components/ArtistDetailDialog.vue'
 
+const SITE_ORIGIN = import.meta.env.VITE_SITE_ORIGIN || 'https://shiyiju.online'
+const DEFAULT_ARTWORK_URL = '/images/default-artwork.png'
 const router = useRouter()
 const loading = ref(false)
 const priceConfigVisible = ref(false)
@@ -781,7 +822,9 @@ const editForm = reactive({
   year: null,
   cover: '',
   price: 0,
+  persistedPrice: 0,
   originalPrice: 0,
+  releasePriceSnapshot: 0,
   currentPrice: 0,
   basePrice: 0,       // 原始/基础价格，用于计算每日涨幅
   priceRise: 0,
@@ -791,6 +834,8 @@ const editForm = reactive({
   description: '',
   status: 1,
   favoriteCount: 0,
+  resaleListing: null,
+  activeResaleListing: null,
   dailyViewCount: 0,
   dailyLikeCount: 0,
   dailyViewMin: 0,
@@ -856,6 +901,62 @@ const formatMoneyYuan = (value) => {
   })}`
 }
 
+const getActiveResaleListing = (row = {}) => {
+  const listing = row.activeResaleListing || row.resaleListing || null
+  const status = String(listing?.status || '').toLowerCase()
+  return listing && (!status || status === 'pending') ? listing : null
+}
+
+const getResalePriceYuan = (row = {}) => {
+  const listing = getActiveResaleListing(row)
+  const price = Number(listing?.resalePrice || 0)
+  return Number.isFinite(price) && price > 0 ? price : 0
+}
+
+const getEditDisplayPrice = (row = {}) => {
+  const resalePrice = getResalePriceYuan(row)
+  return resalePrice || Number(row.currentPrice || row.price || 0)
+}
+
+const getReleasePriceYuan = (source = {}) => {
+  const originalPrice = Number(source.originalPrice || 0)
+  if (Number.isFinite(originalPrice) && originalPrice > 0) return originalPrice
+  const basePrice = Number(source.basePrice || 0)
+  if (Number.isFinite(basePrice) && basePrice > 0) return basePrice
+  const price = Number(source.price || 0)
+  if (Number.isFinite(price) && price > 0) return price
+  const persistedPrice = Number(source.persistedPrice || 0)
+  if (Number.isFinite(persistedPrice) && persistedPrice > 0) return persistedPrice
+  const currentPrice = Number(source.currentPrice || 0)
+  return Number.isFinite(currentPrice) ? currentPrice : 0
+}
+
+const isEditResaleLocked = computed(() => getResalePriceYuan(editForm) > 0)
+const editDisplayPrice = computed(() => {
+  const resalePrice = getResalePriceYuan(editForm)
+  return resalePrice || Number(editForm.price || 0)
+})
+const editCurrentPriceLabel = computed(() => isEditResaleLocked.value ? '转售挂单价' : '当前价格')
+const getEarliestOnlinePriceYuanFromLogs = (logs = []) => {
+  const prices = logs
+    .map(log => Number(log?.oldPrice || 0))
+    .filter(price => Number.isFinite(price) && price > 0)
+  if (!prices.length) return 0
+  return Math.min(...prices) / 100
+}
+const editEarliestOnlinePrice = computed(() => {
+  return getEarliestOnlinePriceYuanFromLogs(priceLogs.value) || getReleasePriceYuan(editForm)
+})
+const editGrowthText = computed(() => {
+  const rise = Number(editForm.priceRise || 0)
+  return `${rise > 0 ? '+' : ''}${(rise * 100).toFixed(2)}%`
+})
+
+const getPriceGrowthBaseYuan = (source = {}) => {
+  const resalePrice = getResalePriceYuan(source)
+  return Number(resalePrice || source.basePrice || source.price || 0)
+}
+
 const getPriceGrowthConfigFor = (source = {}) => {
   const customEnabled = Boolean(source.customPriceGrowthEnabled)
   return {
@@ -869,8 +970,7 @@ const getPriceGrowthConfigFor = (source = {}) => {
 }
 
 const getExpectedIncreaseRange = (source = {}) => {
-  // 优先使用 basePrice（原始/基础价格）计算每日涨幅，避免用已涨价的 currentPrice 导致涨幅虚低
-  const price = Number(source.basePrice || source.price || 0)
+  const price = getPriceGrowthBaseYuan(source)
   const explicitMin = Number(source.tomorrowIncreaseMin || 0)
   const explicitMax = Number(source.tomorrowIncreaseMax || 0)
   if (explicitMin > 0 || explicitMax > 0) {
@@ -907,7 +1007,8 @@ const editPriceIncreaseCountText = computed(() => {
 const artworkPriceIncreaseRangeText = computed(() => {
   const source = {
     ...artworkPriceForm,
-    // 优先用 row.price（基础价），fallback 到 editForm.price（当前售价）
+    resaleListing: artworkPriceCurrent.value?.resaleListing || editForm.resaleListing,
+    activeResaleListing: artworkPriceCurrent.value?.activeResaleListing || editForm.activeResaleListing,
     price: artworkPriceCurrent.value?.price || editForm.price,
     basePrice: artworkPriceCurrent.value?.price || editForm.basePrice || editForm.price,
     tomorrowIncreaseMin: artworkPriceCurrent.value?.tomorrowIncreaseMin || 0,
@@ -918,6 +1019,8 @@ const artworkPriceIncreaseRangeText = computed(() => {
 const artworkPriceIncreaseCountText = computed(() => {
   const source = {
     ...artworkPriceForm,
+    resaleListing: artworkPriceCurrent.value?.resaleListing || editForm.resaleListing,
+    activeResaleListing: artworkPriceCurrent.value?.activeResaleListing || editForm.activeResaleListing,
     price: artworkPriceCurrent.value?.price || editForm.price,
     basePrice: artworkPriceCurrent.value?.price || editForm.basePrice || editForm.price,
     tomorrowIncreaseMin: artworkPriceCurrent.value?.tomorrowIncreaseMin || 0,
@@ -933,7 +1036,7 @@ const visiblePriceLogs = computed(() => {
   const range = getExpectedIncreaseRange(editForm)
   if (range.min <= 0 && range.max <= 0) return []
   const maxIncrease = Math.max(range.min, range.max)
-  const yuanBase = Number(editForm.basePrice || editForm.price || 0)
+  const yuanBase = getPriceGrowthBaseYuan(editForm)
   const basePriceInFen = yuanBase * 100
   return [{
     id: 'forecast',
@@ -941,7 +1044,7 @@ const visiblePriceLogs = computed(() => {
     newPrice: basePriceInFen + maxIncrease * 100,
     changeRate: yuanBase > 0 ? maxIncrease / yuanBase : 0,
     changeReason: 'FORECAST',
-    remark: `根据基础价 ${formatMoneyYuan(yuanBase)} 和调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
+    remark: `根据${isEditResaleLocked.value ? '转售挂单价' : '最早上线价格'} ${formatMoneyYuan(yuanBase)} 和调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
     createdAt: '实时预估'
   }]
 })
@@ -949,6 +1052,9 @@ const visiblePriceLogs = computed(() => {
 // 艺术家搜索相关
 const artistSearchResults = ref([])
 const artistSearchLoading = ref(false)
+const artistSearchCache = ref([])
+const artistSearchCacheLoaded = ref(false)
+const artistSearchCacheLoading = ref(false)
 const artistSearchVisible = ref(false)
 const artistExactMatched = ref(false)
 
@@ -1100,7 +1206,7 @@ const openArtworkPriceConfig = async (row) => {
   Object.assign(artworkPriceForm, {
     artworkId,
     artworkTitle: row.title || row.artworkTitle || '',
-    basePrice: row.price || row.originalPrice || row.currentPrice || 0,
+    basePrice: getPriceGrowthBaseYuan(row) || row.price || row.originalPrice || row.currentPrice || 0,
     customPriceGrowthEnabled: false,
     customBaseDailyRate: 0.0002,
     customMatureDailyRate: 0.0003,
@@ -1114,7 +1220,7 @@ const openArtworkPriceConfig = async (row) => {
     displayLikeCount: row.displayLikeCount || row.favoriteCount || 0
   })
   try {
-    const data = await requestApi.silentGet(`/product/${artworkId}/priceGrowth`)
+    const data = await request.silentGet(`/product/${artworkId}/priceGrowth`)
     Object.assign(artworkPriceForm, {
       ...data,
       artworkId,
@@ -1154,7 +1260,7 @@ const saveArtworkPriceConfig = async () => {
       dailyViewCount: randomByEightyPercent(artworkPriceForm.dailyViewCount),
       dailyLikeCount: randomByEightyPercent(artworkPriceForm.dailyLikeCount)
     }
-    await requestApi.silentPut(`/product/${artworkId}/priceGrowth`, params)
+    await request.silentPut(`/product/${artworkId}/priceGrowth`, params)
     ElMessage.success(`价格配置已保存，浏览 ${params.dailyViewCount}，收藏 ${params.dailyLikeCount}`)
     artworkPriceVisible.value = false
     if (Number(editForm.artworkId) === Number(artworkId)) {
@@ -1175,8 +1281,75 @@ const getArtistUid = (artist = {}) => artist.uid || artist.userUid || artist.art
 const normalizeArtistOption = (artist = {}) => ({
   ...artist,
   name: artist.name || artist.nickname || artist.realName || artist.artistName || '',
+  value: artist.name || artist.nickname || artist.realName || artist.artistName || '',
   uid: getArtistUid(artist)
 })
+
+const normalizeKeyword = (value = '') => String(value || '').trim().toLowerCase()
+
+const getArtistSearchText = (artist = {}) => {
+  const name = String(artist.name || '').trim()
+  const nickname = String(artist.nickname || '').trim()
+  const realName = String(artist.realName || '').trim()
+  const uid = String(artist.uid || '').trim()
+  const fullPinyin = normalizeKeyword(pinyin(name, { toneType: 'none', type: 'array' }).join(''))
+  const initials = normalizeKeyword(pinyin(name, { toneType: 'none', pattern: 'first', type: 'array' }).join(''))
+
+  return {
+    name: normalizeKeyword(name),
+    nickname: normalizeKeyword(nickname),
+    realName: normalizeKeyword(realName),
+    uid: normalizeKeyword(uid),
+    fullPinyin,
+    initials
+  }
+}
+
+const getArtistSearchScore = (artist = {}, keyword = '') => {
+  const normalizedKeyword = normalizeKeyword(keyword)
+  if (!normalizedKeyword) return -1
+
+  const searchText = getArtistSearchText(artist)
+  if (searchText.name === normalizedKeyword) return 100
+  if (searchText.nickname === normalizedKeyword || searchText.realName === normalizedKeyword) return 95
+  if (searchText.uid === normalizedKeyword) return 90
+  if (searchText.name.includes(normalizedKeyword)) return 80
+  if (searchText.nickname.includes(normalizedKeyword) || searchText.realName.includes(normalizedKeyword)) return 75
+  if (searchText.fullPinyin === normalizedKeyword) return 70
+  if (searchText.initials === normalizedKeyword) return 68
+  if (searchText.fullPinyin.startsWith(normalizedKeyword)) return 66
+  if (searchText.initials.startsWith(normalizedKeyword)) return 64
+  if (searchText.fullPinyin.includes(normalizedKeyword)) return 62
+  if (searchText.initials.includes(normalizedKeyword)) return 60
+  if (searchText.uid.includes(normalizedKeyword)) return 55
+  return -1
+}
+
+const sortArtistSuggestions = (artistList = [], keyword = '') => {
+  return artistList
+    .map(artist => ({ artist, score: getArtistSearchScore(artist, keyword) }))
+    .filter(item => item.score >= 0)
+    .sort((a, b) => b.score - a.score || String(a.artist.name || '').localeCompare(String(b.artist.name || ''), 'zh-Hans-CN'))
+    .slice(0, 10)
+    .map(item => item.artist)
+}
+
+const ensureArtistSearchCache = async () => {
+  if (artistSearchCacheLoaded.value || artistSearchCacheLoading.value) return
+  artistSearchCacheLoading.value = true
+  try {
+    const res = await request.silentGet('/user/artist-search', {
+      params: { limit: 100 }
+    })
+    artistSearchCache.value = (Array.isArray(res) ? res : []).map(normalizeArtistOption)
+    artistSearchCacheLoaded.value = true
+  } catch (e) {
+    console.error('加载艺术家搜索缓存失败', e)
+    artistSearchCache.value = []
+  } finally {
+    artistSearchCacheLoading.value = false
+  }
+}
 
 // el-autocomplete 期望的搜索函数格式
 const searchArtists = (keyword, callback) => {
@@ -1186,10 +1359,20 @@ const searchArtists = (keyword, callback) => {
     return
   }
   artistSearchLoading.value = true
-  requestApi.get('/user/artist/search', { 
-    params: { keyword, limit: 10 } 
-  }).then(res => {
-    artistSearchResults.value = (res || []).map(normalizeArtistOption)
+  Promise.all([
+    request.silentGet('/user/artist-search', {
+      params: { keyword, limit: 20 }
+    }),
+    ensureArtistSearchCache()
+  ]).then(([res]) => {
+    const mergedArtists = new Map()
+    ;(Array.isArray(res) ? res : []).map(normalizeArtistOption).forEach(item => {
+      mergedArtists.set(String(item.id || item.uid || item.name), item)
+    })
+    artistSearchCache.value.forEach(item => {
+      mergedArtists.set(String(item.id || item.uid || item.name), item)
+    })
+    artistSearchResults.value = sortArtistSuggestions(Array.from(mergedArtists.values()), keyword)
     const trimmed = keyword.trim()
     artistExactMatched.value = artistSearchResults.value.some(item => item.name === trimmed)
     if (!artistExactMatched.value && editForm.artistName === keyword) {
@@ -1243,11 +1426,36 @@ const getArtworkUid = (row) => row.artworkUid || row.artworkCode || row.displayA
 
 const getAuthorUid = (row) => row.authorUid || row.displayAuthorId || '-'
 
+const getHolderUid = (row) => row.holderUid || '-'
+
 const formatSizeYear = (row) => {
   const info = []
   if (row.size) info.push(row.size)
   if (row.year) info.push(`${row.year}年`)
   return info.join(' / ')
+}
+
+const normalizeArtworkTagKey = (value) => {
+  return String(value || '')
+    .trim()
+    .replace(/^(分类|画种)[:：]\s*/, '')
+    .replace(/\s+/g, '')
+}
+
+const getArtworkCategoryTags = (row = {}) => {
+  const tags = []
+  const seen = new Set()
+  const addTag = (label, type) => {
+    const text = String(label || '').trim()
+    const key = normalizeArtworkTagKey(text)
+    if (!text || !key || seen.has(key)) return
+    seen.add(key)
+    tags.push({ key, label: text, type })
+  }
+
+  addTag(row.categoryName, 'info')
+  addTag(row.artType, 'warning')
+  return tags
 }
 
 const loadData = async () => {
@@ -1275,47 +1483,60 @@ const loadData = async () => {
     if (searchForm.status) params.status = searchForm.status
     const data = await request.get('/product/list', { params })
     // 映射后端数据格式到前端
-    tableData.value = (data.records || data.list || []).map(item => ({
-      artworkId: item.id,
-      artworkUid: item.artworkUid || item.artworkCode,
-      authorId: item.authorId,
-      displayArtworkId: item.displayArtworkId,
-      displayAuthorId: item.displayAuthorId,
-      authorUid: item.authorUid,
-      title: item.title,
-      artistName: item.authorName || item.artistName,  // 后端返回 authorName
-      cover: getFullImageUrl(item.coverImage || item.cover || ''), // 后端返回 coverImage
-      categoryId: item.categoryId,
-      categoryName: item.category,  // 后端返回 category
-      artType: item.artType,        // 画种
-      size: item.size,               // 尺寸
-      year: item.year,              // 创作年份
-      price: item.price ?? 0,       // 后端已转元
-      originalPrice: item.originalPrice ?? 0,
-      currentPrice: item.currentPrice ?? 0,
-      tomorrowIncreaseMin: item.tomorrowIncreaseMin || 0,
-      tomorrowIncreaseMax: item.tomorrowIncreaseMax || 0,
-      ownershipType: item.ownershipType || 1,
-      artworkCode: item.artworkCode || item.artworkUid,
-      status: item.status,
-      weight: item.weight || 0,
-      description: item.description,
-      salesCount: item.salesCount || 0,
-      favoriteCount: item.favoriteCount || 0,
-      realFavoriteCount: item.realFavoriteCount ?? item.favoriteCount ?? 0,
-      configuredFavoriteCount: item.configuredFavoriteCount ?? item.dailyLikeCount ?? 0,
-      dailyViewCount: item.dailyViewCount || 0,
-      dailyLikeCount: item.dailyLikeCount || 0,
-      displayViewCount: item.displayViewCount || item.viewCount || 0,
-      displayLikeCount: item.displayLikeCount ?? item.favoriteCount ?? 0,
-      priceRise: item.priceRise || 0, // 价格增长率
-      createTime: item.createTime,
-      distributionEnabled: item.distributionEnabled || false,
-      commissionRate: item.commissionRate || 10,
-      distributionOrders: item.distributionOrders || 0,
-      distributionEarnings: item.distributionEarnings || 0,
-      distributionUsers: item.distributionUsers || 0
-    }))
+    tableData.value = (data.records || data.list || []).map(item => {
+      const resaleListing = item.resaleListing || item.activeResaleListing || null
+      const resaleStatus = String(resaleListing?.status || '').toLowerCase()
+      const activeResaleListing = resaleListing && (!resaleStatus || resaleStatus === 'pending')
+        ? resaleListing
+        : null
+      return {
+        artworkId: item.id,
+        artworkUid: item.artworkUid || item.artworkCode,
+        authorId: item.authorId,
+        holderId: item.holderId,
+        displayArtworkId: item.displayArtworkId,
+        displayAuthorId: item.displayAuthorId,
+        authorUid: item.authorUid,
+        holderUid: item.holderUid,
+        holderNickname: item.holderNickname,
+        isResaleArtwork: Boolean(item.isResaleArtwork),
+        title: item.title,
+        artistName: item.authorName || item.artistName,  // 后端返回 authorName
+        cover: getFullImageUrl(item.coverImage || item.cover || DEFAULT_ARTWORK_URL), // 后端返回 coverImage
+        categoryId: item.categoryId,
+        categoryName: item.category,  // 后端返回 category
+        artType: item.artType,        // 画种
+        size: item.size,               // 尺寸
+        year: item.year,              // 创作年份
+        price: Number(item.price || 0),
+        originalPrice: Number(item.originalPrice || 0),
+        currentPrice: Number(item.currentPrice || 0),
+        resaleListing,
+        activeResaleListing,
+        tomorrowIncreaseMin: item.tomorrowIncreaseMin || 0,
+        tomorrowIncreaseMax: item.tomorrowIncreaseMax || 0,
+        ownershipType: item.ownershipType || 1,
+        artworkCode: item.artworkCode || item.artworkUid,
+        status: item.status,
+        weight: item.weight || 0,
+        description: item.description,
+        salesCount: item.salesCount || 0,
+        favoriteCount: item.favoriteCount || 0,
+        realFavoriteCount: item.realFavoriteCount ?? item.favoriteCount ?? 0,
+        configuredFavoriteCount: item.configuredFavoriteCount ?? item.dailyLikeCount ?? 0,
+        dailyViewCount: item.dailyViewCount || 0,
+        dailyLikeCount: item.dailyLikeCount || 0,
+        displayViewCount: item.displayViewCount || item.viewCount || 0,
+        displayLikeCount: item.displayLikeCount ?? item.favoriteCount ?? 0,
+        priceRise: item.priceRise || 0, // 价格增长率
+        createTime: item.createTime,
+        distributionEnabled: item.distributionEnabled || false,
+        commissionRate: item.commissionRate || 10,
+        distributionOrders: item.distributionOrders || 0,
+        distributionEarnings: item.distributionEarnings || 0,
+        distributionUsers: item.distributionUsers || 0
+      }
+    })
     pagination.total = data.total || 0
   } catch (e) {
     console.error('加载数据失败:', e)
@@ -1324,6 +1545,10 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const getArtworkCoverUrl = (row = {}) => {
+  return getFullImageUrl(row.cover || row.coverImage || row.cover_image || DEFAULT_ARTWORK_URL)
 }
 
 const loadCategories = async () => {
@@ -1385,12 +1610,13 @@ const handleEdit = async (row) => {
     size: row.size || '',
     year: row.year || null,
     cover: row.cover || '',
-    // 显示涨价后的实时价格 currentPrice（已由 loadData 转为元）
-    price: row.currentPrice || row.price || 0,
-    originalPrice: row.originalPrice || 0,
+    price: getEditDisplayPrice(row),
+    persistedPrice: row.price || row.currentPrice || 0,
+    originalPrice: getReleasePriceYuan(row),
+    releasePriceSnapshot: getReleasePriceYuan(row),
     currentPrice: row.currentPrice || row.price || 0,
     // 原始/基础价格：用于计算每日涨幅；优先取 price（原始上架价），否则取 originalPrice
-    basePrice: row.price || row.originalPrice || row.currentPrice || 0,
+    basePrice: getReleasePriceYuan(row),
     priceRise: row.priceRise || 0,
     tomorrowIncreaseMin: row.tomorrowIncreaseMin || 0,
     tomorrowIncreaseMax: row.tomorrowIncreaseMax || 0,
@@ -1398,6 +1624,8 @@ const handleEdit = async (row) => {
     description: row.description || '',
     status: row.status,
     favoriteCount: row.favoriteCount || 0,
+    resaleListing: row.resaleListing || null,
+    activeResaleListing: row.activeResaleListing || null,
     customPriceGrowthEnabled: Boolean(row.customPriceGrowthEnabled)
   })
   setDailyHeatRange(row.dailyViewCount || 0, row.dailyLikeCount || 0)
@@ -1407,7 +1635,9 @@ const handleEdit = async (row) => {
 }
 
 const getDisplayPrice = (row) => {
-  // 后端已返回元值
+  const resalePrice = Number(row.activeResaleListing?.resalePrice || row.resaleListing?.resalePrice || 0)
+  if (resalePrice > 0) return resalePrice
+  // 后端已返回元值，普通作品继续显示自动增长后的当前价。
   return Number(row.currentPrice || row.price || 0)
 }
 
@@ -1426,7 +1656,9 @@ const handleAdd = () => {
     year: null,
     cover: '',
     price: 0,
+    persistedPrice: 0,
     originalPrice: 0,
+    releasePriceSnapshot: 0,
     currentPrice: 0,
     basePrice: 0,
     priceRise: 0,
@@ -1436,6 +1668,8 @@ const handleAdd = () => {
     description: '',
     status: 1,
     favoriteCount: 0,
+    resaleListing: null,
+    activeResaleListing: null,
     customPriceGrowthEnabled: false
   })
   setDailyHeatRange(0, 0)
@@ -1461,17 +1695,15 @@ const beforeImageUpload = (file) => {
 }
 
 const handleImageUpload = async (options) => {
-  const { file } = options
-  const formData = new FormData()
-  formData.append('file', file)
-  
+  const { file, onSuccess, onError } = options
+
   try {
-    const res = await requestApi.post('/product/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    editForm.cover = res.url
+    const result = await uploadFile(file)
+    editForm.cover = result?.url || result?.path || ''
+    onSuccess?.(result)
     ElMessage.success('图片上传成功')
   } catch (e) {
+    onError?.(e)
     ElMessage.error('图片上传失败：' + (e.message || '未知错误'))
   }
 }
@@ -1495,6 +1727,9 @@ const handleSave = async () => {
     const dailyLikeCount = randomIntInRange(editForm.dailyLikeMin, editForm.dailyLikeMax)
     editForm.dailyViewCount = dailyViewCount
     editForm.dailyLikeCount = dailyLikeCount
+    const originalPriceForSave = editForm.artworkId
+      ? Number(editForm.releasePriceSnapshot || editForm.basePrice || editForm.persistedPrice || 0)
+      : Number(editForm.originalPrice || editForm.price || 0)
     
     const params = {
       title: editForm.title,
@@ -1504,8 +1739,10 @@ const handleSave = async () => {
       size: editForm.size || null,
       year: editForm.year || null,
       cover: editForm.cover || null,
-      price: editForm.price != null ? Math.round(Number(editForm.price) * 100) : null,
-      originalPrice: editForm.originalPrice != null ? Math.round(Number(editForm.originalPrice) * 100) : null,
+      price: editForm.price != null
+        ? Number(isEditResaleLocked.value ? (editForm.persistedPrice || editForm.basePrice || editForm.price) : editForm.price)
+        : null,
+      originalPrice: Number.isFinite(originalPriceForSave) ? originalPriceForSave : null,
       ownershipType: editForm.ownershipType || 1,
       description: editForm.description,
       status: editForm.status,
@@ -1605,7 +1842,7 @@ const handleDistribution = (row) => {
     distributionEarnings: row.distributionEarnings || 0,
     distributionUsers: row.distributionUsers || 0
   })
-  distLink.value = `https://shiyiju.com/artwork/${row.artworkId}?from=dist`
+  distLink.value = `${SITE_ORIGIN}/artwork/${row.artworkId}?from=dist`
   distVisible.value = true
 }
 
@@ -1862,6 +2099,13 @@ onMounted(() => {
   font-size: 12px;
   line-height: 1.35;
   word-break: break-all;
+}
+
+.holder-info {
+  margin: 4px 0 0;
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .dist-stats {

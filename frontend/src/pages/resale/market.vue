@@ -24,25 +24,24 @@
       <view class="resale-list">
         <view class="resale-card" v-for="item in list" :key="item.id" @click="toDetail(item.id)">
           <view class="card-header">
-            <text class="artwork-id">作品 #{{ item.artworkId }}</text>
+            <image class="artwork-cover" :src="displayArtworkCover(item)" mode="aspectFill" />
+            <view class="artwork-heading">
+              <text class="artwork-title">{{ displayArtworkTitle(item) }}</text>
+              <text class="artwork-id">作品 {{ displayArtworkUid(item) }}</text>
+            </view>
             <text class="status pending">在售</text>
+          </view>
+          <view class="artwork-meta" v-if="displayArtworkMeta(item)">
+            <text>{{ displayArtworkMeta(item) }}</text>
           </view>
           <view class="card-body">
             <view class="price-row">
               <text class="label">转售价</text>
               <text class="price">¥{{ formatPrice(item.resalePrice) }}</text>
             </view>
-            <view class="fee-row">
-              <text class="label">艺术家收益 <text class="pct">5%</text></text>
-              <text class="value">¥{{ formatPrice(item.artistIncome) }}</text>
-            </view>
-            <view class="fee-row">
-              <text class="label">平台服务费 <text class="pct">10%</text></text>
-              <text class="value">¥{{ formatPrice(item.platformFee) }}</text>
-            </view>
             <view class="seller-row">
-              <text class="label">卖家ID</text>
-              <text class="value">{{ item.sellerUserId }}</text>
+              <text class="label">卖家UID</text>
+              <text class="value">{{ displaySellerUid(item) }}</text>
             </view>
           </view>
           <view class="card-footer">
@@ -57,6 +56,10 @@
 
 <script>
 import { getResaleList } from '@/api/resale'
+import { normalizeImageUrl } from '@/api/product'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
+
+const FALLBACK_COVER = '/static/images/artwork-fallback.png'
 
 export default {
   data() {
@@ -87,8 +90,36 @@ export default {
       } catch (e) { /* */ }
       finally { this.loading = false; uni.stopPullDownRefresh() }
     },
-    formatPrice(p) { return p ? Number(p).toFixed(2) : '0.00' },
+    formatPrice(price) {
+      return formatYuanNumber(fenToYuan(price))
+    },
     formatTime(t) { return t ? t.substring(0, 16).replace('T', ' ') : '' },
+    displayArtworkUid(item) {
+      return item?.artworkUid || item?.artworkCode || this.formatFallbackUid('ART', item?.artworkId)
+    },
+    displayArtworkTitle(item) {
+      return item?.artworkTitle || item?.title || item?.artworkName || '未命名作品'
+    },
+    displayArtworkCover(item) {
+      return normalizeImageUrl(item?.artworkCoverImage || item?.coverImage || item?.cover || item?.image) || FALLBACK_COVER
+    },
+    displayArtworkMeta(item) {
+      const parts = [
+        item?.artistName,
+        item?.categoryName || item?.artworkArtType || item?.artType || item?.category,
+        item?.artworkMedium || item?.medium,
+        item?.artworkSize || item?.size,
+        item?.artworkYear || item?.year
+      ].filter(Boolean)
+      return parts.join(' · ')
+    },
+    displaySellerUid(item) {
+      return item?.sellerUid || item?.sellerUserUid || this.formatFallbackUid('USR', item?.sellerUserId)
+    },
+    formatFallbackUid(prefix, id) {
+      if (!id && id !== 0) return '-'
+      return `${prefix}${String(id).padStart(16, '0')}`
+    },
     goBack() { uni.navigateBack() },
     toMyResales() { uni.navigateTo({ url: '/pages/resale/my' }) },
     toDetail(id) { uni.navigateTo({ url: '/pages/resale/detail?id=' + id }) }
@@ -107,19 +138,20 @@ export default {
 .stat-label { font-size: 22rpx; color: #999; margin-top: 6rpx; }
 .resale-list { padding: 0 20rpx 30rpx; }
 .resale-card { background: #1A1A1A; border-radius: 16rpx; margin-bottom: 20rpx; overflow: hidden; border: 1rpx solid #333; }
-.card-header { display: flex; justify-content: space-between; align-items: center; padding: 20rpx 24rpx; background: #222; }
-.artwork-id { font-size: 26rpx; color: #D4AF37; font-weight: 500; }
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20rpx; padding: 20rpx 24rpx 14rpx; background: #222; }
+.artwork-cover { flex: 0 0 136rpx; width: 136rpx; height: 136rpx; border-radius: 10rpx; background: #111; border: 1rpx solid #333; }
+.artwork-heading { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.artwork-title { font-size: 28rpx; color: #E8E0D0; font-weight: 600; line-height: 1.35; word-break: break-word; overflow-wrap: anywhere; }
+.artwork-id { font-size: 22rpx; color: #D4AF37; line-height: 1.35; word-break: break-all; overflow-wrap: anywhere; }
+.artwork-meta { padding: 0 24rpx 18rpx; background: #222; color: #999; font-size: 22rpx; line-height: 1.5; word-break: break-word; overflow-wrap: anywhere; }
 .status { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 8rpx; }
 .status.pending { background: #3A3500; color: #D4AF37; }
 .card-body { padding: 20rpx 24rpx; }
 .price-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
 .price-row .price { font-size: 36rpx; color: #D4AF37; font-weight: 600; }
 .label { font-size: 24rpx; color: #999; }
-.fee-row { display: flex; justify-content: space-between; padding: 6rpx 0; }
-.fee-row .value { font-size: 24rpx; color: #CCC; }
-.pct { color: #D4AF37; font-size: 22rpx; }
-.seller-row { display: flex; justify-content: space-between; padding: 6rpx 0; margin-top: 8rpx; border-top: 1rpx solid #2A2A2A; padding-top: 12rpx; }
-.seller-row .value { font-size: 24rpx; color: #CCC; }
+.seller-row { display: flex; justify-content: space-between; gap: 20rpx; padding: 6rpx 0; margin-top: 8rpx; border-top: 1rpx solid #2A2A2A; padding-top: 12rpx; }
+.seller-row .value { min-width: 0; font-size: 24rpx; color: #CCC; text-align: right; word-break: break-all; overflow-wrap: anywhere; }
 .card-footer { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 24rpx; border-top: 1rpx solid #2A2A2A; }
 .time { font-size: 22rpx; color: #666; }
 .buy-btn { font-size: 26rpx; color: #D4AF37; background: #2A2A2A; border: 1rpx solid #D4AF37; border-radius: 12rpx; padding: 8rpx 28rpx; }

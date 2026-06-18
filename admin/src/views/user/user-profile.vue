@@ -73,7 +73,7 @@
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.promoterCount }}</div>
-            <div class="stat-label">艺荐官数量</div>
+            <div class="stat-label">经纪人数量</div>
             <div class="stat-trend">
               {{ stats.promoterActive }} 位活跃
             </div>
@@ -173,7 +173,7 @@
       <el-col :span="12">
         <el-card class="chart-card">
           <div slot="header">
-            <span>艺荐官等级分布</span>
+            <span>经纪人等级分布</span>
           </div>
           <div ref="promoterLevelChart" class="chart-container"></div>
         </el-card>
@@ -226,7 +226,7 @@
         </el-table-column>
         <el-table-column prop="totalAmount" label="累计消费" width="120">
           <template slot-scope="scope">
-            <span class="money">¥{{ scope.row.totalAmount.toLocaleString() }}</span>
+            <span class="money">{{ formatAmount(scope.row.totalAmount) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="orderCount" label="订单数" width="100" />
@@ -267,7 +267,7 @@
           <el-rate v-model="userDetail.level" disabled />
         </el-descriptions-item>
         <el-descriptions-item label="累计消费">
-          <span class="money">¥{{ userDetail.totalAmount?.toLocaleString() || 0 }}</span>
+          <span class="money">{{ formatAmount(userDetail.totalAmount) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="订单数">{{ userDetail.orderCount }}</el-descriptions-item>
         <el-descriptions-item label="关注数">{{ userDetail.followCount }}</el-descriptions-item>
@@ -338,6 +338,13 @@ export default {
     
     formatDate(date) {
       return date.toISOString().split('T')[0]
+    },
+
+    formatAmount(value) {
+      return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
     },
     
     loadData() {
@@ -433,7 +440,7 @@ export default {
           phone: '135****3333',
           avatar: '',
           identity: 'promoter',
-          identityText: '艺荐官',
+          identityText: '经纪人',
           totalAmount: 98000,
           orderCount: 56,
           followCount: 345,
@@ -521,13 +528,13 @@ export default {
           data: [
             { value: 10480, name: '收藏家', itemStyle: { color: '#409EFF' } },
             { value: 1256, name: '艺术家', itemStyle: { color: '#67C23A' } },
-            { value: 892, name: '艺荐官', itemStyle: { color: '#E6A23C' } },
+            { value: 892, name: '经纪人', itemStyle: { color: '#E6A23C' } },
             { value: 3052, name: '普通用户', itemStyle: { color: '#909399' } }
           ]
         }]
       } : {
         tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: ['收藏家', '艺术家', '艺荐官', '普通用户'] },
+        xAxis: { type: 'category', data: ['收藏家', '艺术家', '经纪人', '普通用户'] },
         yAxis: { type: 'value' },
         series: [{
           type: 'bar',
@@ -559,7 +566,7 @@ export default {
         tooltip: { trigger: 'axis' },
         legend: { data: ['18-25岁', '26-35岁', '36-45岁', '46-55岁', '55岁以上'] },
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-        xAxis: { type: 'category', data: ['收藏家', '艺术家', '艺荐官'] },
+        xAxis: { type: 'category', data: ['收藏家', '艺术家', '经纪人'] },
         yAxis: { type: 'value' },
         series: [
           { name: '18-25岁', type: 'bar', stack: 'total', data: [1200, 280, 85], itemStyle: { color: '#91D5FF' } },
@@ -730,7 +737,7 @@ export default {
             { name: '推广能力', max: 100 },
             { name: '订单转化', max: 100 },
             { name: '团队规模', max: 100 },
-            { name: '佣金收入', max: 100 },
+            { name: '分成收入', max: 100 },
             { name: '活跃度', max: 100 }
           ],
           radius: '65%'
@@ -740,21 +747,21 @@ export default {
           data: [
             {
               value: [85, 78, 90, 82, 88],
-              name: '皇冠艺荐官',
+              name: '皇冠经纪人',
               areaStyle: { color: 'rgba(230, 162, 60, 0.3)' },
               lineStyle: { color: '#E6A23C' },
               itemStyle: { color: '#E6A23C' }
             },
             {
               value: [70, 65, 72, 68, 75],
-              name: '钻石艺荐官',
+              name: '钻石经纪人',
               areaStyle: { color: 'rgba(144, 147, 153, 0.3)' },
               lineStyle: { color: '#909399' },
               itemStyle: { color: '#909399' }
             },
             {
               value: [55, 50, 58, 52, 60],
-              name: '金牌艺荐官',
+              name: '金牌经纪人',
               areaStyle: { color: 'rgba(64, 158, 255, 0.3)' },
               lineStyle: { color: '#409EFF' },
               itemStyle: { color: '#409EFF' }

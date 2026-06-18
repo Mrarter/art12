@@ -1,0 +1,22 @@
+# 测试环境配置 - File 服务
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+  datasource:
+    url: jdbc:mysql://shiyiju-mysql:3306/shiyiju_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: test_password_2026
+
+upload:
+  storage-type: local
+  local:
+    path: /data/uploads
+  cdn-url: http://110.42.211.199:80/files
+  max-image-size: 10485760
+  max-video-size: 104857600
+
+logging:
+  level:
+    com.shiyiju: DEBUG

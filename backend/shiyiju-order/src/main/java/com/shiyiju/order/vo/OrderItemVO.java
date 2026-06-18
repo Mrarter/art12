@@ -33,5 +33,7 @@ public class OrderItemVO implements Serializable {
     
     private String artistName;
     private String artType;
+    private String material;
     private String size;
+    private Integer year;
 }

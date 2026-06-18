@@ -36,7 +36,7 @@
         <view class="author-info">
           <image class="author-avatar" :src="detail.authorAvatar || '/static/icons/avatar-default.png'" mode="aspectFill"></image>
           <view class="author-detail">
-            <text class="author-name">{{ detail.authorName || '拾艺局官方' }}</text>
+            <text class="author-name">{{ detail.authorName || '艺本艺术官方' }}</text>
             <text class="author-title">{{ type === 'activity' ? '活动运营' : '平台公告' }}</text>
           </view>
         </view>

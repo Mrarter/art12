@@ -119,7 +119,8 @@ export const useUserStore = defineStore('user', {
         this.identities = ['collector']
       }
       if (!this.identities.length) this.identities = ['collector']
-      this.isArtist = this.identities.includes('artist')
+      const artistStatus = info?.artistStatus ?? info?.certStatus
+      this.isArtist = artistStatus === 1 || artistStatus === '1' || (artistStatus == null && Boolean(info?.isArtist))
       this.isPromoter = this.identities.includes('promoter')
       this.isAgent = this.identities.includes('agent')
     },

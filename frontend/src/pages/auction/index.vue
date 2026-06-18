@@ -97,6 +97,7 @@
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getAuctionSessions } from '@/api/auction'
+import { formatYuanNumber } from '@/utils/price'
 
 export default {
   components: {
@@ -278,8 +279,7 @@ export default {
 
     formatPrice(price) {
       if (!price && price !== 0) return '0'
-      const num = Number(price)
-      return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return formatYuanNumber(Number(price))
     }
   }
 }

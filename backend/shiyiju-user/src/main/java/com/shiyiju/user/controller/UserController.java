@@ -95,6 +95,38 @@ public class UserController {
     }
 
     /**
+     * 更新艺术家主页版式 (PUT /user/artist/homepage-style)
+     */
+    @PutMapping("/artist/homepage-style")
+    public Result<Void> updateArtistHomepageStyle(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Object style = params.getOrDefault("style", params.get("homepageStyle"));
+        userService.updateArtistHomepageStyle(userId, style == null ? null : String.valueOf(style));
+        return Result.success();
+    }
+
+    /**
+     * 更新艺术家履历 (PUT /user/artist/resume)
+     */
+    @PutMapping("/artist/resume")
+    public Result<Void> updateArtistResume(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Object resume = params.get("resume");
+        userService.updateArtistResume(userId, resume == null ? "" : String.valueOf(resume));
+        return Result.success();
+    }
+
+    /**
      * 绑定手机号 (POST /user/bind-phone)
      */
     @PostMapping("/user/bind-phone")
@@ -219,6 +251,7 @@ public class UserController {
             boolean following = userService.isFollowing(currentUserId, artistId);
             data.put("isFollowing", following);
             data.put("followed", following);
+            data.put("isOwner", currentUserId.equals(artistId));
         }
         return Result.success(data);
     }
@@ -249,6 +282,7 @@ public class UserController {
             boolean following = userService.isFollowing(currentUserId, artistId);
             data.put("isFollowing", following);
             data.put("followed", following);
+            data.put("isOwner", currentUserId.equals(artistId));
         }
         return Result.success(data);
     }

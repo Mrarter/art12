@@ -2,7 +2,7 @@
   <div class="admin-layout">
     <div class="sidebar" :class="{ collapse: isCollapse }">
       <div class="logo">
-        <span v-if="!isCollapse">拾艺局</span>
+        <span v-if="!isCollapse">艺本艺术</span>
         <el-icon v-else><Picture /></el-icon>
       </div>
       <el-menu
@@ -11,7 +11,7 @@
         background-color="#304156"
         text-color="#bfcbd9"
         active-text-color="#409eff"
-        router
+        @select="handleMenuSelect"
       >
         <el-menu-item index="/dashboard">
           <el-icon><Odometer /></el-icon>
@@ -25,7 +25,7 @@
           </template>
           <el-menu-item index="/user/list">用户列表</el-menu-item>
           <el-menu-item index="/user/artist">艺术家管理</el-menu-item>
-          <el-menu-item index="/user/promoter">艺荐官管理</el-menu-item>
+          <el-menu-item index="/user/promoter">经纪人管理</el-menu-item>
           <el-menu-item index="/user/user-profile">用户画像</el-menu-item>
         </el-sub-menu>
         
@@ -73,7 +73,7 @@
             <el-icon><Share /></el-icon>
             <span>分销管理</span>
           </template>
-          <el-menu-item index="/promotion/commission">佣金记录</el-menu-item>
+          <el-menu-item index="/promotion/commission">经纪人分成记录</el-menu-item>
           <el-menu-item index="/promotion/withdraw">提现管理</el-menu-item>
         </el-sub-menu>
         
@@ -169,6 +169,11 @@ const handleCommand = (command) => {
     router.push('/login')
   }
 }
+
+const handleMenuSelect = (index) => {
+  if (!index || index === route.path) return
+  router.push(index)
+}
 </script>
 
 <style scoped lang="scss">
@@ -181,6 +186,8 @@ const handleCommand = (command) => {
     background: #304156;
     transition: width 0.3s;
     overflow: hidden;
+    position: relative;
+    z-index: 20;
     
     &.collapse {
       width: 64px;

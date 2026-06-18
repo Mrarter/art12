@@ -1,109 +1,124 @@
 <template>
   <view class="confirm-page">
-    <!-- 商品信息 -->
-    <view class="goods-section" v-if="goodsList.length > 0">
-      <view class="section-title">
-        <text class="title-text">商品信息</text>
+    <view class="address-card" @click="goAddress">
+      <view class="address-main" v-if="selectedAddress">
+        <view class="address-user">
+          <text>{{ selectedAddress.receiverName }}</text>
+          <text>{{ selectedAddress.phone || selectedAddress.receiverPhone }}</text>
+        </view>
+        <text class="address-text">收货地址：{{ fullAddress }}</text>
+        <view class="copy-btn" @click.stop="copyAddress">一键复制</view>
       </view>
-      <view class="goods-card" v-for="item in goodsList" :key="item.id">
-        <image class="goods-image" :src="item.coverImage || 'https://picsum.photos/200/200?random=goods'" mode="aspectFill"></image>
+      <view class="address-empty" v-else>
+        <text class="add-icon">+</text>
+        <text>添加收货地址</text>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+
+    <view class="order-card" v-if="goodsList.length > 0">
+      <view class="artist-line">
+        <image class="artist-avatar" :src="goodsList[0].authorAvatar || goodsList[0].coverImage" mode="aspectFill"></image>
+        <text>{{ goodsList[0].authorName || '艺术家' }}</text>
+      </view>
+
+      <view class="goods-row" v-for="item in goodsList" :key="item.id">
+        <image class="goods-image" :src="item.coverImage || '/static/images/artwork-fallback.png'" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-title">{{ item.title }}</text>
-          <text class="goods-meta">{{ (item.artType || '艺术品').replace(/分类[:：]?\s*/g, '') }} · {{ item.size || '标准尺寸' }}</text>
+          <text class="goods-meta">{{ itemMeta(item) }}</text>
           <view class="goods-price-row">
             <text class="goods-price">¥{{ formatPrice(item.price) }}</text>
             <text class="goods-qty">x{{ item.quantity }}</text>
           </view>
         </view>
       </view>
-    </view>
-    
-    <!-- 收货地址 -->
-    <view class="address-section" @click="goAddress">
-      <view class="section-title">
-        <text class="title-text">收货地址</text>
-      </view>
-      <view class="address-card">
-        <view class="address-empty" v-if="!selectedAddress">
-          <text class="add-icon">+</text>
-          <text class="add-text">添加收货地址</text>
-        </view>
-        <view class="address-info" v-else>
-          <view class="address-header">
-            <text class="receiver">{{ selectedAddress.receiverName }}</text>
-            <text class="phone">{{ selectedAddress.phone }}</text>
-          </view>
-          <text class="address-text">{{ selectedAddress.province }}{{ selectedAddress.city }}{{ selectedAddress.district }}{{ selectedAddress.detailAddress }}</text>
-        </view>
-        <text class="arrow-icon">›</text>
+
+      <view class="message-row">
+        <text>买家留言</text>
+        <input class="message-input" v-model="remark" placeholder="选填，请输入" placeholder-class="placeholder" maxlength="200" />
       </view>
     </view>
-    
-    <!-- 佣金说明 -->
-    <view class="commission-section" v-if="hasPromoter">
-      <view class="commission-card">
-        <view class="commission-icon">🎖️</view>
-        <view class="commission-content">
-          <text class="commission-title">分享赚佣金</text>
-          <text class="commission-desc">通过艺荐官链接购买，艺荐官可获得 ¥{{ formatPrice(commissionAmount) }} 佣金</text>
-        </view>
+
+    <view class="price-card">
+      <view class="price-row">
+        <text>商品金额</text>
+        <text>¥{{ formatPrice(goodsAmount) }}</text>
+      </view>
+      <view class="price-row">
+        <text>优惠券</text>
+        <text class="muted">无可用 ›</text>
+      </view>
+      <view class="price-row">
+        <text>装裱费</text>
+        <text>¥{{ formatPrice(framingFee) }}</text>
+      </view>
+      <view class="price-row">
+        <text>打包费</text>
+        <text>¥{{ formatPrice(packingFee) }}</text>
+      </view>
+      <view class="price-row">
+        <text>邮费</text>
+        <text>{{ postageFee > 0 ? '¥' + formatPrice(postageFee) : '包邮' }}</text>
+      </view>
+      <view class="price-row total">
+        <text>合计</text>
+        <text>¥{{ formatPrice(payableAmount) }}</text>
       </view>
     </view>
-    
-    <!-- 价格明细 -->
-    <view class="price-section">
-      <view class="section-title">
-        <text class="title-text">价格明细</text>
+
+    <view class="pay-card">
+      <view class="section-title">支付方式</view>
+      <view
+        class="pay-option"
+        :class="{ active: paymentMethod === 'wechat' }"
+        @click="paymentMethod = 'wechat'"
+      >
+        <view class="pay-left">
+          <text class="pay-icon wechat">微</text>
+          <text>微信支付</text>
+        </view>
+        <text class="radio">{{ paymentMethod === 'wechat' ? '●' : '○' }}</text>
       </view>
-      <view class="price-card">
-        <view class="price-row">
-          <text class="price-label">商品金额</text>
-          <text class="price-value">¥{{ formatPrice(totalAmount) }}</text>
+      <view
+        class="pay-option"
+        :class="{ active: paymentMethod === 'alipay' }"
+        @click="paymentMethod = 'alipay'"
+      >
+        <view class="pay-left">
+          <text class="pay-icon alipay">支</text>
+          <text>支付宝</text>
         </view>
-        <view class="price-row">
-          <text class="price-label">运费</text>
-          <text class="price-value free">包邮</text>
-        </view>
-        <view class="price-row total">
-          <text class="price-label">合计</text>
-          <text class="price-value total-price">¥{{ formatPrice(totalAmount) }}</text>
-        </view>
+        <text class="radio">{{ paymentMethod === 'alipay' ? '●' : '○' }}</text>
       </view>
     </view>
-    
-    <!-- 备注 -->
-    <view class="remark-section">
-      <view class="section-title">
-        <text class="title-text">订单备注</text>
-      </view>
-      <view class="remark-card">
-        <textarea 
-          class="remark-input" 
-          v-model="remark" 
-          placeholder="选填，可备注您的特殊需求" 
-          placeholder-class="placeholder"
-          maxlength="200"
-        />
-        <text class="remark-count">{{ remark.length }}/200</text>
-      </view>
-    </view>
-    
-    <!-- 底部提交栏 -->
+
     <view class="submit-bar">
-      <view class="submit-info">
-        <text class="submit-label">实付款</text>
-        <text class="submit-price">¥{{ formatPrice(totalAmount) }}</text>
+      <view class="agreement-card submit-agreement" :class="{ active: agreedNoReason }" @click="agreedNoReason = !agreedNoReason">
+        <text class="check">{{ agreedNoReason ? '●' : '○' }}</text>
+        <view class="agreement-copy">
+          <text class="agreement-title">同意艺术品不支持 7 天无理由退货</text>
+          <text class="agreement-desc">提示：鉴于艺术品具有特殊性质，一旦勾选并提交订单付款后，即视为您同意。</text>
+        </view>
       </view>
-      <button class="btn-submit" @click="onSubmit" :loading="submitting" :disabled="submitting">
-        {{ submitting ? '提交中...' : '提交订单' }}
-      </button>
+      <view class="submit-row">
+        <view class="submit-info">
+          <text class="submit-label">合计（包邮）</text>
+          <text class="submit-price">¥{{ formatPrice(payableAmount) }}</text>
+        </view>
+        <button class="btn-submit" @click="onSubmit" :loading="submitting" :disabled="submitting">
+          {{ submitting ? '提交中...' : '提交订单' }}
+        </button>
+      </view>
     </view>
   </view>
 </template>
 
 <script>
-import { getCartList, getAddressList, createOrderFromCart, directBuy } from '@/api/order'
+import { getCartList, getAddressList, createOrderFromCart, directBuy, createResaleOrder } from '@/api/order'
 import { getProductDetail } from '@/api/product'
+import { getResaleDetail } from '@/api/resale'
+import { fenToYuan, formatYuanNumber, getArtworkDisplayPriceFen } from '@/utils/price'
 
 export default {
   data() {
@@ -115,16 +130,31 @@ export default {
       submitting: false,
       cartIds: [],
       artworkId: null,
-      loading: false
+      resaleId: null,
+      resaleRecord: null,
+      loading: false,
+      paymentMethod: 'wechat',
+      agreedNoReason: false,
+      couponDiscount: 0,
+      framingFee: 0,
+      packingFee: 0,
+      postageFee: 0
     }
   },
 
   computed: {
-    totalAmount() {
+    goodsAmount() {
       return this.goodsList.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
     },
+    payableAmount() {
+      return Math.max(this.goodsAmount + this.framingFee + this.packingFee + this.postageFee - this.couponDiscount, 0)
+    },
+    fullAddress() {
+      if (!this.selectedAddress) return ''
+      return `${this.selectedAddress.province || ''}${this.selectedAddress.city || ''}${this.selectedAddress.district || ''}${this.selectedAddress.detailAddress || this.selectedAddress.detail || ''}`
+    },
     commissionAmount() {
-      return this.totalAmount * 0.05
+      return this.payableAmount * 0.05
     },
     hasPromoter() {
       return false
@@ -132,7 +162,12 @@ export default {
   },
 
   onLoad(options) {
-    if (options.artworkId) {
+    if (options.resaleId) {
+      this.goodsType = 'resale'
+      this.resaleId = parseInt(options.resaleId)
+      this.applyResaleQuery(options)
+      this.fetchResaleGoods(this.resaleId)
+    } else if (options.artworkId) {
       this.goodsType = 'direct'
       this.artworkId = parseInt(options.artworkId)
       this.fetchGoodsDetail(options.artworkId, parseInt(options.quantity) || 1)
@@ -145,6 +180,54 @@ export default {
   },
 
   methods: {
+    safeDecode(value) {
+      if (!value && value !== 0) return ''
+      try {
+        return decodeURIComponent(String(value))
+      } catch (e) {
+        return String(value)
+      }
+    },
+
+    applyResaleQuery(options) {
+      const record = {
+        id: this.resaleId,
+        artworkId: options.artworkId ? Number(options.artworkId) : null,
+        resalePrice: options.resalePrice ? Number(this.safeDecode(options.resalePrice)) : 0,
+        artworkUid: this.safeDecode(options.artworkUid),
+        sellerUid: this.safeDecode(options.sellerUid)
+      }
+      this.resaleRecord = record
+      this.artworkId = record.artworkId
+      if (record.resalePrice || record.artworkUid) {
+        this.applyResaleGoods(record)
+      }
+    },
+
+    applyResaleGoods(resale, detail = null) {
+      const resalePrice = Number(resale?.resalePrice || 0)
+      const title = detail?.title || resale?.title || resale?.artworkName || resale?.artworkUid || '转售艺术品'
+      const authorName = this.safeDecode(detail?.authorName || detail?.artistName || resale?.sellerName || resale?.sellerUid || '藏家转售')
+      this.goodsList = [{
+        id: resale?.artworkId,
+        title: this.safeDecode(title),
+        coverImage: detail?.coverImage || detail?.cover || resale?.coverImage || resale?.cover,
+        price: Math.round(resalePrice * 100),
+        resalePrice,
+        quantity: 1,
+        artType: detail?.artType || detail?.category || resale?.artType || resale?.category,
+        size: detail?.size || resale?.size,
+        year: detail?.year || detail?.createYear || resale?.year,
+        authorName,
+        authorAvatar: detail?.authorAvatar,
+        material: detail?.material || detail?.medium || resale?.material,
+        framingFee: 0,
+        packingFee: 0,
+        postageFee: 0
+      }]
+      this.syncFeesFromGoods()
+    },
+
     async fetchGoodsDetail(id, quantity) {
       this.loading = true
       try {
@@ -154,17 +237,53 @@ export default {
             id: res.id,
             title: res.title,
             coverImage: res.coverImage || res.cover,
-            price: res.price,
+            price: getArtworkDisplayPriceFen(res),
             quantity: quantity,
             artType: res.artType || res.category,
-            size: res.size
+            size: res.size,
+            year: res.year || res.createYear,
+            authorName: res.authorName || res.artistName,
+            authorAvatar: res.authorAvatar,
+            material: res.material || res.medium,
+            framingFee: res.framingFee || 0,
+            packingFee: res.packingFee || 0,
+            postageFee: res.postageFee || res.freight || 0
           }]
+          this.syncFeesFromGoods()
         } else {
           this.loadMockGoodsData(id)
         }
       } catch (e) {
         console.error('获取商品详情失败', e)
         this.loadMockGoodsData(id)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchResaleGoods(resaleId) {
+      this.loading = true
+      try {
+        const resale = await getResaleDetail(resaleId)
+        if (!resale || !resale.id) {
+          throw new Error('转售记录不存在')
+        }
+        this.resaleRecord = resale
+        this.artworkId = Number(resale.artworkId)
+
+        let detail = null
+        try {
+          detail = await getProductDetail(resale.artworkId)
+        } catch (e) {
+          console.warn('获取转售作品详情失败，使用转售记录兜底', e)
+        }
+
+        this.applyResaleGoods(resale, detail)
+      } catch (e) {
+        console.error('获取转售详情失败', e)
+        if (this.goodsList.length === 0) {
+          uni.showToast({ title: e.message || '转售记录加载失败', icon: 'none' })
+        }
       } finally {
         this.loading = false
       }
@@ -180,11 +299,15 @@ export default {
             id: item.artworkId,
             title: item.title,
             coverImage: item.coverImage || item.cover,
-            price: item.price,
+        price: item.price,
             quantity: item.quantity,
             artType: item.artType || item.category,
-            size: item.size
+            size: item.size,
+            authorName: item.authorName || item.artistName,
+            authorAvatar: item.authorAvatar,
+            year: item.year || item.createYear
           }))
+          this.syncFeesFromGoods()
         }
         if (this.goodsList.length === 0) {
           this.loadMockGoodsData()
@@ -222,6 +345,7 @@ export default {
       } else {
         this.goodsList = [mockData[0]]
       }
+      this.syncFeesFromGoods()
     },
 
     async fetchAddress() {
@@ -251,6 +375,30 @@ export default {
       }
     },
 
+    syncFeesFromGoods() {
+      const first = this.goodsList[0] || {}
+      this.framingFee = Number(first.framingFee || 0)
+      this.packingFee = Number(first.packingFee || 0)
+      this.postageFee = Number(first.postageFee || 0)
+    },
+
+    itemMeta(item) {
+      const parts = [
+        item.artType || item.material || '艺术品',
+        item.size || '标准尺寸',
+        item.year || '2024'
+      ]
+      return parts.map(v => String(v).replace(/分类[:：]?\s*/g, '')).filter(Boolean).join(' / ')
+    },
+
+    copyAddress() {
+      if (!this.fullAddress) return
+      uni.setClipboardData({
+        data: this.fullAddress,
+        success: () => uni.showToast({ title: '地址已复制', icon: 'success' })
+      })
+    },
+
     goAddress() {
       uni.navigateTo({
         url: '/pages/user/address?select=true',
@@ -267,6 +415,14 @@ export default {
         uni.showToast({ title: '请选择收货地址', icon: 'none' })
         return
       }
+      if (!this.paymentMethod) {
+        uni.showToast({ title: '请选择支付方式', icon: 'none' })
+        return
+      }
+      if (!this.agreedNoReason) {
+        uni.showToast({ title: '请先同意退货规则', icon: 'none' })
+        return
+      }
       
       if (this.submitting) return
       this.submitting = true
@@ -278,9 +434,19 @@ export default {
           remark: this.remark
         }
         
-        if (this.goodsType === 'direct') {
+        if (this.goodsType === 'resale') {
+          if (!this.resaleRecord) {
+            throw new Error('转售记录未加载')
+          }
+          order = await createResaleOrder({
+            resaleId: this.resaleRecord.id,
+            resalePrice: this.resaleRecord.resalePrice,
+            artworkId: this.resaleRecord.artworkId,
+            addressId: this.selectedAddress.id
+          })
+        } else if (this.goodsType === 'direct') {
           order = await directBuy({
-            productId: this.artworkId,
+            artworkId: this.artworkId,
             quantity: this.goodsList[0].quantity,
             ...params
           })
@@ -292,23 +458,26 @@ export default {
         }
         
         uni.navigateTo({
-          url: `/pages/order/pay?orderId=${order.id}&amount=${order.payAmount}`
+          url: `/pages/order/pay?orderId=${order.id}&amount=${this.resolveOrderPayAmountYuan(order)}&paymentMethod=${this.paymentMethod}`
         })
       } catch (e) {
         console.error('创建订单失败', e)
-        uni.showToast({ title: '订单提交成功', icon: 'success' })
-        setTimeout(() => {
-          uni.navigateBack()
-        }, 1500)
+        uni.showToast({ title: e.message || '订单提交失败', icon: 'none' })
       } finally {
         this.submitting = false
       }
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
+    },
+
+    resolveOrderPayAmountYuan(order = {}) {
+      const apiAmount = order.payAmount ?? order.pay_amount
+      if (apiAmount !== null && apiAmount !== undefined && apiAmount !== '') {
+        return fenToYuan(apiAmount)
+      }
+      return fenToYuan(this.payableAmount)
     }
   }
 }
@@ -327,8 +496,10 @@ $accent-orange: #E8A838;
 
 .confirm-page {
   min-height: 100vh;
-  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  padding-top: 20rpx;
+  padding-bottom: calc(300rpx + env(safe-area-inset-bottom));
   background-color: $bg-primary;
+  color: $text-primary;
 }
 
 .section-title {
@@ -341,18 +512,37 @@ $accent-orange: #E8A838;
   }
 }
 
-/* 商品信息 */
-.goods-section {
-  margin-bottom: 16rpx;
-}
-
-.goods-card {
-  display: flex;
+.order-card,
+.pay-card,
+.agreement-card {
   background-color: $bg-card;
-  margin: 0 20rpx;
-  padding: 20rpx;
+  margin: 16rpx 20rpx 0;
+  padding: 24rpx;
   border-radius: 16rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.04);
+}
+
+.artist-line {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding-bottom: 22rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.artist-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background-color: $bg-secondary;
+}
+
+.goods-row {
+  display: flex;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
 .goods-image {
@@ -377,6 +567,23 @@ $accent-orange: #E8A838;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.message-row {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding-top: 22rpx;
+  color: $text-secondary;
+  font-size: 28rpx;
+}
+
+.message-input {
+  flex: 1;
+  min-width: 0;
+  height: 52rpx;
+  color: $text-primary;
+  font-size: 28rpx;
 }
 
 .goods-meta {
@@ -410,11 +617,50 @@ $accent-orange: #E8A838;
 .address-card {
   display: flex;
   align-items: center;
+  position: relative;
   background-color: $bg-card;
   margin: 0 20rpx;
   padding: 24rpx;
   border-radius: 16rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 6rpx;
+    background: repeating-linear-gradient(135deg, #7bc4f3 0 28rpx, transparent 28rpx 56rpx, #ff8589 56rpx 84rpx, transparent 84rpx 112rpx);
+  }
+
+  &::before { top: 0; }
+  &::after { bottom: 0; }
+}
+
+.address-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.address-user {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 14rpx;
+  color: $text-secondary;
+  font-size: 28rpx;
+}
+
+.copy-btn {
+  height: 64rpx;
+  margin-top: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #07111d;
+  color: #7b8390;
+  font-size: 26rpx;
 }
 
 .address-empty {
@@ -476,7 +722,7 @@ $accent-orange: #E8A838;
   margin-left: 16rpx;
 }
 
-/* 佣金说明 */
+/* 分成说明 */
 .commission-section {
   margin-bottom: 16rpx;
 }
@@ -520,7 +766,7 @@ $accent-orange: #E8A838;
 
 .price-card {
   background-color: $bg-card;
-  margin: 0 20rpx;
+  margin: 16rpx 20rpx 0;
   padding: 24rpx;
   border-radius: 16rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.04);
@@ -531,6 +777,16 @@ $accent-orange: #E8A838;
   justify-content: space-between;
   align-items: center;
   padding: 16rpx 0;
+  font-size: 28rpx;
+  color: $text-secondary;
+
+  > text:last-child {
+    color: $text-primary;
+  }
+
+  .muted {
+    color: $text-muted;
+  }
   
   .price-label {
     font-size: 28rpx;
@@ -551,18 +807,98 @@ $accent-orange: #E8A838;
     margin-top: 8rpx;
     padding-top: 24rpx;
     
-    .price-label {
-      font-size: 30rpx;
-      font-weight: 600;
-      color: $text-primary;
+    > text:first-child {
+      color: $text-secondary;
     }
-    
-    .total-price {
+
+    > text:last-child {
       font-size: 36rpx;
       font-weight: 600;
       color: $accent-gold;
     }
   }
+}
+
+.pay-card {
+  padding: 8rpx 24rpx 14rpx;
+}
+
+.pay-card .section-title {
+  padding: 16rpx 0 10rpx;
+  color: $text-secondary;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.pay-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  color: $text-secondary;
+  font-size: 28rpx;
+}
+
+.pay-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.pay-icon {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 700;
+
+  &.wechat { background: #18b55f; }
+  &.alipay { background: #1677ff; }
+}
+
+.pay-option.active,
+.radio {
+  color: $accent-gold;
+}
+
+.agreement-card {
+  display: flex;
+  gap: 12rpx;
+  background: rgba(33, 120, 56, 0.32);
+  border-color: rgba(79, 197, 107, 0.28);
+}
+
+.check {
+  color: $text-secondary;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.agreement-card.active .check {
+  color: #7bd28b;
+}
+
+.agreement-title,
+.agreement-desc {
+  display: block;
+}
+
+.agreement-title {
+  color: #88d58e;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.agreement-desc {
+  margin-top: 4rpx;
+  color: rgba(136, 213, 142, 0.76);
+  font-size: 20rpx;
+  line-height: 1.35;
 }
 
 /* 备注 */
@@ -607,12 +943,33 @@ $accent-orange: #E8A838;
   right: 0;
   bottom: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20rpx 30rpx;
+  flex-direction: column;
+  gap: 14rpx;
+  padding: 16rpx 20rpx 20rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   background-color: $bg-secondary;
   border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.submit-agreement {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 14rpx 18rpx;
+  border-radius: 14rpx;
+  align-items: flex-start;
+}
+
+.agreement-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.submit-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .submit-info {

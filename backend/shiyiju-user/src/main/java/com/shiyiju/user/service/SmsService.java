@@ -37,6 +37,9 @@ public class SmsService {
     @Value("${sms.enabled:false}")
     private boolean enabled;
 
+    @Value("${sms.code-expire-minutes:5}")
+    private int codeExpireMinutes;
+
     /**
      * 判断是否启用真实短信发送（API密钥 + 模板 全部配置且启用）
      */
@@ -85,7 +88,7 @@ public class SmsService {
             req.setTemplateId(templateId);
 
             // 模板参数：{1}=验证码，{2}=有效期分钟
-            String[] templateParams = {code, "10000"};
+            String[] templateParams = {code, String.valueOf(Math.max(1, codeExpireMinutes))};
             req.setTemplateParamSet(templateParams);
 
             // 手机号（E.164格式）

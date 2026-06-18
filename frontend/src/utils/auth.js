@@ -148,6 +148,44 @@ export function getUserInfo() {
 }
 
 /**
+ * 获取当前登录用户的稳定身份标识。
+ * 兼容历史版本中 userInfo 被包在 data/user/profile/userInfo 下的存储格式。
+ */
+export function getCurrentUserIdentity() {
+  const stored = getUserInfo() || {}
+  const tokenData = getTokenData() || {}
+  const candidates = [
+    stored,
+    stored.data,
+    stored.user,
+    stored.profile,
+    stored.userInfo
+  ].filter(item => item && typeof item === 'object')
+
+  const pick = (keys) => {
+    for (const candidate of candidates) {
+      for (const key of keys) {
+        const value = candidate[key]
+        if (value !== undefined && value !== null && String(value).trim()) {
+          return value
+        }
+      }
+    }
+    return ''
+  }
+
+  return {
+    id: pick(['id', 'userId', 'memberId']) || tokenData?.userId || '',
+    uid: pick(['uid', 'userUid', 'artistUid']),
+    isGuest: Boolean(
+      pick(['isGuest']) ||
+      tokenData?.isGuest ||
+      tokenData?.accessToken === 'guest_token'
+    )
+  }
+}
+
+/**
  * 检查是否为游客
  */
 export function isGuestUser() {

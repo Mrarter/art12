@@ -15,7 +15,9 @@ import com.shiyiju.promotion.vo.EarningsTrendVO;
 import com.shiyiju.promotion.vo.RankingVO;
 import com.shiyiju.user.entity.PromoterRecord;
 import com.shiyiju.user.entity.RealnameCertification;
+import com.shiyiju.user.entity.CommissionRecord;
 import com.shiyiju.user.entity.User;
+import com.shiyiju.user.mapper.CommissionRecordMapper;
 import com.shiyiju.user.mapper.PromoterRecordMapper;
 import com.shiyiju.user.mapper.RealnameCertificationMapper;
 import com.shiyiju.user.mapper.UserMapper;
@@ -40,6 +42,7 @@ public class PromotionController {
 
     private final PromoterRecordMapper promoterRecordMapper;
     private final CommissionLogMapper commissionLogMapper;
+    private final CommissionRecordMapper commissionRecordMapper;
     private final RealnameCertificationMapper realnameCertMapper;
     private final WithdrawRecordMapper withdrawRecordMapper;
     private final UserMapper userMapper;
@@ -176,8 +179,8 @@ public class PromotionController {
     /**
      * 获取佣金明细 (GET /promoter/commission-log)
      */
-    @GetMapping("/commission-log")
-    public Result<PageResult<CommissionLog>> getCommissionLogs(
+    @GetMapping({"/commission-log", "/commission/list"})
+    public Result<PageResult<CommissionRecord>> getCommissionLogs(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
@@ -197,15 +200,15 @@ public class PromotionController {
                 return Result.success(PageResult.of(0L, page, pageSize, List.of()));
             }
 
-            LambdaQueryWrapper<CommissionLog> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(CommissionLog::getPromoterId, promoter.getId())
-                   .orderByDesc(CommissionLog::getCreateTime);
+            LambdaQueryWrapper<CommissionRecord> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CommissionRecord::getUserId, userId)
+                   .orderByDesc(CommissionRecord::getCreatedTime);
             
             // 使用分页查询
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> pageResult = 
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> pageResult = 
                     new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> result = 
-                    commissionLogMapper.selectPage(pageResult, wrapper);
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> result =
+                    commissionRecordMapper.selectPage(pageResult, wrapper);
 
             return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
         } catch (Exception e) {
@@ -532,32 +535,33 @@ public class PromotionController {
                 return Result.success(PageResult.of(0L, page, pageSize, List.of()));
             }
 
-            LambdaQueryWrapper<CommissionLog> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(CommissionLog::getPromoterId, promoter.getId());
+            LambdaQueryWrapper<CommissionRecord> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CommissionRecord::getUserId, userId);
             if (type != null && !type.isEmpty()) {
                 if ("level1".equals(type)) {
-                    wrapper.eq(CommissionLog::getLevel, 1);
+                    wrapper.eq(CommissionRecord::getCommissionLevel, 1);
                 } else if ("level2".equals(type)) {
-                    wrapper.eq(CommissionLog::getLevel, 2);
+                    wrapper.eq(CommissionRecord::getCommissionLevel, 2);
                 }
             }
-            wrapper.orderByDesc(CommissionLog::getCreateTime);
+            wrapper.orderByDesc(CommissionRecord::getCreatedTime);
             
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> pageResult = 
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> pageResult =
                     new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> result = 
-                    commissionLogMapper.selectPage(pageResult, wrapper);
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> result =
+                    commissionRecordMapper.selectPage(pageResult, wrapper);
 
-            List<EarningsDetailVO> voList = result.getRecords().stream().map(log -> {
+            List<EarningsDetailVO> voList = result.getRecords().stream().map(record -> {
                 EarningsDetailVO vo = new EarningsDetailVO();
-                vo.setId(log.getId());
-                vo.setTitle("订单收益");
-                vo.setAmount(log.getCommissionAmount());
-                vo.setStatus(getCommissionStatusText(log.getStatus()));
-                vo.setCreateTime(log.getCreateTime() != null ? log.getCreateTime().toString() : null);
-                vo.setOrderId(log.getOrderId());
-                vo.setLevel(log.getLevel());
-                vo.setType("order");
+                vo.setId(record.getId());
+                vo.setTitle(record.getCommissionLevel() != null && record.getCommissionLevel() == 2
+                        ? "团队奖励" : "推广佣金");
+                vo.setAmount(record.getAmount() == null ? 0L : record.getAmount().movePointRight(2).longValue());
+                vo.setStatus(record.getStatus() == null ? "pending" : record.getStatus());
+                vo.setCreateTime(record.getCreatedTime() != null ? record.getCreatedTime().toString() : null);
+                vo.setOrderId(record.getOrderId());
+                vo.setLevel(record.getCommissionLevel());
+                vo.setType(record.getCommissionType());
                 return vo;
             }).collect(Collectors.toList());
 

@@ -7,7 +7,7 @@
         <text class="section-title">分销概述</text>
         <view class="section-content">
           <text class="paragraph">
-            艺12分销体系是平台为用户提供的一种赚钱方式。用户通过分享平台商品或邀请好友加入，成功交易后可获得相应佣金奖励。
+            艺12分销体系是平台为用户提供的一种赚钱方式。用户通过分享平台商品或邀请好友加入，成功交易后可获得相应分成奖励。
           </text>
         </view>
       </view>
@@ -23,7 +23,7 @@
             </view>
             <view class="level-info">
               <view class="info-row">
-                <text class="label">佣金比例</text>
+                <text class="label">分成比例</text>
                 <text class="value">商品价格的 3%</text>
               </view>
               <view class="info-row">
@@ -39,7 +39,7 @@
             </view>
             <view class="level-info">
               <view class="info-row">
-                <text class="label">佣金比例</text>
+                <text class="label">分成比例</text>
                 <text class="value">商品价格的 5%</text>
               </view>
               <view class="info-row">
@@ -55,26 +55,26 @@
         </view>
       </view>
 
-      <!-- 佣金规则 -->
+      <!-- 分成规则 -->
       <view class="section">
-        <text class="section-title">佣金规则</text>
+        <text class="section-title">分成规则</text>
         <view class="rule-list">
           <view class="rule-item">
-            <text class="rule-title">1. 佣金计算</text>
+            <text class="rule-title">1. 分成计算</text>
             <text class="rule-content">
-              佣金 = 商品成交价 × 佣金比例
+              分成 = 商品成交价 × 分成比例
             </text>
             <text class="rule-content">
-              示例：商品价格 10000 元，金牌分销商可得 500 元佣金
+              示例：商品价格 10000 元，金牌分销商可得 500 元分成
             </text>
           </view>
           <view class="rule-item">
-            <text class="rule-title">2. 佣金结算</text>
+            <text class="rule-title">2. 分成结算</text>
             <text class="rule-content">
-              • 订单完成后 7 天无退款，佣金结算
+              • 订单完成后 7 天无退款，分成结算
             </text>
             <text class="rule-content">
-              • 佣金可直接提现或用于购物
+              • 分成可直接提现或用于购物
             </text>
           </view>
           <view class="rule-item">
@@ -107,7 +107,7 @@
           <view class="flow-arrow">→</view>
           <view class="flow-step">
             <text class="step-num">4</text>
-            <text class="step-name">佣金到账</text>
+            <text class="step-name">分成到账</text>
           </view>
         </view>
       </view>
@@ -118,15 +118,15 @@
         <view class="qa-list">
           <view class="qa-item">
             <text class="question">Q: 如何成为金牌分销商？</text>
-            <text class="answer">A: 累计获得佣金满 5000 元即可自动升级为金牌分销商。</text>
+            <text class="answer">A: 累计获得分成满 5000 元即可自动升级为金牌分销商。</text>
           </view>
           <view class="qa-item">
-            <text class="question">Q: 佣金什么时候可以提现？</text>
-            <text class="answer">A: 订单完成 7 天后佣金到账，达到提现门槛即可申请提现。</text>
+            <text class="question">Q: 分成什么时候可以提现？</text>
+            <text class="answer">A: 订单完成 7 天后分成到账，达到提现门槛即可申请提现。</text>
           </view>
           <view class="qa-item">
-            <text class="question">Q: 退款订单佣金如何处理？</text>
-            <text class="answer">A: 已结算的佣金将从下次收益中扣除。</text>
+            <text class="question">Q: 退款订单分成如何处理？</text>
+            <text class="answer">A: 已结算的分成将从下次收益中扣除。</text>
           </view>
           <view class="qa-item">
             <text class="question">Q: 如何邀请好友加入？</text>
@@ -145,7 +145,7 @@
           </view>
           <view class="log-item">
             <text class="log-date">2024年1月15日</text>
-            <text class="log-content">佣金提现周期调整为 T+7</text>
+            <text class="log-content">分成提现周期调整为 T+7</text>
           </view>
         </view>
       </view>

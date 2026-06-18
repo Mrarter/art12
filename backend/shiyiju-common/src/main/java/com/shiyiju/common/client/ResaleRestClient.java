@@ -49,7 +49,8 @@ public class ResaleRestClient {
 
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
             Map respBody = response.getBody();
-            if (respBody != null && respBody.get("code") != null && (Integer) respBody.get("code") == 200) {
+            if (respBody != null && respBody.get("code") != null
+                    && ((Number) respBody.get("code")).intValue() == 200) {
                 log.info("转售标记已支付成功: resaleId={}, buyerUserId={}", resaleId, buyerUserId);
                 return true;
             }
@@ -58,6 +59,30 @@ public class ResaleRestClient {
         } catch (Exception e) {
             log.error("转售标记已支付调用异常: resaleId={}, buyerUserId={}", resaleId, buyerUserId, e);
             return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getDetail(Long resaleId) {
+        if (resaleId == null) {
+            return null;
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Wallet-Admin-Key", adminKey);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            String url = resaleServiceUrl + "/admin/resale/" + resaleId;
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+            Map<String, Object> body = response.getBody();
+            if (body == null || body.get("code") == null || ((Number) body.get("code")).intValue() != 200) {
+                log.warn("获取转售详情失败: resaleId={}, response={}", resaleId, body);
+                return null;
+            }
+            Object data = body.get("data");
+            return data instanceof Map ? (Map<String, Object>) data : null;
+        } catch (Exception e) {
+            log.error("获取转售详情调用异常: resaleId={}", resaleId, e);
+            return null;
         }
     }
 }

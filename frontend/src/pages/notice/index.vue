@@ -78,7 +78,7 @@ export default {
 
   onShareAppMessage() {
     return {
-      title: '拾艺局公告',
+      title: '艺本艺术公告',
       path: '/pages/notice/index'
     }
   },

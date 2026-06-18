@@ -1,0 +1,186 @@
+# 拾艺局 Lighthouse 部署配置
+version: '3.8'
+
+networks:
+  shiyiju-net:
+    driver: bridge
+
+services:
+  # ==================== 基础设施 ====================
+  mysql:
+    image: mysql:8.0
+    container_name: shiyiju-mysql
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMe_2026!}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-shiyiju}
+      MYSQL_CHARACTER_SET_SERVER: ${MYSQL_CHARACTER_SET_SERVER:-utf8mb4}
+      MYSQL_COLLATION_SERVER: ${MYSQL_COLLATION_SERVER:-utf8mb4_unicode_ci}
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: shiyiju-redis
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ==================== 后端微服务 ====================
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiyiju-backend:latest
+    container_name: shiyiju-gateway
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["8080:8080"]
+    environment:
+      SERVICE: gateway
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-shiyiju}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMe_2026!}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  user:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiyiju-backend:latest
+    container_name: shiyiju-user
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["8081:8081"]
+    environment:
+      SERVICE: user
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-shiyiju}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMe_2026!}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      WECHAT_APPID: wx4b7015f42a4fa49c
+      WECHAT_SECRET: ${WECHAT_SECRET:-}
+      TENCENT_SMS_ENABLED: ${TENCENT_SMS_ENABLED:-false}
+      TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
+      TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}
+      TENCENT_SMS_SDK_APP_ID: ${TENCENT_SMS_SDK_APP_ID:-}
+      TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-拾艺局}
+      TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-}
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  product:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiyiju-backend:latest
+    container_name: shiyiju-product
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["8082:8082"]
+    environment:
+      SERVICE: product
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-shiyiju}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMe_2026!}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  order:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiyiju-backend:latest
+    container_name: shiyiju-order
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["8083:8083"]
+    environment:
+      SERVICE: order
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-shiyiju}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMe_2026!}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiyiju-backend:latest
+    container_name: shiyiju-admin
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["8090:8090"]
+    environment:
+      SERVICE: admin
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-shiyiju}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMe_2026!}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  # ==================== 前端服务 ====================
+  frontend-h5:
+    image: nginx:alpine
+    container_name: shiyiju-frontend-h5
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["80:80"]
+    volumes:
+      - ./frontend-h5:/usr/share/nginx/html:ro
+      - ./config/nginx-h5.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [gateway]
+
+  frontend-admin:
+    image: nginx:alpine
+    container_name: shiyiju-frontend-admin
+    restart: unless-stopped
+    networks: [shiyiju-net]
+    ports: ["5174:80"]
+    volumes:
+      - ./frontend-admin:/usr/share/nginx/html:ro
+      - ./config/nginx-admin.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [gateway]
+
+volumes:
+  mysql-data:
+  redis-data:

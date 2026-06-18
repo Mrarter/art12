@@ -24,7 +24,9 @@
           </swiper-item>
         </swiper>
         <view class="hero-shadow"></view>
-        <view class="new-chip" :class="{ 'chip-hidden': pageScrolled }">☆ NEW</view>
+        <view class="new-chip" :class="{ 'chip-hidden': pageScrolled, 'is-collected': isSoldArtwork }">
+          {{ heroStatusLabel }}
+        </view>
         <view class="hero-copy">
           <text class="hero-serial">作品编号：{{ certificateCode }}</text>
         </view>
@@ -35,7 +37,7 @@
         <view class="video-btn" v-if="detail.videoUrl" @click="playVideo">观看视频</view>
       </view>
 
-      <view class="card market-card">
+      <view class="card market-card" :class="{ 'is-sold': isSoldArtwork }">
         <view class="market-heading">
           <view>
             <view class="work-title-row">
@@ -60,13 +62,14 @@
             <view class="price">
               <template v-if="isSoldArtwork">
                 <text class="sold-status">已收藏</text>
+                <text class="collector-name" v-if="collectorName">藏家：{{ collectorName }}</text>
               </template>
               <template v-else>
                 <text class="price-symbol">¥</text>
                 <text>{{ priceNumber }}</text>
               </template>
             </view>
-            <view class="rise-line" v-if="!isSoldArtwork">↗ 预计上涨 {{ growthRangeDisplay }}</view>
+            <view class="rise-line" v-if="!isSoldArtwork">↗ 预计30天上涨 {{ growthRangeDisplay }}</view>
             <view class="collect-line">♙ 已被 {{ displayLikeCount }} 位藏家喜欢</view>
           </view>
           <view class="model-panel">
@@ -77,9 +80,16 @@
                 <text class="model-price">{{ growthRangeDisplay }}</text>
                 <text class="confidence">置信度 78%</text>
                 <text class="factor-title">影响因素</text>
-                <text class="factor">• 艺术家评级：高</text>
-                <text class="factor">• 历史成交：稳定</text>
-                <text class="factor">• 当前热度：上升</text>
+                <template v-if="hasValidDisplayPrice">
+                  <text class="factor">• 艺术家评级：高</text>
+                  <text class="factor">• 历史成交：稳定</text>
+                  <text class="factor">• 当前热度：上升</text>
+                </template>
+                <template v-else>
+                  <text class="factor">• 暂无价格基准</text>
+                  <text class="factor">• 等待设置收藏价</text>
+                  <text class="factor">• 暂不计算上涨</text>
+                </template>
               </view>
               <view class="confidence-ring">
                 <view class="ring-inner">78%</view>
@@ -89,31 +99,35 @@
         </view>
       </view>
 
-      <view class="card artist-card" @click="goArtistHome">
+      <view class="card artist-card" @click="goProfileHome">
         <view class="artist-avatar-wrap">
-          <image class="artist-avatar-lg" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
+          <image class="artist-avatar-lg" :src="authorAvatarSrc" mode="aspectFill" @error="onAuthorAvatarError"></image>
           <view v-if="authorCertified" class="artist-verify-badge">V</view>
-        </view>
-        <view class="artist-info-block">
-          <view class="artist-name-row">
-            <text class="artist-name">{{ authorName }}</text>
-            <template v-if="isArtistProfile">
+          </view>
+          <view class="artist-info-block">
+            <view class="artist-name-row">
+            <text class="artist-name">{{ profileCardName }}</text>
+            <template v-if="profileCardIsHolder">
+              <text class="score-badge">持有者</text>
+              <text class="score-text">藏家资料</text>
+            </template>
+            <template v-else-if="isArtistProfile">
               <text class="score-badge">{{ artistScoreBadge }}</text>
               <text class="score-text">{{ artistScoreText }}</text>
             </template>
           </view>
           <view class="artist-meta-row">
-            <text class="artist-subtitle">{{ authorSubtitle }}</text>
-            <text v-if="authorUidDisplay" class="artist-uid">{{ authorUidDisplay }}</text>
+            <text class="artist-subtitle">{{ profileCardSubtitle }}</text>
+            <text v-if="profileCardUidDisplay" class="artist-uid">{{ profileCardUidDisplay }}</text>
           </view>
           <view class="artist-stats">
-            <view class="artist-stat" v-for="item in artistStats" :key="item.label">
+            <view class="artist-stat" v-for="item in profileCardStats" :key="item.label">
               <text class="artist-stat-value">{{ item.value }}</text>
               <text class="artist-stat-label">{{ item.label }}</text>
             </view>
           </view>
         </view>
-        <view class="artist-link">进入艺术家主页 ›</view>
+        <view class="artist-link">{{ profileCardLinkText }}</view>
       </view>
 
       <view class="card record-card">
@@ -197,19 +211,6 @@
         </view>
       </view>
 
-      <view class="card holder-card" v-if="detail.holderId">
-        <view class="section-top">
-          <view class="section-title">
-            <text class="section-icon">♙</text>
-            <text>当前持有</text>
-          </view>
-        </view>
-        <view class="holder-body">
-          <text class="holder-id">持有者ID: {{ detail.holderId }}</text>
-          <text class="holder-since" v-if="detail.holderSince">自 {{ formatTime(detail.holderSince) }}</text>
-        </view>
-      </view>
-
       <view class="card cert-card" @click="goCertificate">
         <view class="section-top">
           <view class="section-title">
@@ -220,7 +221,7 @@
         </view>
         <view class="cert-body">
           <view class="cert-list">
-            <view class="cert-item">
+            <view class="cert-item cert-item-code">
               <view class="cert-icon">▱</view>
               <view>
                 <text class="cert-label">唯一编号</text>
@@ -256,12 +257,31 @@
         <view class="expand-link" v-if="storyCanExpand" @click="storyExpanded = !storyExpanded">
           {{ storyExpanded ? '收起' : '展开' }}⌄
         </view>
+        <view class="detail-image-list" v-if="detailImages.length">
+          <image
+            class="detail-image"
+            v-for="(img, index) in detailImages"
+            :key="img + index"
+            :src="img"
+            mode="widthFix"
+            @click="previewDetailImage(index)"
+            @error="onDetailImageError(index)"
+          ></image>
+        </view>
       </view>
 
-      <view class="commission-tip" v-if="commission > 0" @click="showShareModal">
-        <text>分享推广可获得佣金</text>
+      <view class="commission-tip" v-if="isCurrentUserPromoter && commission > 0" @click="showShareModal">
+        <text>分享推广可获得分成</text>
         <text>{{ formatYuanAmount(commission) }}</text>
       </view>
+    </view>
+
+    <view class="certificate-sign-tip" v-if="showCertificateSignTip" @click="goCertificate">
+      <view class="certificate-sign-copy">
+        <text class="certificate-sign-title">请作者签署收藏证书</text>
+        <text class="certificate-sign-desc">作品被收藏或再次收藏后，签署收藏证书即可获得认证费用。</text>
+      </view>
+      <view class="certificate-sign-action">去签署</view>
     </view>
 
     <view class="bottom-bar safe-area-bottom" v-if="!isEmpty">
@@ -273,38 +293,134 @@
         <view class="chat-mark"></view>
         <text>咨询</text>
       </button>
-      <button class="collect-btn" :class="{ 'is-loading': buyLoading, 'is-sold-out': detail.status === 2 }" :disabled="buyLoading || detail.status !== 1" @click="handleDirectBuy">
-        <template v-if="detail.status === 2">已收藏</template>
-        <template v-else-if="detail.status === 0">已下架</template>
-        <template v-else>{{ buyLoading ? '购买中...' : '立即购买' }}</template>
+      <button class="collect-btn" :class="{ 'is-loading': buyLoading, 'is-sold-out': !canBuyArtwork }" :disabled="buyLoading || !canBuyArtwork" @click="handleDirectBuy">
+        {{ buyButtonText }}
       </button>
     </view>
 
     <view class="share-modal" v-if="showSharePanel" @click="showSharePanel = false">
       <view class="share-content" @click.stop>
-        <view class="share-title">分享到</view>
-        <view class="commission-levels" v-if="commissionLevels.length">
-          <view class="commission-level-title">艺荐官佣金预估</view>
-          <view class="commission-level-row" v-for="level in commissionLevels" :key="level.name">
-            <text>{{ level.name }}</text>
-            <text>{{ level.amountText }}</text>
+        <view class="share-handle"></view>
+        <template v-if="showSharePoster">
+          <view class="poster-sheet-head">
+            <view>
+              <text class="poster-sheet-title">作品分享图</text>
+              <text class="poster-sheet-subtitle">{{ sharePosterHint }}</text>
+            </view>
+            <view class="poster-sheet-back" @click="showSharePoster = false">返回</view>
           </view>
-        </view>
-        <view class="share-icons">
-          <view class="share-icon-item" @click="shareToFriend">
-            <view class="share-icon">微</view>
-            <text>微信好友</text>
+          <view class="share-poster-card">
+            <view class="share-poster-art">
+              <image :src="posterArtworkImage" mode="aspectFill"></image>
+              <view class="poster-art-mask"></view>
+              <text class="poster-brand">艺本艺术</text>
+              <text class="poster-serial">{{ certificateCode }}</text>
+            </view>
+            <view class="share-poster-info">
+              <view class="poster-title-row">
+                <text class="poster-work-title">{{ workName }}</text>
+                <text class="poster-tag">{{ artworkType }}</text>
+              </view>
+              <text class="poster-author">{{ authorName }} · {{ artworkMaterial }} · {{ artworkSize }} · {{ artworkYear }}</text>
+              <view class="poster-price-row">
+                <view>
+                  <text class="poster-price-label">{{ activeResaleListing ? '转售价格' : '当前收藏价' }}</text>
+                  <text class="poster-price">¥{{ priceNumber }}</text>
+                </view>
+                <view class="poster-rise">
+                  <text>{{ totalGainDisplay }}</text>
+                  <text>累计上涨</text>
+                </view>
+              </view>
+            </view>
+            <view class="share-poster-footer">
+              <view class="poster-copy">
+                <text class="poster-copy-title">长按识别小程序码</text>
+                <text class="poster-copy-desc">进入艺本艺术查看作品详情与流通记录</text>
+              </view>
+              <view class="mini-code-box">
+                <view class="mini-code-mark">
+                  <view class="mini-code-ring ring-a"></view>
+                  <view class="mini-code-ring ring-b"></view>
+                  <view class="mini-code-dot dot-a"></view>
+                  <view class="mini-code-dot dot-b"></view>
+                  <view class="mini-code-dot dot-c"></view>
+                </view>
+                <text>小程序码</text>
+              </view>
+            </view>
           </view>
-          <view class="share-icon-item" @click="shareToTimeline">
-            <view class="share-icon">圈</view>
-            <text>朋友圈</text>
+          <view class="poster-actions">
+            <view class="poster-action primary" @click="saveSharePoster">保存分享图</view>
+            <view class="poster-action" @click="copyLink">复制链接</view>
           </view>
-          <view class="share-icon-item" @click="copyLink">
-            <view class="share-icon">链</view>
-            <text>复制链接</text>
+        </template>
+        <template v-else>
+          <view class="commission-levels" v-if="showCommissionEstimate">
+            <view class="commission-level-title">经纪人分成预估</view>
+            <view class="commission-level-row" v-for="level in commissionLevels" :key="level.name">
+              <text>{{ level.name }}</text>
+              <text>{{ level.amountText }}</text>
+            </view>
           </view>
-        </view>
-        <view class="share-close" @click="showSharePanel = false">取消</view>
+          <view class="share-icons">
+            <view class="share-icon-item" @click="shareToFriend">
+              <view class="share-icon">
+                <image src="/static/share-icons/friend.svg" mode="aspectFit"></image>
+              </view>
+              <text>分享给好友</text>
+            </view>
+            <view class="share-icon-item" @click="openMiniProgram">
+              <view class="share-icon">
+                <image src="/static/share-icons/mini-program.svg" mode="aspectFit"></image>
+              </view>
+              <text>用小程序打开</text>
+            </view>
+            <view class="share-icon-item" @click="shareToFriend">
+              <view class="share-icon">
+                <image src="/static/share-icons/wechat.svg" mode="aspectFit"></image>
+              </view>
+              <text>分享到微信</text>
+            </view>
+            <view class="share-icon-item" @click="shareToTimeline">
+              <view class="share-icon">
+                <image src="/static/share-icons/moments.svg" mode="aspectFit"></image>
+              </view>
+              <text>分享到朋友圈</text>
+            </view>
+            <view class="share-icon-item" @click="shareToWeibo">
+              <view class="share-icon">
+                <image src="/static/share-icons/weibo.svg" mode="aspectFit"></image>
+              </view>
+              <text>分享到微博</text>
+            </view>
+            <view class="share-icon-item" @click="copyLink">
+              <view class="share-icon">
+                <image src="/static/share-icons/link.svg" mode="aspectFit"></image>
+              </view>
+              <text>复制链接</text>
+            </view>
+            <view class="share-icon-item" @click="openInBrowser">
+              <view class="share-icon">
+                <image src="/static/share-icons/browser.svg" mode="aspectFit"></image>
+              </view>
+              <text>浏览器打开</text>
+            </view>
+            <view class="share-icon-item" @click="downloadQrCode">
+              <view class="share-icon">
+                <image src="/static/share-icons/qr.svg" mode="aspectFit"></image>
+              </view>
+              <text>下载二维码</text>
+            </view>
+            <view class="share-icon-item" @click="reportArtwork">
+              <view class="share-icon">
+                <image src="/static/share-icons/report.svg" mode="aspectFit"></image>
+              </view>
+              <text>举报</text>
+            </view>
+          </view>
+        </template>
+        <view class="share-close" @click="closeSharePanel">取消</view>
       </view>
     </view>
 
@@ -315,7 +431,7 @@
           <view class="contact-close" @click="showContactModal = false">×</view>
         </view>
         <view class="contact-artist-info">
-          <image class="artist-avatar" :src="authorAvatarSrc" @error="onAuthorAvatarError"></image>
+          <image class="artist-avatar" :src="authorAvatarSrc" mode="aspectFill" @error="onAuthorAvatarError"></image>
           <text class="artist-name">{{ authorName }}</text>
         </view>
         <view class="contact-actions">
@@ -345,8 +461,9 @@ import { useUserStore } from '@/store/modules/user'
 import { getProductCommission } from '@/api/promoter'
 import { triggerCollectIncrease } from '@/api/artworkPrice'
 import { getArtworkTrades, getArtworkResaleStats } from '@/api/resale'
-import { directBuy } from '@/api/order'
 import { getAccessToken, isGuestUser, saveRedirectUrl, getCurrentPagePath } from '@/utils/auth'
+import { upsertCertificateSignNotice, removeCertificateSignNoticesByArtwork } from '@/utils/certificateNotice'
+import { formatYuanAmount as formatYuanAmountShared, formatYuanNumber } from '@/utils/price'
 
 const FALLBACK_COVER = '/static/images/artwork-fallback.png'
 
@@ -365,6 +482,7 @@ export default {
       artistProfile: null,
       artistScore: null,
       images: [],
+      detailImages: [],
       currentImageIndex: 0,
       heroHeight: 442,
       pageScrolled: false,
@@ -373,6 +491,8 @@ export default {
       commissionLevels: [],
       defaultAvatar: '/static/images/artist-avatar.png',
       showSharePanel: false,
+      showSharePoster: false,
+      sharePosterChannel: 'wechat',
       showContactModal: false,
       isEmpty: false,
       priceGrowth: {
@@ -386,7 +506,8 @@ export default {
       loadingResale: false,
       buyLoading: false,
       buyErrorMessage: '',
-      favoriteCountOverride: null
+      favoriteCountOverride: null,
+      authorCertificateSigned: false
     }
   },
 
@@ -399,13 +520,13 @@ export default {
     },
     authorAvatarSrc() {
       const profileAvatar = this.profileMatchesDetailAuthor ? this.artistProfile?.avatar : ''
-      return this.normalizeResourceUrl(profileAvatar || this.detail.authorAvatar) || this.defaultAvatar
+      return this.normalizeAvatarUrl(profileAvatar) || this.normalizeAvatarUrl(this.detail.authorAvatar) || this.defaultAvatar
     },
     authorName() {
       if (this.profileMatchesDetailAuthor) {
-        return this.artistProfile?.nickname || this.artistProfile?.name || this.artistProfile?.realName || this.detail.authorName || '艺术家'
+        return this.decodeDisplayText(this.artistProfile?.nickname || this.artistProfile?.name || this.artistProfile?.realName || this.detail.authorName || '艺术家')
       }
-      return this.detail.authorName || this.artistProfile?.nickname || this.artistProfile?.name || this.artistProfile?.realName || '艺术家'
+      return this.decodeDisplayText(this.detail.authorName || this.artistProfile?.nickname || this.artistProfile?.name || this.artistProfile?.realName || '艺术家')
     },
     authorCertified() {
       return !!(this.artistProfile?.certified || this.artistProfile?.certStatus === 1 || this.detail.authorIdentity === 'artist')
@@ -437,8 +558,8 @@ export default {
         return detailUid === profileUid
       }
       // 3. 名称回退（最后手段，名称可能重复）
-      const detailName = String(this.detail.authorName || '').trim()
-      const profileName = String(this.artistProfile.nickname || this.artistProfile.name || this.artistProfile.realName || '').trim()
+      const detailName = this.decodeDisplayText(this.detail.authorName || '').trim()
+      const profileName = this.decodeDisplayText(this.artistProfile.nickname || this.artistProfile.name || this.artistProfile.realName || '').trim()
       return !!(detailName && profileName && detailName === profileName)
     },
     displayLikeCount() {
@@ -475,7 +596,20 @@ export default {
       return FALLBACK_COVER
     },
     workName() {
-      return this.detail.title || '静物0751'
+      return this.decodeDisplayText(this.detail.title || '静物0751')
+    },
+    posterArtworkImage() {
+      return this.images[0] || this.fallbackCover
+    },
+    sharePosterHint() {
+      const map = {
+        friend: '生成带小程序码的好友分享图',
+        wechat: '生成带小程序码的微信分享图',
+        timeline: '生成适合朋友圈发布的分享图',
+        mini: '生成小程序入口分享图',
+        qrcode: '生成可保存的小程序码分享图'
+      }
+      return map[this.sharePosterChannel] || '生成带小程序码的分享图'
     },
     heroCardStyle() {
       return `height: ${this.heroHeight}rpx`
@@ -484,17 +618,85 @@ export default {
       return `${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`
     },
     displayPrice() {
+      if (this.activeResaleListing?.resalePrice) {
+        return Math.round(Number(this.activeResaleListing.resalePrice) * 100)
+      }
       return this.resolveCurrentPrice(this.detail)
     },
     priceNumber() {
       const price = Number(this.displayPrice || 0)
-      return Math.round(price / 100).toLocaleString()
+      return formatYuanNumber(price / 100)
+    },
+    hasValidDisplayPrice() {
+      return Number(this.displayPrice || 0) > 0
     },
     isSoldArtwork() {
-      return Number(this.detail.status) === 2
+      return Number(this.detail.status) === 2 && !this.activeResaleListing
+    },
+    activeResaleListing() {
+      const listing = this.detail.resaleListing || this.detail.activeResaleListing || null
+      if (!listing || String(listing.status || '') !== 'pending') return null
+      return listing
+    },
+    currentUserId() {
+      const userStore = useUserStore()
+      const info = userStore.userInfo || {}
+      return Number(info.id || info.userId || userStore.tokenData?.userId || 0)
+    },
+    isCurrentAuthor() {
+      const authorId = Number(this.detail.authorId || 0)
+      return !!authorId && authorId === this.currentUserId
+    },
+    isCurrentUserPromoter() {
+      const userStore = useUserStore()
+      const info = userStore.userInfo || {}
+      const rawIdentities = info.identities || info.identity_json || info.identity || userStore.identities || []
+      const identities = this.normalizeIdentityList(rawIdentities)
+      return Boolean(
+        info.isPromoter ||
+        userStore.isPromoter ||
+        identities.some(item => ['promoter', 'certified_promoter', 'verified_promoter', '经纪人', '认证经纪人'].includes(item))
+      )
+    },
+    showCommissionEstimate() {
+      return this.isCurrentUserPromoter && this.commissionLevels.length > 0
+    },
+    isCurrentHolder() {
+      const holderId = Number(this.detail.holderId || 0)
+      return !!holderId && holderId === this.currentUserId
+    },
+    canPublishResale() {
+      return this.isSoldArtwork && this.isCurrentHolder && !this.activeResaleListing
+    },
+    showCertificateSignTip() {
+      return this.isSoldArtwork && this.isCurrentAuthor && !this.authorCertificateSigned
+    },
+    canBuyArtwork() {
+      if (this.activeResaleListing || this.canPublishResale) return true
+      return Number(this.detail.status) === 1
+    },
+    buyButtonText() {
+      if (this.buyLoading) return '购买中...'
+      if (this.activeResaleListing) return '立即购买'
+      if (this.canPublishResale) return '发起转售'
+      if (this.isSoldArtwork) return '已收藏'
+      if (Number(this.detail.status) === 0) return '已下架'
+      return '立即购买'
+    },
+    heroStatusLabel() {
+      return this.isSoldArtwork ? '已收藏' : '☆ NEW'
+    },
+    collectorName() {
+      const name = this.detail.holderName || this.detail.collectorName || this.detail.buyerName || this.detail.ownerName
+      if (name) return this.decodeDisplayText(name)
+      if (this.isSoldArtwork && this.detail.authorIdentity === 'collector') {
+        return this.decodeDisplayText(this.authorName)
+      }
+      return ''
     },
     growthRangeDisplay() {
-      return (this.tomorrowIncreaseRange || '¥1.6 - ¥2.4').replace(/\s*-\s*/g, ' - ')
+      if (!this.hasValidDisplayPrice) return '¥0.00 - ¥0.00'
+      return (this.tomorrowIncreaseRange || '¥0.00 - ¥0.00').replace(/\s*-\s*/g, ' - ')
     },
     certificateCode() {
       const raw = this.detail.uid || this.detail.artworkUid || this.detail.code || this.detail.artworkCode
@@ -506,8 +708,8 @@ export default {
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(this.certificateThumbnailSvg)}`
     },
     certificateThumbnailSvg() {
-      const title = this.escapeXml(this.detail.title || '未命名作品')
-      const author = this.escapeXml(this.detail.authorRealName || this.detail.artistRealName || this.detail.realName || this.detail.authorName || '未知艺术家')
+      const title = this.escapeXml(this.workName || '未命名作品')
+      const author = this.escapeXml(this.decodeDisplayText(this.detail.authorRealName || this.detail.artistRealName || this.detail.realName || this.authorName || '未知艺术家'))
       const artworkCode = this.escapeXml(this.certificateCode)
       const cover = this.escapeXml(this.images[0] || this.fallbackCover)
       return `
@@ -544,7 +746,8 @@ export default {
           <line x1="930" y1="566" x2="1435" y2="566" stroke="#d8c39c" stroke-width="1"/>
           <circle cx="1080" cy="952" r="96" fill="none" stroke="#a43d28" stroke-width="5"/>
           <circle cx="1080" cy="952" r="78" fill="none" stroke="#a43d28" stroke-width="2"/>
-          <text x="1080" y="978" text-anchor="middle" font-family="Georgia, serif" font-size="44" fill="#a43d28">SYJ</text>
+          <text x="1080" y="940" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#a43d28">艺本艺术</text>
+          <text x="1080" y="976" text-anchor="middle" font-family="STKaiti, KaiTi, serif" font-size="24" fill="#a43d28">鉴定中心</text>
         </svg>
       `.trim()
     },
@@ -559,6 +762,32 @@ export default {
         { label: '成交率', value: this.artistProfile?.dealRate || this.detail.authorDealRate || dealRate },
         { label: '平均涨幅', value: this.detail.authorAverageRise || `${averageRiseValue >= 0 ? '+' : ''}${averageRiseValue.toFixed(1)}%` }
       ]
+    },
+    profileCardIsHolder() {
+      return !!(this.activeResaleListing && this.detail.holderId)
+    },
+    profileCardName() {
+      return this.profileCardIsHolder ? (this.collectorName || this.authorName) : this.authorName
+    },
+    profileCardSubtitle() {
+      if (!this.profileCardIsHolder) return this.authorSubtitle
+      return this.decodeDisplayText(this.detail.holderTitle || this.detail.authorBadge || '资深藏家')
+    },
+    profileCardUidDisplay() {
+      return this.authorUidDisplay
+    },
+    profileCardStats() {
+      if (!this.profileCardIsHolder) return this.artistStats
+      const averageRiseValue = Number(this.detail.priceRise || 0) * 100
+      return [
+        { label: '持有作品', value: String(this.detail.holderWorkCount || this.artistStats[0]?.value || 0) },
+        { label: '成交数', value: String(this.detail.holderDealCount || this.artistStats[1]?.value || 0) },
+        { label: '成交率', value: this.detail.holderDealRate || this.artistStats[2]?.value || '0%' },
+        { label: '平均涨幅', value: this.detail.holderAverageRise || `${averageRiseValue >= 0 ? '+' : ''}${averageRiseValue.toFixed(1)}%` }
+      ]
+    },
+    profileCardLinkText() {
+      return this.profileCardIsHolder ? '进入持有者主页 ›' : '进入艺术家主页 ›'
     },
     artistScoreBadge() {
       if (this.detail.authorScoreLevel) return this.detail.authorScoreLevel
@@ -668,6 +897,9 @@ export default {
       return points.length ? points[points.length - 1] : null
     },
     tomorrowIncreaseRange() {
+      const price = Number(this.displayPrice || 0)
+      if (price <= 0) return '¥0.00 - ¥0.00'
+
       const min = Number(this.detail.tomorrowIncreaseMin || 0)
       const max = Number(this.detail.tomorrowIncreaseMax || 0)
       if (min > 0 || max > 0) {
@@ -675,10 +907,9 @@ export default {
         const high = Math.max(min, max)
         return low === high ? this.formatPriceDelta(low) : `${this.formatPriceDelta(low)} - ${this.formatPriceDelta(high)}`
       }
-      const price = Number(this.displayPrice || 0)
       const baseRate = Number(this.detail.customBaseDailyRate || this.detail.baseDailyRate || 0)
       const matureRate = Number(this.detail.customMatureDailyRate || this.detail.matureDailyRate || baseRate)
-      if (!price || (!baseRate && !matureRate)) return ''
+      if (!baseRate && !matureRate) return ''
       const low = Math.round(price * Math.min(baseRate || matureRate, matureRate || baseRate))
       const high = Math.round(price * Math.max(baseRate, matureRate))
       return low === high ? this.formatPriceDelta(low) : `${this.formatPriceDelta(low)} - ${this.formatPriceDelta(high)}`
@@ -718,7 +949,7 @@ export default {
         {
           id: this.detail.id,
           cover,
-          title: this.detail.title ? `${this.detail.title}-已修复` : '测试作品-已修复',
+          title: this.detail.title ? `${this.workName}-已修复` : '测试作品-已修复',
           meta: `${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`,
           price: this.formatPrice(this.displayPrice || 1200000)
         },
@@ -735,6 +966,10 @@ export default {
 
   onLoad(options = {}) {
     this.fetchDetail(options)
+  },
+
+  onShow() {
+    this.refreshAuthorCertificateState()
   },
 
   onPageScroll(e) {
@@ -763,12 +998,15 @@ export default {
 
           this.images = this.buildArtworkImages(data)
           if (!this.images.length) this.images = [FALLBACK_COVER]
+          this.detailImages = this.buildDetailImages(data)
           await Promise.allSettled([
             this.loadArtistProfile(data.authorId || data.authorUid),
             this.loadArtistScore(data.authorId || data.authorUid),
             this.loadCommission(id),
             this.loadResaleData(id)
           ])
+          this.refreshAuthorCertificateState()
+          this.syncAuthorCertificateNotice()
           this.saveBrowseHistory(data)
         } else {
           this.isEmpty = true
@@ -826,12 +1064,53 @@ export default {
       uni.navigateTo({ url: `/pages/gallery/certificate?id=${this.detail.id}` })
     },
 
+    getAuthorCertificateStorageKey() {
+      const authorCode = this.detail.authorUid || this.detail.displayAuthorId || this.formatIdentity('USR', this.detail.authorId)
+      return `artistSignature:${authorCode}`
+    },
+
+    refreshAuthorCertificateState() {
+      if (!this.detail?.authorId) {
+        this.authorCertificateSigned = false
+        return
+      }
+      const savedSignature = uni.getStorageSync(this.getAuthorCertificateStorageKey()) || ''
+      this.authorCertificateSigned = !!savedSignature
+      if (this.authorCertificateSigned && this.detail?.id) {
+        removeCertificateSignNoticesByArtwork(this.detail.id, this.detail.authorId)
+      }
+    },
+
+    syncAuthorCertificateNotice() {
+      if (!this.isSoldArtwork || !this.detail?.authorId || !this.detail?.id) return
+      if (this.authorCertificateSigned) {
+        removeCertificateSignNoticesByArtwork(this.detail.id, this.detail.authorId)
+        return
+      }
+      const tradeStage = Math.max(Number(this.resaleStats?.totalTrades || this.resaleStats?.resaleCount || 1), 1)
+      upsertCertificateSignNotice({
+        userId: this.detail.authorId,
+        artworkId: this.detail.id,
+        artworkTitle: this.workName,
+        certificateCode: this.certificateCode,
+        collectorName: this.collectorName,
+        holderId: this.detail.holderId || '',
+        tradeStage
+      })
+    },
+
+    formatIdentity(prefix, value) {
+      if (!value) return `${prefix}000000000000`
+      const digits = String(value).replace(/\D/g, '')
+      return `${prefix}${digits.padStart(12, '0')}`
+    },
+
     saveBrowseHistory(item) {
       if (!item || !item.id) return
       const record = {
         id: item.id,
-        name: item.title || item.name || '未命名作品',
-        author: item.authorName || item.artistName || '未知艺术家',
+        name: this.decodeDisplayText(item.title || item.name || '未命名作品'),
+        author: this.decodeDisplayText(item.authorName || item.artistName || '未知艺术家'),
         price: this.resolveCurrentPrice(item),
         image: item.coverImage || item.cover || (Array.isArray(item.images) ? item.images[0] : ''),
         time: Date.now()
@@ -843,7 +1122,7 @@ export default {
       if (item.authorId || item.authorUid || item.authorName) {
         const artistRecord = {
           id: item.authorId || item.authorUid,
-          name: item.authorName || item.artistName || '未知艺术家',
+          name: this.decodeDisplayText(item.authorName || item.artistName || '未知艺术家'),
           avatar: item.authorAvatar || this.defaultAvatar,
           tags: [item.artType || item.category || '艺术家'].filter(Boolean),
           intro: item.authorBio || '',
@@ -878,18 +1157,37 @@ export default {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;')
     },
+    normalizeIdentityList(value) {
+      if (Array.isArray(value)) {
+        return value.map(item => String(item).trim().toLowerCase()).filter(Boolean)
+      }
+      if (typeof value === 'string') {
+        try {
+          return this.normalizeIdentityList(JSON.parse(value))
+        } catch (e) {
+          return value.split(',').map(item => item.trim().toLowerCase()).filter(Boolean)
+        }
+      }
+      return []
+    },
 
     initPriceGrowth(data) {
       if (!data) return
       const rise = Number(data.priceRise || data.dailyIncreaseRate || 0)
+      const price = Number(this.resolveCurrentPrice(data) || 0)
       this.priceGrowth = {
-        growthRate: rise > 0 ? `+${(rise * 100).toFixed(1)}%` : '+0%',
+        growthRate: price > 0 && rise > 0 ? `+${(rise * 100).toFixed(1)}%` : '+0%',
         collectCount: data.collectCount || data.favoriteCount || 0,
         nextCondition: '每新增10人喜欢，作品价格可能上涨0.5%'
       }
     },
 
     async loadCommission(productId) {
+      if (!this.isCurrentUserPromoter) {
+        this.commission = 0
+        this.commissionLevels = []
+        return
+      }
       try {
         const res = await getProductCommission(productId)
         const rate = res.commissionRate || res.rate || this.detail.commissionRate || 5
@@ -929,6 +1227,13 @@ export default {
       uni.previewImage({
         current: index,
         urls: this.images
+      })
+    },
+
+    previewDetailImage(index) {
+      uni.previewImage({
+        current: index,
+        urls: this.detailImages
       })
     },
 
@@ -1022,77 +1327,18 @@ export default {
         return
       }
 
-      this.buyLoading = true
-      this.buyErrorMessage = ''
-      uni.showLoading({ title: '创建订单...' })
-
-      let retriesUsed = 0
-      try {
-        const order = await this.withRetry(
-          async (attempt) => {
-            retriesUsed = attempt
-            return directBuy({
-              artworkId: id,
-              quantity: 1,
-              addressId: -1
-            })
-          },
-          { maxRetries: 3, delay: 1000, label: '创建订单' }
-        )
-
-        uni.hideLoading()
-        this.buyLoading = false
-
-        if (order && order.id) {
-          uni.showToast({ title: '订单创建成功', icon: 'success' })
-          setTimeout(() => {
-            uni.navigateTo({ url: `/pages/order/pay?orderId=${order.id}` })
-          }, 800)
-        } else {
-          uni.showModal({
-            title: '购买失败',
-            content: '订单创建异常，请稍后在订单中心查看或联系客服。',
-            confirmText: '我知道了',
-            showCancel: false
-          })
-        }
-      } catch (e) {
-        uni.hideLoading()
-        this.buyLoading = false
-        console.error('[购买] 失败:', e)
-
-        const errMsg = e.message || '系统繁忙'
-
-        // 鉴权类错误 → 直接跳转登录，避免弹窗后再跳转的割裂体验
-        if (errMsg === '请先登录' || errMsg.includes('请先登录') || errMsg.includes('登录已过期') || errMsg === 'NOT_FOUND') {
-          uni.showToast({ title: '请先登录', icon: 'none' })
-          saveRedirectUrl(getCurrentPagePath())
-          setTimeout(() => uni.navigateTo({ url: '/pages/login/index' }), 600)
-          return
-        }
-
-        this.buyErrorMessage = errMsg
-
-        // 区分"重试后失败"和"直接失败"的消息
-        const isServerBusy = errMsg.includes('系统繁忙') || errMsg.includes('服务器内部错误') ||
-          errMsg.includes('服务暂不可用') || errMsg.includes('timeout') || errMsg.includes('超时')
-
-        let content = ''
-        if (retriesUsed > 0 && isServerBusy) {
-          // 重试了 n 次后仍因服务器繁忙失败
-          content = `订单创建暂时无法完成，系统已自动重试${retriesUsed}次仍未成功。\n\n原因：${errMsg}\n\n建议稍后再试，如持续失败请联系客服。`
-        } else {
-          // 直接失败（参数错误、库存不足等不可重试错误）
-          content = `订单创建失败。\n\n原因：${errMsg}`
-        }
-
-        uni.showModal({
-          title: '购买失败',
-          content,
-          confirmText: '我知道了',
-          showCancel: false
-        })
+      if (this.activeResaleListing?.id) {
+        uni.navigateTo({ url: this.buildResaleConfirmUrl(this.activeResaleListing) })
+        return
       }
+
+      if (this.canPublishResale) {
+        const suggestedPrice = Math.round(Number(this.displayPrice || this.detail.price || 0))
+        uni.navigateTo({ url: `/pages/resale/publish?artworkId=${id}&price=${suggestedPrice}` })
+        return
+      }
+
+      uni.navigateTo({ url: `/pages/order/confirm?artworkId=${id}&quantity=1` })
     },
 
     async triggerPriceOnCollect() {
@@ -1111,45 +1357,20 @@ export default {
 
     onShare() {
       this.showSharePanel = true
+      this.showSharePoster = false
     },
 
     shareToFriend() {
-      uni.share({
-        provider: 'weixin',
-        scene: 'WXSceneSession',
-        title: this.detail.title,
-        imageUrl: this.images[0],
-        query: `id=${this.detail.id}&from=share`,
-        success: () => {
-          uni.showToast({ title: '分享成功', icon: 'success' })
-          this.showSharePanel = false
-        },
-        fail: () => {
-          uni.showToast({ title: '分享失败', icon: 'none' })
-        }
-      })
+      this.openSharePoster('wechat')
     },
 
     shareToTimeline() {
-      uni.share({
-        provider: 'weixin',
-        scene: 'WXSenceTimeline',
-        title: this.detail.title,
-        imageUrl: this.images[0],
-        query: `id=${this.detail.id}&from=share`,
-        success: () => {
-          uni.showToast({ title: '分享成功', icon: 'success' })
-          this.showSharePanel = false
-        },
-        fail: () => {
-          uni.showToast({ title: '分享失败', icon: 'none' })
-        }
-      })
+      this.openSharePoster('timeline')
     },
 
     copyLink() {
       const app = getApp()
-      const link = `${app?.globalData?.domain || ''}/pages/gallery/detail?id=${this.detail.id}&from=share`
+      const link = this.buildShareLink()
       uni.setClipboardData({
         data: link,
         success: () => {
@@ -1159,8 +1380,66 @@ export default {
       })
     },
 
+    openSharePoster(channel = 'wechat') {
+      this.sharePosterChannel = channel
+      this.showSharePoster = true
+    },
+
+    closeSharePanel() {
+      this.showSharePoster = false
+      this.showSharePanel = false
+    },
+
+    buildShareLink() {
+      const app = getApp()
+      const path = `/pages/gallery/detail?id=${this.detail.id}&from=share`
+      if (typeof window !== 'undefined' && window.location?.origin) {
+        return `${window.location.origin}/#${path}`
+      }
+      return `${app?.globalData?.domain || ''}${path}`
+    },
+
+    openMiniProgram() {
+      this.openSharePoster('mini')
+    },
+
+    shareToWeibo() {
+      this.openSharePoster('timeline')
+    },
+
+    openInBrowser() {
+      const link = this.buildShareLink()
+      if (typeof window !== 'undefined') {
+        window.open(link, '_blank', 'noopener,noreferrer')
+        this.showSharePanel = false
+        return
+      }
+      this.copyLink()
+    },
+
+    downloadQrCode() {
+      this.openSharePoster('qrcode')
+    },
+
+    saveSharePoster() {
+      uni.showToast({ title: '分享图已生成，请长按保存', icon: 'none' })
+    },
+
+    reportArtwork() {
+      this.showSharePanel = false
+      uni.showModal({
+        title: '举报作品',
+        content: '是否提交该作品的举报反馈？',
+        confirmText: '提交',
+        success: (res) => {
+          if (res.confirm) uni.showToast({ title: '已收到反馈', icon: 'none' })
+        }
+      })
+    },
+
     showShareModal() {
       this.showSharePanel = true
+      this.showSharePoster = false
     },
 
     contactArtist() {
@@ -1196,6 +1475,15 @@ export default {
       })
     },
 
+    goProfileHome() {
+      if (this.profileCardIsHolder) {
+        const holderId = this.detail.holderId || this.activeResaleListing?.sellerUserId || ''
+        uni.navigateTo({ url: `/pages/artist/home?userId=${holderId}` })
+        return
+      }
+      this.goArtistHome()
+    },
+
     goRelatedWork(id) {
       if (!id || id === this.detail.id) return
       uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
@@ -1203,15 +1491,29 @@ export default {
 
     buildArtworkImages(data) {
       const candidates = [
-        ...this.extractImageList(data.images),
         data.cover,
-        data.coverImage
+        data.coverImage,
+        ...this.extractImageList(data.images)
       ]
 
       const seen = new Set()
       return candidates
         .map(this.normalizeResourceUrl)
         .filter(Boolean)
+        .filter(url => {
+          if (seen.has(url)) return false
+          seen.add(url)
+          return true
+        })
+    },
+
+    buildDetailImages(data) {
+      const coverUrls = new Set([data.cover, data.coverImage].map(this.normalizeResourceUrl).filter(Boolean))
+      const seen = new Set()
+      return this.extractImageList(data.images)
+        .map(this.normalizeResourceUrl)
+        .filter(Boolean)
+        .filter(url => !coverUrls.has(url))
         .filter(url => {
           if (seen.has(url)) return false
           seen.add(url)
@@ -1228,14 +1530,18 @@ export default {
         const parsed = JSON.parse(text)
         return Array.isArray(parsed) ? parsed : [text]
       } catch (e) {
-        return [text]
+        return text.split(',').map(item => item.trim()).filter(Boolean)
       }
     },
 
     normalizeResourceUrl(url) {
       if (!url || typeof url !== 'string') return ''
-      const text = url.trim()
+      let text = url.trim()
       if (!text || text === '[]' || text === '{}' || text === 'null' || text === 'undefined') return ''
+      const duplicated = text.match(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/uploads\/upload\/(.+)$/)
+      if (duplicated) text = `/upload/${duplicated[1]}`
+      const localUpload = text.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/upload\/.+)$/)
+      if (localUpload) text = localUpload[1]
       // 已经是完整 URL（http/https），直接返回
       if (text.startsWith('http://') || text.startsWith('https://')) return text
       // 本地静态资源（/static/），直接返回
@@ -1255,9 +1561,36 @@ export default {
       return text
     },
 
+    normalizeAvatarUrl(url) {
+      if (!url || typeof url !== 'string') return ''
+      const text = url.trim()
+      if (!text || text === '[]' || text === '{}' || text === 'null' || text === 'undefined') return ''
+      const lower = text.toLowerCase()
+      if (
+        lower.includes('default-avatar') ||
+        lower.includes('/static/avatar/demo') ||
+        lower.endsWith('/images/avatar.png') ||
+        lower.endsWith('/static/images/avatar.png')
+      ) {
+        return ''
+      }
+      return this.normalizeResourceUrl(text)
+    },
+
     cleanArtworkLabel(value) {
       if (!value || typeof value !== 'string') return ''
       return value.replace(/分类[:：]?\s*/g, '').trim()
+    },
+
+    decodeDisplayText(value) {
+      if (!value) return ''
+      const text = String(value)
+      if (!/%[0-9A-Fa-f]{2}/.test(text)) return text
+      try {
+        return decodeURIComponent(text)
+      } catch (e) {
+        return text
+      }
     },
 
     extractMaterial(value) {
@@ -1280,8 +1613,17 @@ export default {
       })
     },
 
+    onDetailImageError(index) {
+      const next = [...this.detailImages]
+      next.splice(index, 1)
+      this.detailImages = next
+    },
+
     onAuthorAvatarError() {
       this.detail.authorAvatar = this.defaultAvatar
+      if (this.profileMatchesDetailAuthor && this.artistProfile) {
+        this.artistProfile.avatar = this.defaultAvatar
+      }
     },
 
     bumpLikeCount(step) {
@@ -1301,16 +1643,16 @@ export default {
       const levels = Array.isArray(res?.levels) && res.levels.length
         ? res.levels
         : [
-            { name: '普通艺荐官', rate },
-            { name: '高级艺荐官', rate: Number(rate) * 1.2 },
-            { name: '合伙人艺荐官', rate: Number(rate) * 1.5 }
+            { name: '普通经纪人', rate },
+            { name: '高级经纪人', rate: Number(rate) * 1.2 },
+            { name: '合伙人经纪人', rate: Number(rate) * 1.5 }
           ]
 
       return levels.map(level => {
         const levelRate = Number(level.rate || level.commissionRate || rate || 0)
         const amount = Number(level.amount || level.commission || (priceYuan * levelRate / 100))
         return {
-          name: level.name || level.levelName || '艺荐官',
+          name: level.name || level.levelName || '经纪人',
           amount,
           amountText: this.formatYuanAmount(amount)
         }
@@ -1319,22 +1661,19 @@ export default {
 
     formatPrice(price) {
       if (!price) return '¥0'
-      const yuan = Math.round(Number(price) / 100)
-      return `¥${yuan.toLocaleString()}`
+      const yuan = Number(price) / 100
+      return `¥${formatYuanNumber(yuan)}`
     },
 
     formatCirculationPrice(price) {
       const yuan = Number(price || 0) / 100
       if (yuan <= 0) return '¥0'
-      return `¥${yuan.toLocaleString(undefined, {
-        minimumFractionDigits: Number.isInteger(yuan) ? 0 : 2,
-        maximumFractionDigits: 2
-      })}`
+      return `¥${formatYuanNumber(yuan)}`
     },
 
     formatPriceSmall(price) {
       if (!price) return '0.00'
-      return Number(price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return formatYuanNumber(Number(price))
     },
 
     formatTime(time) {
@@ -1346,14 +1685,30 @@ export default {
       uni.navigateTo({ url: '/pages/resale/market' })
     },
 
+    goResaleDetail() {
+      if (!this.activeResaleListing?.id) return
+      uni.navigateTo({ url: this.buildResaleConfirmUrl(this.activeResaleListing) })
+    },
+
+    buildResaleConfirmUrl(listing = {}) {
+      const artworkId = listing.artworkId || this.detail.id || ''
+      const resalePrice = listing.resalePrice || 0
+      const sellerUid = listing.sellerUid || listing.sellerUserUid || this.detail.holderUid || this.detail.holderUserUid || ''
+      const query = [
+        `resaleId=${encodeURIComponent(listing.id || '')}`,
+        `artworkId=${encodeURIComponent(artworkId)}`,
+        `resalePrice=${encodeURIComponent(resalePrice)}`,
+        `artworkUid=${encodeURIComponent(this.certificateCode || '')}`,
+        `sellerUid=${encodeURIComponent(sellerUid)}`
+      ].join('&')
+      return `/pages/order/confirm?${query}`
+    },
+
     formatPriceDelta(price) {
       const value = Number(price || 0)
       if (value <= 0) return '¥0'
       const yuan = value / 100
-      const formatted = yuan >= 1
-        ? Math.round(yuan).toLocaleString()
-        : yuan.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
-      return `¥${formatted}`
+      return `¥${formatYuanNumber(yuan)}`
     },
 
     resolveCurrentPrice(item = {}) {
@@ -1363,9 +1718,7 @@ export default {
     },
 
     formatYuanAmount(amount) {
-      const value = Number(amount || 0)
-      const yuan = Math.round(value)
-      return `¥${yuan.toLocaleString()}`
+      return formatYuanAmountShared(amount)
     }
   }
 }
@@ -1890,6 +2243,57 @@ $gold-bright: #f0c83a;
   backdrop-filter: blur(18rpx);
 }
 
+.certificate-sign-tip {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(128rpx + env(safe-area-inset-bottom));
+  z-index: 61;
+  padding: 20rpx 22rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  border: 1rpx solid rgba(213, 169, 28, 0.28);
+  border-radius: 18rpx;
+  background: linear-gradient(135deg, rgba(48, 34, 9, 0.96), rgba(28, 22, 12, 0.96));
+  box-shadow: 0 16rpx 34rpx rgba(0, 0, 0, 0.24);
+}
+
+.certificate-sign-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.certificate-sign-title {
+  display: block;
+  font-size: 25rpx;
+  font-weight: 700;
+  color: #f4d27a;
+}
+
+.certificate-sign-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: rgba(255, 244, 218, 0.82);
+}
+
+.certificate-sign-action {
+  flex-shrink: 0;
+  min-width: 120rpx;
+  height: 62rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #2b1d03;
+  background: linear-gradient(135deg, #f1ce4a 0%, #d5a91c 100%);
+}
+
 .advisor-btn,
 .collect-btn {
   height: 58rpx;
@@ -1922,7 +2326,14 @@ $gold-bright: #f0c83a;
   z-index: 100;
   display: flex;
   align-items: flex-end;
+}
+
+.contact-modal {
   background: rgba(0, 0, 0, 0.62);
+}
+
+.share-modal {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.22) 46%, rgba(0, 0, 0, 0.76) 100%);
 }
 
 .share-content,
@@ -1935,6 +2346,317 @@ $gold-bright: #f0c83a;
   color: $text-main;
 }
 
+.share-content {
+  padding: 18rpx 0 0;
+  border-radius: 0;
+  background: rgba(18, 18, 19, 0.98);
+  box-shadow: 0 -24rpx 70rpx rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.share-handle {
+  width: 72rpx;
+  height: 6rpx;
+  margin: 0 auto 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.poster-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 0 28rpx 20rpx;
+}
+
+.poster-sheet-title,
+.poster-sheet-subtitle {
+  display: block;
+}
+
+.poster-sheet-title {
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.poster-sheet-subtitle {
+  margin-top: 6rpx;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 21rpx;
+}
+
+.poster-sheet-back {
+  height: 48rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 999rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 22rpx;
+}
+
+.share-poster-card {
+  width: min(596rpx, calc(100vw - 72rpx));
+  margin: 0 auto 24rpx;
+  overflow: hidden;
+  border-radius: 28rpx;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(242, 200, 91, 0.22), transparent 38%),
+    linear-gradient(180deg, #171717 0%, #0a0a0a 100%);
+  border: 1rpx solid rgba(242, 200, 91, 0.2);
+  box-shadow: 0 28rpx 90rpx rgba(0, 0, 0, 0.42);
+}
+
+.share-poster-art {
+  position: relative;
+  height: 560rpx;
+  background: #222;
+}
+
+.share-poster-art image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.poster-art-mask {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.38), transparent 30%, rgba(0, 0, 0, 0.7) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.36), transparent 44%);
+}
+
+.poster-brand {
+  position: absolute;
+  left: 28rpx;
+  top: 26rpx;
+  color: #f5d56c;
+  font-size: 28rpx;
+  font-weight: 900;
+  letter-spacing: 6rpx;
+}
+
+.poster-serial {
+  position: absolute;
+  left: 28rpx;
+  right: 28rpx;
+  bottom: 24rpx;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 21rpx;
+  overflow-wrap: anywhere;
+}
+
+.share-poster-info {
+  padding: 28rpx 30rpx 24rpx;
+}
+
+.poster-title-row,
+.poster-price-row,
+.share-poster-footer,
+.poster-actions {
+  display: flex;
+  align-items: center;
+}
+
+.poster-title-row,
+.poster-price-row,
+.share-poster-footer {
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.poster-work-title {
+  min-width: 0;
+  flex: 1;
+  color: #fff;
+  font-size: 36rpx;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-tag {
+  flex: 0 0 auto;
+  padding: 6rpx 14rpx;
+  border: 1rpx solid rgba(242, 200, 91, 0.5);
+  border-radius: 999rpx;
+  color: #f2c85b;
+  font-size: 19rpx;
+  font-weight: 800;
+}
+
+.poster-author {
+  display: block;
+  margin-top: 14rpx;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 22rpx;
+  line-height: 1.35;
+}
+
+.poster-price-row {
+  margin-top: 28rpx;
+}
+
+.poster-price-label,
+.poster-price,
+.poster-rise text,
+.poster-copy-title,
+.poster-copy-desc,
+.mini-code-box text {
+  display: block;
+}
+
+.poster-price-label {
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 20rpx;
+}
+
+.poster-price {
+  margin-top: 6rpx;
+  color: #f5d56c;
+  font-size: 44rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.poster-rise {
+  min-width: 116rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 16rpx;
+  background: rgba(242, 200, 91, 0.1);
+  text-align: center;
+}
+
+.poster-rise text:first-child {
+  color: #f5d56c;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.poster-rise text:last-child {
+  margin-top: 3rpx;
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 18rpx;
+}
+
+.share-poster-footer {
+  padding: 24rpx 30rpx 28rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.poster-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.poster-copy-title {
+  color: #fff;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.poster-copy-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 20rpx;
+  line-height: 1.35;
+}
+
+.mini-code-box {
+  flex: 0 0 auto;
+  width: 144rpx;
+  padding: 12rpx 10rpx 10rpx;
+  border-radius: 18rpx;
+  background: #fff;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.mini-code-box text {
+  margin-top: 8rpx;
+  color: rgba(0, 0, 0, 0.52);
+  font-size: 17rpx;
+  font-weight: 700;
+}
+
+.mini-code-mark {
+  position: relative;
+  width: 104rpx;
+  height: 104rpx;
+  margin: 0 auto;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, #111 0 8rpx, transparent 9rpx),
+    conic-gradient(from 22deg, #111 0 18deg, transparent 18deg 38deg, #111 38deg 61deg, transparent 61deg 90deg, #111 90deg 118deg, transparent 118deg 148deg, #111 148deg 176deg, transparent 176deg 216deg, #111 216deg 250deg, transparent 250deg 282deg, #111 282deg 312deg, transparent 312deg 360deg);
+}
+
+.mini-code-ring,
+.mini-code-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #111;
+}
+
+.mini-code-ring {
+  background: transparent;
+  border: 6rpx solid #111;
+}
+
+.ring-a {
+  left: 14rpx;
+  top: 16rpx;
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.ring-b {
+  right: 16rpx;
+  bottom: 18rpx;
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.mini-code-dot {
+  width: 10rpx;
+  height: 10rpx;
+}
+
+.dot-a { right: 18rpx; top: 24rpx; }
+.dot-b { left: 24rpx; bottom: 22rpx; }
+.dot-c { left: 48rpx; top: 48rpx; }
+
+.poster-actions {
+  gap: 16rpx;
+  padding: 0 28rpx 28rpx;
+}
+
+.poster-action {
+  flex: 1;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 999rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.poster-action.primary {
+  border-color: rgba(242, 200, 91, 0.48);
+  background: linear-gradient(135deg, #f2cf5b 0%, #d6a92b 100%);
+  color: #1c1607;
+}
+
 .share-title,
 .contact-title {
   font-size: 30rpx;
@@ -1943,10 +2665,11 @@ $gold-bright: #f0c83a;
 }
 
 .commission-levels {
-  margin: 24rpx 0;
-  padding: 20rpx;
-  border-radius: 12rpx;
-  background: rgba(213, 169, 28, 0.1);
+  margin: 0 28rpx 22rpx;
+  padding: 18rpx 22rpx;
+  border: 1rpx solid rgba(213, 169, 28, 0.18);
+  border-radius: 14rpx;
+  background: rgba(213, 169, 28, 0.08);
 }
 
 .commission-level-title {
@@ -1964,41 +2687,62 @@ $gold-bright: #f0c83a;
 }
 
 .share-icons {
-  display: flex;
-  justify-content: space-around;
-  padding: 24rpx 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 34rpx 0;
+  padding: 26rpx 22rpx 36rpx;
 }
 
 .share-icon-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10rpx;
-  color: $text-sub;
-  font-size: 22rpx;
+  gap: 16rpx;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 21rpx;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.share-icon-item text {
+  width: 100%;
+  white-space: nowrap;
+  transform: scale(0.92);
+  transform-origin: center top;
 }
 
 .share-icon {
-  width: 78rpx;
-  height: 78rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(213, 169, 28, 0.14);
-  color: $gold-bright;
-  font-size: 28rpx;
+  background: #020202;
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.04);
+}
+
+.share-icon image {
+  width: 50rpx;
+  height: 50rpx;
+  display: block;
 }
 
 .share-close {
-  height: 72rpx;
+  height: 100rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10rpx;
-  background: #252525;
-  color: #d6d6d6;
-  font-size: 28rpx;
+  border-radius: 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: #050505;
+  color: #f1f1f1;
+  font-size: 30rpx;
+  font-weight: 800;
 }
 
 .contact-header {
@@ -2231,6 +2975,13 @@ $gold-bright: #f0c83a;
   opacity: 0;
 }
 
+.new-chip.is-collected {
+  opacity: 0.92;
+  color: #f5d56c;
+  border-color: rgba(245, 213, 108, 0.78);
+  background: rgba(36, 29, 13, 0.72);
+}
+
 .hero-copy {
   position: absolute;
   left: 24rpx;
@@ -2354,6 +3105,11 @@ $gold-bright: #f0c83a;
   margin-top: -78rpx;
 }
 
+.market-card.is-sold .market-content {
+  margin-top: 22rpx;
+  align-items: stretch;
+}
+
 .price-block {
   min-height: 216rpx;
   display: flex;
@@ -2362,7 +3118,26 @@ $gold-bright: #f0c83a;
 }
 
 .price-block.is-sold {
-  justify-content: center;
+  min-height: 202rpx;
+  justify-content: flex-start;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid rgba(240, 198, 93, 0.12);
+  border-radius: 14rpx;
+  background: rgba(240, 198, 93, 0.045);
+  box-sizing: border-box;
+}
+
+.price-block.is-sold .price {
+  margin-top: 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8rpx;
+  line-height: 1.2;
+}
+
+.price-block.is-sold .collect-line {
+  margin-top: 18rpx;
 }
 
 .label-line {
@@ -2401,6 +3176,15 @@ $gold-bright: #f0c83a;
 
 .price-symbol {
   font-size: 34rpx;
+}
+
+.collector-name {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 22rpx;
+  line-height: 1.35;
+  font-weight: 500;
+  text-shadow: none;
+  word-break: break-all;
 }
 
 .rise-line {
@@ -2553,13 +3337,19 @@ $gold-bright: #f0c83a;
 .artist-name-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10rpx;
 }
 
 .artist-name {
+  max-width: 100%;
+  min-width: 0;
   color: #f5f5f5;
   font-size: 27rpx;
   font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .score-badge {
@@ -2599,10 +3389,14 @@ $gold-bright: #f0c83a;
 }
 
 .artist-uid {
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 0 1 auto;
   color: rgba(255, 255, 255, 0.34);
   font-size: 16rpx;
   line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .artist-stats {
@@ -2648,10 +3442,11 @@ $gold-bright: #f0c83a;
 }
 
 .artist-link {
-  position: absolute;
-  right: 24rpx;
-  top: 24rpx;
+  grid-column: 2;
+  justify-self: flex-start;
+  position: static;
   height: 42rpx;
+  margin-top: 14rpx;
   padding: 0 16rpx;
   display: inline-flex;
   align-items: center;
@@ -2688,10 +3483,10 @@ $gold-bright: #f0c83a;
 
 .record-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 222rpx;
-  gap: 18rpx;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16rpx;
   margin-top: 22rpx;
-  align-items: end;
+  align-items: stretch;
 }
 
 .record-list {
@@ -2711,8 +3506,8 @@ $gold-bright: #f0c83a;
 .record-item {
   position: relative;
   display: grid;
-  grid-template-columns: 124rpx minmax(0, 1fr) 86rpx;
-  gap: 10rpx;
+  grid-template-columns: 132rpx minmax(0, 1fr) auto;
+  gap: 12rpx;
   align-items: center;
   padding: 8rpx 0 8rpx 24rpx;
   color: rgba(255, 255, 255, 0.66);
@@ -2731,13 +3526,15 @@ $gold-bright: #f0c83a;
 
 .record-event {
   color: rgba(255, 255, 255, 0.76);
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .record-price {
   text-align: right;
   color: rgba(255, 255, 255, 0.64);
   white-space: nowrap;
-  margin-right: 60rpx;
+  margin-right: 0;
 }
 
 .record-price.current {
@@ -2746,10 +3543,9 @@ $gold-bright: #f0c83a;
 }
 
 .gain-card {
-  height: 120rpx;
+  min-height: 102rpx;
   padding: 16rpx 18rpx 14rpx;
   position: relative;
-  margin-top: -35rpx;
   overflow: hidden;
   border-radius: 12rpx;
   border: 1rpx solid rgba(216, 170, 69, 0.18);
@@ -2828,8 +3624,8 @@ $gold-bright: #f0c83a;
 
 .cert-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10rpx;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx 16rpx;
 }
 
 .cert-item {
@@ -2838,6 +3634,10 @@ $gold-bright: #f0c83a;
   gap: 8rpx;
   min-width: 0;
   align-items: center;
+}
+
+.cert-item-code {
+  grid-column: 1 / -1;
 }
 
 .cert-icon {
@@ -2867,9 +3667,10 @@ $gold-bright: #f0c83a;
   margin-top: 4rpx;
   color: rgba(255, 255, 255, 0.52);
   font-size: 16rpx;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .cert-preview {
@@ -2909,6 +3710,20 @@ $gold-bright: #f0c83a;
 
 .story-text.expanded {
   display: block;
+}
+
+.detail-image-list {
+  margin-top: 22rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.detail-image {
+  width: 100%;
+  border-radius: 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .expand-link {
@@ -3035,8 +3850,18 @@ $gold-bright: #f0c83a;
     align-items: end;
   }
 
+  .market-card.is-sold .market-content {
+    margin-top: 18rpx;
+    align-items: stretch;
+  }
+
   .price-block {
     min-height: 196rpx;
+  }
+
+  .price-block.is-sold {
+    min-height: 190rpx;
+    padding: 18rpx;
   }
 
   .model-panel {
@@ -3079,18 +3904,18 @@ $gold-bright: #f0c83a;
   }
 
   .record-body {
-    grid-template-columns: minmax(0, 1fr) 174rpx;
-    gap: 14rpx;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16rpx;
   }
 
   .gain-card {
-    width: 174rpx;
-    height: 112rpx;
-    justify-self: end;
+    width: 100%;
+    min-height: 102rpx;
+    justify-self: stretch;
   }
 
   .record-item {
-    grid-template-columns: 118rpx minmax(0, 1fr) 78rpx;
+    grid-template-columns: 122rpx minmax(0, 1fr) auto;
     gap: 8rpx;
     font-size: 20rpx;
   }
@@ -3107,7 +3932,7 @@ $gold-bright: #f0c83a;
   }
 
   .cert-list {
-    gap: 8rpx;
+    gap: 10rpx 12rpx;
   }
 
   .cert-item {
@@ -3164,9 +3989,4 @@ button::after {
 .resale-stat-value { display: block; font-size: 30rpx; font-weight: 600; color: $gold; }
 .resale-stat-label { display: block; font-size: 20rpx; color: $text-dim; margin-top: 4rpx; }
 
-/* 当前持有卡片 */
-.holder-card { margin-top: 16rpx; }
-.holder-body { padding: 12rpx 0; }
-.holder-id { font-size: 24rpx; color: $text-sub; display: block; }
-.holder-since { font-size: 20rpx; color: $text-dim; display: block; margin-top: 6rpx; }
 </style>

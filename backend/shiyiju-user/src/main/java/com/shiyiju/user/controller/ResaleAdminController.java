@@ -161,8 +161,20 @@ public class ResaleAdminController {
         if (resaleId == null || buyerUserId == null) {
             return Result.fail(400, "参数不完整");
         }
-        resaleService.markAsPaid(resaleId, buyerUserId);
-        log.info("转售标记已支付(服务调用): resaleId={}, buyerUserId={}", resaleId, buyerUserId);
+        ResaleRecord record = resaleService.getResaleDetail(resaleId);
+        if (record == null) {
+            return Result.fail(404, "转售记录不存在");
+        }
+        if ("completed".equals(record.getStatus())) {
+            return Result.success();
+        }
+        if ("pending".equals(record.getStatus())) {
+            resaleService.markAsPaid(resaleId, buyerUserId);
+        } else if (!"paid".equals(record.getStatus())) {
+            return Result.fail(400, "转售状态不可支付");
+        }
+        resaleService.completeResale(resaleId);
+        log.info("转售标记已支付并完成权属流转(服务调用): resaleId={}, buyerUserId={}", resaleId, buyerUserId);
         return Result.success();
     }
 }

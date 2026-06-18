@@ -386,12 +386,12 @@ const mockData = () => {
       roleName: '运营管理员',
       module: 'promotion',
       action: 'audit',
-      description: '审核艺荐官提现申请',
+      description: '审核经纪人提现申请',
       targetType: '提现',
       targetId: 'WD20260421005',
       ip: '192.168.1.105',
       status: 1,
-      reason: '佣金来源合法，审核通过'
+      reason: '分成来源合法，审核通过'
     },
     {
       id: 10006,

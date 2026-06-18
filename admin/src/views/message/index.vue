@@ -211,7 +211,7 @@
             <el-option label="活跃用户" value="active_user" />
             <el-option label="VIP用户" value="vip_user" />
             <el-option label="艺术家" value="artist" />
-            <el-option label="艺荐官" value="promoter" />
+            <el-option label="经纪人" value="promoter" />
             <el-option label="未消费用户" value="no_purchase" />
           </el-select>
         </el-form-item>

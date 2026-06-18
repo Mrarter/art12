@@ -1,9 +1,12 @@
 package com.shiyiju.order.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shiyiju.common.constant.OrderConstant;
 import com.shiyiju.common.constant.ProductConstant;
+import com.shiyiju.common.client.CommissionRestClient;
+import com.shiyiju.common.client.ResaleRestClient;
 import com.shiyiju.common.client.WalletRestClient;
 import com.shiyiju.common.event.FinanceEvent;
 import com.shiyiju.common.event.FinanceEventPublisher;
@@ -14,6 +17,7 @@ import com.shiyiju.common.mapper.AddressMapper;
 import com.shiyiju.common.order.OrderFailReason;
 import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.ResultCode;
+import com.shiyiju.common.service.AlipayService;
 import com.shiyiju.common.service.WxPayService;
 import com.shiyiju.order.dto.CreateOrderDTO;
 import com.shiyiju.order.entity.*;
@@ -31,17 +35,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -59,21 +66,44 @@ public class OrderService {
     private final UserMapper userMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final WxPayService wxPayService;
+    private final AlipayService alipayService;
+    private final ResaleRestClient resaleRestClient;
     private final WalletRestClient walletClient;
+    private final CommissionRestClient commissionRestClient;
     private final FinanceEventPublisher financeEventPublisher;
     private final OrderFailRecorder orderFailRecorder;
     private final LogisticsMapper logisticsMapper;
     private final LogisticsService logisticsService;
     private final PlatformTransactionManager transactionManager;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
+    private final RestTemplate productRestTemplate = new RestTemplate();
 
     private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     
     // 佣金比例
     private static final BigDecimal DIRECT_COMMISSION_RATE = new BigDecimal("0.05"); // 一级佣金 5%
 
+    private void ensureCartTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS user_cart (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                user_id BIGINT NOT NULL,
+                artwork_id BIGINT NOT NULL,
+                quantity INT NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                deleted TINYINT NOT NULL DEFAULT 0,
+                UNIQUE KEY uk_user_cart_artwork_active (user_id, artwork_id, deleted),
+                KEY idx_user_cart_user_id (user_id),
+                KEY idx_user_cart_artwork_id (artwork_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户购物车'
+            """);
+    }
+
     /** 获取购物车列表 */
     public List<CartVO> getCartList(Long userId) {
+        ensureCartTable();
         List<Cart> carts = cartMapper.selectList(
                 new LambdaQueryWrapper<Cart>()
                         .eq(Cart::getUserId, userId)
@@ -90,9 +120,10 @@ public class OrderService {
             vo.setTitle(artwork.getTitle());
             vo.setCoverImage(artwork.getCoverImage());
             vo.setSize(artwork.getSize());
-            vo.setPrice(artwork.getPrice());
+            BigDecimal price = safePrice(artwork);
+            vo.setPrice(price);
             vo.setQuantity(cart.getQuantity());
-            vo.setSubtotal(artwork.getPrice().multiply(BigDecimal.valueOf(cart.getQuantity())));
+            vo.setSubtotal(price.multiply(BigDecimal.valueOf(cart.getQuantity())));
             vo.setStock(artwork.getStock());
             vo.setSelected(false);
             return vo;
@@ -102,6 +133,7 @@ public class OrderService {
     /** 添加到购物车 */
     @Transactional(rollbackFor = Exception.class)
     public void addToCart(Long userId, Long artworkId, Integer quantity) {
+        ensureCartTable();
         Artwork artwork = artworkMapper.selectById(artworkId);
         if (artwork == null) {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
@@ -109,7 +141,7 @@ public class OrderService {
         if (artwork.getStatus() != ProductConstant.STATUS_ON_SALE) {
             throw new BusinessException(ResultCode.PRODUCT_OFF_SHELF);
         }
-        if (artwork.getStock() < quantity) {
+        if (!hasEnoughStockForOrder(artwork, quantity)) {
             throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH);
         }
 
@@ -135,6 +167,7 @@ public class OrderService {
     /** 从购物车移除 */
     @Transactional
     public void removeFromCart(Long userId, List<Long> cartIds) {
+        ensureCartTable();
         cartMapper.delete(
                 new LambdaQueryWrapper<Cart>()
                         .eq(Cart::getUserId, userId)
@@ -145,6 +178,7 @@ public class OrderService {
     /** 更新购物车数量 */
     @Transactional
     public void updateCartQuantity(Long userId, Long cartId, Integer quantity) {
+        ensureCartTable();
         Cart cart = cartMapper.selectOne(
                 new LambdaQueryWrapper<Cart>()
                         .eq(Cart::getId, cartId)
@@ -155,7 +189,7 @@ public class OrderService {
         }
         
         Artwork artwork = artworkMapper.selectById(cart.getArtworkId());
-        if (artwork != null && artwork.getStock() < quantity) {
+        if (artwork != null && !hasEnoughStockForOrder(artwork, quantity)) {
             throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH);
         }
         
@@ -166,6 +200,7 @@ public class OrderService {
 
     /** 锁定购物车项（结算前）- 使用 Redis 防止超卖 */
     public Map<String, Object> lockCartItems(Long userId, List<Long> cartIds) {
+        ensureCartTable();
         List<Map<String, Object>> lockedItems = new ArrayList<>();
         List<Long> failedItems = new ArrayList<>();
         
@@ -205,7 +240,7 @@ public class OrderService {
                 item.put("cartId", cartId);
                 item.put("artworkId", artwork.getId());
                 item.put("title", artwork.getTitle());
-                item.put("price", artwork.getPrice());
+                item.put("price", safePrice(artwork));
                 item.put("quantity", cart.getQuantity());
                 item.put("stock", artwork.getStock());
                 item.put("lockExpired", false);
@@ -225,6 +260,7 @@ public class OrderService {
 
     /** 解锁购物车项 */
     public void unlockCartItems(Long userId, List<Long> cartIds) {
+        ensureCartTable();
         for (Long cartId : cartIds) {
             String itemLockKey = "cart:item:lock:" + cartId;
             redisTemplate.delete(itemLockKey);
@@ -338,11 +374,11 @@ public class OrderService {
                 Artwork artwork = artworkMapper.selectById(cart.getArtworkId());
                 if (artwork == null) continue;
 
-                if (safeStock(artwork) < cart.getQuantity()) {
+                if (!hasEnoughStockForOrder(artwork, cart.getQuantity())) {
                     throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, "作品【" + artwork.getTitle() + "】库存不足");
                 }
 
-                OrderItem item = createOrderItem(artwork, cart.getQuantity());
+                OrderItem item = createOrderItem(artwork, cart.getQuantity(), null);
                 orderItems.add(item);
                 totalAmount = totalAmount.add(safePrice(artwork).multiply(BigDecimal.valueOf(cart.getQuantity())));
             }
@@ -362,11 +398,11 @@ public class OrderService {
                 throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
             }
             int qty = dto.getQuantity() != null ? dto.getQuantity() : 1;
-            if (safeStock(artwork) < qty) {
+            if (!hasEnoughStockForOrder(artwork, qty)) {
                 throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH);
             }
 
-            OrderItem item = createOrderItem(artwork, qty);
+            OrderItem item = createOrderItem(artwork, qty, dto.getPromoterId());
             orderItems.add(item);
             totalAmount = totalAmount.add(safePrice(artwork).multiply(BigDecimal.valueOf(qty)));
         }
@@ -415,19 +451,9 @@ public class OrderService {
             item.setOrderId(order.getId());
             item.setCreateTime(LocalDateTime.now());
             orderItemMapper.insert(item);
-
-            // 扣减库存（空安全保护）
-            Artwork artwork = artworkMapper.selectById(item.getArtworkId());
-            if (artwork != null) {
-                int currentStock = safeStock(artwork);
-                int newStock = Math.max(currentStock - item.getQuantity(), 0);
-                artwork.setStock(newStock);
-                if (newStock <= 0) {
-                    artwork.setStatus(ProductConstant.STATUS_SOLD_OUT);
-                }
-                artworkMapper.updateById(artwork);
-            }
         }
+
+        finalizeZeroAmountOrder(order);
 
         return order;
     }
@@ -520,7 +546,7 @@ public class OrderService {
         return fallback;
     }
 
-    private OrderItem createOrderItem(Artwork artwork, int quantity) {
+    private OrderItem createOrderItem(Artwork artwork, int quantity, Long promoterId) {
         BigDecimal price = safePrice(artwork);
         OrderItem item = new OrderItem();
         item.setArtworkId(artwork.getId());
@@ -531,33 +557,184 @@ public class OrderService {
         item.setPrice(price);
         item.setQuantity(quantity);
         item.setSubtotal(price.multiply(BigDecimal.valueOf(quantity)));
+        item.setPromoterId(promoterId);
         return item;
     }
 
     /**
-     * 空安全的库存获取
+     * 作品是唯一标的时，历史数据里 stock 可能为 0/null，但只要仍处于上架状态就可购买 1 件。
      */
-    private int safeStock(Artwork artwork) {
-        return artwork.getStock() != null ? artwork.getStock() : 999;
+    private boolean hasEnoughStockForOrder(Artwork artwork, Integer quantity) {
+        if (artwork == null) {
+            return false;
+        }
+        int qty = Math.max(quantity == null ? 1 : quantity, 1);
+        Integer stock = artwork.getStock();
+        if (stock == null || stock <= 0) {
+            return ProductConstant.STATUS_ON_SALE.equals(artwork.getStatus()) && qty == 1;
+        }
+        return stock >= qty;
     }
 
     /**
-     * 空安全的价格获取
+     * 下单价使用作品实时收藏价，和详情页展示口径保持一致。
      */
     private BigDecimal safePrice(Artwork artwork) {
-        return artwork.getPrice() != null ? artwork.getPrice() : BigDecimal.ZERO;
+        if (artwork == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal productCurrentPrice = resolveProductCurrentPrice(artwork);
+        if (productCurrentPrice != null && productCurrentPrice.compareTo(BigDecimal.ZERO) > 0) {
+            return productCurrentPrice;
+        }
+        BigDecimal basePrice = getArtworkBasePrice(artwork);
+        if (basePrice == null || basePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal priceRise = artwork.getPriceRise();
+        if (priceRise == null) {
+            priceRise = calculateRuntimePriceRise(artwork);
+        }
+        return basePrice.multiply(BigDecimal.ONE.add(priceRise))
+                .setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveProductCurrentPrice(Artwork artwork) {
+        if (artwork == null || artwork.getId() == null) {
+            return null;
+        }
+        try {
+            Map<?, ?> response = productRestTemplate.getForObject(
+                    "http://127.0.0.1:8082/product/" + artwork.getId(),
+                    Map.class
+            );
+            if (response == null || response.get("data") == null) {
+                return null;
+            }
+            Object data = response.get("data");
+            if (!(data instanceof Map<?, ?> product)) {
+                return null;
+            }
+            Object currentPrice = product.get("currentPrice");
+            if (currentPrice == null) {
+                return null;
+            }
+            return normalizeArtworkAmountScale(
+                    new BigDecimal(currentPrice.toString()).setScale(0, RoundingMode.HALF_UP),
+                    getArtworkBasePrice(artwork),
+                    1,
+                    true
+            );
+        } catch (Exception e) {
+            log.warn("获取商品实时价格失败，使用订单服务本地价格兜底: artworkId={}, error={}",
+                    artwork.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    private BigDecimal getArtworkBasePrice(Artwork artwork) {
+        if (artwork == null) {
+            return null;
+        }
+        if (artwork.getOriginalPrice() != null && artwork.getOriginalPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return artwork.getOriginalPrice();
+        }
+        return artwork.getPrice();
+    }
+
+    /**
+     * 历史数据里有一部分金额被重复放大 100 倍。
+     * 对普通作品订单，涨幅理论上被限制在一个较低区间内，因此这里允许用作品基础价做尺度纠偏。
+     */
+    private BigDecimal normalizeArtworkAmountScale(BigDecimal amount, BigDecimal basePrice, int quantity, boolean allowGrowth) {
+        if (amount == null) {
+            return null;
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0 || basePrice == null || basePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return amount;
+        }
+        BigDecimal normalized = amount;
+        BigDecimal reference = basePrice.multiply(BigDecimal.valueOf(Math.max(quantity, 1)));
+        BigDecimal maxReasonable = allowGrowth
+                ? reference.multiply(BigDecimal.TEN)
+                : reference.multiply(new BigDecimal("1.5"));
+        while (normalized.compareTo(maxReasonable) > 0) {
+            normalized = normalized.divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        }
+        return normalized;
+    }
+
+    private BigDecimal calculateRuntimePriceRise(Artwork artwork) {
+        BigDecimal totalMultiplier = BigDecimal.ONE;
+        long days = 0;
+        if (artwork.getCreateTime() != null) {
+            days = ChronoUnit.DAYS.between(artwork.getCreateTime(), LocalDateTime.now());
+            if (days < 0) days = 0;
+        }
+        long baseDays = Math.min(days, 30);
+        long matureDays = Math.max(days - 30, 0);
+        BigDecimal timeMultiplier = BigDecimal.ONE
+                .add(new BigDecimal("0.0002").multiply(BigDecimal.valueOf(baseDays)))
+                .add(new BigDecimal("0.0003").multiply(BigDecimal.valueOf(matureDays)));
+        totalMultiplier = totalMultiplier.multiply(timeMultiplier);
+
+        int displayViewCount = safeCount(artwork.getViewCount()) + safeCount(artwork.getDailyViewCount()) * Math.toIntExact(Math.min(days, Integer.MAX_VALUE));
+        if (displayViewCount >= 100) {
+            totalMultiplier = totalMultiplier.multiply(new BigDecimal("1.1"));
+        }
+
+        int displayLikeCount = safeCount(artwork.getFavoriteCount()) + safeCount(artwork.getDailyLikeCount()) * Math.toIntExact(Math.min(days, Integer.MAX_VALUE));
+        if (displayLikeCount >= 5) {
+            totalMultiplier = totalMultiplier.multiply(new BigDecimal("1.1"));
+        }
+
+        int sales = Math.min(safeCount(artwork.getSaleCount()), 10);
+        for (int i = 0; i < sales; i++) {
+            totalMultiplier = totalMultiplier.multiply(new BigDecimal("1.05"));
+        }
+
+        BigDecimal maxGrowthMultiple = new BigDecimal("5.0");
+        if (totalMultiplier.compareTo(maxGrowthMultiple) > 0) {
+            totalMultiplier = maxGrowthMultiple;
+        }
+        return totalMultiplier.subtract(BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private int safeCount(Integer value) {
+        return value == null ? 0 : Math.max(value, 0);
     }
 
     /** 转售购买 - 创建转售订单 */
     @Transactional(rollbackFor = Exception.class)
     public Order createResaleOrder(Long userId, Long resaleId, BigDecimal resalePrice, Long artworkId, Long addressId) {
-        Address address = addressMapper.selectById(addressId);
-        if (address == null) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "收货地址不存在");
+        Map<String, Object> resale = resaleRestClient.getDetail(resaleId);
+        if (resale == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "转售记录不存在");
         }
+        String resaleStatus = String.valueOf(resale.getOrDefault("status", ""));
+        if (!"pending".equals(resaleStatus)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该作品转售已失效");
+        }
+        Long sellerUserId = toLong(resale.get("sellerUserId"));
+        if (sellerUserId != null && sellerUserId.equals(userId)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "不能购买自己发布的转售作品");
+        }
+        Long resaleArtworkId = toLong(resale.get("artworkId"));
+        if (resaleArtworkId == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "转售作品信息缺失");
+        }
+        if (artworkId != null && !resaleArtworkId.equals(artworkId)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "转售作品不匹配");
+        }
+        BigDecimal confirmedResalePrice = toBigDecimal(resale.get("resalePrice"));
+        if (confirmedResalePrice == null || confirmedResalePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "转售价格异常");
+        }
+        Address address = resolveUserAddress(userId, addressId);
 
         // 查询作品信息
-        Artwork artwork = artworkMapper.selectById(artworkId);
+        Artwork artwork = artworkMapper.selectById(resaleArtworkId);
         if (artwork == null) {
             throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
         }
@@ -569,9 +746,9 @@ public class OrderService {
         item.setItemType("ARTWORK");
         item.setTitle(artwork.getTitle());
         item.setCoverImage(artwork.getCoverImage());
-        item.setPrice(resalePrice);
+        item.setPrice(confirmedResalePrice);
         item.setQuantity(1);
-        item.setSubtotal(resalePrice);
+        item.setSubtotal(confirmedResalePrice);
         List<OrderItem> orderItems = Collections.singletonList(item);
 
         // 生成订单号
@@ -582,9 +759,9 @@ public class OrderService {
         Order order = new Order();
         order.setOrderNo(orderNo);
         order.setUserId(userId);
-        order.setTotalAmount(resalePrice);
+        order.setTotalAmount(confirmedResalePrice);
         order.setDiscountAmount(BigDecimal.ZERO);
-        order.setPayAmount(resalePrice);
+        order.setPayAmount(confirmedResalePrice);
         order.setCommissionAmount(BigDecimal.ZERO);
         order.setAddressId(address.getId());
         order.setReceiverName(address.getReceiverName());
@@ -596,8 +773,8 @@ public class OrderService {
         order.setCreateTime(LocalDateTime.now());
 
         // 设置卖家信息
-        if (artwork.getAuthorId() != null) {
-            User seller = userMapper.selectById(artwork.getAuthorId());
+        if (sellerUserId != null) {
+            User seller = userMapper.selectById(sellerUserId);
             if (seller != null) {
                 order.setSellerName(seller.getNickname());
                 order.setSellerAvatar(seller.getAvatar());
@@ -611,13 +788,37 @@ public class OrderService {
         item.setCreateTime(LocalDateTime.now());
         orderItemMapper.insert(item);
 
+        finalizeZeroAmountOrder(order);
+
         log.info("创建转售订单: orderId={}, orderNo={}, resaleId={}, userId={}, amount={}",
-                order.getId(), orderNo, resaleId, userId, resalePrice);
+                order.getId(), orderNo, resaleId, userId, confirmedResalePrice);
         return order;
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.longValue();
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigDecimal decimal) return decimal;
+        if (value instanceof Number number) return BigDecimal.valueOf(number.doubleValue());
+        try {
+            return new BigDecimal(String.valueOf(value));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** 获取订单列表 */
     public PageResult<OrderVO> getOrderList(Long userId, String status, Integer page, Integer pageSize) {
+        normalizeZeroAmountPendingOrders(userId);
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Order::getUserId, userId);
         if (status != null && !"all".equals(status)) {
@@ -633,8 +834,47 @@ public class OrderService {
         return PageResult.of(result.getTotal(), page, pageSize, voList);
     }
 
+    /** 获取艺术家/卖家视角的已卖出订单 */
+    public PageResult<OrderVO> getSellerOrderList(Long sellerUserId, String status, Integer page, Integer pageSize) {
+        List<OrderItem> sellerItems = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getArtistId, sellerUserId)
+                        .orderByDesc(OrderItem::getCreateTime)
+        );
+        List<Long> orderIds = sellerItems.stream()
+                .map(OrderItem::getOrderId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (orderIds.isEmpty()) {
+            return PageResult.of(0L, page, pageSize, Collections.emptyList());
+        }
+
+        LambdaQueryWrapper<Order> countWrapper = new LambdaQueryWrapper<>();
+        countWrapper.in(Order::getId, orderIds);
+        if (status != null && !"all".equals(status)) {
+            countWrapper.eq(Order::getStatus, status);
+        }
+        Long total = orderMapper.selectCount(countWrapper);
+
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Order::getId, orderIds);
+        if (status != null && !"all".equals(status)) {
+            wrapper.eq(Order::getStatus, status);
+        }
+        wrapper.orderByDesc(Order::getCreateTime);
+
+        Page<Order> result = orderMapper.selectPage(new Page<>(page, pageSize), wrapper);
+        List<OrderVO> voList = result.getRecords().stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+
+        return PageResult.of(total, page, pageSize, voList);
+    }
+
     /** 获取订单详情 */
     public OrderVO getOrderDetail(Long orderId, Long userId) {
+        normalizeZeroAmountPendingOrders(userId);
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
@@ -648,6 +888,7 @@ public class OrderService {
 
     /** 根据ID查询订单 */
     public Order getOrderById(Long orderId, Long userId) {
+        normalizeZeroAmountPendingOrders(userId);
         return orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
@@ -668,19 +909,6 @@ public class OrderService {
         }
         if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
             throw new BusinessException(ResultCode.ORDER_CANNOT_CANCEL);
-        }
-
-        // 恢复库存
-        List<OrderItem> items = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId)
-        );
-        for (OrderItem item : items) {
-            Artwork artwork = artworkMapper.selectById(item.getArtworkId());
-            artwork.setStock(artwork.getStock() + item.getQuantity());
-            if (ProductConstant.STATUS_SOLD_OUT.equals(artwork.getStatus())) {
-                artwork.setStatus(ProductConstant.STATUS_ON_SALE);
-            }
-            artworkMapper.updateById(artwork);
         }
 
         order.setStatus(OrderConstant.STATUS_CANCELLED);
@@ -863,6 +1091,67 @@ public class OrderService {
         }
     }
 
+    /** 支付宝手机网站支付下单。 */
+    public Map<String, Object> createAlipayWapPay(Long orderId, Long userId) {
+        Order order = getPayableOrder(orderId, userId);
+        BigDecimal amountYuan = order.getPayAmount().divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        String description = getOrderDescription(orderId);
+
+        try {
+            Map<String, Object> payParams = new HashMap<>(alipayService.createWapPay(
+                    order.getOrderNo(),
+                    amountYuan,
+                    description
+            ));
+            payParams.put("description", description);
+            redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
+            log.info("支付宝下单成功 - 订单ID: {}, OrderNo: {}", orderId, order.getOrderNo());
+            return payParams;
+        } catch (Exception e) {
+            log.error("支付宝下单失败", e);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "支付宝下单失败: " + e.getMessage());
+        }
+    }
+
+    private Order getPayableOrder(Long orderId, Long userId) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getId, orderId)
+                        .eq(Order::getUserId, userId)
+        );
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
+        }
+        return order;
+    }
+
+    private String getOrderDescription(Long orderId) {
+        List<OrderItem> items = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId)
+        );
+        String description = items.isEmpty() ? "艺术品购买" : items.get(0).getTitle();
+        if (description == null || description.isBlank()) {
+            description = "艺术品购买";
+        }
+        return description.length() > 50 ? description.substring(0, 47) + "..." : description;
+    }
+
+    /** 本地开发模拟支付成功：复用真实支付回调处理链路。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void mockPaySuccess(Long orderId, Long userId) {
+        Order order = getOrderById(orderId, userId);
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+            return;
+        }
+        handlePayCallback(order.getOrderNo(), "MOCK-" + order.getOrderNo());
+    }
+
     /** 支付回调处理 */
     @Transactional(rollbackFor = Exception.class)
     public void handlePayCallback(String orderNo, String transactionId) {
@@ -887,6 +1176,11 @@ public class OrderService {
         if (OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
             Long resaleId = parseResaleIdFromRemark(order.getRemark());
             if (resaleId != null) {
+                boolean synced = resaleRestClient.markAsPaid(resaleId, order.getUserId());
+                if (!synced) {
+                    log.warn("转售订单支付后同步转售状态失败，将保留订单已支付: orderId={}, resaleId={}",
+                            order.getId(), resaleId);
+                }
                 financeEventPublisher.publish(FinanceEvent.builder()
                         .type(FinanceEventType.RESALE_MARK_PAID)
                         .resaleId(resaleId)
@@ -902,6 +1196,7 @@ public class OrderService {
         // === 普通订单：为每个订单项发布艺术家收益事件 ===
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+        markOrderArtworksSold(order, items);
         for (OrderItem item : items) {
             Artwork artwork = artworkMapper.selectById(item.getArtworkId());
             if (artwork != null && artwork.getAuthorId() != null && item.getPrice() != null
@@ -914,6 +1209,9 @@ public class OrderService {
                         .relatedType("order")
                         .remark("作品销售: " + artwork.getTitle() + " " + orderNo)
                         .build());
+                walletClient.income(artwork.getAuthorId(), item.getPrice(), "order_sale",
+                        order.getId(), "order",
+                        "作品销售: " + artwork.getTitle() + " " + orderNo);
             }
         }
 
@@ -930,7 +1228,94 @@ public class OrderService {
                     .orderNo(orderNo)
                     .remark("推广佣金 " + orderNo)
                     .artworkId(artworkId)
+                    .buyerUserId(order.getUserId())
                     .build());
+            commissionRestClient.settleCommission(order.getId(), orderNo, order.getPayAmount(),
+                    order.getUserId(), promoterId, artworkId);
+        }
+    }
+
+    /** 支付成功后才确认作品归属和已收藏状态。 */
+    private void markOrderArtworksSold(Order order, List<OrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        for (OrderItem item : items) {
+            Artwork artwork = artworkMapper.selectById(item.getArtworkId());
+            if (artwork == null) {
+                continue;
+            }
+            int quantity = Math.max(item.getQuantity() == null ? 1 : item.getQuantity(), 1);
+            BigDecimal settledPrice = item.getPrice();
+            BigDecimal basePrice = artwork.getOriginalPrice() != null
+                    && artwork.getOriginalPrice().compareTo(BigDecimal.ZERO) > 0
+                    ? artwork.getOriginalPrice()
+                    : artwork.getPrice();
+
+            LambdaUpdateWrapper<Artwork> update = new LambdaUpdateWrapper<Artwork>()
+                    .eq(Artwork::getId, artwork.getId())
+                    .eq(Artwork::getStatus, ProductConstant.STATUS_ON_SALE)
+                    .setSql("stock = GREATEST(COALESCE(stock, 1) - " + quantity + ", 0)")
+                    .set(Artwork::getStatus, ProductConstant.STATUS_SOLD_OUT)
+                    .set(Artwork::getHolderId, order.getUserId())
+                    .set(Artwork::getHolderSince, LocalDateTime.now())
+                    .setSql("sale_count = COALESCE(sale_count, 0) + " + quantity);
+
+            if (quantity <= 1) {
+                update.and(wrapper -> wrapper.isNull(Artwork::getStock)
+                        .or().le(Artwork::getStock, 0)
+                        .or().ge(Artwork::getStock, quantity));
+            } else {
+                update.and(wrapper -> wrapper.isNull(Artwork::getStock)
+                        .or().ge(Artwork::getStock, quantity));
+            }
+
+            if (item.getPrice() != null && item.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+                update.set(Artwork::getPrice, settledPrice);
+                if (basePrice != null && basePrice.compareTo(BigDecimal.ZERO) > 0) {
+                    update.set(Artwork::getPriceRise, settledPrice
+                            .divide(basePrice, 6, RoundingMode.HALF_UP)
+                            .subtract(BigDecimal.ONE)
+                            .setScale(4, RoundingMode.HALF_UP));
+                }
+            }
+
+            int updated = artworkMapper.update(null, update);
+            if (updated != 1) {
+                throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
+                        "作品【" + artwork.getTitle() + "】已售出或库存不足");
+            }
+        }
+    }
+
+    private void finalizeZeroAmountOrder(Order order) {
+        if (order == null || order.getOrderNo() == null) {
+            return;
+        }
+        BigDecimal payAmount = order.getPayAmount() != null ? order.getPayAmount() : BigDecimal.ZERO;
+        if (payAmount.compareTo(BigDecimal.ZERO) > 0 || !OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        order.setStatus(OrderConstant.STATUS_PAID);
+        order.setPaymentStatus(OrderConstant.STATUS_PAID);
+        order.setPayTime(now);
+        order.setUpdateTime(now);
+        orderMapper.updateById(order);
+    }
+
+    private void normalizeZeroAmountPendingOrders(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        List<Order> zeroAmountOrders = orderMapper.selectList(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getUserId, userId)
+                        .eq(Order::getStatus, OrderConstant.STATUS_PENDING_PAYMENT)
+                        .and(wrapper -> wrapper.isNull(Order::getPayAmount).or().le(Order::getPayAmount, BigDecimal.ZERO))
+        );
+        for (Order order : zeroAmountOrders) {
+            finalizeZeroAmountOrder(order);
         }
     }
 
@@ -1136,6 +1521,14 @@ public class OrderService {
 
         vo.setSourceText(getSourceText(order.getSource()));
         vo.setStatusText(getStatusText(order.getStatus()));
+        vo.setBuyerUserId(order.getUserId());
+        if (order.getUserId() != null) {
+            User buyer = userMapper.selectById(order.getUserId());
+            if (buyer != null) {
+                vo.setBuyerName(buyer.getNickname());
+                vo.setBuyerAvatar(buyer.getAvatar());
+            }
+        }
 
         // 卖家信息（从第一个订单项的作者获取）
         List<OrderItem> items = orderItemMapper.selectList(
@@ -1154,7 +1547,7 @@ public class OrderService {
             }
         }
         
-        vo.setItems(items.stream().map(item -> {
+        List<OrderItemVO> itemVOs = items.stream().map(item -> {
             OrderItemVO itemVO = new OrderItemVO();
             itemVO.setId(item.getId());
             itemVO.setArtworkId(item.getArtworkId());
@@ -1162,17 +1555,97 @@ public class OrderService {
             itemVO.setCoverImage(item.getCoverImage());
             itemVO.setAuthorName(item.getAuthorName());
             itemVO.setArtistName(item.getAuthorName());
-            itemVO.setPrice(item.getPrice());
+            Artwork artwork = item.getArtworkId() != null ? artworkMapper.selectById(item.getArtworkId()) : null;
+            BigDecimal resolvedPrice = item.getPrice();
+            if (!OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+                BigDecimal basePrice = getArtworkBasePrice(artwork);
+                resolvedPrice = normalizeArtworkAmountScale(resolvedPrice, basePrice, 1, true);
+            }
+            itemVO.setPrice(resolvedPrice != null ? resolvedPrice : BigDecimal.ZERO);
             itemVO.setQuantity(item.getQuantity());
-            itemVO.setSubtotal(item.getSubtotal());
+            BigDecimal resolvedSubtotal = item.getSubtotal();
+            if ((resolvedSubtotal == null || resolvedSubtotal.compareTo(BigDecimal.ZERO) <= 0)
+                    && resolvedPrice != null && resolvedPrice.compareTo(BigDecimal.ZERO) > 0) {
+                resolvedSubtotal = resolvedPrice.multiply(BigDecimal.valueOf(
+                        item.getQuantity() == null || item.getQuantity() <= 0 ? 1 : item.getQuantity()
+                ));
+            }
+            if (!OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+                BigDecimal basePrice = getArtworkBasePrice(artwork);
+                resolvedSubtotal = normalizeArtworkAmountScale(
+                        resolvedSubtotal,
+                        basePrice,
+                        item.getQuantity() == null ? 1 : item.getQuantity(),
+                        true
+                );
+            }
+            itemVO.setSubtotal(resolvedSubtotal != null ? resolvedSubtotal : BigDecimal.ZERO);
+            if (artwork != null) {
+                if (itemVO.getTitle() == null || itemVO.getTitle().isEmpty()) {
+                    itemVO.setTitle(artwork.getTitle());
+                }
+                if (itemVO.getCoverImage() == null || itemVO.getCoverImage().isEmpty()) {
+                    itemVO.setCoverImage(artwork.getCoverImage());
+                }
+                itemVO.setArtType(artwork.getArtType());
+                itemVO.setMaterial(artwork.getMedium());
+                itemVO.setSize(artwork.getSize());
+                itemVO.setYear(artwork.getYear());
+                itemVO.setSpecName(buildArtworkSpec(artwork));
+                if (itemVO.getAuthorName() == null || itemVO.getAuthorName().isBlank()) {
+                    User artist = artwork.getAuthorId() != null ? userMapper.selectById(artwork.getAuthorId()) : null;
+                    if (artist != null) {
+                        itemVO.setAuthorName(artist.getNickname());
+                        itemVO.setArtistName(artist.getNickname());
+                    }
+                }
+            }
             return itemVO;
-        }).collect(Collectors.toList()));
+        }).collect(Collectors.toList());
+
+        vo.setItems(itemVOs);
+
+        BigDecimal derivedGoodsAmount = itemVOs.stream()
+                .map(OrderItemVO::getSubtotal)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (vo.getTotalAmount() == null || vo.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            vo.setTotalAmount(derivedGoodsAmount);
+        } else if (derivedGoodsAmount.compareTo(BigDecimal.ZERO) > 0
+                && vo.getTotalAmount().compareTo(derivedGoodsAmount.multiply(BigDecimal.TEN)) > 0) {
+            vo.setTotalAmount(derivedGoodsAmount);
+        }
+        if (vo.getPayAmount() == null || vo.getPayAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            BigDecimal freight = vo.getFreight() != null ? vo.getFreight() : BigDecimal.ZERO;
+            BigDecimal discount = vo.getDiscountAmount() != null ? vo.getDiscountAmount() : BigDecimal.ZERO;
+            BigDecimal derivedPayAmount = derivedGoodsAmount.add(freight).subtract(discount);
+            vo.setPayAmount(derivedPayAmount.max(BigDecimal.ZERO));
+        } else {
+            BigDecimal freight = vo.getFreight() != null ? vo.getFreight() : BigDecimal.ZERO;
+            BigDecimal discount = vo.getDiscountAmount() != null ? vo.getDiscountAmount() : BigDecimal.ZERO;
+            BigDecimal derivedPayAmount = derivedGoodsAmount.add(freight).subtract(discount).max(BigDecimal.ZERO);
+            if (derivedPayAmount.compareTo(BigDecimal.ZERO) > 0
+                    && vo.getPayAmount().compareTo(derivedPayAmount.multiply(BigDecimal.TEN)) > 0) {
+                vo.setPayAmount(derivedPayAmount);
+            }
+        }
 
         // 设置卖家信息到VO
         vo.setSellerName(order.getSellerName());
         vo.setSellerAvatar(order.getSellerAvatar());
 
         return vo;
+    }
+
+    private String buildArtworkSpec(Artwork artwork) {
+        if (artwork == null) {
+            return null;
+        }
+        return Arrays.asList(artwork.getMedium(), artwork.getSize(),
+                        artwork.getYear() == null ? null : String.valueOf(artwork.getYear()))
+                .stream()
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(" / "));
     }
 
     private String getSourceText(String source) {

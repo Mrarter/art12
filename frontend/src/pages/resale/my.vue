@@ -22,7 +22,7 @@
     <view class="list" v-if="!isEmpty">
       <view class="item" v-for="item in list" :key="item.id" @click="toDetail(item.id)">
         <view class="item-header">
-          <text class="artwork-label">作品 #{{ item.artworkId }}</text>
+          <text class="artwork-label">作品 {{ displayArtworkUid(item) }}</text>
           <text class="item-status" :class="item.status">{{ statusLabel(item.status) }}</text>
         </view>
         <view class="item-body">
@@ -40,6 +40,7 @@
 
 <script>
 import { getMyResales, cancelResale } from '@/api/resale'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -74,8 +75,17 @@ export default {
       this.list = []
       this.fetchList()
     },
-    formatPrice(p) { return p ? Number(p).toFixed(2) : '0.00' },
+    formatPrice(price) {
+      return formatYuanNumber(fenToYuan(price))
+    },
     formatTime(t) { return t ? t.substring(0, 16).replace('T', ' ') : '' },
+    displayArtworkUid(item) {
+      return item?.artworkUid || item?.artworkCode || this.formatFallbackUid('ART', item?.artworkId)
+    },
+    formatFallbackUid(prefix, id) {
+      if (!id && id !== 0) return '-'
+      return `${prefix}${String(id).padStart(16, '0')}`
+    },
     statusLabel(s) {
       const map = { pending: '在售', paid: '已支付', completed: '已完成', cancel: '已取消' }
       return map[s] || s
@@ -116,8 +126,8 @@ export default {
 .tab.active { color: #D4AF37; border-bottom-color: #D4AF37; }
 .list { padding: 20rpx; }
 .item { background: #1A1A1A; border-radius: 16rpx; margin-bottom: 16rpx; padding: 20rpx 24rpx; border: 1rpx solid #333; }
-.item-header { display: flex; justify-content: space-between; align-items: center; }
-.artwork-label { font-size: 26rpx; color: #D4AF37; font-weight: 500; }
+.item-header { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; }
+.artwork-label { flex: 1; min-width: 0; font-size: 26rpx; color: #D4AF37; font-weight: 500; word-break: break-all; overflow-wrap: anywhere; }
 .item-status { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 8rpx; }
 .item-status.pending { background: #3A3500; color: #D4AF37; }
 .item-status.paid { background: #1A3A1A; color: #67C23A; }

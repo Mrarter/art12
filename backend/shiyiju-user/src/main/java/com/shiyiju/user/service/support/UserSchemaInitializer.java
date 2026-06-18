@@ -30,7 +30,10 @@ public class UserSchemaInitializer {
         ensureUserFollowsTable();
         ensurePayAccountTable();
         ensureWalletTables();
+        ensureWithdrawRecordsTable();
+        ensurePromoterRecordTable();
         ensureCommissionRecordTable();
+        ensureResaleTables();
         backfillUsersFromLegacyTables();
     }
 
@@ -44,6 +47,8 @@ public class UserSchemaInitializer {
               nickname VARCHAR(100) DEFAULT NULL,
               avatar VARCHAR(255) DEFAULT NULL,
               phone VARCHAR(20) DEFAULT NULL,
+              email VARCHAR(128) DEFAULT NULL,
+              wechat VARCHAR(64) DEFAULT NULL,
               password VARCHAR(255) DEFAULT NULL,
               gender INT DEFAULT 0,
               birthday VARCHAR(32) DEFAULT NULL,
@@ -68,6 +73,10 @@ public class UserSchemaInitializer {
     private void ensureUsersColumns() {
         addColumnIfMissing("users", "password",
             "ALTER TABLE users ADD COLUMN password VARCHAR(255) DEFAULT NULL COMMENT '登录密码哈希' AFTER phone");
+        addColumnIfMissing("users", "email",
+            "ALTER TABLE users ADD COLUMN email VARCHAR(128) DEFAULT NULL COMMENT '邮箱' AFTER phone");
+        addColumnIfMissing("users", "wechat",
+            "ALTER TABLE users ADD COLUMN wechat VARCHAR(64) DEFAULT NULL COMMENT '微信号' AFTER email");
     }
 
     private void backfillUsersFromLegacyTables() {
@@ -86,6 +95,8 @@ public class UserSchemaInitializer {
         String nicknameColumn = firstExistingColumn("sys_user", "nickname");
         String avatarColumn = firstExistingColumn("sys_user", "avatar", "avatar_url");
         String phoneColumn = firstExistingColumn("sys_user", "phone", "mobile");
+        String emailColumn = firstExistingColumn("sys_user", "email", "mail");
+        String wechatColumn = firstExistingColumn("sys_user", "wechat", "wechat_no", "wechat_id");
         String genderColumn = firstExistingColumn("sys_user", "gender");
         String birthdayColumn = firstExistingColumn("sys_user", "birthday");
         String bioColumn = firstExistingColumn("sys_user", "bio", "resume");
@@ -104,7 +115,7 @@ public class UserSchemaInitializer {
 
         String sql = """
             INSERT INTO users (
-              uid, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region,
+              uid, openid, unionid, nickname, avatar, phone, email, wechat, gender, birthday, bio, region,
               identities, status, follower_count, following_count, register_time, last_login_time,
               create_time, update_time, deleted
             )
@@ -112,6 +123,8 @@ public class UserSchemaInitializer {
               %s,
               NULL,
               NULL,
+              %s,
+              %s,
               %s,
               %s,
               %s,
@@ -135,6 +148,8 @@ public class UserSchemaInitializer {
             columnExpr("s", nicknameColumn, "CONCAT('用户', s." + userIdColumn + ")"),
             columnExpr("s", avatarColumn, "NULL"),
             columnExpr("s", phoneColumn, "NULL"),
+            columnExpr("s", emailColumn, "NULL"),
+            columnExpr("s", wechatColumn, "NULL"),
             columnExpr("s", genderColumn, "0"),
             columnExpr("s", birthdayColumn, "NULL"),
             columnExpr("s", bioColumn, "NULL"),
@@ -159,6 +174,8 @@ public class UserSchemaInitializer {
         String nicknameColumn = firstExistingColumn("user_account", "nickname", "name");
         String avatarColumn = firstExistingColumn("user_account", "avatar", "avatar_url");
         String phoneColumn = firstExistingColumn("user_account", "phone", "mobile");
+        String emailColumn = firstExistingColumn("user_account", "email", "mail");
+        String wechatColumn = firstExistingColumn("user_account", "wechat", "wechat_no", "wechat_id");
         String createTimeColumn = firstExistingColumn("user_account", "create_time", "created_at");
         String updateTimeColumn = firstExistingColumn("user_account", "update_time", "updated_at");
         String statusColumn = firstExistingColumn("user_account", "status");
@@ -169,7 +186,7 @@ public class UserSchemaInitializer {
             : "CONCAT('USR', DATE_FORMAT(COALESCE(a." + createTimeColumn + ", NOW()), '%Y%m%d'), LPAD(a." + userIdColumn + ", 8, '0'))";
         String sql = """
             INSERT INTO users (
-              uid, openid, unionid, nickname, avatar, phone, gender, birthday, bio, region,
+              uid, openid, unionid, nickname, avatar, phone, email, wechat, gender, birthday, bio, region,
               identities, status, follower_count, following_count, register_time, last_login_time,
               create_time, update_time, deleted
             )
@@ -177,6 +194,8 @@ public class UserSchemaInitializer {
               %s,
               %s,
               NULL,
+              %s,
+              %s,
               %s,
               %s,
               %s,
@@ -201,6 +220,8 @@ public class UserSchemaInitializer {
             columnExpr("a", nicknameColumn, "CONCAT('用户', a." + userIdColumn + ")"),
             columnExpr("a", avatarColumn, "NULL"),
             columnExpr("a", phoneColumn, "NULL"),
+            columnExpr("a", emailColumn, "NULL"),
+            columnExpr("a", wechatColumn, "NULL"),
             columnExpr("a", statusColumn, "1"),
             columnExpr("a", createTimeColumn, "NOW()"),
             columnExpr("a", updateTimeColumn, columnExpr("a", createTimeColumn, "NOW()")),
@@ -221,6 +242,8 @@ public class UserSchemaInitializer {
         addColumnIfMissing("artist_profile", "artist_title", "ALTER TABLE artist_profile ADD COLUMN artist_title VARCHAR(128) DEFAULT NULL");
         addColumnIfMissing("artist_profile", "homepage_cover", "ALTER TABLE artist_profile ADD COLUMN homepage_cover VARCHAR(512) DEFAULT NULL");
         addColumnIfMissing("artist_profile", "artist_tags", "ALTER TABLE artist_profile ADD COLUMN artist_tags VARCHAR(255) DEFAULT NULL");
+        addColumnIfMissing("artist_profile", "homepage_style", "ALTER TABLE artist_profile ADD COLUMN homepage_style VARCHAR(16) DEFAULT '2'");
+        addColumnIfMissing("artist_profile", "resume", "ALTER TABLE artist_profile ADD COLUMN resume TEXT DEFAULT NULL COMMENT '结构化艺术履历'");
     }
 
     private void ensureArtistProfileTable() {
@@ -242,6 +265,7 @@ public class UserSchemaInitializer {
               artist_title VARCHAR(128) DEFAULT NULL,
               homepage_cover VARCHAR(512) DEFAULT NULL,
               artist_tags VARCHAR(255) DEFAULT NULL,
+              homepage_style VARCHAR(16) DEFAULT '2',
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
               PRIMARY KEY (id),
@@ -345,6 +369,90 @@ public class UserSchemaInitializer {
             """);
     }
 
+    private void ensurePromoterRecordTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS promoter_record (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              user_id BIGINT NOT NULL COMMENT '用户ID',
+              invite_code VARCHAR(20) NOT NULL COMMENT '邀请码',
+              parent_id BIGINT DEFAULT NULL COMMENT '上级艺荐官用户ID',
+              level TINYINT DEFAULT 1 COMMENT '等级: 1-普通, 2-白银, 3-黄金, 4-钻石',
+              team_size INT DEFAULT 0 COMMENT '团队人数',
+              total_orders INT DEFAULT 0 COMMENT '累计订单数',
+              total_sales DECIMAL(12,2) DEFAULT 0.00 COMMENT '累计销售额',
+              status TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-正常',
+              sign_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '签约时间',
+              create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              UNIQUE KEY uk_promoter_user_id (user_id),
+              UNIQUE KEY uk_promoter_invite_code (invite_code),
+              KEY idx_promoter_parent_id (parent_id),
+              KEY idx_promoter_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensureResaleTables() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS resale_record (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              artwork_id BIGINT NOT NULL COMMENT '作品ID',
+              seller_user_id BIGINT NOT NULL COMMENT '转售卖家',
+              buyer_user_id BIGINT DEFAULT NULL COMMENT '转售买家',
+              source_order_id BIGINT DEFAULT NULL COMMENT '来源订单ID',
+              resale_price DECIMAL(12,2) NOT NULL COMMENT '转售价格',
+              artist_income DECIMAL(12,2) DEFAULT 0.00 COMMENT '艺术家追续收益',
+              platform_fee DECIMAL(12,2) DEFAULT 0.00 COMMENT '平台服务费',
+              seller_income DECIMAL(12,2) DEFAULT 0.00 COMMENT '卖家收入',
+              status VARCHAR(32) DEFAULT 'pending' COMMENT '状态：pending/paid/completed/cancel',
+              trade_no VARCHAR(64) DEFAULT NULL COMMENT '转售交易编号',
+              version INT DEFAULT 0 COMMENT '乐观锁版本',
+              remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_resale_artwork_status (artwork_id, status),
+              KEY idx_resale_seller_status (seller_user_id, status),
+              KEY idx_resale_buyer_status (buyer_user_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS artwork_trade_record (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              artwork_id BIGINT NOT NULL COMMENT '作品ID',
+              trade_no VARCHAR(64) DEFAULT NULL COMMENT '交易编号',
+              seller_user_id BIGINT DEFAULT NULL COMMENT '卖家用户ID',
+              buyer_user_id BIGINT NOT NULL COMMENT '买家用户ID',
+              trade_price DECIMAL(12,2) NOT NULL COMMENT '成交价格',
+              trade_type VARCHAR(32) NOT NULL COMMENT '交易类型：first_sale/resale',
+              trade_round INT DEFAULT 1 COMMENT '交易轮次',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_trade_artwork (artwork_id),
+              KEY idx_trade_buyer (buyer_user_id),
+              KEY idx_trade_seller (seller_user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS artwork_price_history (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              artwork_id BIGINT NOT NULL COMMENT '作品ID',
+              before_price DECIMAL(12,2) DEFAULT NULL COMMENT '变动前价格',
+              after_price DECIMAL(12,2) NOT NULL COMMENT '变动后价格',
+              growth_rate DECIMAL(10,4) DEFAULT 0.0000 COMMENT '涨幅百分比',
+              reason VARCHAR(32) NOT NULL COMMENT '变动原因',
+              related_resale_id BIGINT DEFAULT NULL COMMENT '关联转售ID',
+              created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_price_history_artwork (artwork_id),
+              KEY idx_price_history_resale (related_resale_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
     private void ensurePayAccountTable() {
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS pay_account (
@@ -406,6 +514,31 @@ public class UserSchemaInitializer {
               KEY idx_bill_user_id (user_id),
               KEY idx_bill_related (related_type, related_id),
               UNIQUE KEY uk_bill_biz (bill_type, related_type, related_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """);
+    }
+
+    private void ensureWithdrawRecordsTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS withdraw_records (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              promoter_id BIGINT NOT NULL COMMENT '艺荐官记录ID',
+              amount BIGINT NOT NULL COMMENT '提现金额',
+              fee_amount BIGINT DEFAULT 0 COMMENT '手续费',
+              actual_amount BIGINT NOT NULL COMMENT '实际到账金额',
+              account_type VARCHAR(20) NOT NULL COMMENT '账户类型：bank/wechat/alipay',
+              account_info VARCHAR(200) DEFAULT NULL COMMENT '账户信息',
+              account_name VARCHAR(50) DEFAULT NULL COMMENT '账户姓名',
+              status TINYINT DEFAULT 0 COMMENT '状态：0-待处理，1-已通过，2-已拒绝，3-已打款',
+              reject_reason VARCHAR(200) DEFAULT NULL,
+              process_time DATETIME DEFAULT NULL,
+              transfer_time DATETIME DEFAULT NULL,
+              create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+              update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              KEY idx_withdraw_promoter_id (promoter_id),
+              KEY idx_withdraw_status (status),
+              KEY idx_withdraw_create_time (create_time)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """);
     }

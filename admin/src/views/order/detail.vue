@@ -205,8 +205,10 @@ const normalizeStatus = (data) => {
 }
 
 const formatAmount = (value) => {
-  const amount = Number(value || 0)
-  return Number.isInteger(amount) ? amount : amount.toFixed(2)
+  return (Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 const normalizeProduct = (item) => ({
@@ -214,7 +216,7 @@ const normalizeProduct = (item) => ({
   title: item.title || item.itemTitle || item.item_title || item.artworkTitle || item.artwork_title || '作品',
   artistName: item.artistName || item.artist_name || item.authorName || item.author_name || '',
   spec: item.spec || item.specName || item.spec_name || item.skuName || item.sku_name || '',
-  price: formatAmount(item.price || item.unitPrice || item.unit_price || item.subtotalAmount || item.subtotal_amount),
+  price: formatAmount(item.price || item.unitPrice || item.unit_price || item.subtotal || item.subtotalAmount || item.subtotal_amount),
   count: item.count || item.quantity || 1
 })
 

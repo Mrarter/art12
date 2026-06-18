@@ -48,6 +48,8 @@ public class PriceGrowthConfig {
     private BigDecimal viewRate = new BigDecimal("1.1");
     /** 是否启用全局浏览量自动增长 */
     private Boolean viewAutoGrowthEnabled = false;
+    /** 浏览量自动增长随机浮动比例，0.58 表示基数上下 58% */
+    private BigDecimal viewGrowthRandomRate = new BigDecimal("0.58");
     /** 每日浏览量自动增长 */
     private Integer dailyViewGrowth = 0;
     /** 每周浏览量自动增长 */

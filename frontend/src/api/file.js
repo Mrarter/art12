@@ -13,18 +13,29 @@ const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN
 const API_ORIGIN = IS_MP ? `${MP_GATEWAY_ORIGIN}/api` : ''
 const FILE_BASE_URL = IS_MP ? MP_FILE_ORIGIN : ''
 
-const normalizeFileUrl = (url) => {
-  if (!IS_MP) return url
+const normalizeUploadPath = (url) => {
   if (typeof url !== 'string') return url
-  if (url.startsWith('http://localhost:8087') || url.startsWith('http://127.0.0.1:8087')) {
-    return FILE_BASE_URL + url.slice(url.indexOf(':8087') + 5)
+  const value = url.trim()
+  const duplicated = value.match(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/uploads\/upload\/(.+)$/)
+  if (duplicated) return `/upload/${duplicated[1]}`
+  const localUpload = value.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/upload\/.+)$/)
+  if (localUpload) return localUpload[1]
+  return value
+}
+
+const normalizeFileUrl = (url) => {
+  const normalized = normalizeUploadPath(url)
+  if (!IS_MP) return normalized
+  if (typeof normalized !== 'string') return normalized
+  if (normalized.startsWith('http://localhost:8087') || normalized.startsWith('http://127.0.0.1:8087')) {
+    return FILE_BASE_URL + normalized.slice(normalized.indexOf(':8087') + 5)
   }
-  if (url.startsWith('/upload/')) return FILE_BASE_URL + url
-  if (url.startsWith('upload/')) return FILE_BASE_URL + '/' + url
-  if (url.match(/^http:\/\/192\.168\.\d+\.\d+:8087/)) {
-    return url.replace(/^http:\/\/192\.168\.\d+\.\d+:8087/, FILE_BASE_URL)
+  if (normalized.startsWith('/upload/')) return FILE_BASE_URL + normalized
+  if (normalized.startsWith('upload/')) return FILE_BASE_URL + '/' + normalized
+  if (normalized.match(/^http:\/\/192\.168\.\d+\.\d+:8087/)) {
+    return normalized.replace(/^http:\/\/192\.168\.\d+\.\d+:8087/, FILE_BASE_URL)
   }
-  return url
+  return normalized
 }
 
 const parseUploadResponse = (responseText) => {
@@ -61,12 +72,14 @@ const uploadFileByFetch = async (filePath, type, token) => {
  */
 export const openCropper = (src, opts = {}) => {
   return new Promise((resolve, reject) => {
-    const { ratio = 'auto', shape = 'square' } = opts
+    const { ratio = 'auto', shape = 'square', outputSize } = opts
     const route = encodeURIComponent(src)
+    const query = [`src=${route}`, `ratio=${ratio}`, `shape=${shape}`]
+    if (outputSize) query.push(`outputSize=${Number(outputSize) || 800}`)
     const handler = (result) => { uni.$off('cropResult', handler); resolve(result) }
     uni.$on('cropResult', handler)
     uni.navigateTo({
-      url: `/pages/common/cropper?src=${route}&ratio=${ratio}&shape=${shape}`,
+      url: `/pages/common/cropper?${query.join('&')}`,
       events: { onCrop: (result) => { uni.$off('cropResult', handler); resolve(result) } },
       fail: (err) => { uni.$off('cropResult', handler); reject(err) }
     })

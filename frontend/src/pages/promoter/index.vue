@@ -3,21 +3,21 @@
     <!-- 头部收益信息 -->
     <view class="earnings-header">
       <view class="total-earnings">
-        <text class="label">累计佣金 (元)</text>
-        <text class="value">{{ stats.totalCommission || 0 }}</text>
+        <text class="label">累计分成 (元)</text>
+        <text class="value">{{ formatMoney(stats.totalCommission) }}</text>
       </view>
       <view class="earnings-detail">
         <view class="detail-item">
           <text class="item-label">已提现</text>
-          <text class="item-value">{{ stats.withdrawn || 0 }}</text>
+          <text class="item-value">{{ formatMoney(stats.withdrawn) }}</text>
         </view>
         <view class="detail-item">
           <text class="item-label">可提现</text>
-          <text class="item-value highlight">{{ stats.withdrawable || 0 }}</text>
+          <text class="item-value highlight">{{ formatMoney(stats.withdrawable) }}</text>
         </view>
         <view class="detail-item">
-          <text class="item-label">预估佣金</text>
-          <text class="item-value">{{ stats.estimateCommission || 0 }}</text>
+          <text class="item-label">预估分成</text>
+          <text class="item-value">{{ formatMoney(stats.estimateCommission) }}</text>
         </view>
       </view>
       <button class="withdraw-btn" @click="goWithdraw">立即提现</button>
@@ -76,7 +76,7 @@
       <view class="chart-legend">
         <view class="legend-item">
           <view class="legend-color" style="background: #667eea;"></view>
-          <text>订单佣金</text>
+          <text>订单分成</text>
         </view>
       </view>
     </view>
@@ -98,8 +98,8 @@
             <text class="team-level">{{ item.level === 1 ? '一级成员' : '二级成员' }}</text>
           </view>
           <view class="team-earnings">
-            <text class="earnings-text">贡献佣金</text>
-            <text class="earnings-value">¥{{ item.commission || 0 }}</text>
+            <text class="earnings-text">贡献分成</text>
+            <text class="earnings-value">¥{{ formatMoney(item.commission) }}</text>
           </view>
         </view>
         <view class="team-empty" v-if="teamList.length === 0">
@@ -131,7 +131,7 @@
     <view class="menu-section card">
       <view class="menu-item" @click="goEarningsList('order')">
         <text>📋</text>
-        <text>订单佣金明细</text>
+        <text>订单分成明细</text>
         
       </view>
       <view class="menu-item" @click="goWithdrawList">
@@ -141,7 +141,7 @@
       </view>
       <view class="menu-item" @click="showInviteGuide">
         
-        <text>如何成为艺荐官</text>
+        <text>如何成为经纪人</text>
         
       </view>
     </view>
@@ -151,6 +151,7 @@
 <script>
 import { getPromoterCenter, getPromoterStats, getEarningsTrend, getTeamList, getMyCode } from '@/api/promoter.js'
 import { useUserStore } from '@/store/modules/user.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -193,6 +194,9 @@ export default {
   },
 
   methods: {
+    formatMoney(value) {
+      return formatYuanNumber(fenToYuan(value))
+    },
     async loadData() {
       if (!this.userStore.isAuthenticated) {
         uni.navigateTo({ url: '/pages/login/index' })
@@ -291,8 +295,8 @@ export default {
 
     showInviteGuide() {
       uni.showModal({
-        title: '如何成为艺荐官',
-        content: '1. 累计推广订单满10单\n2. 或累计佣金满1000元\n满足任一条件即可申请成为艺荐官，享受更多佣金福利！',
+        title: '如何成为经纪人',
+        content: '1. 累计推广订单满10单\n2. 或累计分成满1000元\n满足任一条件即可申请成为经纪人，享受更多分成福利！',
         showCancel: false
       })
     }

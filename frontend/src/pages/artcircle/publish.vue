@@ -96,7 +96,7 @@
     <!-- 协议提示 -->
     <view class="agreement-tip">
       <text>发布即表示你同意</text>
-      <text class="link" @click="goAgreement">《拾艺局社区公约》</text>
+      <text class="link" @click="goAgreement">《艺本艺术社区公约》</text>
     </view>
   </view>
 </template>
@@ -104,6 +104,7 @@
 <script>
 import { createPost, getTopics } from '@/api/community'
 import { uploadFile, openCropper } from '@/api/file'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -250,9 +251,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     }
   }
 }

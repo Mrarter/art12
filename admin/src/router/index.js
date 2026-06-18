@@ -41,7 +41,7 @@ const routes = [
             path: 'promoter',
             name: 'PromoterList',
             component: () => import('@/views/user/promoter.vue'),
-            meta: { title: '艺荐官管理' }
+            meta: { title: '经纪人管理' }
           },
           {
             path: 'user-profile',
@@ -141,7 +141,7 @@ const routes = [
             path: 'commission',
             name: 'Commission',
             component: () => import('@/views/promotion/commission.vue'),
-            meta: { title: '佣金记录' }
+            meta: { title: '经纪人分成记录' }
           },
           {
             path: 'withdraw',
@@ -305,7 +305,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
-    document.title = `${to.meta.title} - 拾艺局后台`
+    document.title = `${to.meta.title} - 艺本艺术后台`
   }
   const token = localStorage.getItem('admin_token')
   if (!token && to.path !== '/login') {

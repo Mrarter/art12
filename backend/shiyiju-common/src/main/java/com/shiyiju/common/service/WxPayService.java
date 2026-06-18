@@ -209,6 +209,7 @@ public class WxPayService {
         StringBuilder sb = new StringBuilder();
         params.entrySet().stream()
                 .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
+                .filter(e -> !"sign".equalsIgnoreCase(e.getKey()))
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(e -> sb.append(e.getKey()).append("=").append(e.getValue()).append("&"));
         sb.append("key=").append(key);

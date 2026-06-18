@@ -103,7 +103,7 @@ export default {
         userName: '张三',
         userAvatar: '/static/images/avatar.png',
         qrCodeUrl: '',
-        appName: '拾艺局',
+        appName: '艺本艺术',
         slogan: '发现艺术，分享价值',
         inviteCode: 'ABC123456',
         bgImage: '/static/poster/bg-default.jpg'

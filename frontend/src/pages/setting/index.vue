@@ -104,7 +104,7 @@
 
     <!-- 版本信息 -->
     <view class="version-info">
-      <text class="version-text">拾艺局 v1.0.0</text>
+      <text class="version-text">艺本艺术 v1.0.0</text>
     </view>
   </view>
 </template>

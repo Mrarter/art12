@@ -1,10 +1,10 @@
 /**
- * 艺荐官/推广员相关 API
+ * 经纪人/推广员相关 API
  */
 import request from './request'
 
 /**
- * 获取艺荐官中心首页数据
+ * 获取经纪人中心首页数据
  * GET /promoter/center
  */
 export const getPromoterCenter = () => {
@@ -12,7 +12,7 @@ export const getPromoterCenter = () => {
 }
 
 /**
- * 获取艺荐官统计数据
+ * 获取经纪人统计数据
  * GET /promoter/stats
  */
 export const getPromoterStats = () => {
@@ -59,7 +59,7 @@ export const getTeamMemberDetail = (userId) => {
 }
 
 /**
- * 获取下级艺荐官列表
+ * 获取下级经纪人列表
  * GET /promoter/team/subordinate
  * @param {number} params.level - 级别: 1/2
  */
@@ -87,7 +87,7 @@ export const getWithdrawList = (params) => {
 }
 
 /**
- * 绑定艺荐官关系
+ * 绑定经纪人关系
  * POST /promoter/bind
  * @param {string} code - 推荐码
  */
@@ -104,7 +104,7 @@ export const getMyCode = () => {
 }
 
 /**
- * 获取佣金配置
+ * 获取分成配置
  * GET /promoter/config
  */
 export const getCommissionConfig = () => {
@@ -129,7 +129,7 @@ export const getQrCode = (inviteCode) => {
 }
 
 /**
- * 获取订单关联的佣金记录
+ * 获取订单关联的分成记录
  * GET /promoter/order-commission
  * @param {string} orderId - 订单ID
  */
@@ -138,7 +138,7 @@ export const getOrderCommission = (orderId) => {
 }
 
 /**
- * 获取商品佣金信息
+ * 获取商品分成信息
  * GET /promoter/product-commission
  * @param {number} productId - 商品ID
  */
@@ -147,12 +147,12 @@ export const getProductCommission = (productId) => {
 }
 
 /**
- * 获取佣金明细列表
+ * 获取分成明细列表
  * GET /promoter/commission/list
  * @param {Object} params
  * @param {number} params.page - 页码
  * @param {number} params.pageSize - 每页数量
- * @param {number} params.level - 佣金级别：1-一级 2-二级
+ * @param {number} params.level - 分成级别：1-一级 2-二级
  */
 export const getCommissionList = (params) => {
   return request.get('/promoter/commission/list', params)

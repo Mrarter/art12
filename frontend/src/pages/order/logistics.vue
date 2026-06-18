@@ -88,6 +88,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getOrderDetail, getOrderLogistics } from '@/api/order'
 import { getFullImageUrl } from '@/utils/image'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 const logisticsInfo = ref({
   expressName: '--',
@@ -127,8 +128,7 @@ const formatTime = (value) => {
 }
 
 const formatPrice = (value) => {
-  const amount = Number(value || 0)
-  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2)
+  return formatYuanNumber(fenToYuan(value))
 }
 
 const normalizeGoods = (goods = []) => goods.map(item => ({

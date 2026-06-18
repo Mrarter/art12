@@ -171,6 +171,9 @@ public class ProductService {
         if (query.getArtworkCode() != null && !query.getArtworkCode().isEmpty()) {
             wrapper.like(Artwork::getArtworkUid, query.getArtworkCode());
         }
+        if (query.getAuthorId() != null) {
+            wrapper.eq(Artwork::getAuthorId, query.getAuthorId());
+        }
         // 作品名称模糊搜索
         if (query.getTitle() != null && !query.getTitle().isEmpty()) {
             wrapper.like(Artwork::getTitle, query.getTitle());
@@ -565,6 +568,44 @@ public class ProductService {
         return count != null && count > 0;
     }
 
+    private boolean tableExists(String tableName) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = ?
+                """,
+                Integer.class,
+                tableName
+        );
+        return count != null && count > 0;
+    }
+
+    private Map<String, Object> findActiveResaleListing(Long artworkId) {
+        if (artworkId == null || !tableExists("resale_record")) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    """
+                    SELECT id, artwork_id AS artworkId, seller_user_id AS sellerUserId,
+                           buyer_user_id AS buyerUserId, resale_price AS resalePrice,
+                           status, created_time AS createdTime, updated_time AS updatedTime
+                    FROM resale_record
+                    WHERE artwork_id = ? AND status = 'pending'
+                    ORDER BY updated_time DESC, id DESC
+                    LIMIT 1
+                    """,
+                    artworkId
+            );
+            return rows.isEmpty() ? null : rows.get(0);
+        } catch (Exception e) {
+            log.warn("查询作品转售挂单失败: artworkId={}", artworkId, e);
+            return null;
+        }
+    }
+
     private Long getLongOrNull(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
         long value = rs.getLong(column);
         return rs.wasNull() ? null : value;
@@ -626,7 +667,7 @@ public class ProductService {
         artwork.setImages(dto.getImages());
         artwork.setPrice(dto.getPrice() != null ? dto.getPrice() : BigDecimal.ZERO);
         artwork.setOriginalPrice(dto.getOriginalPrice() != null ? dto.getOriginalPrice() : null);
-        artwork.setStock(dto.getStock() != null ? dto.getStock() : 0);
+        artwork.setStock(dto.getStock() != null ? dto.getStock() : 1);
         artwork.setDescription(dto.getDescription());
         artwork.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
         artwork.setWeight(dto.getWeight() != null ? dto.getWeight() : 0);
@@ -796,6 +837,24 @@ public class ProductService {
         }
     }
 
+    /** 更新单个作品上下架状态 */
+    @Transactional
+    public void updateArtworkStatus(Long id, Integer status) {
+        if (!ProductConstant.STATUS_ON_SALE.equals(status) && !ProductConstant.STATUS_OFF_SALE.equals(status)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR);
+        }
+        Artwork artwork = artworkMapper.selectById(id);
+        if (artwork == null) {
+            throw new BusinessException(ResultCode.PRODUCT_NOT_FOUND);
+        }
+        if (ProductConstant.STATUS_SOLD_OUT.equals(artwork.getStatus())) {
+            throw new BusinessException(ResultCode.PRODUCT_SOLD_OUT);
+        }
+        artwork.setStatus(status);
+        artwork.setUpdateTime(LocalDateTime.now());
+        artworkMapper.updateById(artwork);
+    }
+
     /** 删除作品 */
     @Transactional
     public void deleteArtwork(Long id) {
@@ -871,6 +930,14 @@ public class ProductService {
         vo.setCurrentPrice(currentPrice != null ? BigDecimal.valueOf(currentPrice) : null);
         vo.setStock(artwork.getStock());
         vo.setStatus(artwork.getStatus());
+        vo.setHolderId(artwork.getHolderId());
+        if (artwork.getHolderSince() != null) {
+            vo.setHolderSince(artwork.getHolderSince().toString());
+        }
+        if (artwork.getHolderId() != null) {
+            vo.setHolderName(resolveUserNickname(artwork.getHolderId()));
+        }
+        vo.setResaleListing(findActiveResaleListing(artwork.getId()));
         vo.setWeight(artwork.getWeight() != null ? artwork.getWeight() : 0);
         vo.setOwnershipType(artwork.getOwnershipType() != null ? artwork.getOwnershipType() : 1);
         vo.setArtworkCode(artwork.getArtworkUid() != null ? artwork.getArtworkUid() : artwork.getArtworkCode());
@@ -1016,6 +1083,21 @@ public class ProductService {
         return vo;
     }
 
+    private String resolveUserNickname(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT nickname FROM users WHERE id = ? AND deleted = 0 LIMIT 1",
+                    String.class,
+                    userId);
+        } catch (Exception e) {
+            log.warn("查询作品持有人昵称失败: userId={}", userId, e);
+            return null;
+        }
+    }
+
     /** 转换为列表VO：首页瀑布流不阻塞等待用户服务补艺术家资料 */
     private ArtworkVO convertToListVO(Artwork artwork, Long userId) {
         ArtworkVO vo = convertToSimpleVO(artwork);
@@ -1084,6 +1166,7 @@ public class ProductService {
         vo.setDistributionOrders(artwork.getDistributionOrders());
         vo.setDistributionEarnings(artwork.getDistributionEarnings());
         vo.setDistributionUsers(artwork.getDistributionUsers());
+        vo.setResaleListing(findActiveResaleListing(artwork.getId()));
         vo.setCustomPriceGrowthEnabled(artwork.getCustomPriceGrowthEnabled());
         vo.setCustomBaseDailyRate(artwork.getCustomBaseDailyRate());
         vo.setCustomMatureDailyRate(artwork.getCustomMatureDailyRate());
@@ -1163,6 +1246,15 @@ public class ProductService {
         result.put("displayLikeCount", priceGrowthService.calculateDisplayLikeCount(artwork));
         
         return result;
+    }
+
+    public Long calculateDisplayCurrentPrice(Long artworkId) {
+        Artwork artwork = artworkMapper.selectById(artworkId);
+        if (artwork == null) {
+            return 0L;
+        }
+        loadArtworkPriceGrowthConfig(artwork);
+        return priceGrowthService.calculateCurrentPrice(artwork);
     }
 
     /**

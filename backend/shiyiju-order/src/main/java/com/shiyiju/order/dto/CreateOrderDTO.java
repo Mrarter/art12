@@ -10,5 +10,6 @@ public class CreateOrderDTO implements Serializable {
     private Long artworkId;
     private Integer quantity;
     private Long addressId;
+    private Long promoterId;
     private String remark;
 }

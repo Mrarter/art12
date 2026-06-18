@@ -74,6 +74,8 @@
 </template>
 
 <script>
+import { formatPriceNumber } from '@/utils/price'
+
 export default {
   data() {
     return {
@@ -113,7 +115,7 @@ export default {
             material: data.material || '',
             size: data.size || '',
             price: price,
-            priceText: price ? '¥' + String(Math.round(price / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+            priceText: price ? `¥${formatPriceNumber(price)}` : ''
           }
         }
       } catch (e) {

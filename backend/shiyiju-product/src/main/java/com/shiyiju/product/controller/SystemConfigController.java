@@ -90,6 +90,11 @@ public class SystemConfigController {
         priceGrowth.put("masterBadgeRate", priceGrowthConfig.getMasterBadgeRate());
         priceGrowth.put("viewThreshold", priceGrowthConfig.getViewThreshold());
         priceGrowth.put("viewRate", priceGrowthConfig.getViewRate());
+        priceGrowth.put("viewAutoGrowthEnabled", priceGrowthConfig.getViewAutoGrowthEnabled());
+        priceGrowth.put("viewGrowthRandomRate", priceGrowthConfig.getViewGrowthRandomRate());
+        priceGrowth.put("dailyViewGrowth", priceGrowthConfig.getDailyViewGrowth());
+        priceGrowth.put("weeklyViewGrowth", priceGrowthConfig.getWeeklyViewGrowth());
+        priceGrowth.put("monthlyViewGrowth", priceGrowthConfig.getMonthlyViewGrowth());
         priceGrowth.put("favoriteThreshold", priceGrowthConfig.getFavoriteThreshold());
         priceGrowth.put("favoriteRate", priceGrowthConfig.getFavoriteRate());
         priceGrowth.put("saleRate", priceGrowthConfig.getSaleRate());
@@ -161,6 +166,7 @@ public class SystemConfigController {
         result.put("viewThreshold", priceGrowthConfig.getViewThreshold());
         result.put("viewRate", priceGrowthConfig.getViewRate());
         result.put("viewAutoGrowthEnabled", priceGrowthConfig.getViewAutoGrowthEnabled());
+        result.put("viewGrowthRandomRate", priceGrowthConfig.getViewGrowthRandomRate());
         result.put("dailyViewGrowth", priceGrowthConfig.getDailyViewGrowth());
         result.put("weeklyViewGrowth", priceGrowthConfig.getWeeklyViewGrowth());
         result.put("monthlyViewGrowth", priceGrowthConfig.getMonthlyViewGrowth());
@@ -212,6 +218,9 @@ public class SystemConfigController {
             if (config.containsKey("viewAutoGrowthEnabled")) {
                 priceGrowthConfig.setViewAutoGrowthEnabled(Boolean.parseBoolean(String.valueOf(config.get("viewAutoGrowthEnabled"))));
             }
+            if (config.containsKey("viewGrowthRandomRate")) {
+                priceGrowthConfig.setViewGrowthRandomRate(clampRate(config.get("viewGrowthRandomRate")));
+            }
             if (config.containsKey("dailyViewGrowth")) {
                 priceGrowthConfig.setDailyViewGrowth(Math.max(((Number) config.get("dailyViewGrowth")).intValue(), 0));
             }
@@ -241,6 +250,17 @@ public class SystemConfigController {
             log.error("更新价格增长配置失败", e);
             return Result.fail("更新配置失败");
         }
+    }
+
+    private java.math.BigDecimal clampRate(Object value) {
+        java.math.BigDecimal rate = new java.math.BigDecimal(String.valueOf(value));
+        if (rate.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            return java.math.BigDecimal.ZERO;
+        }
+        if (rate.compareTo(java.math.BigDecimal.ONE) > 0) {
+            return java.math.BigDecimal.ONE;
+        }
+        return rate;
     }
 
     /**

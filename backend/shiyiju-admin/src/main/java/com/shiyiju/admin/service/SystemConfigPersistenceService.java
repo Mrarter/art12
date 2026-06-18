@@ -22,14 +22,53 @@ public class SystemConfigPersistenceService {
         item("trade", "trade.allow.repeat.buy", "boolean", "允许重复购买", "allowRepeatBuy", false),
         item("trade", "trade.price.unit", "string", "价格单位", "priceUnit", "fen"),
 
-        item("promotion", "promotion.direct.commission", "number", "一级佣金", "directCommission", 5),
-        item("promotion", "promotion.team.commission", "number", "二级佣金", "teamCommission", 2),
-        item("promotion", "promotion.settlement.type", "string", "佣金结算时机", "settlementType", "after_pay"),
+        item("promotion", "promotion.direct.commission", "number", "一级经纪人分成", "directCommission", 5),
+        item("promotion", "promotion.team.commission", "number", "二级经纪人分成", "teamCommission", 2),
+        item("promotion", "promotion.settlement.type", "string", "经纪人分成结算时机", "settlementType", "after_pay"),
         item("promotion", "promotion.min.withdraw", "number", "最低提现金额", "minWithdraw", 100),
         item("promotion", "promotion.withdraw.fee", "number", "提现手续费", "withdrawFee", 0),
         item("promotion", "promotion.withdraw.days", "number", "提现周期", "withdrawDays", 3),
-        item("promotion", "promotion.promoter.condition", "string", "成为艺荐官条件", "promoterCondition", "free"),
+        item("promotion", "promotion.promoter.condition", "string", "成为经纪人条件", "promoterCondition", "free"),
         item("promotion", "promotion.purchase.threshold", "number", "累计消费门槛", "purchaseThreshold", 1000),
+
+        item("platformCommission", "platform.commission.enabled", "boolean", "平台抽佣开关", "enabled", true),
+        item("platformCommission", "platform.commission.primary.sale.rate", "number", "普通订单平台抽佣比例", "primarySaleRate", 10),
+        item("platformCommission", "platform.commission.resale.platform.fee.rate", "number", "转售平台服务费比例", "resalePlatformFeeRate", 15),
+        item("platformCommission", "platform.commission.resale.artist.income.rate", "number", "转售艺术家持续收益比例", "resaleArtistIncomeRate", 5),
+        item("platformCommission", "platform.commission.min.fee", "number", "最低平台服务费", "minPlatformFee", 0),
+        item("platformCommission", "platform.commission.wallet.uid", "string", "平台收款钱包UID", "platformWalletUid", ""),
+        item("platformCommission", "platform.commission.settlement.type", "string", "平台抽佣结算时机", "settlementType", "after_pay"),
+
+        item("coupon", "coupon.enabled", "boolean", "优惠券开关", "enabled", true),
+        item("coupon", "coupon.stack.enabled", "boolean", "允许叠加使用", "stackEnabled", false),
+        item("coupon", "coupon.cash.enabled", "boolean", "现金券开关", "cashCouponEnabled", true),
+        item("coupon", "coupon.cash.default.amount", "number", "现金券默认面额", "cashDefaultAmount", 10),
+        item("coupon", "coupon.cash.min.order.amount", "number", "现金券最低订单金额", "cashMinOrderAmount", 100),
+        item("coupon", "coupon.cash.max.discount.amount", "number", "现金券最高抵扣金额", "cashMaxDiscountAmount", 100),
+        item("coupon", "coupon.cash.valid.days", "number", "现金券有效期", "cashValidDays", 30),
+        item("coupon", "coupon.cash.user.limit", "number", "现金券单用户领取上限", "cashUserLimit", 1),
+        item("coupon", "coupon.artist.commission.enabled", "boolean", "艺术家经纪人分成抵用券开关", "artistCommissionCouponEnabled", true),
+        item("coupon", "coupon.artist.commission.default.rate", "number", "经纪人分成抵用券默认抵扣比例", "artistCommissionDefaultRate", 5),
+        item("coupon", "coupon.artist.commission.max.amount", "number", "经纪人分成抵用券最高抵扣金额", "artistCommissionMaxAmount", 500),
+        item("coupon", "coupon.artist.commission.valid.days", "number", "经纪人分成抵用券有效期", "artistCommissionValidDays", 30),
+        item("coupon", "coupon.artist.commission.scope", "string", "经纪人分成抵用券适用范围", "artistCommissionScope", "artist_primary_sale"),
+        item("coupon", "coupon.artist.commission.user.limit", "number", "经纪人分成抵用券单用户领取上限", "artistCommissionUserLimit", 1),
+
+        item("trafficGrowth", "traffic.growth.page.view.enabled", "boolean", "全站页面浏览量增长开关", "pageViewGrowthEnabled", false),
+        item("trafficGrowth", "traffic.growth.page.view.daily", "number", "全站页面每日浏览量增长", "pageDailyViewGrowth", 0),
+        item("trafficGrowth", "traffic.growth.page.view.weekly", "number", "全站页面每周浏览量增长", "pageWeeklyViewGrowth", 0),
+        item("trafficGrowth", "traffic.growth.page.view.monthly", "number", "全站页面每月浏览量增长", "pageMonthlyViewGrowth", 0),
+        item("trafficGrowth", "traffic.growth.page.favorite.enabled", "boolean", "全站页面收藏量增长开关", "pageFavoriteGrowthEnabled", false),
+        item("trafficGrowth", "traffic.growth.page.favorite.daily", "number", "全站页面每日收藏量增长", "pageDailyFavoriteGrowth", 0),
+        item("trafficGrowth", "traffic.growth.page.favorite.weekly", "number", "全站页面每周收藏量增长", "pageWeeklyFavoriteGrowth", 0),
+        item("trafficGrowth", "traffic.growth.page.favorite.monthly", "number", "全站页面每月收藏量增长", "pageMonthlyFavoriteGrowth", 0),
+        item("trafficGrowth", "traffic.growth.artwork.enabled", "boolean", "作品日常热度增长开关", "artworkHeatGrowthEnabled", false),
+        item("trafficGrowth", "traffic.growth.artwork.daily.view", "number", "作品每日浏览量增长", "artworkDailyViewGrowth", 0),
+        item("trafficGrowth", "traffic.growth.artwork.daily.like", "number", "作品每日点赞量增长", "artworkDailyLikeGrowth", 0),
+        item("trafficGrowth", "traffic.growth.artwork.daily.favorite", "number", "作品每日收藏量增长", "artworkDailyFavoriteGrowth", 0),
+        item("trafficGrowth", "traffic.growth.artist.enabled", "boolean", "艺术家日常热度增长开关", "artistHeatGrowthEnabled", false),
+        item("trafficGrowth", "traffic.growth.artist.daily.follow", "number", "艺术家每日关注量增长", "artistDailyFollowGrowth", 0),
+        item("trafficGrowth", "traffic.growth.artist.daily.like", "number", "艺术家每日点赞量增长", "artistDailyLikeGrowth", 0),
 
         item("priceGrowth", "price.growth.enabled", "boolean", "价格增长开关", "enabled", true),
         item("priceGrowth", "price.growth.base.daily.rate", "number", "基础日增长率", "baseDailyRate", 0.0002),
@@ -42,6 +81,7 @@ public class SystemConfigPersistenceService {
         item("priceGrowth", "price.growth.view.threshold", "number", "浏览量阈值", "viewThreshold", 100),
         item("priceGrowth", "price.growth.view.rate", "number", "浏览量加成", "viewRate", 1.1),
         item("priceGrowth", "price.growth.view.auto.enabled", "boolean", "浏览量自动增长开关", "viewAutoGrowthEnabled", false),
+        item("priceGrowth", "price.growth.view.random.rate", "number", "浏览量自动增长随机浮动比例", "viewGrowthRandomRate", 0.58),
         item("priceGrowth", "price.growth.view.daily.growth", "number", "每日浏览量增长", "dailyViewGrowth", 0),
         item("priceGrowth", "price.growth.view.weekly.growth", "number", "每周浏览量增长", "weeklyViewGrowth", 0),
         item("priceGrowth", "price.growth.view.monthly.growth", "number", "每月浏览量增长", "monthlyViewGrowth", 0),
@@ -93,7 +133,10 @@ public class SystemConfigPersistenceService {
     public List<Map<String, Object>> getConfigGroups() {
         List<Map<String, Object>> groups = new ArrayList<>();
         groups.add(group("trade", "交易设置", "订单、退款与价格显示"));
-        groups.add(group("promotion", "分销设置", "佣金、提现和艺荐官门槛"));
+        groups.add(group("promotion", "分销设置", "经纪人分成、提现和经纪人门槛"));
+        groups.add(group("platformCommission", "平台抽佣", "普通订单、转售与平台钱包配置"));
+        groups.add(group("coupon", "优惠券配置", "现金券和艺术家经纪人分成抵用券规则"));
+        groups.add(group("trafficGrowth", "热度增长", "页面、作品、艺术家的浏览、点赞、收藏增长"));
         groups.add(group("priceGrowth", "价格增长", "价格增长系数与阈值"));
         groups.add(group("auction", "拍卖设置", "保证金与延时规则"));
         groups.add(group("audit", "审核设置", "审核开关与敏感词库"));

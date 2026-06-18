@@ -19,7 +19,7 @@ export default {
     domain: IS_MP_WEIXIN ? MP_GATEWAY_ORIGIN : ''
   },
   onLaunch() {
-    console.log('App Launch - 拾艺局')
+    console.log('App Launch - 艺本艺术')
   },
   onShow() {
     console.log('App Show')

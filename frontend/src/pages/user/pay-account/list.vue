@@ -4,7 +4,7 @@
     <view v-if="!loading && list.length === 0" class="empty-state">
       <text class="empty-icon">+</text>
       <text class="empty-title">暂无收款账户</text>
-      <text class="empty-desc">添加收款账户后即可提现佣金和收益</text>
+      <text class="empty-desc">添加收款账户后即可提现分成和收益</text>
     </view>
 
     <!-- 账户列表 -->

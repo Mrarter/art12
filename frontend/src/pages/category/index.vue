@@ -85,6 +85,8 @@
 </template>
 
 <script>
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
+
 export default {
   data() {
     return {
@@ -265,9 +267,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     }
   }
 }

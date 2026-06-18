@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -175,12 +174,16 @@ public class OrderController {
     @GetMapping("/orders")
     public Result<PageResult<OrderVO>> getOrderList(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestParam(required = false) String type,
             @RequestParam(required = false, defaultValue = "all") String status,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
+        }
+        if ("sold".equalsIgnoreCase(type) || "seller".equalsIgnoreCase(type)) {
+            return Result.success(orderService.getSellerOrderList(userId, status, page, pageSize));
         }
         return Result.success(orderService.getOrderList(userId, status, page, pageSize));
     }
@@ -289,6 +292,23 @@ public class OrderController {
     }
 
     /**
+     * 支付宝手机网站支付下单 (POST /pay/alipay/wap)
+     * 返回自动提交到支付宝的表单 HTML。
+     */
+    @PostMapping("/pay/alipay/wap")
+    public Result<Map<String, Object>> createAlipayWapPay(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(orderService.createAlipayWapPay(
+                Long.valueOf(params.get("orderId").toString()),
+                userId));
+    }
+
+    /**
      * 微信支付 - 查询订单状态 (GET /pay/query/{orderId})
      */
     @GetMapping("/pay/query/{orderId}")
@@ -304,6 +324,22 @@ public class OrderController {
             return Result.fail(404, "订单不存在");
         }
         return Result.success(orderService.queryPayStatus(order.getOrderNo()));
+    }
+
+    /**
+     * 本地开发模拟支付成功 (POST /pay/mock-success/{orderId})
+     * 走真实支付成功处理链路，方便联调订单状态、作品归属和后续流程。
+     */
+    @PostMapping("/pay/mock-success/{orderId}")
+    public Result<Void> mockPaySuccess(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long orderId
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        orderService.mockPaySuccess(orderId, userId);
+        return Result.success();
     }
 
     // ==================== 个人中心 - 地址管理 ====================

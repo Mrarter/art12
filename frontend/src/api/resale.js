@@ -19,7 +19,7 @@ export const publishResale = (data) => {
  * @param {Object} params - { page, pageSize, artworkId }
  */
 export const getResaleList = (params) => {
-  return request.get('/user/resale/list', { params })
+  return request.get('/user/resale/list', params)
 }
 
 /**
@@ -28,7 +28,7 @@ export const getResaleList = (params) => {
  * @param {Object} params - { page, pageSize, status }
  */
 export const getMyResales = (params) => {
-  return request.get('/user/resale/my', { params })
+  return request.get('/user/resale/my', params)
 }
 
 /**
@@ -45,6 +45,22 @@ export const getResaleDetail = (id) => {
  */
 export const cancelResale = (id) => {
   return request.post(`/user/resale/${id}/cancel`)
+}
+
+/**
+ * 调整转售价
+ * POST /user/resale/{id}/price
+ */
+export const updateResalePrice = (id, data) => {
+  return request.post(`/user/resale/${id}/price`, data)
+}
+
+/**
+ * 切换平台评估与热度涨价机制
+ * POST /user/resale/{id}/platform-pricing
+ */
+export const updatePlatformPricing = (id, data) => {
+  return request.post(`/user/resale/${id}/platform-pricing`, data)
 }
 
 /**

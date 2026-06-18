@@ -76,6 +76,7 @@ public class OrderService {
         );
 
         List<Map<String, Object>> records = new ArrayList<>();
+        String itemCoverColumn = schemaInspector.firstExistingColumn("trade_order_item", "cover_url", "cover_image");
         for (Map<String, Object> row : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", row.get("id"));
@@ -98,11 +99,25 @@ public class OrderService {
             // 获取第一个商品信息
             Long orderId = ((Number) row.get("id")).longValue();
             List<Map<String, Object>> items = jdbcTemplate.queryForList(
-                "SELECT cover_url, item_title, artwork_id FROM trade_order_item WHERE order_id = ? LIMIT 1", orderId);
+                """
+                SELECT COALESCE(NULLIF(toi.%s, ''), NULLIF(a.cover_image, ''), NULLIF(a.cover, '')) AS cover,
+                       COALESCE(NULLIF(toi.item_title, ''), a.title) AS item_title,
+                       toi.artwork_id,
+                       COALESCE(toi.subtotal_amount, toi.subtotal, 0) AS subtotal_amount,
+                       COALESCE(toi.unit_price, toi.price, 0) AS unit_price
+                FROM trade_order_item toi
+                LEFT JOIN artwork a ON toi.artwork_id = a.id
+                WHERE toi.order_id = ?
+                LIMIT 1
+                """.formatted(itemCoverColumn),
+                orderId
+            );
             if (!items.isEmpty()) {
-                item.put("cover", items.get(0).get("cover_url"));
+                item.put("cover", items.get(0).get("cover"));
                 item.put("artworkTitle", items.get(0).get("item_title"));
                 item.put("artworkId", items.get(0).get("artwork_id"));
+                item.put("firstItemSubtotal", items.get(0).get("subtotal_amount"));
+                item.put("firstItemPrice", items.get(0).get("unit_price"));
             }
             records.add(item);
         }
@@ -163,14 +178,34 @@ public class OrderService {
     }
 
     private List<Map<String, Object>> getOrderItems(Long orderId) {
+        String coverColumn = schemaInspector.firstExistingColumn("trade_order_item", "cover_url", "cover_image");
+        String priceColumn = schemaInspector.firstExistingColumn("trade_order_item", "unit_price", "price");
+        String subtotalColumn = schemaInspector.firstExistingColumn("trade_order_item", "subtotal_amount", "subtotal");
+        String yearSelect = schemaInspector.hasColumn("artwork", "year") ? "a.year" :
+            (schemaInspector.hasColumn("artwork", "create_year") ? "a.create_year" : "NULL");
+        String categoryNameSelect = schemaInspector.hasColumn("artwork", "category_name") ? "a.category_name" : "NULL";
         List<Map<String, Object>> items = jdbcTemplate.queryForList(
             """
-            SELECT toi.item_title, toi.cover_url, toi.unit_price, toi.quantity, toi.subtotal_amount,
-                   a.title as artwork_title, a.cover_image 
+            SELECT COALESCE(NULLIF(toi.item_title, ''), a.title) AS item_title,
+                   COALESCE(NULLIF(toi.%s, ''), NULLIF(a.cover_image, ''), NULLIF(a.cover, '')) AS cover,
+                   toi.%s AS price,
+                   toi.quantity,
+                   toi.%s AS subtotal,
+                   a.title AS artwork_title,
+                   a.author_name AS artist_name,
+                   a.size,
+                   %s AS artwork_year,
+                   COALESCE(NULLIF(a.art_type, ''), %s) AS art_type,
+                   a.price AS artwork_price,
+                   a.original_price AS artwork_original_price,
+                   a.cover_image,
+                   a.cover
             FROM trade_order_item toi
             LEFT JOIN artwork a ON toi.artwork_id = a.id
             WHERE toi.order_id = ?
-            """, orderId);
+            """.formatted(coverColumn, priceColumn, subtotalColumn, yearSelect, categoryNameSelect),
+            orderId
+        );
         return items;
     }
 

@@ -8,7 +8,7 @@
         <image class="brand-logo" :src="loginBrandLogo" mode="aspectFit"></image>
       </view>
       <view class="brand-copy">
-        <text class="app-name">拾艺局</text>
+        <text class="app-name">艺本艺术</text>
         <text class="app-slogan">艺术收藏、发布与分享的一站式入口</text>
       </view>
     </view>
@@ -762,6 +762,8 @@ export default {
 .agreement-footer {
   position: relative;
   z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ============ 品牌区域 =========== */
@@ -823,6 +825,7 @@ export default {
 
 .tab-item {
   flex: 1;
+  min-width: 0;
   text-align: center;
   padding: 20rpx 0;
   font-size: 32rpx;
@@ -831,6 +834,7 @@ export default {
   transition: color 0.3s ease;
   position: relative;
   z-index: 1;
+  white-space: nowrap;
 }
 
 .tab-item.active {
@@ -852,6 +856,7 @@ export default {
 .form-container {
   position: relative;
   min-height: 560rpx;
+  width: 100%;
 }
 
 .form-panel {
@@ -859,6 +864,8 @@ export default {
   top: 0;
   left: 0;
   right: 0;
+  width: 100%;
+  box-sizing: border-box;
   opacity: 0;
   transform: translateY(20rpx);
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -876,11 +883,13 @@ export default {
   font-weight: 700;
   color: #f6f2e8;
   margin-bottom: 18rpx;
+  white-space: nowrap;
 }
 
 .login-mode-switch {
   display: flex;
   height: 68rpx;
+  width: 100%;
   padding: 6rpx;
   margin-bottom: 24rpx;
   border-radius: 14rpx;
@@ -891,6 +900,7 @@ export default {
 
 .mode-option {
   flex: 1;
+  min-width: 0;
   height: 100%;
   border-radius: 10rpx;
   color: #8f887e;
@@ -899,6 +909,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
 }
 
 .mode-option.active {
@@ -923,12 +934,14 @@ export default {
 .input-wrapper {
   display: flex;
   align-items: center;
+  width: 100%;
   height: 88rpx;
   padding: 0 24rpx;
   background: #202024;
   border-radius: 14rpx;
   border: 2rpx solid transparent;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
 }
 
 .input-wrapper:focus-within {
@@ -944,6 +957,7 @@ export default {
 
 .form-input {
   flex: 1;
+  min-width: 0;
   height: 100%;
   background: transparent;
   color: #f6f2e8;
@@ -968,6 +982,7 @@ export default {
 
 .captcha-btn {
   width: 200rpx;
+  min-width: 200rpx;
   height: 64rpx;
   border-radius: 10rpx;
   background: #c9a227;
@@ -980,6 +995,8 @@ export default {
   flex-shrink: 0;
   border: none;
   transition: background 0.2s ease, opacity 0.2s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .captcha-btn::after {
@@ -1100,6 +1117,7 @@ export default {
   background: rgba(255, 255, 255, 0.055);
   border: 1rpx solid rgba(255, 255, 255, 0.16);
   transition: background 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
 }
 
 .btn-wechat:active {
@@ -1142,11 +1160,31 @@ export default {
 
 /* ============ 响应式适配 =========== */
 @media screen and (max-width: 375px) {
+  .login-page {
+    padding-left: 24rpx;
+    padding-right: 24rpx;
+  }
   .brand-section {
     min-height: 200rpx;
   }
   .app-name {
     font-size: 42rpx;
+  }
+  .app-slogan {
+    font-size: 22rpx;
+    line-height: 30rpx;
+  }
+  .captcha-wrapper {
+    gap: 12rpx;
+  }
+  .captcha-btn {
+    width: 180rpx;
+    min-width: 180rpx;
+    font-size: 22rpx;
+  }
+  .password-toggle {
+    padding-left: 12rpx;
+    font-size: 22rpx;
   }
 }
 

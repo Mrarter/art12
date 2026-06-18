@@ -44,17 +44,17 @@
       <view class="stats-row">
         <view class="stat-item">
           <text class="stat-label">累计提现</text>
-          <text class="stat-value primary">¥{{ stats.totalAmount }}</text>
+          <text class="stat-value primary">¥{{ formatMoney(stats.totalAmount) }}</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-label">待处理</text>
-          <text class="stat-value warning">¥{{ stats.pendingAmount }}</text>
+          <text class="stat-value warning">¥{{ formatMoney(stats.pendingAmount) }}</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-label">已到账</text>
-          <text class="stat-value success">¥{{ stats.completedAmount }}</text>
+          <text class="stat-value success">¥{{ formatMoney(stats.completedAmount) }}</text>
         </view>
       </view>
     </view>
@@ -64,7 +64,7 @@
       <view class="list-item" v-for="item in filteredList" :key="item.id" @click="showDetail(item)">
         <view class="item-header">
           <view class="item-left">
-            <text class="item-amount">¥{{ item.amount }}</text>
+            <text class="item-amount">¥{{ formatMoney(item.amount) }}</text>
             <view class="status-badge" :class="item.status">
               {{ getStatusText(item.status) }}
             </view>
@@ -77,11 +77,11 @@
         <view class="item-body">
           <view class="info-row">
             <text class="info-label">手续费</text>
-            <text class="info-value">¥{{ item.fee }}</text>
+            <text class="info-value">¥{{ formatMoney(item.fee) }}</text>
           </view>
           <view class="info-row">
             <text class="info-label">实际到账</text>
-            <text class="info-value highlight">¥{{ item.actualAmount }}</text>
+            <text class="info-value highlight">¥{{ formatMoney(item.actualAmount) }}</text>
           </view>
           <view class="info-row">
             <text class="info-label">到账方式</text>
@@ -133,15 +133,15 @@
           </view>
           <view class="detail-row">
             <text class="detail-label">提现金额</text>
-            <text class="detail-value primary">¥{{ currentItem.amount }}</text>
+            <text class="detail-value primary">¥{{ formatMoney(currentItem.amount) }}</text>
           </view>
           <view class="detail-row">
             <text class="detail-label">手续费</text>
-            <text class="detail-value">¥{{ currentItem.fee }}</text>
+            <text class="detail-value">¥{{ formatMoney(currentItem.fee) }}</text>
           </view>
           <view class="detail-row">
             <text class="detail-label">实际到账</text>
-            <text class="detail-value highlight">¥{{ currentItem.actualAmount }}</text>
+            <text class="detail-value highlight">¥{{ formatMoney(currentItem.actualAmount) }}</text>
           </view>
         </view>
 
@@ -192,6 +192,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 // 状态
 const statusFilter = ref('all')
@@ -203,9 +204,9 @@ const currentItem = ref(null)
 
 // 统计数据
 const stats = ref({
-  totalAmount: 56800.00,
-  pendingAmount: 2888.00,
-  completedAmount: 52120.00
+  totalAmount: 5680000,
+  pendingAmount: 288800,
+  completedAmount: 5212000
 })
 
 // 提现记录列表（待对接真实 API）
@@ -218,6 +219,8 @@ const filteredList = computed(() => {
   }
   return allList.value.filter(item => item.status === statusFilter.value)
 })
+
+const formatMoney = (value) => formatYuanNumber(fenToYuan(value))
 
 // 获取状态文本
 const getStatusText = (status) => {

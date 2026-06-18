@@ -59,12 +59,24 @@ export const getOrderList = (params) => {
   return request({ url: '/order/orders', data: params })
 }
 
+export const getSoldOrderList = (params) => {
+  return request({ url: '/order/orders', data: { ...params, type: 'sold' } })
+}
+
 export const getOrderDetail = (orderId) => {
   return request({ url: `/order/orders/${orderId}` })
 }
 
 export const getOrderLogistics = (orderId) => {
   return request({ url: `/order/logistics/order/${orderId}` })
+}
+
+export const getLogisticsCompanies = () => {
+  return request({ url: '/order/logistics/companies' })
+}
+
+export const shipOrder = (data) => {
+  return request({ url: '/order/logistics/ship', method: 'POST', data })
 }
 
 export const getOrderCounts = () => {
@@ -120,9 +132,29 @@ export const getJsApiPayParams = (orderId, openId) => {
 }
 
 /**
+ * 创建支付宝手机网站支付
+ * @param {number} orderId - 订单ID
+ */
+export const createAlipayWapPay = (orderId) => {
+  return request({
+    url: '/order/pay/alipay/wap',
+    method: 'POST',
+    data: { orderId }
+  })
+}
+
+/**
  * 查询支付状态
  * @param {number} orderId - 订单ID
  */
 export const queryPayStatus = (orderId) => {
   return request({ url: `/order/pay/query/${orderId}` })
+}
+
+/**
+ * 本地开发模拟支付成功
+ * @param {number} orderId - 订单ID
+ */
+export const mockPaySuccess = (orderId) => {
+  return request({ url: `/order/pay/mock-success/${orderId}`, method: 'POST' })
 }

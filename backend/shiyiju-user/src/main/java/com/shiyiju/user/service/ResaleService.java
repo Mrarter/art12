@@ -10,13 +10,17 @@ import com.shiyiju.user.entity.*;
 import com.shiyiju.user.mapper.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,6 +38,8 @@ public class ResaleService {
     private final ArtworkTradeRecordMapper artworkTradeRecordMapper;
     private final ArtworkPriceHistoryMapper artworkPriceHistoryMapper;
     private final ArtworkMapper artworkMapper;
+    private final UserMapper userMapper;
+    private final JdbcTemplate jdbcTemplate;
     private final WalletService walletService;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
@@ -41,8 +47,8 @@ public class ResaleService {
     @Value("${resale.artist-income-rate:0.05}")
     private BigDecimal artistIncomeRate;
 
-    /** 平台服务费比例（默认10%） */
-    @Value("${resale.platform-fee-rate:0.10}")
+    /** 平台服务费比例（默认15%） */
+    @Value("${resale.platform-fee-rate:0.15}")
     private BigDecimal platformFeeRate;
 
     /** 平台收款钱包用户ID（平台服务费入到此账户） */
@@ -91,20 +97,13 @@ public class ResaleService {
             throw new BusinessException(400, "您已发布该作品的转售，请勿重复发布");
         }
 
-        // 6. 计算预估收益
-        BigDecimal artistIncome = resalePrice.multiply(artistIncomeRate).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal platformFee = resalePrice.multiply(platformFeeRate).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal sellerIncome = resalePrice.subtract(artistIncome).subtract(platformFee)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        // 7. 创建转售记录
+        // 6. 创建转售记录
         ResaleRecord record = new ResaleRecord();
         record.setArtworkId(artworkId);
         record.setSellerUserId(sellerUserId);
+        record.setSourceOrderId(resolveHolderSourceOrderId(artworkId, sellerUserId));
         record.setResalePrice(resalePrice);
-        record.setArtistIncome(artistIncome);
-        record.setPlatformFee(platformFee);
-        record.setSellerIncome(sellerIncome);
+        applyCurrentSettlement(record);
         record.setStatus("pending");
         record.setVersion(0);
         record.setCreatedTime(LocalDateTime.now());
@@ -112,8 +111,10 @@ public class ResaleService {
         resaleRecordMapper.insert(record);
 
         log.info("发布转售: id={}, artworkId={}, sellerId={}, price={}, artistIncome={}, platformFee={}, sellerIncome={}",
-                record.getId(), artworkId, sellerUserId, resalePrice, artistIncome, platformFee, sellerIncome);
+                record.getId(), artworkId, sellerUserId, resalePrice, record.getArtistIncome(),
+                record.getPlatformFee(), record.getSellerIncome());
 
+        enrichResaleRecord(record);
         return record;
     }
 
@@ -141,12 +142,14 @@ public class ResaleService {
             if (record.getSellerUserId().equals(buyerUserId)) {
                 throw new BusinessException(400, "不能购买自己的转售作品");
             }
+            applyCurrentSettlement(record);
 
             // 2. 生成交易编号（用于幂等）
             String tradeNo = generateTradeNo("RES");
 
             // 3. 状态变更：pending -> paid（带乐观锁）
-            int rows = resaleRecordMapper.updateStatus(resaleId, "pending", "paid", buyerUserId, tradeNo, record.getVersion());
+            int rows = resaleRecordMapper.updateStatus(resaleId, "pending", "paid", buyerUserId, tradeNo,
+                    record.getArtistIncome(), record.getPlatformFee(), record.getSellerIncome(), record.getVersion());
             if (rows == 0) {
                 throw new BusinessException(500, "购买转售失败，请重试");
             }
@@ -190,8 +193,8 @@ public class ResaleService {
      *
      * 执行：
      * 1. 艺术家持续收益入账（5%）
-     * 2. 平台服务费入账（10%）
-     * 3. 卖家收入入账（85%）
+     * 2. 平台服务费入账（15%）
+     * 3. 卖家收入入账（80%）
      * 4. 更新作品持有者
      * 5. 记录交易链路 + 价格历史
      *
@@ -233,12 +236,15 @@ public class ResaleService {
         }
 
         // 2. 平台服务费入账
-        if (record.getPlatformFee().compareTo(BigDecimal.ZERO) > 0 && platformWalletUserId != null && platformWalletUserId > 0) {
-            walletService.income(platformWalletUserId, record.getPlatformFee(), "resale",
+        Long effectivePlatformWalletUserId = resolvePlatformWalletUserId();
+        if (record.getPlatformFee().compareTo(BigDecimal.ZERO) > 0
+                && effectivePlatformWalletUserId != null
+                && effectivePlatformWalletUserId > 0) {
+            walletService.income(effectivePlatformWalletUserId, record.getPlatformFee(), "resale",
                     resaleId, "resale",
                     "平台转售服务费: 转售ID=" + resaleId + ", 价格=" + record.getResalePrice());
             log.info("平台服务费入账: walletId={}, amount={}, resaleId={}",
-                    platformWalletUserId, record.getPlatformFee(), resaleId);
+                    effectivePlatformWalletUserId, record.getPlatformFee(), resaleId);
         }
 
         // 3. 卖家收入入账
@@ -315,6 +321,88 @@ public class ResaleService {
         log.info("取消转售: id={}, userId={}", resaleId, userId);
     }
 
+    /**
+     * 调整转售价（仅卖家本人可修改待售转售）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public ResaleRecord updateResalePrice(Long resaleId, Long userId, BigDecimal resalePrice) {
+        if (userId == null || resaleId == null || resalePrice == null) {
+            throw new BusinessException(400, "参数不完整");
+        }
+        if (resalePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(400, "转售价格必须大于0");
+        }
+
+        ResaleRecord record = resaleRecordMapper.selectById(resaleId);
+        if (record == null) {
+            throw new BusinessException(404, "转售记录不存在");
+        }
+        if (!Objects.equals(record.getSellerUserId(), userId)) {
+            throw new BusinessException(403, "无权修改该转售");
+        }
+        if (!"pending".equals(record.getStatus())) {
+            throw new BusinessException(400, "当前状态不可调价");
+        }
+        if (Boolean.TRUE.equals(isPlatformPricingEnabled(record.getRemark()))) {
+            throw new BusinessException(400, "已启用平台评估与热度涨价机制，请先关闭后再手动调价");
+        }
+
+        record.setResalePrice(resalePrice);
+        applyCurrentSettlement(record);
+        int rows = resaleRecordMapper.updateResalePrice(
+                resaleId,
+                resalePrice,
+                record.getArtistIncome(),
+                record.getPlatformFee(),
+                record.getSellerIncome(),
+                record.getVersion()
+        );
+        if (rows == 0) {
+            throw new BusinessException(500, "调价失败，请重试");
+        }
+
+        ResaleRecord latest = resaleRecordMapper.selectById(resaleId);
+        enrichResaleRecord(latest);
+        log.info("调整转售价: id={}, userId={}, resalePrice={}", resaleId, userId, resalePrice);
+        return latest;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResaleRecord updatePlatformPricing(Long resaleId, Long userId, Boolean enabled) {
+        if (userId == null || resaleId == null || enabled == null) {
+            throw new BusinessException(400, "参数不完整");
+        }
+        ResaleRecord record = resaleRecordMapper.selectById(resaleId);
+        if (record == null) {
+            throw new BusinessException(404, "转售记录不存在");
+        }
+        if (!Objects.equals(record.getSellerUserId(), userId)) {
+            throw new BusinessException(403, "无权修改该转售");
+        }
+        if (!"pending".equals(record.getStatus())) {
+            throw new BusinessException(400, "当前状态不可切换价格机制");
+        }
+
+        record.setSourceOrderId(resolveHolderSourceOrderId(record.getArtworkId(), record.getSellerUserId()));
+        record.setRemark(mergePlatformPricingRemark(record.getRemark(), enabled));
+        if (Boolean.TRUE.equals(enabled)) {
+            Artwork artwork = artworkMapper.selectById(record.getArtworkId());
+            populateSuggestedPriceRange(record, artwork);
+            BigDecimal managedPrice = calculatePlatformManagedResalePrice(record, artwork);
+            if (managedPrice != null && managedPrice.compareTo(BigDecimal.ZERO) > 0) {
+                record.setResalePrice(managedPrice);
+                applyCurrentSettlement(record);
+            }
+        }
+        record.setUpdatedTime(LocalDateTime.now());
+        resaleRecordMapper.updateById(record);
+
+        ResaleRecord latest = resaleRecordMapper.selectById(resaleId);
+        enrichResaleRecord(latest);
+        log.info("切换平台评估与热度涨价机制: id={}, userId={}, enabled={}", resaleId, userId, enabled);
+        return latest;
+    }
+
     // ===================== 查询方法 =====================
 
     /**
@@ -328,7 +416,9 @@ public class ResaleService {
         if (artworkId != null) {
             wrapper.eq(ResaleRecord::getArtworkId, artworkId);
         }
-        return resaleRecordMapper.selectPage(p, wrapper);
+        Page<ResaleRecord> result = resaleRecordMapper.selectPage(p, wrapper);
+        enrichResaleRecords(result.getRecords());
+        return result;
     }
 
     /**
@@ -342,7 +432,9 @@ public class ResaleService {
         if (status != null && !status.isEmpty()) {
             wrapper.eq(ResaleRecord::getStatus, status);
         }
-        return resaleRecordMapper.selectPage(p, wrapper);
+        Page<ResaleRecord> result = resaleRecordMapper.selectPage(p, wrapper);
+        enrichResaleRecords(result.getRecords());
+        return result;
     }
 
     /**
@@ -353,7 +445,509 @@ public class ResaleService {
         if (record == null) {
             throw new BusinessException(404, "转售记录不存在");
         }
+        enrichResaleRecord(record);
         return record;
+    }
+
+    private void enrichResaleRecords(List<ResaleRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        records.forEach(this::enrichResaleRecord);
+    }
+
+    private void enrichResaleRecord(ResaleRecord record) {
+        if (record == null) {
+            return;
+        }
+        if ("pending".equals(record.getStatus())) {
+            applyCurrentSettlement(record);
+        }
+        record.setArtistIncomeRate(resolveRate("platform.commission.resale.artist.income.rate", artistIncomeRate)
+                .multiply(new BigDecimal("100"))
+                .setScale(0, RoundingMode.HALF_UP));
+        record.setPlatformFeeRate(resolveRate("platform.commission.resale.platform.fee.rate", platformFeeRate)
+                .multiply(new BigDecimal("100"))
+                .setScale(0, RoundingMode.HALF_UP));
+        record.setPlatformPricingEnabled(isPlatformPricingEnabled(record.getRemark()));
+        enrichArtworkInfo(record);
+        record.setSellerUid(resolveUserUid(record.getSellerUserId()));
+        record.setBuyerUid(resolveUserUid(record.getBuyerUserId()));
+    }
+
+    private void applyCurrentSettlement(ResaleRecord record) {
+        if (record == null || record.getResalePrice() == null) {
+            return;
+        }
+        if (!isPlatformCommissionEnabled()) {
+            record.setArtistIncome(BigDecimal.ZERO);
+            record.setPlatformFee(BigDecimal.ZERO);
+            record.setSellerIncome(record.getResalePrice().setScale(2, RoundingMode.HALF_UP));
+            return;
+        }
+        BigDecimal artistIncome = record.getResalePrice()
+                .multiply(resolveRate("platform.commission.resale.artist.income.rate", artistIncomeRate))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal platformFee = record.getResalePrice()
+                .multiply(resolveRate("platform.commission.resale.platform.fee.rate", platformFeeRate))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal minPlatformFee = resolveAmount("platform.commission.min.fee", BigDecimal.ZERO);
+        if (platformFee.compareTo(BigDecimal.ZERO) > 0 && platformFee.compareTo(minPlatformFee) < 0) {
+            platformFee = minPlatformFee;
+        }
+        BigDecimal sellerIncome = record.getResalePrice().subtract(artistIncome).subtract(platformFee)
+                .setScale(2, RoundingMode.HALF_UP);
+        record.setArtistIncome(artistIncome);
+        record.setPlatformFee(platformFee);
+        record.setSellerIncome(sellerIncome);
+    }
+
+    private boolean isPlatformCommissionEnabled() {
+        String raw = readConfigValue("platform.commission.enabled");
+        return raw == null || Boolean.parseBoolean(raw);
+    }
+
+    private BigDecimal resolveRate(String key, BigDecimal fallbackRate) {
+        BigDecimal percent = resolveAmount(key, null);
+        if (percent != null) {
+            return percent.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
+        }
+        return fallbackRate != null ? fallbackRate : BigDecimal.ZERO;
+    }
+
+    private BigDecimal resolveAmount(String key, BigDecimal fallback) {
+        String raw = readConfigValue(key);
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return new BigDecimal(raw.trim());
+        } catch (Exception e) {
+            log.warn("平台抽佣配置解析失败: key={}, value={}", key, raw);
+            return fallback;
+        }
+    }
+
+    private Long resolvePlatformWalletUserId() {
+        String walletUid = readConfigValue("platform.commission.wallet.uid");
+        if (walletUid != null && !walletUid.isBlank()) {
+            try {
+                return jdbcTemplate.queryForObject(
+                        "SELECT id FROM users WHERE uid = ? OR user_uid = ? LIMIT 1",
+                        Long.class,
+                        walletUid.trim(),
+                        walletUid.trim()
+                );
+            } catch (Exception e) {
+                log.warn("平台钱包UID未匹配用户，回退配置文件用户ID: uid={}", walletUid);
+            }
+        }
+        return platformWalletUserId;
+    }
+
+    private String readConfigValue(String key) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM system_config WHERE config_key = ? LIMIT 1",
+                    String.class,
+                    key
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private boolean booleanConfig(String key, boolean fallback) {
+        String raw = readConfigValue(key);
+        return raw == null || raw.isBlank() ? fallback : Boolean.parseBoolean(raw.trim());
+    }
+
+    private int intConfig(String key, int fallback) {
+        BigDecimal value = resolveAmount(key, null);
+        return value == null ? fallback : value.intValue();
+    }
+
+    private BigDecimal decimalConfig(String key, BigDecimal fallback) {
+        BigDecimal value = resolveAmount(key, null);
+        return value != null ? value : fallback;
+    }
+
+    private void enrichArtworkInfo(ResaleRecord record) {
+        Long artworkId = record.getArtworkId();
+        if (artworkId == null) {
+            return;
+        }
+        record.setArtworkUid(resolveArtworkUid(artworkId));
+        try {
+            Artwork artwork = artworkMapper.selectById(artworkId);
+            if (artwork == null) {
+                return;
+            }
+            record.setArtworkTitle(normalizeDisplayText(artwork.getTitle()));
+            record.setArtworkCoverImage(artwork.getCoverImage());
+            record.setArtworkArtType(normalizeDisplayText(artwork.getArtType()));
+            record.setArtworkMedium(normalizeDisplayText(artwork.getMedium()));
+            record.setArtworkSize(normalizeDisplayText(artwork.getSize()));
+            record.setArtworkYear(artwork.getYear());
+            record.setArtworkCurrentPrice(artwork.getPrice() != null ? artwork.getPrice() : record.getResalePrice());
+            populateSuggestedPriceRange(record, artwork);
+            record.setArtistName(resolveArtistName(artwork));
+            record.setCategoryName(resolveCategoryName(artwork));
+        } catch (Exception e) {
+            log.debug("补充转售作品信息失败: artworkId={}", artworkId, e);
+        }
+    }
+
+    private void populateSuggestedPriceRange(ResaleRecord record, Artwork artwork) {
+        if (record == null || artwork == null || record.getArtworkId() == null || record.getSellerUserId() == null) {
+            return;
+        }
+        BigDecimal holderBuyPrice = resolveHolderBuyPrice(record.getArtworkId(), record.getSellerUserId());
+        if (holderBuyPrice == null || holderBuyPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            holderBuyPrice = artwork.getPrice() != null && artwork.getPrice().compareTo(BigDecimal.ZERO) > 0
+                    ? artwork.getPrice()
+                    : record.getResalePrice();
+        }
+        if (holderBuyPrice == null || holderBuyPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        record.setHolderBuyPrice(holderBuyPrice.setScale(2, RoundingMode.HALF_UP));
+        record.setSuggestedMinPrice(holderBuyPrice.multiply(new BigDecimal("1.22")).setScale(2, RoundingMode.HALF_UP));
+        record.setSuggestedMaxPrice(holderBuyPrice.multiply(new BigDecimal("1.45")).setScale(2, RoundingMode.HALF_UP));
+        record.setPlatformManagedPrice(calculatePlatformManagedResalePrice(record, artwork));
+    }
+
+    private BigDecimal calculatePlatformManagedResalePrice(ResaleRecord record, Artwork artwork) {
+        if (record == null) {
+            return null;
+        }
+        BigDecimal basePrice = record.getHolderBuyPrice();
+        if (basePrice == null || basePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return record.getSuggestedMinPrice();
+        }
+        if (!booleanConfig("price.growth.enabled", true)) {
+            return record.getSuggestedMinPrice();
+        }
+
+        BigDecimal managedPrice = basePrice.multiply(calculateGlobalPriceGrowthMultiplier(artwork))
+                .setScale(2, RoundingMode.HALF_UP);
+        if (record.getSuggestedMinPrice() != null && managedPrice.compareTo(record.getSuggestedMinPrice()) < 0) {
+            managedPrice = record.getSuggestedMinPrice();
+        }
+        if (record.getSuggestedMaxPrice() != null && managedPrice.compareTo(record.getSuggestedMaxPrice()) > 0) {
+            managedPrice = record.getSuggestedMaxPrice();
+        }
+        return managedPrice;
+    }
+
+    private BigDecimal calculateGlobalPriceGrowthMultiplier(Artwork artwork) {
+        BigDecimal totalMultiplier = BigDecimal.ONE;
+        long onlineDays = getInclusiveOnlineDays(artwork != null ? artwork.getCreateTime() : null);
+        int matureDays = intConfig("price.growth.mature.days", 30);
+        BigDecimal baseDailyRate = decimalConfig("price.growth.base.daily.rate", new BigDecimal("0.0002"));
+        BigDecimal matureDailyRate = decimalConfig("price.growth.mature.daily.rate", new BigDecimal("0.0003"));
+
+        long earlyDays = Math.min(onlineDays, matureDays);
+        long maturePeriodDays = Math.max(onlineDays - matureDays, 0);
+        totalMultiplier = totalMultiplier.multiply(
+                BigDecimal.ONE
+                        .add(baseDailyRate.multiply(BigDecimal.valueOf(earlyDays)))
+                        .add(matureDailyRate.multiply(BigDecimal.valueOf(maturePeriodDays)))
+        );
+
+        int viewCount = safeCount(artwork != null ? artwork.getViewCount() : null)
+                + safeCount(artwork != null ? artwork.getDailyViewCount() : null) * (int) onlineDays;
+        if (viewCount >= intConfig("price.growth.view.threshold", 100)) {
+            totalMultiplier = totalMultiplier.multiply(decimalConfig("price.growth.view.rate", new BigDecimal("1.1")));
+        }
+
+        int favoriteCount = safeCount(artwork != null ? artwork.getFavoriteCount() : null)
+                + safeCount(artwork != null ? artwork.getDailyLikeCount() : null) * (int) onlineDays;
+        if (favoriteCount >= intConfig("price.growth.favorite.threshold", 5)) {
+            totalMultiplier = totalMultiplier.multiply(decimalConfig("price.growth.favorite.rate", new BigDecimal("1.1")));
+        }
+
+        int sales = Math.min(safeCount(artwork != null ? artwork.getSaleCount() : null), intConfig("price.growth.max.sale.count", 10));
+        BigDecimal saleRate = decimalConfig("price.growth.sale.rate", new BigDecimal("0.05"));
+        for (int i = 0; i < sales; i++) {
+            totalMultiplier = totalMultiplier.multiply(BigDecimal.ONE.add(saleRate));
+        }
+
+        BigDecimal maxMultiple = decimalConfig("price.growth.max.multiple", new BigDecimal("5.0"));
+        if (totalMultiplier.compareTo(maxMultiple) > 0) {
+            totalMultiplier = maxMultiple;
+        }
+        return totalMultiplier;
+    }
+
+    private long getInclusiveOnlineDays(LocalDateTime createTime) {
+        if (createTime == null) {
+            return 1;
+        }
+        LocalDate start = createTime.toLocalDate();
+        LocalDate today = LocalDate.now();
+        long days = ChronoUnit.DAYS.between(start, today) + 1;
+        return Math.max(days, 1);
+    }
+
+    private int safeCount(Integer value) {
+        return value == null ? 0 : Math.max(value, 0);
+    }
+
+    private BigDecimal resolveHolderBuyPrice(Long artworkId, Long holderUserId) {
+        Long sourceOrderId = resolveHolderSourceOrderId(artworkId, holderUserId);
+        if (sourceOrderId != null) {
+            try {
+                BigDecimal orderPrice = jdbcTemplate.queryForObject(
+                        """
+                        SELECT toi.price
+                        FROM trade_order_item toi
+                        JOIN trade_order o ON o.id = toi.order_id
+                        WHERE toi.order_id = ?
+                          AND toi.artwork_id = ?
+                          AND o.buyer_user_id = ?
+                        ORDER BY o.created_at DESC
+                        LIMIT 1
+                        """,
+                        BigDecimal.class,
+                        sourceOrderId,
+                        artworkId,
+                        holderUserId
+                );
+                if (orderPrice != null && orderPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    return orderPrice;
+                }
+            } catch (Exception e) {
+                log.debug("按来源订单查询持有者买入价失败: artworkId={}, holderUserId={}, sourceOrderId={}",
+                        artworkId, holderUserId, sourceOrderId, e);
+            }
+        }
+
+        try {
+            BigDecimal orderPrice = jdbcTemplate.queryForObject(
+                    """
+                    SELECT toi.price
+                    FROM trade_order_item toi
+                    JOIN trade_order o ON o.id = toi.order_id
+                    WHERE toi.artwork_id = ?
+                      AND o.buyer_user_id = ?
+                    ORDER BY o.created_at DESC
+                    LIMIT 1
+                    """,
+                    BigDecimal.class,
+                    artworkId,
+                    holderUserId
+            );
+            if (orderPrice != null && orderPrice.compareTo(BigDecimal.ZERO) > 0) {
+                return orderPrice;
+            }
+        } catch (Exception e) {
+            log.debug("按买入订单查询持有者买入价失败: artworkId={}, holderUserId={}", artworkId, holderUserId, e);
+        }
+
+        List<ArtworkTradeRecord> trades = artworkTradeRecordMapper.selectList(
+                new LambdaQueryWrapper<ArtworkTradeRecord>()
+                        .eq(ArtworkTradeRecord::getArtworkId, artworkId)
+                        .eq(ArtworkTradeRecord::getBuyerUserId, holderUserId)
+                        .orderByDesc(ArtworkTradeRecord::getCreatedTime)
+                        .last("LIMIT 1")
+        );
+        if (trades == null || trades.isEmpty()) {
+            return null;
+        }
+        return trades.get(0).getTradePrice();
+    }
+
+    private Long resolveHolderSourceOrderId(Long artworkId, Long holderUserId) {
+        if (artworkId == null || holderUserId == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                    SELECT toi.order_id
+                    FROM trade_order_item toi
+                    JOIN trade_order o ON o.id = toi.order_id
+                    WHERE toi.artwork_id = ?
+                      AND o.buyer_user_id = ?
+                    ORDER BY o.created_at DESC
+                    LIMIT 1
+                    """,
+                    Long.class,
+                    artworkId,
+                    holderUserId
+            );
+        } catch (Exception e) {
+            log.debug("查询持有者来源订单失败: artworkId={}, holderUserId={}", artworkId, holderUserId, e);
+            return null;
+        }
+    }
+
+    private boolean isPlatformPricingEnabled(String remark) {
+        return remark != null && remark.contains("platformPricingEnabled=1");
+    }
+
+    private String mergePlatformPricingRemark(String remark, boolean enabled) {
+        String cleaned = remark == null ? "" : remark
+                .replace("platformPricingEnabled=1", "")
+                .replace(";;", ";")
+                .trim();
+        cleaned = cleaned.replaceAll("^[;\\s]+|[;\\s]+$", "");
+        if (!enabled) {
+            return cleaned;
+        }
+        return cleaned.isBlank() ? "platformPricingEnabled=1" : cleaned + ";platformPricingEnabled=1";
+    }
+
+    private String resolveArtistName(Artwork artwork) {
+        if (artwork == null) {
+            return null;
+        }
+        String artistColumn = firstExistingColumn("artwork", "artist_name", "author_name");
+        if (artistColumn != null && artwork.getId() != null) {
+            try {
+                String name = jdbcTemplate.queryForObject(
+                        "SELECT " + artistColumn + " FROM artwork WHERE id = ? LIMIT 1",
+                        String.class,
+                        artwork.getId());
+                String normalized = normalizeDisplayText(name);
+                if (normalized != null && !normalized.isBlank()) {
+                    return normalized;
+                }
+            } catch (Exception e) {
+                log.debug("查询作品艺术家名称失败: artworkId={}, column={}", artwork.getId(), artistColumn, e);
+            }
+        }
+        if (artwork.getAuthorId() == null) {
+            return null;
+        }
+        try {
+            User author = userMapper.selectById(artwork.getAuthorId());
+            String nickname = normalizeDisplayText(author != null ? author.getNickname() : null);
+            if (nickname != null && !nickname.isBlank()) {
+                return nickname;
+            }
+        } catch (Exception e) {
+            log.debug("查询作品作者用户失败: authorId={}", artwork.getAuthorId(), e);
+        }
+        return null;
+    }
+
+    private String resolveCategoryName(Artwork artwork) {
+        if (artwork == null) {
+            return null;
+        }
+        String categoryColumn = firstExistingColumn("artwork", "category_name");
+        if (categoryColumn != null && artwork.getId() != null) {
+            try {
+                String name = jdbcTemplate.queryForObject(
+                        "SELECT " + categoryColumn + " FROM artwork WHERE id = ? LIMIT 1",
+                        String.class,
+                        artwork.getId());
+                String normalized = normalizeDisplayText(name);
+                if (normalized != null && !normalized.isBlank()) {
+                    return normalized;
+                }
+            } catch (Exception e) {
+                log.debug("查询作品门类名称失败: artworkId={}, column={}", artwork.getId(), categoryColumn, e);
+            }
+        }
+        if (artwork.getCategoryId() == null) {
+            return null;
+        }
+        String nameColumn = firstExistingColumn("artwork_category", "name", "category_name", "title");
+        if (nameColumn == null) {
+            return null;
+        }
+        try {
+            String name = jdbcTemplate.queryForObject(
+                    "SELECT " + nameColumn + " FROM artwork_category WHERE id = ? LIMIT 1",
+                    String.class,
+                    artwork.getCategoryId());
+            return normalizeDisplayText(name);
+        } catch (Exception e) {
+            log.debug("查询作品门类失败: categoryId={}, column={}", artwork.getCategoryId(), nameColumn, e);
+            return null;
+        }
+    }
+
+    private String normalizeDisplayText(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        if (value.contains("�")) {
+            return null;
+        }
+        if (value.contains("Ã") || value.contains("Â") || value.contains("æ") || value.contains("ç") || value.contains("ï")) {
+            try {
+                String decoded = new String(value.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                if (!decoded.isBlank() && !decoded.contains("�")) {
+                    return decoded;
+                }
+            } catch (Exception ignored) {
+                // Keep the original value if it is already correctly encoded.
+            }
+            return null;
+        }
+        return value;
+    }
+
+    private String resolveUserUid(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        try {
+            User user = userMapper.selectById(userId);
+            if (user != null && user.getUid() != null && !user.getUid().isBlank()) {
+                return user.getUid();
+            }
+        } catch (Exception e) {
+            log.debug("查询用户UID失败: userId={}", userId, e);
+        }
+        return null;
+    }
+
+    private String resolveArtworkUid(Long artworkId) {
+        if (artworkId == null) {
+            return null;
+        }
+        String uidColumn = firstExistingColumn("artwork", "uid", "artwork_uid", "code", "artwork_code");
+        if (uidColumn == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT " + uidColumn + " FROM artwork WHERE id = ? LIMIT 1",
+                    String.class,
+                    artworkId);
+        } catch (Exception e) {
+            log.debug("查询作品UID失败: artworkId={}, column={}", artworkId, uidColumn, e);
+            return null;
+        }
+    }
+
+    private String firstExistingColumn(String tableName, String... columns) {
+        for (String column : columns) {
+            try {
+                Integer count = jdbcTemplate.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = ?
+                          AND COLUMN_NAME = ?
+                        """,
+                        Integer.class,
+                        tableName,
+                        column);
+                if (count != null && count > 0) {
+                    return column;
+                }
+            } catch (Exception e) {
+                log.debug("检查字段失败: table={}, column={}", tableName, column, e);
+            }
+        }
+        return null;
     }
 
     /**

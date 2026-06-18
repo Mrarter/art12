@@ -217,6 +217,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 // 状态
 const keyword = ref('')
@@ -320,9 +321,7 @@ const auctionResults = ref([
 
 // 格式化价格
 const formatPrice = (price) => {
-  if (!price) return '0'
-  const yuan = Math.round(price / 100)
-  return yuan.toLocaleString()
+  return formatYuanNumber(fenToYuan(price))
 }
 
 // 返回

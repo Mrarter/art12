@@ -32,7 +32,7 @@
         </template>
       </el-table-column>
       <el-table-column label="金额" width="120">
-        <template #default="{ row }">¥{{ row.amount }}</template>
+        <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
       </el-table-column>
       <el-table-column label="原因" min-width="150">
         <template #default="{ row }">{{ row.reason }}</template>
@@ -80,7 +80,7 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="退款金额">
-            <span class="amount">¥{{ currentRecord.amount }}</span>
+            <span class="amount">{{ formatAmount(currentRecord.amount) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="申请原因">{{ currentRecord.reason }}</el-descriptions-item>
           <el-descriptions-item v-if="currentRecord.remark" label="处理备注">{{ currentRecord.remark }}</el-descriptions-item>
@@ -127,6 +127,13 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   const map = { pending: '待处理', approved: '已通过', rejected: '已拒绝' }
   return map[status] || status
+}
+
+const formatAmount = (value) => {
+  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
 }
 
 const loadData = async () => {

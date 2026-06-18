@@ -19,13 +19,17 @@ public interface ResaleRecordMapper extends BaseMapper<ResaleRecord> {
      * 更新转售状态（pending -> paid）
      */
     @Update("UPDATE resale_record SET status = #{newStatus}, buyer_user_id = #{buyerUserId}, " +
-            "trade_no = #{tradeNo}, version = version + 1, updated_time = NOW() " +
+            "trade_no = #{tradeNo}, artist_income = #{artistIncome}, platform_fee = #{platformFee}, " +
+            "seller_income = #{sellerIncome}, version = version + 1, updated_time = NOW() " +
             "WHERE id = #{id} AND status = #{oldStatus} AND version = #{version}")
     int updateStatus(@Param("id") Long id,
                      @Param("oldStatus") String oldStatus,
                      @Param("newStatus") String newStatus,
                      @Param("buyerUserId") Long buyerUserId,
                      @Param("tradeNo") String tradeNo,
+                     @Param("artistIncome") BigDecimal artistIncome,
+                     @Param("platformFee") BigDecimal platformFee,
+                     @Param("sellerIncome") BigDecimal sellerIncome,
                      @Param("version") Integer version);
 
     /**
@@ -48,4 +52,17 @@ public interface ResaleRecordMapper extends BaseMapper<ResaleRecord> {
     @Update("UPDATE resale_record SET status = 'cancel', version = version + 1, updated_time = NOW() " +
             "WHERE id = #{id} AND status = 'pending' AND version = #{version}")
     int cancelResale(@Param("id") Long id, @Param("version") Integer version);
+
+    /**
+     * 调整转售价（仅 pending）
+     */
+    @Update("UPDATE resale_record SET resale_price = #{resalePrice}, artist_income = #{artistIncome}, " +
+            "platform_fee = #{platformFee}, seller_income = #{sellerIncome}, version = version + 1, updated_time = NOW() " +
+            "WHERE id = #{id} AND status = 'pending' AND version = #{version}")
+    int updateResalePrice(@Param("id") Long id,
+                          @Param("resalePrice") BigDecimal resalePrice,
+                          @Param("artistIncome") BigDecimal artistIncome,
+                          @Param("platformFee") BigDecimal platformFee,
+                          @Param("sellerIncome") BigDecimal sellerIncome,
+                          @Param("version") Integer version);
 }

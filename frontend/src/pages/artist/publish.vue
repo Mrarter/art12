@@ -19,7 +19,7 @@
     <view class="form-section cover-section">
       <view class="section-head">
         <view>
-          <view class="section-title">作品封面</view>
+          <view class="section-title required-title">作品封面</view>
           <view class="section-subtitle">建议上传 1:1 或 4:3 高清作品图</view>
         </view>
         <view class="section-chip">必填</view>
@@ -43,7 +43,7 @@
       </view>
       
       <view class="form-item">
-        <text class="form-label">作品名称</text>
+        <text class="form-label required-label">作品名称</text>
         <input 
           class="form-input" 
           v-model="formData.title" 
@@ -55,7 +55,7 @@
       <!-- 艺术家搜索 -->
       <view class="form-item artist-form-item">
         <view class="artist-label-row">
-          <text class="form-label">作者</text>
+          <text class="form-label required-label">作者</text>
           <text class="artist-id-display" v-if="formData.authorUid">UID: {{ formData.authorUid }}</text>
         </view>
         <view class="artist-input-wrapper">
@@ -121,7 +121,7 @@
       </view>
 
       <view class="form-item">
-        <text class="form-label">作品分类</text>
+        <text class="form-label required-label">作品分类</text>
         <view class="category-select-wrapper">
           <view class="category-select-trigger" @click="toggleCategoryDropdown">
             <text :class="['category-value', { placeholder: !formData.category }]">{{ formData.category || '请选择作品分类' }}</text>
@@ -151,7 +151,7 @@
       </view>
       
       <view class="form-item">
-        <text class="form-label">出售价格</text>
+        <text class="form-label required-label">出售价格</text>
         <view class="price-input">
           <text class="price-unit">¥</text>
           <input 
@@ -225,8 +225,7 @@
           :key="index"
         >
           <image :src="img" mode="aspectFill"></image>
-          <view class="image-delete" @click="removeImage(index)">
-          </view>
+          <view class="image-delete" @click="removeImage(index)">×</view>
         </view>
         <view 
           class="image-add" 
@@ -313,12 +312,22 @@ export default {
     }
   },
 
-  onLoad(options) {
+  async onLoad(options) {
+    const userStore = useUserStore()
+    if (!userStore.userInfo && userStore.token) {
+      await userStore.fetchUserInfo()
+    }
+
+    if (!this.hasPublishPermission(userStore)) {
+      uni.showToast({ title: '认证艺术家才可发布作品', icon: 'none' })
+      setTimeout(() => this.goBack(), 800)
+      return
+    }
+
     this.loadCategories()
     
     // 自动填入当前用户名称作为作者
     if (!options.id) {
-      const userStore = useUserStore()
       if (userStore.userInfo) {
         const nickname = userStore.userInfo.nickname || userStore.userInfo.name || ''
         if (nickname) {
@@ -349,6 +358,24 @@ export default {
   },
 
   methods: {
+    hasPublishPermission(userStore = useUserStore()) {
+      const userInfo = userStore.userInfo || {}
+      const rawIdentities = userStore.identities || userInfo.identities || userInfo.identity_json || userInfo.identity || []
+      const identities = Array.isArray(rawIdentities)
+        ? rawIdentities
+        : String(rawIdentities || '').split(',').map(item => item.trim()).filter(Boolean)
+      const normalized = identities.map(item => String(item).trim().toLowerCase())
+      const artistFlags = [
+        userStore.isArtist,
+        userInfo.isArtist,
+        userInfo.certifiedArtist,
+        userInfo.artistCertified,
+        userInfo.certStatus === 1,
+        userInfo.artistStatus === 1
+      ]
+      return artistFlags.some(Boolean) || normalized.some(item => ['artist', 'certified_artist', 'verified_artist', '艺术家', '认证艺术家'].includes(item))
+    },
+
     goBack() {
       const pages = getCurrentPages()
       if (pages && pages.length > 1) {
@@ -856,6 +883,14 @@ export default {
   width: 160rpx;
 }
 
+.required-title::before,
+.required-label::before {
+  content: '*';
+  color: #e65b5b;
+  margin-right: 8rpx;
+  font-weight: 800;
+}
+
 .artist-label-row {
   width: 100%;
   display: flex;
@@ -1094,6 +1129,10 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #fff;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 1;
   }
 }
 
@@ -1392,6 +1431,11 @@ export default {
   color: #f5f2ea;
   font-size: 28rpx;
   font-weight: 700;
+}
+
+.required-title::before,
+.required-label::before {
+  color: #ff6b6b;
 }
 
 .form-input {

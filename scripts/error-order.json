@@ -1,0 +1,40 @@
+{
+  "scanMetadata": {
+    "scanner": "Web Error Scanner v1.0",
+    "timestamp": "2026-05-20T02:31:40.173Z",
+    "mode": "headless",
+    "device": "desktop",
+    "timeout": 20000
+  },
+  "summary": {
+    "scannedPages": 1,
+    "totalErrors": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "totalWarnings": 0
+  },
+  "pages": [
+    {
+      "url": "http://127.0.0.1:5174/order/list",
+      "scanTime": "2026-05-20T02:31:40.133Z",
+      "duration": "6785ms",
+      "summary": {
+        "totalErrors": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "warnings": 0
+      },
+      "errors": {
+        "uncaughtExceptions": [],
+        "consoleErrors": [],
+        "resourceFailures": [],
+        "httpErrors": []
+      },
+      "warnings": []
+    }
+  ]
+}

@@ -117,6 +117,7 @@
 
 <script>
 import { getAuctionSessions, getSessionDetail, payDeposit } from '@/api/auction'
+import { formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -245,8 +246,7 @@ export default {
 
     formatPrice(price) {
       if (!price && price !== 0) return '0'
-      const num = Number(price)
-      return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return formatYuanNumber(Number(price))
     },
 
     formatCountdown(seconds) {

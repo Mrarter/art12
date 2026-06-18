@@ -67,8 +67,18 @@ export default {
       return ['collector']
     },
     canShowPublish() {
-      const identities = this.identities.map(item => String(item).toLowerCase())
-      return identities.some(item => ['collector', 'artist', '藏家', '收藏者', '收藏家', '艺术家'].includes(item)) || this.userStore.isArtist
+      const userInfo = this.userStore.userInfo || {}
+      const artistStatus = userInfo.artistStatus ?? userInfo.certStatus ?? this.userStore.centerData?.artistStatus
+      if (artistStatus !== null && artistStatus !== undefined && artistStatus !== '') {
+        return Number(artistStatus) === 1
+      }
+      const artistFlags = [
+        userInfo.isArtist,
+        userInfo.certifiedArtist,
+        userInfo.artistCertified,
+        this.userStore.isArtist
+      ]
+      return artistFlags.some(Boolean)
     },
     visibleTabList() {
       return this.tabList

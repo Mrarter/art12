@@ -48,8 +48,8 @@
 
     <view class="about-mask" v-if="showAboutPopup" @click="showAboutPopup = false">
       <view class="about-sheet" @click.stop>
-        <text class="about-name">拾艺局</text>
-        <text class="about-desc">连接艺术家、收藏者与艺荐官的艺术品交易平台</text>
+        <text class="about-name">艺本艺术</text>
+        <text class="about-desc">连接艺术家、收藏者与经纪人的艺术品交易平台</text>
         <view class="about-links">
           <text @click="goPage('/pages/user/agreement?type=user')">用户协议</text>
           <text @click="goPage('/pages/user/agreement?type=privacy')">隐私政策</text>

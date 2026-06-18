@@ -3,7 +3,7 @@
     <view v-if="!isLoggedIn" class="login-panel">
       <image class="login-avatar" src="/static/images/avatar.png" mode="aspectFill"></image>
       <text class="login-title">登录后编辑个人资料</text>
-      <text class="login-desc">完善头像、昵称和简介，让收藏家、艺术家与艺荐官身份都更清晰。</text>
+      <text class="login-desc">完善头像、昵称和简介，让收藏家、艺术家与经纪人身份都更清晰。</text>
       <view class="login-btn" @click="goPage('/pages/login/index')">去登录</view>
     </view>
 
@@ -85,13 +85,17 @@
 
         <view class="field-row">
           <text class="field-label">所在地区</text>
-          <input
-            class="row-input"
-            v-model.trim="draft.region"
-            maxlength="32"
-            placeholder="城市 / 地区"
-            placeholder-class="placeholder"
-          />
+          <picker
+            mode="multiSelector"
+            :range="cityPickerRange"
+            :value="cityPickerIndex"
+            @columnchange="onCityColumnChange"
+            @change="onCityChange"
+          >
+            <view class="picker-value region-picker-value">
+              {{ draft.region || '请选择省 / 城市' }}
+            </view>
+          </picker>
         </view>
       </view>
 
@@ -101,19 +105,38 @@
           <text class="section-note">仅用于账号与服务</text>
         </view>
 
-        <view class="field-row readonly">
+        <view class="field-row">
           <text class="field-label">手机号</text>
-          <text class="readonly-value">{{ formatPhone(userInfo.phone) }}</text>
+          <input
+            class="contact-input"
+            v-model.trim="draft.phone"
+            type="number"
+            maxlength="11"
+            placeholder="请输入手机号"
+            placeholder-class="placeholder"
+          />
         </view>
 
-        <view class="field-row readonly">
+        <view class="field-row">
           <text class="field-label">邮箱</text>
-          <text class="readonly-value">{{ userInfo.email || '暂未开放' }}</text>
+          <input
+            class="contact-input"
+            v-model.trim="draft.email"
+            maxlength="64"
+            placeholder="请输入邮箱"
+            placeholder-class="placeholder"
+          />
         </view>
 
-        <view class="field-row readonly">
+        <view class="field-row">
           <text class="field-label">微信号</text>
-          <text class="readonly-value">{{ userInfo.wechat || '暂未开放' }}</text>
+          <input
+            class="contact-input"
+            v-model.trim="draft.wechat"
+            maxlength="32"
+            placeholder="请输入微信号"
+            placeholder-class="placeholder"
+          />
         </view>
       </view>
 
@@ -141,7 +164,7 @@
       <view class="save-bar">
         <view class="save-secondary" @click="resetDraft" :class="{ disabled: !isDirty || saving }">还原</view>
         <view class="save-primary" @click="saveProfile" :class="{ disabled: !isDirty || saving }">
-          {{ saving ? '保存中...' : '保存修改' }}
+          {{ saving ? saveButtonText : '保存修改' }}
         </view>
       </view>
     </template>
@@ -150,10 +173,46 @@
 
 <script>
 import { useUserStore } from '@/store/modules/user.js'
-import { openCropper } from '@/api/file.js'
+import { openCropper, uploadFile } from '@/api/file.js'
 import { updateUserInfo } from '@/api/user.js'
 
-const EDITABLE_FIELDS = ['avatar', 'nickname', 'bio', 'gender', 'birthday', 'region']
+const EDITABLE_FIELDS = ['avatar', 'nickname', 'bio', 'gender', 'birthday', 'region', 'phone', 'email', 'wechat']
+const CITY_OPTIONS = [
+  { name: '北京市', children: ['北京市'] },
+  { name: '天津市', children: ['天津市'] },
+  { name: '上海市', children: ['上海市'] },
+  { name: '重庆市', children: ['重庆市'] },
+  { name: '河北省', children: ['石家庄市', '唐山市', '秦皇岛市', '邯郸市', '保定市'] },
+  { name: '山西省', children: ['太原市', '大同市', '晋中市', '临汾市', '运城市'] },
+  { name: '辽宁省', children: ['沈阳市', '大连市', '鞍山市', '锦州市'] },
+  { name: '吉林省', children: ['长春市', '吉林市', '延边州'] },
+  { name: '黑龙江省', children: ['哈尔滨市', '齐齐哈尔市', '牡丹江市'] },
+  { name: '江苏省', children: ['南京市', '苏州市', '无锡市', '常州市', '南通市'] },
+  { name: '浙江省', children: ['杭州市', '宁波市', '温州市', '嘉兴市', '绍兴市'] },
+  { name: '安徽省', children: ['合肥市', '芜湖市', '黄山市', '安庆市'] },
+  { name: '福建省', children: ['福州市', '厦门市', '泉州市', '漳州市'] },
+  { name: '江西省', children: ['南昌市', '景德镇市', '九江市', '赣州市'] },
+  { name: '山东省', children: ['济南市', '青岛市', '烟台市', '潍坊市', '临沂市'] },
+  { name: '河南省', children: ['郑州市', '洛阳市', '开封市', '南阳市'] },
+  { name: '湖北省', children: ['武汉市', '宜昌市', '襄阳市', '黄石市'] },
+  { name: '湖南省', children: ['长沙市', '株洲市', '湘潭市', '衡阳市'] },
+  { name: '广东省', children: ['广州市', '深圳市', '珠海市', '佛山市', '东莞市'] },
+  { name: '广西壮族自治区', children: ['南宁市', '桂林市', '柳州市', '北海市'] },
+  { name: '海南省', children: ['海口市', '三亚市', '儋州市'] },
+  { name: '四川省', children: ['成都市', '绵阳市', '乐山市', '德阳市'] },
+  { name: '贵州省', children: ['贵阳市', '遵义市', '安顺市'] },
+  { name: '云南省', children: ['昆明市', '大理市', '丽江市', '曲靖市'] },
+  { name: '陕西省', children: ['西安市', '咸阳市', '宝鸡市', '延安市'] },
+  { name: '甘肃省', children: ['兰州市', '敦煌市', '天水市'] },
+  { name: '青海省', children: ['西宁市', '海东市'] },
+  { name: '宁夏回族自治区', children: ['银川市', '吴忠市'] },
+  { name: '新疆维吾尔自治区', children: ['乌鲁木齐市', '喀什市', '伊宁市'] },
+  { name: '内蒙古自治区', children: ['呼和浩特市', '包头市', '鄂尔多斯市'] },
+  { name: '西藏自治区', children: ['拉萨市', '日喀则市'] },
+  { name: '香港特别行政区', children: ['香港'] },
+  { name: '澳门特别行政区', children: ['澳门'] },
+  { name: '台湾省', children: ['台北市', '高雄市', '台中市'] }
+]
 const createEmptyDraft = () => ({
   avatar: '',
   nickname: '',
@@ -161,6 +220,7 @@ const createEmptyDraft = () => ({
   gender: 0,
   birthday: '',
   region: '',
+  phone: '',
   email: '',
   wechat: ''
 })
@@ -169,6 +229,8 @@ export default {
   data() {
     return {
       saving: false,
+      saveButtonText: '保存中...',
+      cityPickerIndex: [0, 0],
       genderOptions: ['未设置', '男', '女'],
       draft: createEmptyDraft(),
       original: createEmptyDraft()
@@ -194,7 +256,7 @@ export default {
       const map = {
         collector: '收藏家',
         artist: '艺术家',
-        promoter: '艺荐官',
+        promoter: '经纪人',
         agent: '代理人'
       }
       return this.identities.map(key => ({ key, label: map[key] || key }))
@@ -242,7 +304,7 @@ export default {
         cards.push({
           key: 'promoter',
           short: '荐',
-          title: '艺荐官资料',
+          title: '经纪人资料',
           desc: '推广海报、收益账户和团队关系独立管理',
           action: '进入',
           path: '/pages/promoter/index'
@@ -274,6 +336,10 @@ export default {
       if (this.completionPercent >= 67) return '还差一点就完整'
       return '先补齐基础展示信息'
     },
+    cityPickerRange() {
+      const province = CITY_OPTIONS[this.cityPickerIndex[0]] || CITY_OPTIONS[0]
+      return [CITY_OPTIONS.map(item => item.name), province.children]
+    },
     missingFields() {
       const labels = {
         avatar: '头像',
@@ -295,6 +361,7 @@ export default {
 
   async onShow() {
     if (!this.isLoggedIn) return
+    if (this.isDirty) return
     const info = await this.userStore.fetchUserInfo()
     this.syncDraft(info || this.userInfo)
   },
@@ -308,6 +375,7 @@ export default {
         gender: Number(info.gender) || 0,
         birthday: info.birthday || '',
         region: info.region || info.location || '',
+        phone: info.phone || '',
         email: info.email || '',
         wechat: info.wechat || ''
       }
@@ -316,10 +384,25 @@ export default {
       const next = this.buildDraft(info)
       this.draft = { ...next }
       this.original = { ...next }
+      this.cityPickerIndex = this.resolveCityPickerIndex(next.region)
+    },
+    resolveCityPickerIndex(region) {
+      const value = String(region || '').trim()
+      if (!value) return [0, 0]
+      for (let provinceIndex = 0; provinceIndex < CITY_OPTIONS.length; provinceIndex += 1) {
+        const province = CITY_OPTIONS[provinceIndex]
+        const provinceMatched = value.includes(province.name)
+        const cityIndex = province.children.findIndex(city => value.includes(city))
+        if (provinceMatched || cityIndex >= 0) {
+          return [provinceIndex, cityIndex >= 0 ? cityIndex : 0]
+        }
+      }
+      return [0, 0]
     },
     resetDraft() {
       if (!this.isDirty || this.saving) return
       this.draft = { ...this.original }
+      this.cityPickerIndex = this.resolveCityPickerIndex(this.original.region)
       uni.showToast({ title: '已还原', icon: 'none' })
     },
     changeAvatar() {
@@ -329,7 +412,7 @@ export default {
         sourceType: ['album', 'camera'],
         success: (res) => {
           const path = res.tempFilePaths[0]
-          openCropper(path, { ratio: '1:1', shape: 'circle' }).then(cropped => {
+          openCropper(path, { ratio: '1:1', shape: 'circle', outputSize: 800 }).then(cropped => {
             this.draft.avatar = cropped
           }).catch(() => {
             this.draft.avatar = path
@@ -343,6 +426,20 @@ export default {
     onBirthdayChange(e) {
       this.draft.birthday = e.detail.value
     },
+    onCityColumnChange(e) {
+      const { column, value } = e.detail
+      const next = [...this.cityPickerIndex]
+      next[column] = value
+      if (column === 0) next[1] = 0
+      this.cityPickerIndex = next
+    },
+    onCityChange(e) {
+      const [provinceIndex = 0, cityIndex = 0] = e.detail.value || []
+      const province = CITY_OPTIONS[provinceIndex] || CITY_OPTIONS[0]
+      const city = province.children[cityIndex] || province.children[0] || ''
+      this.cityPickerIndex = [provinceIndex, cityIndex]
+      this.draft.region = province.name === city ? city : `${province.name} ${city}`
+    },
     formatPhone(phone) {
       if (!phone) return '未绑定'
       return String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
@@ -350,6 +447,14 @@ export default {
     validateDraft() {
       if (!this.draft.nickname) {
         uni.showToast({ title: '请填写昵称', icon: 'none' })
+        return false
+      }
+      if (this.draft.phone && !/^1[3-9]\d{9}$/.test(this.draft.phone)) {
+        uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+        return false
+      }
+      if (this.draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.draft.email)) {
+        uni.showToast({ title: '请输入正确邮箱', icon: 'none' })
         return false
       }
       return true
@@ -363,13 +468,28 @@ export default {
       })
       return payload
     },
+    async ensureUploaded(path, type = 'avatar') {
+      if (!path) return ''
+      if (/^https?:\/\//.test(path)) return path
+      if (/^data:image\//.test(path) || /^blob:/.test(path)) return uploadFile(path, type)
+      if (path.startsWith('/upload/')) return path
+      if (path.startsWith('/static/')) return path
+      return uploadFile(path, type)
+    },
     async saveProfile() {
       if (!this.isDirty || this.saving) return
       if (!this.validateDraft()) return
 
       this.saving = true
+      this.saveButtonText = '保存中...'
       try {
         const payload = this.buildPayload()
+        if (payload.avatar) {
+          this.saveButtonText = '上传头像中...'
+          payload.avatar = await this.ensureUploaded(payload.avatar)
+          this.draft.avatar = payload.avatar
+        }
+        this.saveButtonText = '保存中...'
         await updateUserInfo(payload)
         const merged = {
           ...this.userInfo,
@@ -676,23 +796,17 @@ $danger: #d86b6b;
   }
 }
 
-.row-input,
 .picker-value,
-.readonly-value {
+.readonly-value,
+.contact-input {
   color: $text;
   font-size: 27rpx;
   text-align: right;
 }
 
-.row-input {
-  flex: 1;
-  min-width: 0;
-  height: 88rpx;
-  margin-left: 28rpx;
-}
-
 .picker-value,
-.readonly-value {
+.readonly-value,
+.contact-input {
   max-width: 430rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -701,6 +815,18 @@ $danger: #d86b6b;
 
 .readonly-value {
   color: $muted;
+}
+
+.region-picker-value {
+  min-width: 320rpx;
+  margin-left: 28rpx;
+}
+
+.contact-input {
+  flex: 1;
+  min-width: 0;
+  height: 88rpx;
+  margin-left: 28rpx;
 }
 
 .readonly {

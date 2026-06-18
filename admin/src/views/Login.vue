@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <h1>拾艺局</h1>
+        <h1>艺本艺术</h1>
         <p>高端艺术品交易平台 · 管理后台</p>
       </div>
       <el-form ref="formRef" :model="form" :rules="rules" class="login-form">

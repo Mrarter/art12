@@ -71,15 +71,15 @@ public class Artwork implements Serializable {
     @TableField("review_count")
     private Integer reviewCount; // 评价数量
     // 分销相关
-    @TableField(exist = false)  // 数据库中无此列
+    @TableField("distribution_enabled")
     private Boolean distributionEnabled;
-    @TableField(exist = false)  // 数据库中无此列
+    @TableField("commission_rate")
     private Integer commissionRate;
-    @TableField(exist = false)  // 数据库中无此列
+    @TableField("distribution_orders")
     private Integer distributionOrders;
-    @TableField(exist = false)  // 数据库中无此列
+    @TableField("distribution_earnings")
     private Long distributionEarnings;
-    @TableField(exist = false)  // 数据库中无此列
+    @TableField("distribution_users")
     private Integer distributionUsers;
     // 单个作品价格增长配置
     @TableField(exist = false)  // 数据库中无此列

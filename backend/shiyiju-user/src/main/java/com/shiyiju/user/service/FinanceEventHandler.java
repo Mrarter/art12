@@ -1,14 +1,19 @@
 package com.shiyiju.user.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shiyiju.common.entity.Artwork;
 import com.shiyiju.common.event.FinanceEvent;
 import com.shiyiju.common.event.FinanceEventType;
 import com.shiyiju.common.mapper.ArtworkMapper;
 import com.shiyiju.user.entity.ArtworkPriceHistory;
 import com.shiyiju.user.entity.ArtworkTradeRecord;
+import com.shiyiju.user.entity.CommissionRecord;
+import com.shiyiju.user.entity.PromoterRecord;
 import com.shiyiju.user.entity.ResaleRecord;
 import com.shiyiju.user.mapper.ArtworkPriceHistoryMapper;
 import com.shiyiju.user.mapper.ArtworkTradeRecordMapper;
+import com.shiyiju.user.mapper.CommissionRecordMapper;
+import com.shiyiju.user.mapper.PromoterRecordMapper;
 import com.shiyiju.user.mapper.ResaleRecordMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +48,11 @@ public class FinanceEventHandler {
     private final ArtworkTradeRecordMapper artworkTradeRecordMapper;
     private final ArtworkPriceHistoryMapper artworkPriceHistoryMapper;
     private final ArtworkMapper artworkMapper;
+    private final CommissionRecordMapper commissionRecordMapper;
+    private final PromoterRecordMapper promoterRecordMapper;
+
+    private static final BigDecimal DIRECT_COMMISSION_RATE = new BigDecimal("0.05");
+    private static final BigDecimal TEAM_COMMISSION_RATE = new BigDecimal("0.02");
 
     /**
      * 处理所有金融事件（发布方事务提交后执行）
@@ -102,9 +112,63 @@ public class FinanceEventHandler {
 
     private void handleCommissionSettle(FinanceEvent e) {
         if (e.getUserId() == null || e.getAmount() == null || e.getAmount().compareTo(BigDecimal.ZERO) <= 0) return;
-        walletService.income(e.getUserId(), e.getAmount(), "commission",
+        settleCommission(e, e.getUserId(), e.getBuyerUserId(), 1, "promoter_reward", DIRECT_COMMISSION_RATE);
+
+        PromoterRecord directPromoter = findActivePromoterByUserId(e.getUserId());
+        if (directPromoter == null || directPromoter.getParentId() == null
+                || directPromoter.getParentId().equals(e.getUserId())) {
+            return;
+        }
+        settleCommission(e, directPromoter.getParentId(), e.getUserId(), 2, "team_reward", TEAM_COMMISSION_RATE);
+    }
+
+    private void settleCommission(FinanceEvent e, Long receiverUserId, Long sourceUserId,
+                                  int level, String type, BigDecimal rate) {
+        BigDecimal commissionAmount = e.getAmount().multiply(rate).setScale(2, RoundingMode.DOWN);
+        if (commissionAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        CommissionRecord record = new CommissionRecord();
+        record.setUserId(receiverUserId);
+        record.setSourceUserId(sourceUserId);
+        record.setOrderId(e.getRelatedId());
+        record.setArtworkId(e.getArtworkId());
+        record.setCommissionType(type);
+        record.setCommissionLevel(level);
+        record.setRate(rate.multiply(new BigDecimal("100")).setScale(2, RoundingMode.DOWN));
+        record.setAmount(commissionAmount);
+        record.setStatus("settled");
+        record.setRemark(type + " " + e.getOrderNo());
+        record.setCreatedTime(LocalDateTime.now());
+        record.setUpdatedTime(LocalDateTime.now());
+        commissionRecordMapper.insert(record);
+
+        walletService.income(receiverUserId, commissionAmount, "commission",
                 e.getRelatedId(), "order",
-                "推广佣金: " + e.getRemark());
+                (level == 1 ? "一级推广佣金: " : "二级团队奖励: ") + e.getRemark());
+        updatePromoterStats(receiverUserId, e.getAmount());
+    }
+
+    private PromoterRecord findActivePromoterByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return promoterRecordMapper.selectOne(new LambdaQueryWrapper<PromoterRecord>()
+                .eq(PromoterRecord::getUserId, userId)
+                .eq(PromoterRecord::getStatus, 1)
+                .last("LIMIT 1"));
+    }
+
+    private void updatePromoterStats(Long userId, BigDecimal orderAmount) {
+        PromoterRecord promoter = findActivePromoterByUserId(userId);
+        if (promoter == null) {
+            return;
+        }
+        promoter.setTotalSales(promoter.getTotalSales() == null
+                ? orderAmount : promoter.getTotalSales().add(orderAmount));
+        promoter.setTotalOrders(promoter.getTotalOrders() == null ? 1 : promoter.getTotalOrders() + 1);
+        promoterRecordMapper.updateById(promoter);
     }
 
     private void handleResaleMarkPaid(FinanceEvent e) {
@@ -114,16 +178,16 @@ public class FinanceEventHandler {
             log.warn("转售不存在: resaleId={}", e.getResaleId());
             return;
         }
-        if (!"pending".equals(record.getStatus())) return; // 幂等
+        if ("completed".equals(record.getStatus())) return; // 幂等
 
-        String tradeNo = "RES" + System.currentTimeMillis() + String.format("%04d", (int)(Math.random() * 10000));
-        int rows = resaleRecordMapper.updateStatus(e.getResaleId(), "pending", "paid",
-                e.getBuyerUserId(), tradeNo, record.getVersion());
-        if (rows == 0) {
-            log.warn("转售标记已支付失败(并发): resaleId={}", e.getResaleId());
-        } else {
-            log.info("转售已支付(事件驱动): resaleId={}, buyerId={}", e.getResaleId(), e.getBuyerUserId());
+        if ("pending".equals(record.getStatus())) {
+            resaleService.markAsPaid(e.getResaleId(), e.getBuyerUserId());
+        } else if (!"paid".equals(record.getStatus())) {
+            log.warn("转售支付事件状态不可处理: resaleId={}, status={}", e.getResaleId(), record.getStatus());
+            return;
         }
+        resaleService.completeResale(e.getResaleId());
+        log.info("转售支付后已完成权属流转: resaleId={}, buyerId={}", e.getResaleId(), e.getBuyerUserId());
     }
 
     // ===================== 退款处理 =====================

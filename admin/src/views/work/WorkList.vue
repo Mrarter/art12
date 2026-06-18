@@ -60,6 +60,13 @@ const loading = ref(false)
 
 onMounted(() => { refresh() })
 
+function formatAmount(value) {
+  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
+}
+
 async function refresh(){
   loading.value = true
   try {
@@ -74,7 +81,7 @@ async function refresh(){
       sub: (item.artworkCode || '') + '｜' + (item.authorName || ''),
       statusText: item.status || item.statusText || '可收藏',
       badgeClass: item.status === 'on_sale' ? 'red' : item.status === 'sold' ? 'gray' : '',
-      amountText: item.price ? `¥${Number(item.price).toLocaleString()}` : '-',
+      amountText: item.price ? formatAmount(item.price) : '-',
       extra: item.artType || '',
       tags: [item.artType, item.material].filter(Boolean),
       updatedAt: (item.createTime || item.createdAt || '').slice(0, 16),

@@ -10,7 +10,7 @@
     <view class="message-content">
       <view class="content-section">
         <text class="section-text">
-          尊敬的拾艺局用户：
+          尊敬的艺本艺术用户：
 
           为了给您提供更好的服务，我们计划进行系统升级维护。
 

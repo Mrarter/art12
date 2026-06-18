@@ -21,6 +21,10 @@ request.silentGet = (url, config = {}) => {
   return request.get(url, { ...config, silent: true })
 }
 
+request.silentPut = (url, data, config = {}) => {
+  return request.put(url, data, { ...config, silent: true })
+}
+
 requestApi.silentGet = (url, config = {}) => {
   return requestApi.get(url, { ...config, silent: true })
 }
@@ -147,11 +151,21 @@ export const uploadFile = async (file, onProgress) => {
 // 图片完整 URL 处理
 export const getFullImageUrl = (url) => {
   if (!url) return ''
+  if (url === '/images/default-artwork.png') {
+    return '/images/default-artwork.png?v=20260617'
+  }
+  const isLocalRuntime = typeof window !== 'undefined'
+    && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname)
+
   // 已有完整域名（包括 http://, https://）
   if (url.startsWith('http://') || url.startsWith('https://')) {
     // 本地文件服务的绝对路径 → 转为相对路径走 Vite 代理
     if (url.includes('localhost:8087') || url.includes('127.0.0.1:8087')) {
       const path = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8087/, '')
+      return ensureUploadPrefix(path)
+    }
+    if (isLocalRuntime && url.includes('shiyiju.online/upload/')) {
+      const path = url.replace(/^https?:\/\/[^/]+/, '')
       return ensureUploadPrefix(path)
     }
     return url
@@ -161,7 +175,7 @@ export const getFullImageUrl = (url) => {
     return 'https:' + url
   }
   // 相对路径：拼接 CDN 地址或当前域名
-  if (CDN_URL) {
+  if (CDN_URL && !isLocalRuntime) {
     return CDN_URL + url
   }
   // 无 CDN 时，确保路径以 /upload/ 或 /uploads/ 开头走 Vite 代理

@@ -1,0 +1,105 @@
+# 测试环境配置
+# 使用 Docker 容器名作为服务地址
+server:
+  port: 8080
+
+spring:
+  application:
+    name: shiyiju-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - XUserId
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: shiyiju-user
+          uri: http://shiyiju-user:8081
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-product
+          uri: http://shiyiju-product:8082
+          predicates:
+            - Path=/api/product/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-artist
+          uri: http://shiyiju-product:8082
+          predicates:
+            - Path=/api/artist/**
+          filters:
+            - RewritePath=/api/artist(?<segment>/?.*), /artist$\{segment}
+        - id: shiyiju-order
+          uri: http://shiyiju-order:8083
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-file
+          uri: http://shiyiju-file:8087
+          predicates:
+            - Path=/api/file/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-auction
+          uri: http://shiyiju-auction:8084
+          predicates:
+            - Path=/api/auction/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-promotion
+          uri: http://shiyiju-promotion:8085
+          predicates:
+            - Path=/api/promotion/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-community
+          uri: http://shiyiju-community:8086
+          predicates:
+            - Path=/api/community/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-message
+          uri: http://shiyiju-message:8088
+          predicates:
+            - Path=/api/message/**
+          filters:
+            - StripPrefix=1
+        - id: shiyiju-pay-callback
+          uri: http://shiyiju-order:8083
+          predicates:
+            - Path=/pay/callback/**
+          filters:
+            - StripPrefix=0
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+  data:
+    redis:
+      host: shiyiju-redis
+      port: 6379
+      database: 0
+
+spring.cloud.nacos.discovery.enabled: false
+spring.cloud.nacos.config.enabled: false
+
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing
+
+logging:
+  level:
+    root: INFO
+    com.shiyiju: DEBUG

@@ -44,6 +44,26 @@ export const updateUserInfo = (data) => {
   })
 }
 
+// 更新艺术家主页版式
+export const updateArtistHomepageStyle = (style) => {
+  return request({
+    url: '/user/artist/homepage-style',
+    method: 'PUT',
+    requireAuth: true,
+    data: { style }
+  })
+}
+
+// 更新艺术家履历
+export const updateArtistResume = (resume) => {
+  return request({
+    url: '/user/artist/resume',
+    method: 'PUT',
+    requireAuth: true,
+    data: { resume }
+  })
+}
+
 // 退出登录
 export const logout = () => {
   return request({
@@ -81,6 +101,24 @@ export const becomeArtist = (data) => {
     url: '/user/become-artist',
     method: 'POST',
     data
+  })
+}
+
+// 提交艺术家入驻/认证申请
+export const submitArtistCert = (data) => {
+  return request({
+    url: '/user/user/artist/cert',
+    method: 'POST',
+    requireAuth: true,
+    data
+  })
+}
+
+// 查询艺术家入驻/认证状态
+export const getArtistCertStatus = () => {
+  return request({
+    url: '/user/artist/cert/status',
+    requireAuth: true
   })
 }
 

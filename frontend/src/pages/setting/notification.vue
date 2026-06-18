@@ -53,7 +53,7 @@
         <view class="setting-item">
           <view class="item-info">
             <text class="item-title">推广收益</text>
-            <text class="item-desc">佣金到账、团队收益通知</text>
+            <text class="item-desc">分成到账、团队收益通知</text>
           </view>
           <switch 
             :checked="notifications.promotion" 
@@ -148,7 +148,7 @@
 
     <!-- 版本信息 -->
     <view class="version-info">
-      <text class="version-text">拾艺局 v1.0.0</text>
+      <text class="version-text">艺本艺术 v1.0.0</text>
     </view>
   </view>
 </template>

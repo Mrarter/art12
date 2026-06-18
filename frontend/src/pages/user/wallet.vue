@@ -54,6 +54,7 @@
 <script>
 import { getWalletInfo, getWalletBills } from '@/api/wallet'
 import { getPayAccountList } from '@/api/pay'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -86,13 +87,13 @@ export default {
 
     formatAmount(val) {
       if (!val && val !== 0) return '0.00'
-      return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return formatYuanNumber(fenToYuan(val))
     },
 
     billTypeText(type) {
       const map = {
         income: '收入', withdraw: '提现', freeze: '冻结', unfreeze: '解冻',
-        commission: '佣金', resale: '转售', refund: '退款', deposit: '保证金',
+        commission: '分成', resale: '转售', refund: '退款', deposit: '保证金',
         transfer: '转账'
       }
       return map[type] || type

@@ -139,6 +139,7 @@
 
 <script>
 import { getPostDetail, getComments, likePost, unlikePost, commentPost } from '@/api/community'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -165,7 +166,7 @@ export default {
 
   onShareAppMessage() {
     return {
-      title: this.post.content ? this.post.content.substring(0, 50) : '拾艺局艺术圈',
+      title: this.post.content ? this.post.content.substring(0, 50) : '艺本艺术圈',
       path: `/pages/artcircle/detail?id=${this.postId}`
     }
   },
@@ -284,7 +285,7 @@ export default {
         artist: '艺术家',
         gallery: '画廊',
         dealer: '画商',
-        promoter: '艺荐官',
+        promoter: '经纪人',
         collector: '收藏家'
       }
       return labels[type] || ''
@@ -310,9 +311,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     }
   }
 }

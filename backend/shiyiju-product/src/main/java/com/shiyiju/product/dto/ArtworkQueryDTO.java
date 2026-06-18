@@ -9,6 +9,7 @@ public class ArtworkQueryDTO implements Serializable {
     private Integer pageSize = 20;
     private Long id; // 作品ID搜索
     private String artworkCode; // 作品UID搜索
+    private Long authorId; // 艺术家用户ID搜索
     private String title; // 作品名称搜索
     private String authorName; // 艺术家名称搜索
     private Long categoryId;

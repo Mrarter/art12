@@ -100,6 +100,7 @@
 <script>
 import { refundApply } from '@/api/order'
 import { uploadFile, openCropper } from '@/api/file'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -121,10 +122,13 @@ export default {
   },
 
   computed: {
+    goodsAmountFen() {
+      return Number(this.order.price || 0) * Number(this.order.quantity || 1)
+    },
     refundAmount() {
-      const goodsAmount = (this.order.price || 0) * (this.order.quantity || 1)
-      const freight = this.order.freight || 0
-      const coupon = this.order.couponAmount || 0
+      const goodsAmount = this.goodsAmountFen
+      const freight = Number(this.order.freight || 0)
+      const coupon = Number(this.order.couponAmount || 0)
       return goodsAmount + freight - coupon
     }
   },
@@ -212,9 +216,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     }
   }
 }

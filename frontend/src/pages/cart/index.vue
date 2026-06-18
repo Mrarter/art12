@@ -70,11 +70,11 @@
           </view>
         </view>
         
-        <!-- 艺荐官信息 -->
+        <!-- 经纪人信息 -->
         <view class="promoter-info" v-if="group.promoterId">
           <view class="promoter-badge">
             <text>★</text>
-            <text>艺荐官</text>
+            <text>经纪人</text>
           </view>
           <text class="promoter-name">{{ group.promoterName }}</text>
         </view>
@@ -124,6 +124,7 @@
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { useCartStore } from '@/store/modules/cart.js'
 import { removeFromCart, lockCartItems } from '@/api/cart.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   components: {
@@ -332,9 +333,7 @@ export default {
     },
     
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     }
   }
 }
@@ -560,7 +559,7 @@ $danger-color: #e74c3c;
   border-radius: 8rpx;
 }
 
-/* 艺荐官信息 */
+/* 经纪人信息 */
 .promoter-info {
   display: flex;
   align-items: center;

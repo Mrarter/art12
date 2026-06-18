@@ -45,6 +45,15 @@ public class OrderVO implements Serializable {
     /** 订单商品列表 - 前端期望 goodsList */
     @JsonProperty("goodsList")
     private List<OrderItemVO> items;
+
+    /** 买家ID */
+    private Long buyerUserId;
+
+    /** 买家头像 */
+    private String buyerAvatar;
+
+    /** 买家名称 */
+    private String buyerName;
     
     /** 卖家头像 */
     private String sellerAvatar;

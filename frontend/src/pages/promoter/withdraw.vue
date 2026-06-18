@@ -231,12 +231,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 // 状态
-const balance = ref(8888.88)
-const todayEarnings = ref(288.50)
-const monthEarnings = ref(5680.00)
-const totalEarnings = ref(128800.00)
+const balanceFen = ref(888888)
+const todayEarningsFen = ref(28850)
+const monthEarningsFen = ref(568000)
+const totalEarningsFen = ref(12880000)
 const amount = ref('')
 const agreed = ref(false)
 const showRules = ref(true)
@@ -248,6 +249,12 @@ const pendingCount = ref(1)
 const minAmount = ref(100)
 const feeRate = ref(0.5)
 const dailyLimit = ref(3)
+
+const balanceYuanValue = computed(() => fenToYuan(balanceFen.value))
+const balance = computed(() => formatYuanNumber(balanceYuanValue.value))
+const todayEarnings = computed(() => formatYuanNumber(fenToYuan(todayEarningsFen.value)))
+const monthEarnings = computed(() => formatYuanNumber(fenToYuan(monthEarningsFen.value)))
+const totalEarnings = computed(() => formatYuanNumber(fenToYuan(totalEarningsFen.value)))
 
 // 计算属性
 const serviceFee = computed(() => {
@@ -262,7 +269,7 @@ const actualAmount = computed(() => {
 
 const canSubmit = computed(() => {
   const amt = parseFloat(amount.value) || 0
-  return amt >= minAmount.value && amt <= balance.value && agreed.value
+  return amt >= minAmount.value && amt <= balanceYuanValue.value && agreed.value
 })
 
 // 方法
@@ -276,17 +283,17 @@ const refreshBalance = () => {
 
 const onAmountInput = (e) => {
   const value = e.detail.value
-  if (parseFloat(value) > balance.value) {
-    amount.value = balance.value.toString()
+  if (parseFloat(value) > balanceYuanValue.value) {
+    amount.value = balanceYuanValue.value.toFixed(2)
   }
 }
 
 const selectAmount = (ratio) => {
-  amount.value = (balance.value * ratio).toFixed(2)
+  amount.value = (balanceYuanValue.value * ratio).toFixed(2)
 }
 
 const withdrawAll = () => {
-  amount.value = balance.value.toString()
+  amount.value = balanceYuanValue.value.toFixed(2)
 }
 
 const onAgreeChange = (e) => {

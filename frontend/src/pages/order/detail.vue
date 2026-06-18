@@ -27,7 +27,7 @@
       <view class="card goods-card">
         <view class="goods-header">
           <image class="shop-logo" :src="orderInfo.sellerAvatar || '/static/images/avatar.png'" mode="aspectFill"></image>
-          <text class="shop-name">{{ orderInfo.sellerName || '拾艺局旗舰店' }}</text>
+          <text class="shop-name">{{ orderInfo.sellerName || '艺本艺术旗舰店' }}</text>
         </view>
         <view
           class="goods-item"
@@ -35,10 +35,18 @@
           :key="item.id"
           @click="goGoodsDetail(item.goodsId)"
         >
-          <image class="goods-image" :src="getFullImageUrl(item.goodsImage)" mode="aspectFill"></image>
+          <image class="goods-image" :src="resolveGoodsImage(item)" mode="aspectFill"></image>
           <view class="goods-info">
             <text class="goods-title">{{ item.goodsName }}</text>
-            <text class="goods-spec" v-if="item.specName">{{ item.specName }}</text>
+            <text class="goods-artist" v-if="resolveArtistName(item)">艺术家：{{ resolveArtistName(item) }}</text>
+            <view class="goods-meta" v-if="goodsMetaList(item).length">
+              <text
+                v-for="meta in goodsMetaList(item)"
+                :key="meta"
+                class="goods-meta-item"
+              >{{ meta }}</text>
+            </view>
+            <text class="goods-spec" v-if="item.specName && !goodsMetaList(item).length">{{ item.specName }}</text>
             <view class="goods-bottom">
               <text class="goods-price">¥{{ formatMoney(item.price) }}</text>
               <text class="goods-count">x{{ item.count }}</text>
@@ -103,9 +111,9 @@
       <view class="ghost-btn" @click="contactSeller">联系卖家</view>
       <view class="ghost-btn" @click="viewLogistics" v-if="['SHIPPED', 'COMPLETED'].includes(orderInfo.status)">查看物流</view>
       <view class="ghost-btn" @click="cancelOrder" v-if="orderInfo.status === 'PENDING_PAYMENT'">取消订单</view>
-      <view class="primary-btn" @click="payOrder" v-if="orderInfo.status === 'PENDING_PAYMENT'">去支付</view>
+      <view class="primary-btn" @click="payOrder" v-if="canPayOrder">去支付</view>
       <view class="primary-btn" @click="confirmReceive" v-if="orderInfo.status === 'SHIPPED'">确认收货</view>
-      <view class="ghost-btn" @click="applyRefund" v-if="['PENDING_PAYMENT', 'PAID', 'SHIPPED'].includes(orderInfo.status)">申请退款</view>
+      <view class="ghost-btn" @click="applyRefund" v-if="canApplyRefund">申请退款</view>
       <view class="primary-btn" @click="reviewOrder" v-if="orderInfo.status === 'COMPLETED'">去评价</view>
     </view>
   </view>
@@ -114,6 +122,7 @@
 <script>
 import { getOrderDetail, cancelOrder, confirmReceive } from '@/api/order.js'
 import { getFullImageUrl } from '@/utils/image.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price.js'
 
 export default {
   data() {
@@ -128,6 +137,12 @@ export default {
   computed: {
     statusClass() {
       return `status-${String(this.orderInfo.status || 'unknown').toLowerCase()}`
+    },
+    canPayOrder() {
+      return this.orderInfo.status === 'PENDING_PAYMENT' && Number(this.orderInfo.payAmount || 0) > 0
+    },
+    canApplyRefund() {
+      return ['PAID', 'SHIPPED'].includes(this.orderInfo.status)
     },
     fullAddress() {
       const address = this.orderInfo.address || {}
@@ -149,6 +164,12 @@ export default {
         address.district ||
         address.detail
       )
+    },
+    derivedGoodsAmount() {
+      return (this.orderInfo.goodsList || []).reduce((sum, item) => {
+        const subtotal = item.subtotal ?? ((item.price || 0) * (item.count || item.quantity || 1))
+        return sum + Number(subtotal || 0)
+      }, 0)
     }
   },
 
@@ -180,10 +201,33 @@ export default {
       try {
         const detail = await getOrderDetail(this.orderId)
         if (!detail) throw new Error('订单不存在')
+        const sourceGoodsList = detail.goodsList || detail.items || []
+        const goodsList = sourceGoodsList.map((item) => this.normalizeGoodsItem(item, detail))
+        const derivedGoodsAmount = goodsList.reduce((sum, item) => {
+          const subtotal = item.subtotal ?? ((item.price || 0) * (item.count || item.quantity || 1))
+          return sum + Number(subtotal || 0)
+        }, 0)
+        const rawFreight = detail.freight ?? detail.freightAmount ?? detail.freight_amount ?? 0
+        const rawDiscount = detail.discountAmount ?? detail.discount_amount ?? 0
+        const derivedPayAmount = Math.max(derivedGoodsAmount + Number(rawFreight || 0) - Number(rawDiscount || 0), 0)
         this.orderInfo = {
           ...this.emptyOrder(),
           ...detail,
-          goodsList: detail.goodsList || []
+          orderNo: detail.orderNo || detail.order_no || '',
+          goodsAmount: this.normalizeFenAmount(
+            detail.goodsAmount ?? detail.goods_amount ?? detail.totalAmount ?? detail.payAmount ?? detail.pay_amount ?? 0,
+            derivedGoodsAmount
+          ),
+          freight: detail.freight ?? detail.freightAmount ?? detail.freight_amount ?? 0,
+          discountAmount: detail.discountAmount ?? detail.discount_amount ?? 0,
+          payAmount: this.normalizeFenAmount(
+            detail.payAmount ?? detail.pay_amount ?? detail.totalAmount ?? detail.goodsAmount ?? 0,
+            derivedPayAmount
+          ),
+          status: detail.status ?? detail.orderStatus ?? detail.paymentStatus ?? '',
+          statusText: detail.statusText || detail.status_text || '',
+          address: detail.address || null,
+          goodsList
         }
       } catch (e) {
         this.orderInfo = this.emptyOrder()
@@ -194,11 +238,16 @@ export default {
     },
 
     formatMoney(value) {
-      if (value === null || value === undefined || value === '') return '0.00'
-      return (Number(value) / 100).toLocaleString('zh-CN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })
+      return formatYuanNumber(fenToYuan(value))
+    },
+
+    normalizeFenAmount(rawValue, derivedValue = 0) {
+      const amountFen = Number(rawValue || 0)
+      const derivedFen = Number(derivedValue || 0)
+      if (amountFen > 0 && derivedFen > 0 && amountFen > derivedFen * 10) {
+        return derivedFen
+      }
+      return amountFen
     },
 
     formatDateTime(value) {
@@ -232,6 +281,54 @@ export default {
       if (id) uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
     },
 
+    normalizeGoodsItem(item = {}, detail = {}) {
+      const artistName = item.artistName || item.authorName || detail.sellerName || this.orderInfo.sellerName || ''
+      const goodsId = item.goodsId || item.artworkId || ''
+      const count = item.count || item.quantity || item.num || 1
+      const price = item.price ?? item.unitPrice ?? item.unit_price ?? 0
+      const subtotal = item.subtotal ?? item.subtotalAmount ?? item.subtotal_amount ?? 0
+      return {
+        ...item,
+        goodsId,
+        goodsName: item.goodsName || item.title || item.itemTitle || '作品',
+        artistName,
+        authorName: item.authorName || artistName,
+        goodsImage: item.goodsImage || item.coverImage || '',
+        specName: item.specName || '',
+        count,
+        quantity: count,
+        price,
+        subtotal: Number(subtotal || 0) > Number(price || 0) * count * 10
+          ? Number(price || 0) * count
+          : subtotal
+      }
+    },
+
+    resolveArtistName(item = {}) {
+      return item.artistName || item.authorName || this.orderInfo.sellerName || ''
+    },
+
+    resolveGoodsImage(item = {}) {
+      const image = item.goodsImage || item.coverImage || ''
+      if (image) return getFullImageUrl(image)
+      return '/static/images/artwork-fallback.png'
+    },
+
+    goodsMetaList(item = {}) {
+      const fields = [
+        item.material || item.artType,
+        item.size,
+        item.year ? `${item.year}` : ''
+      ]
+      if (item.specName && !fields.filter(Boolean).length) {
+        fields.push(item.specName)
+      }
+      if (!fields.filter(Boolean).length && item.goodsId) {
+        fields.push(`作品编号 #${item.goodsId}`)
+      }
+      return fields.filter(Boolean)
+    },
+
     contactSeller() {
       uni.navigateTo({ url: `/pages/message/chat?type=seller&orderId=${this.orderId}` })
     },
@@ -258,7 +355,7 @@ export default {
     },
 
     payOrder() {
-      uni.navigateTo({ url: `/pages/order/pay?orderId=${this.orderId}&amount=${this.orderInfo.payAmount}` })
+      uni.navigateTo({ url: `/pages/order/pay?orderId=${this.orderId}&amount=${fenToYuan(this.orderInfo.payAmount)}` })
     },
 
     confirmReceive() {
@@ -312,8 +409,8 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  min-height: 132rpx;
-  padding: 28rpx;
+  height: 149rpx;
+  padding: 22rpx 28rpx;
   margin-bottom: 20rpx;
   box-sizing: border-box;
   background: linear-gradient(135deg, rgba(212, 158, 45, 0.24), rgba(23, 23, 25, 0.95));
@@ -431,10 +528,38 @@ export default {
   display: -webkit-box;
   overflow: hidden;
   color: #f5f0e8;
-  font-size: 27rpx;
-  line-height: 1.4;
+  font-size: 29rpx;
+  line-height: 1.35;
+  font-weight: 600;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.goods-artist {
+  display: block;
+  margin-top: 8rpx;
+  color: #c8c0b5;
+  font-size: 23rpx;
+  line-height: 1.35;
+}
+
+.goods-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 10rpx;
+}
+
+.goods-meta-item {
+  color: #9d958a;
+  font-size: 22rpx;
+  line-height: 1.3;
+}
+
+.goods-meta-item:not(:last-child)::after {
+  content: "·";
+  margin-left: 8rpx;
+  color: rgba(157, 149, 138, 0.65);
 }
 
 .goods-spec {

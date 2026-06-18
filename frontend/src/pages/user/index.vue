@@ -7,7 +7,7 @@
       <view class="topbar-actions">
         <view class="round-action" @click="goMessage">
           <image class="action-icon-img" src="/static/icons/bell.svg" mode="aspectFit"></image>
-          <view class="action-dot" v-if="unreadCount > 0"></view>
+          <view class="action-badge" v-if="totalUnreadCount > 0">{{ totalUnreadCount > 99 ? '99+' : totalUnreadCount }}</view>
         </view>
         <view class="round-action" @click="goSettings">
           <image class="action-icon-img" src="/static/icons/gear.svg" mode="aspectFit"></image>
@@ -20,7 +20,7 @@
         <image class="avatar" :src="userInfo.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
         <view class="profile-info">
           <view class="name-row">
-            <text class="nickname">{{ userInfo.nickname || '拾艺局用户' }}</text>
+            <text class="nickname">{{ userInfo.nickname || '艺本艺术用户' }}</text>
             <text class="uid" v-if="showCertifiedUid">UID {{ displayUid }}</text>
           </view>
           <view class="identity-tags" v-if="identityTags.length">
@@ -62,10 +62,10 @@
     <view class="section" v-if="isLoggedIn">
       <view class="section-head">
         <text class="section-title">我的交易</text>
-        <text class="section-link" @click="goOrderList('all')">全部订单</text>
+        <text class="section-link" @click="goPage('/pages/user/purchased')">全部订单</text>
       </view>
       <view class="order-grid">
-        <view class="order-item" v-for="item in orderItems" :key="item.type" @click="goOrderList(item.type)">
+        <view class="order-item" v-for="item in orderItems" :key="item.type" @click="handleTransactionEntry(item)">
           <view class="order-icon">
             <image v-if="item.iconPath" class="icon-image" :src="item.iconPath" mode="aspectFit"></image>
             <text v-else>{{ item.icon }}</text>
@@ -76,30 +76,12 @@
       </view>
     </view>
 
-    <view class="section" v-if="isLoggedIn">
-      <view class="section-head">
-        <text class="section-title">我的艺术资产</text>
-      </view>
-      <view class="asset-grid">
-        <view class="asset-entry" v-for="item in assetItems" :key="item.label" @click="goPage(item.path, item.tab)">
-          <view class="entry-icon" :class="item.tone">
-            <image v-if="item.iconPath" class="icon-image" :src="item.iconPath" mode="aspectFit"></image>
-            <text v-else>{{ item.icon }}</text>
-          </view>
-          <view class="entry-copy">
-            <text class="entry-title">{{ item.label }}</text>
-            <text class="entry-desc">{{ item.desc }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
     <view class="section workspace-section" v-if="isLoggedIn">
       <view class="section-head">
         <text class="section-title">身份工作台</text>
       </view>
 
-      <scroll-view class="identity-switch" scroll-x enable-flex>
+      <scroll-view class="identity-switch" scroll-x enable-flex v-if="availableWorkspaces.length > 1">
         <view
           v-for="item in availableWorkspaces"
           :key="item.value"
@@ -117,7 +99,7 @@
             <text class="workspace-title">{{ currentWorkspace.title }}</text>
             <text class="workspace-desc">{{ currentWorkspace.desc }}</text>
           </view>
-          <view class="workspace-status">{{ currentWorkspace.status }}</view>
+          <view class="workspace-status" v-if="currentWorkspace.status">{{ currentWorkspace.status }}</view>
         </view>
 
         <view class="workspace-metrics" v-if="currentWorkspace.metrics.length">
@@ -132,8 +114,27 @@
             class="workspace-action"
             v-for="item in currentWorkspace.actions"
             :key="item.label"
-            @click="goPage(item.path, item.tab)"
+            @click="handleWorkspaceAction(item)"
           >
+            <view class="entry-icon" :class="item.tone">
+              <image v-if="item.iconPath" class="icon-image" :src="item.iconPath" mode="aspectFit"></image>
+              <text v-else>{{ item.icon }}</text>
+            </view>
+            <view class="entry-copy">
+              <view class="entry-title-row">
+                <text class="entry-title">{{ item.label }}</text>
+                <view class="workspace-action-badge inline" v-if="item.badgeCount > 0">{{ item.badgeCount > 99 ? '99+' : item.badgeCount }}</view>
+              </view>
+              <text class="entry-desc">{{ item.desc }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="workspace-assets" v-if="assetItems.length">
+        <text class="workspace-subtitle">艺术资产</text>
+        <view class="asset-grid">
+          <view class="asset-entry" v-for="item in assetItems" :key="item.label" @click="goPage(item.path, item.tab)">
             <view class="entry-icon" :class="item.tone">
               <image v-if="item.iconPath" class="icon-image" :src="item.iconPath" mode="aspectFit"></image>
               <text v-else>{{ item.icon }}</text>
@@ -173,7 +174,9 @@
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { useUserStore } from '@/store/modules/user.js'
-import { getOrderCounts } from '@/api/order.js'
+import { getOrderCounts, getOrderList } from '@/api/order.js'
+import { getArtistCertStatus } from '@/api/user.js'
+import { getUnreadCertificateSignNoticeCount } from '@/utils/certificateNotice'
 
 const COMING_SOON = '/pages/common/coming-soon'
 
@@ -186,7 +189,9 @@ export default {
     return {
       statusBarHeight: 20,
       activeWorkspace: 'collector',
+      workspaceManuallySelected: false,
       unreadCount: 0,
+      certificateUnreadCount: 0,
       userStats: {
         favorites: 0,
         following: 0,
@@ -215,6 +220,7 @@ export default {
         works: 0,
         leads: 0
       },
+      artistCertStatus: null,
       orderCounts: {
         pending: 0,
         paid: 0,
@@ -248,14 +254,35 @@ export default {
       }
       return ['collector']
     },
+    normalizedIdentities() {
+      return this.identities.map(item => String(item).trim().toLowerCase()).filter(Boolean)
+    },
+    artistStatus() {
+      const status = this.artistCertStatus?.status ?? this.userInfo.artistStatus ?? this.userInfo.certStatus ?? this.userStore.centerData?.artistStatus
+      if (status === null || status === undefined || status === '') return null
+      const numeric = Number(status)
+      return Number.isNaN(numeric) ? null : numeric
+    },
+    hasLegacyArtistFlag() {
+      return Boolean(this.userInfo.isArtist || this.userStore.isArtist || this.normalizedIdentities.some(item => ['artist', 'certified_artist', 'verified_artist', '艺术家', '认证艺术家'].includes(item)))
+    },
+    isArtistPending() {
+      return this.artistStatus === 0
+    },
+    isArtistRejected() {
+      return this.artistStatus === 2
+    },
     isArtist() {
-      return this.userInfo.isArtist || this.userStore.isArtist || this.identities.includes('artist')
+      return this.artistStatus === 1 || (this.artistStatus === null && this.hasLegacyArtistFlag)
     },
     isPromoter() {
-      return this.userInfo.isPromoter || this.userStore.isPromoter || this.identities.includes('promoter')
+      return this.userInfo.isPromoter || this.userStore.isPromoter || this.normalizedIdentities.some(item => ['promoter', 'certified_promoter', 'verified_promoter', '经纪人', '认证经纪人'].includes(item))
     },
     isAgent() {
-      return this.userInfo.isAgent || this.userStore.isAgent || this.identities.includes('agent')
+      return this.userInfo.isAgent || this.userStore.isAgent || this.normalizedIdentities.some(item => ['agent', '经纪人', '认证经纪人'].includes(item))
+    },
+    showIdentityWorkspace() {
+      return this.isArtist || this.isPromoter
     },
     displayUid() {
       return this.userInfo.uid || this.userInfo.userUid || this.userInfo.id || '------'
@@ -266,10 +293,15 @@ export default {
     showCertifiedUid() {
       return this.hasCertifiedIdentity
     },
+    totalUnreadCount() {
+      return Number(this.certificateUnreadCount || 0)
+    },
     identityTags() {
       const tags = []
       if (this.isArtist) tags.push({ value: 'artist', label: '认证艺术家' })
-      if (this.isPromoter) tags.push({ value: 'promoter', label: '艺荐官' })
+      else if (this.isArtistPending) tags.push({ value: 'artistPending', label: '艺术家身份认证中' })
+      else if (this.isArtistRejected) tags.push({ value: 'artistRejected', label: '艺术家认证未通过' })
+      if (this.isPromoter) tags.push({ value: 'promoter', label: '经纪人' })
       if (this.isAgent) tags.push({ value: 'agent', label: '经纪人' })
       return tags
     },
@@ -292,48 +324,67 @@ export default {
     },
     orderItems() {
       return [
-        { type: 'pending', label: '待付款', icon: '付', iconPath: '/static/art-icons/icon-payment.svg', count: this.orderCounts.pending || 0 },
-        { type: 'paid', label: '待发货', icon: '发', iconPath: '/static/art-icons/icon-box.svg', count: this.orderCounts.paid || 0 },
-        { type: 'shipped', label: '待收货', icon: '收', iconPath: '/static/art-icons/icon-location.svg', count: this.orderCounts.shipped || 0 },
-        { type: 'review', label: '待评价', icon: '评', iconPath: '/static/art-icons/icon-comment.svg', count: this.orderCounts.review || 0 }
+        { type: 'purchased', label: '我买到的', icon: '买', iconPath: '/static/art-icons/icon-certificate.svg', path: '/pages/user/purchased' },
+        { type: 'sold', label: '我卖出的', icon: '卖', iconPath: '/static/art-icons/icon-document.svg', path: '/pages/order/list?type=sold' },
+        { type: 'refund', label: '退货售后', icon: '退', iconPath: '/static/art-icons/icon-circulation.svg', path: '/pages/order/list?type=refund' },
+        { type: 'review', label: '我的评价', icon: '评', iconPath: '/static/art-icons/icon-comment.svg', path: '/pages/user/purchased?type=completed' }
       ]
     },
     assetItems() {
-      return [
-        { label: '我的关注', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
-        { label: '已购作品', desc: `${this.assetStats.purchased} 件藏品`, icon: '购', iconPath: '/static/art-icons/icon-certificate.svg', tone: 'green', path: '/pages/user/purchased' },
+      const items = [
         { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
-        { label: '浏览记录', desc: '最近看过', icon: '览', iconPath: '/static/art-icons/icon-preview.svg', tone: 'blue', path: '/pages/user/history' },
         { label: '购物车', desc: '待收藏作品', icon: '车', iconPath: '/static/art-icons/icon-cart.svg', tone: 'red', path: '/pages/cart/index', tab: true },
         { label: '我的钱包', desc: `余额 ¥${this.assetStats.wallet}`, icon: '钱', iconPath: '/static/art-icons/icon-budget.svg', tone: 'gold', path: '/pages/user/wallet' },
         { label: '优惠券', desc: `${this.assetStats.coupon} 张可用`, icon: '券', iconPath: '/static/art-icons/icon-download.svg', tone: 'purple', path: '/pages/user/coupon' }
       ]
+      if (this.isArtistPending) {
+        items.unshift({
+          label: '认证进度',
+          desc: '艺术家资料审核中',
+          icon: '审',
+          iconPath: '/static/art-icons/icon-verify.svg',
+          tone: 'purple',
+          path: '/pages/artist/cert'
+        })
+      } else if (this.isArtistRejected) {
+        items.unshift({
+          label: '重新认证',
+          desc: '补充资料后再次提交',
+          icon: '认',
+          iconPath: '/static/art-icons/icon-verify.svg',
+          tone: 'purple',
+          path: '/pages/artist/cert'
+        })
+      } else if (!this.showIdentityWorkspace) {
+        items.unshift({
+          label: '去认证',
+          desc: '认证艺术家身份',
+          icon: '认',
+          iconPath: '/static/art-icons/icon-verify.svg',
+          tone: 'purple',
+          path: '/pages/artist/cert'
+        })
+      }
+      return items
     },
     availableWorkspaces() {
       const list = [{ value: 'collector', label: '收藏家' }]
       if (this.isArtist) list.push({ value: 'artist', label: '艺术家' })
-      if (this.isPromoter) list.push({ value: 'promoter', label: '艺荐官' })
-      if (this.isAgent) list.push({ value: 'agent', label: '经纪人' })
-      if (!this.isArtist) list.push({ value: 'artistApply', label: '艺术家入驻' })
-      if (!this.isPromoter) list.push({ value: 'promoterApply', label: '艺荐官' })
+      if (this.isPromoter) list.push({ value: 'promoter', label: '经纪人' })
       return list
     },
     currentWorkspace() {
       const configs = {
         collector: {
-          title: '收藏家工作台',
+          title: '我的工作台',
           desc: '管理收藏、订单和关注的艺术家',
-          status: '默认身份',
+          status: '',
           metrics: [
             { label: '喜欢', value: this.formatCount(this.userStats.favorites) },
             { label: '已购', value: this.formatCount(this.assetStats.purchased) },
             { label: '关注', value: this.formatCount(this.userStats.following) }
           ],
           actions: [
-            { label: '我的关注', desc: '作品与艺术家', icon: '藏', iconPath: '/static/art-icons/icon-star.svg', tone: 'gold', path: '/pages/user/favorites' },
-            { label: '已购作品', desc: '查看藏品', icon: '购', iconPath: '/static/art-icons/icon-certificate.svg', tone: 'green', path: '/pages/user/purchased' },
-            { label: '我的关注', desc: '关注的艺术家', icon: '关', iconPath: '/static/art-icons/icon-follow.svg', tone: 'blue', path: '/pages/user/following' },
-            { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
             { label: '发布转售', desc: '转售已购作品', icon: '发', tone: 'gold', path: '/pages/resale/publish' },
             { label: '我的转售', desc: '管理转售记录', icon: '管', tone: 'green', path: '/pages/resale/my' },
             { label: '收藏证书', desc: '已购作品凭证', icon: '证', iconPath: '/static/art-icons/icon-verify.svg', tone: 'purple', path: this.comingSoon('收藏证书', '收藏证书列表正在整理中，可先从已购作品进入单件作品证书。') }
@@ -349,16 +400,14 @@ export default {
             { label: '喜欢', value: this.formatCount(this.artistStats.favorites) }
           ],
           actions: [
-            { label: '艺术家主页', desc: '查看公开主页', icon: '页', iconPath: '/static/art-icons/icon-artist.svg', tone: 'gold', path: `/pages/artist/home?id=${this.userInfo.id || ''}` },
-            { label: '作品管理', desc: '上下架与编辑', icon: '管', iconPath: '/static/art-icons/icon-work.svg', tone: 'blue', path: '/pages/artist/manage' },
+            { label: '作品管理', desc: '上下架与编辑', icon: '管', iconPath: '/static/art-icons/icon-work.svg', tone: 'blue', path: '/pages/artist/manage', badgeCount: this.certificateUnreadCount },
             { label: '发布作品', desc: '提交新作品', icon: '发', iconPath: '/static/art-icons/icon-gallery.svg', tone: 'green', path: '/pages/artist/publish' },
-            { label: '卖出订单', desc: '处理交易履约', icon: '单', iconPath: '/static/art-icons/icon-document.svg', tone: 'red', path: '/pages/order/list?type=sold' },
             { label: '认证信息', desc: '查看认证状态', icon: '认', iconPath: '/static/art-icons/icon-verify.svg', tone: 'purple', path: '/pages/artist/cert' }
           ]
         },
         promoter: {
-          title: '艺荐官工作台',
-          desc: '查看佣金、团队和邀请转化',
+          title: '经纪人工作台',
+          desc: '查看分成、团队和邀请转化',
           status: '已开通',
           metrics: [
             { label: '可提现', value: `¥${this.promoterStats.withdrawable}` },
@@ -366,8 +415,8 @@ export default {
             { label: '推广单', value: this.formatCount(this.promoterStats.orderCount) }
           ],
           actions: [
-            { label: '推广中心', desc: '佣金总览', icon: '推', iconPath: '/static/art-icons/icon-share.svg', tone: 'gold', path: '/pages/promoter/index' },
-            { label: '佣金明细', desc: '订单佣金流水', icon: '佣', iconPath: '/static/art-icons/icon-budget.svg', tone: 'green', path: '/pages/promoter/earnings' },
+            { label: '推广中心', desc: '分成总览', icon: '推', iconPath: '/static/art-icons/icon-share.svg', tone: 'gold', path: '/pages/promoter/index' },
+            { label: '分成明细', desc: '订单分成流水', icon: '佣', iconPath: '/static/art-icons/icon-budget.svg', tone: 'green', path: '/pages/promoter/earnings' },
             { label: '我的团队', desc: '成员与贡献', icon: '队', iconPath: '/static/art-icons/icon-followed.svg', tone: 'blue', path: '/pages/promoter/team' },
             { label: '邀请海报', desc: '生成推广海报', icon: '邀', iconPath: '/static/art-icons/icon-download.svg', tone: 'purple', path: '/pages/promoter/poster' },
             { label: '提现记录', desc: '查看提现进度', icon: '提', iconPath: '/static/art-icons/icon-payment.svg', tone: 'red', path: '/pages/promoter/withdrawLog' }
@@ -399,13 +448,13 @@ export default {
           ]
         },
         promoterApply: {
-          title: '开通艺荐官',
-          desc: '分享作品获得佣金，管理团队与邀请关系',
+          title: '开通经纪人',
+          desc: '分享作品获得分成，管理团队与邀请关系',
           status: '未开通',
           metrics: [],
           actions: [
-            { label: '了解艺荐官', desc: '查看规则与权益', icon: '规', iconPath: '/static/art-icons/icon-share.svg', tone: 'gold', path: '/pages/promoter/index' },
-            { label: '分销规则', desc: '佣金与提现说明', icon: '则', iconPath: '/static/art-icons/icon-document.svg', tone: 'blue', path: '/pages/distribution/rules' }
+            { label: '了解经纪人', desc: '查看规则与权益', icon: '规', iconPath: '/static/art-icons/icon-share.svg', tone: 'gold', path: '/pages/promoter/index' },
+            { label: '分销规则', desc: '分成与提现说明', icon: '则', iconPath: '/static/art-icons/icon-document.svg', tone: 'blue', path: '/pages/distribution/rules' }
           ]
         }
       }
@@ -436,14 +485,19 @@ export default {
       // 2. 初始化基础状态（同步）
       this.syncDefaultWorkspace()
       this.loadLocalStats()
+      this.refreshUnreadIndicators()
       
       // 3. 后台获取用户信息（不阻塞 UI）
       // 如果 401，会触发登录流程，不影响页面渲染
       this.userStore.initUserInfo().then(async (info) => {
         if (info) {
           await this.userStore.fetchCenterData()
+          await this.loadArtistCertStatus()
           this.loadLocalStats()
+          this.syncDefaultWorkspace()
           this.loadOrderCounts()
+          this.refreshPurchasedCount()
+          this.refreshUnreadIndicators()
         }
       }).catch(() => {
         // 获取失败不处理，让页面保持游客状态
@@ -451,14 +505,17 @@ export default {
     },
     syncDefaultWorkspace() {
       const hasActive = this.availableWorkspaces.some(item => item.value === this.activeWorkspace)
-      if (hasActive) return
-      if (this.isArtist) this.activeWorkspace = 'artist'
-      else if (this.isPromoter) this.activeWorkspace = 'promoter'
-      else if (this.isAgent) this.activeWorkspace = 'agent'
-      else this.activeWorkspace = 'collector'
+      if (!this.workspaceManuallySelected) {
+        if (this.isArtist) this.activeWorkspace = 'artist'
+        else if (this.isPromoter) this.activeWorkspace = 'promoter'
+        else this.activeWorkspace = 'collector'
+        return
+      }
+      if (!hasActive) this.activeWorkspace = 'collector'
     },
     switchWorkspace(value) {
       if (!value || !this.availableWorkspaces.some(item => item.value === value)) return
+      this.workspaceManuallySelected = true
       this.activeWorkspace = value
     },
     loadLocalStats() {
@@ -488,12 +545,53 @@ export default {
       }
       this.unreadCount = center.unreadCount || 0
     },
+    refreshUnreadIndicators() {
+      this.certificateUnreadCount = this.isLoggedIn ? getUnreadCertificateSignNoticeCount() : 0
+    },
     async loadOrderCounts() {
       try {
         const res = await getOrderCounts()
         this.orderCounts = { ...this.orderCounts, ...(res || {}) }
       } catch (e) {
         console.log('获取订单数量失败', e)
+      }
+    },
+    async refreshPurchasedCount() {
+      try {
+        const data = await getOrderList({ page: 1, pageSize: 200 })
+        const rawList = data?.records || data?.list || data || []
+        const list = Array.isArray(rawList) ? rawList : []
+        const paidStatuses = new Set(['PAID', 'WAIT_DELIVER', 'WAIT_SHIP', 'SHIPPED', 'DELIVERED', 'RECEIVED', 'COMPLETED', 'FINISHED'])
+        const purchasedKeys = new Set()
+        let fallbackCount = 0
+
+        list.forEach(order => {
+          const status = String(order.status || order.orderStatus || '').toUpperCase()
+          const paymentStatus = String(order.paymentStatus || order.payStatus || '').toUpperCase()
+          const isPaidOrder = paidStatuses.has(status) || paymentStatus === 'PAID'
+          if (!isPaidOrder) return
+
+          const items = order.items || order.goodsList || order.goods || order.orderItems || []
+          items.forEach(item => {
+            const artworkKey = item.artworkId || item.artwork_id || item.productId || item.goodsId || item.id
+            if (artworkKey) {
+              purchasedKeys.add(String(artworkKey))
+            } else {
+              fallbackCount += Number(item.quantity || item.count || item.num || 1) || 1
+            }
+          })
+        })
+
+        this.assetStats.purchased = purchasedKeys.size + fallbackCount
+      } catch (e) {
+        console.log('刷新已购作品数量失败', e)
+      }
+    },
+    async loadArtistCertStatus() {
+      try {
+        this.artistCertStatus = await getArtistCertStatus()
+      } catch (e) {
+        this.artistCertStatus = null
       }
     },
     handleProfileClick() {
@@ -516,6 +614,10 @@ export default {
     goOrderList(type = 'all') {
       this.goPage(`/pages/order/list?type=${type}`)
     },
+    handleTransactionEntry(item) {
+      if (!item?.path) return
+      this.goPage(item.path, item.tab)
+    },
     handleIdentityEntry(item) {
       if (!item) return
       if (!this.isLoggedIn) {
@@ -524,6 +626,10 @@ export default {
         return
       }
       this.goPage(item.path)
+    },
+    handleWorkspaceAction(item) {
+      if (!item) return
+      this.goPage(item.path, item.tab)
     },
     goPage(path, isTab = false) {
       if (!path) return
@@ -632,14 +738,24 @@ $purple: #8c73c9;
   opacity: 0.88;
 }
 
-.action-dot {
+.action-badge {
   position: absolute;
-  top: 10rpx;
-  right: 10rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: $red;
+  top: -6rpx;
+  right: -6rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+  border-radius: 999rpx;
+  background: #2f7cff;
+  border: 2rpx solid $bg;
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .profile-card,
@@ -753,6 +869,16 @@ $purple: #8c73c9;
     color: #141018;
     background: $purple;
     border-color: $purple;
+  }
+
+  &.artistPending {
+    color: #d8b75d;
+    background: rgba(#d8b75d, 0.14);
+  }
+
+  &.artistRejected {
+    color: $red;
+    background: rgba($red, 0.14);
   }
 }
 
@@ -928,6 +1054,33 @@ $purple: #8c73c9;
   box-sizing: border-box;
 }
 
+.workspace-action-badge {
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 10rpx;
+  box-sizing: border-box;
+  border-radius: 999rpx;
+  background: #2f7cff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.workspace-action-badge.inline {
+  position: relative;
+  top: -8rpx;
+  right: -2rpx;
+  flex-shrink: 0;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  font-size: 18rpx;
+}
+
 .entry-icon,
 .service-icon {
   width: 54rpx;
@@ -1037,6 +1190,20 @@ $purple: #8c73c9;
   background: rgba(255, 255, 255, 0.035);
   border-radius: 14rpx;
   padding: 20rpx;
+}
+
+.workspace-assets {
+  margin-top: 18rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid $line;
+}
+
+.workspace-subtitle {
+  display: block;
+  margin-bottom: 16rpx;
+  color: $text;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 
 .workspace-summary {

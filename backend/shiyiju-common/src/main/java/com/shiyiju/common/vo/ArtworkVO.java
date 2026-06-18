@@ -5,6 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 艺术品VO - 跨模块共享
@@ -107,4 +108,7 @@ public class ArtworkVO implements Serializable {
     private BigDecimal tomorrowIncreaseMin;
     /** 明日预计涨价最高（元） */
     private BigDecimal tomorrowIncreaseMax;
+
+    /** 当前生效中的转售挂单 */
+    private Map<String, Object> resaleListing;
 }

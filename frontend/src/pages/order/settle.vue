@@ -81,14 +81,14 @@
       </view>
     </view>
 
-    <!-- 艺荐官佣金 -->
+    <!-- 经纪人分成 -->
     <view class="commission-section card" v-if="commission > 0">
       <view class="section-header">
         <text>↗</text>
-        <text>分享赚佣金</text>
+        <text>分享赚分成</text>
       </view>
       <view class="commission-info">
-        <text class="commission-tip">分享此订单可获得佣金</text>
+        <text class="commission-tip">分享此订单可获得分成</text>
         <text class="commission-amount">+¥{{ commission }}</text>
       </view>
     </view>
@@ -141,6 +141,7 @@
 
 <script>
 import { getFullImageUrl } from '@/utils/image.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -180,19 +181,21 @@ export default {
 
   computed: {
     productTotal() {
-      return this.productList.reduce((sum, item) => sum + parseFloat(item.price) * item.num, 0).toFixed(2)
+      const total = this.productList.reduce((sum, item) => sum + this.getItemPriceYuan(item) * item.num, 0)
+      return this.formatYuan(total)
     },
     couponDiscount() {
-      return this.selectedCoupon ? this.selectedCoupon.discount : 0
+      return this.selectedCoupon ? Number(this.selectedCoupon.discount || 0) : 0
     },
     pointsDiscount() {
-      return this.usePointsEnabled ? Math.min(this.availablePoints / 100, this.productTotal * 0.1) : 0
+      if (!this.usePointsEnabled) return 0
+      return Number(Math.min(this.availablePoints / 100, Number(this.productTotal) * 0.1).toFixed(2))
     },
     finalTotal() {
-      return (parseFloat(this.productTotal) + this.deliveryFee - this.couponDiscount - this.pointsDiscount).toFixed(2)
+      return this.formatYuan(Number(this.productTotal) + Number(this.deliveryFee) - Number(this.couponDiscount) - Number(this.pointsDiscount))
     },
     couponText() {
-      return this.selectedCoupon ? `-¥${this.selectedCoupon.discount}` : '暂无可用'
+      return this.selectedCoupon ? `-¥${this.formatYuan(this.selectedCoupon.discount)}` : '暂无可用'
     }
   },
 
@@ -208,6 +211,15 @@ export default {
   },
 
   methods: {
+    formatYuan(amount) {
+      return formatYuanNumber(amount)
+    },
+
+    getItemPriceYuan(item) {
+      const raw = Number(item?.price || 0)
+      return raw >= 1000 ? fenToYuan(raw) : raw
+    },
+
     selectAddress() {
       uni.navigateTo({
         url: '/pages/user/address?mode=select'
@@ -231,8 +243,8 @@ export default {
     },
 
     calculateCommission() {
-      // 根据商品计算可能获得的佣金
-      this.commission = (this.productTotal * 0.05).toFixed(2)
+      // 根据商品计算可能获得的分成
+      this.commission = this.formatYuan(Number(this.productTotal) * 0.05)
     },
 
     submitOrder() {

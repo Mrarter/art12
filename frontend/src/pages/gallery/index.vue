@@ -116,6 +116,7 @@
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getGalleryList, getCategories, getRecommend } from '@/api/product.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   components: {
@@ -360,9 +361,7 @@ export default {
     },
     
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = Math.round(price / 100)
-      return yuan.toLocaleString()
+      return formatYuanNumber(fenToYuan(price))
     },
 
     getCardTitle(item) {
@@ -389,8 +388,14 @@ export default {
       return Number(item.status) === 2
     },
 
-    // 获取实时价格（与详情页 resolveCurrentPrice 保持一致的字段优先级）
+    // 获取实时价格：待售转售优先，其余与详情页 resolveCurrentPrice 保持一致。
     getCurrentPrice(item) {
+      const resaleListing = item.activeResaleListing || item.resaleListing
+      const resaleStatus = String(resaleListing?.status || '').toLowerCase()
+      const resalePrice = Number(resaleListing?.resalePrice || 0)
+      if (resalePrice > 0 && (!resaleStatus || resaleStatus === 'pending')) {
+        return Math.round(resalePrice * 100)
+      }
       const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
       if (currentPrice > 0) return currentPrice
       return Number(item.price || 0)

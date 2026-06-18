@@ -28,6 +28,12 @@ public class UserInfoVO implements Serializable {
     /** 手机号 */
     private String phone;
 
+    /** 邮箱 */
+    private String email;
+
+    /** 微信号 */
+    private String wechat;
+
     /** 性别 */
     private Integer gender;
 
@@ -42,6 +48,12 @@ public class UserInfoVO implements Serializable {
 
     /** 是否艺术家 */
     private Boolean isArtist;
+
+    /** 艺术家认证状态: 0-待审核, 1-已通过, 2-已拒绝, null-未申请 */
+    private Integer artistStatus;
+
+    /** 艺术家认证状态文案 */
+    private String artistStatusText;
 
     /** 是否经纪人 */
     private Boolean isAgent;
