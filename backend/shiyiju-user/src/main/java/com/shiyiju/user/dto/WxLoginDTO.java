@@ -38,4 +38,7 @@ public class WxLoginDTO implements Serializable {
 
     /** 邀请码 */
     private String inviteCode;
+
+    /** 登录场景：mini / h5 */
+    private String loginScene;
 }

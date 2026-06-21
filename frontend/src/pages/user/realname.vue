@@ -16,12 +16,12 @@
         <text class="progress-text">身份信息</text>
       </view>
       <view class="progress-line"></view>
-      <view class="progress-item" :class="{ active: form.realName && validIdCard, done: hasIdImages }">
+      <view class="progress-item" :class="{ active: form.realName && validIdCard, done: useAlipayRealname ? form.faceVerified : hasIdImages }">
         <text class="progress-dot">2</text>
-        <text class="progress-text">证件上传</text>
+        <text class="progress-text">{{ useAlipayRealname ? '支付宝实名' : '证件上传' }}</text>
       </view>
-      <view class="progress-line"></view>
-      <view class="progress-item" :class="{ active: hasIdImages, done: form.faceVerified }">
+      <view class="progress-line" v-if="!useAlipayRealname"></view>
+      <view v-if="!useAlipayRealname" class="progress-item" :class="{ active: hasIdImages, done: form.faceVerified }">
         <text class="progress-dot">3</text>
         <text class="progress-text">人脸核验</text>
       </view>
@@ -55,7 +55,7 @@
       </view>
     </view>
 
-    <view class="form-section">
+    <view v-if="!useAlipayRealname" class="form-section">
       <view class="section-title">证件照片</view>
       <text class="section-desc">请上传清晰、完整、无反光的身份证正反面照片。</text>
       <view class="upload-grid">
@@ -84,7 +84,7 @@
       </view>
     </view>
 
-    <view class="form-section">
+    <view v-if="!useAlipayRealname" class="form-section">
       <view class="section-title">人脸识别</view>
       <view class="face-card" :class="{ verified: form.faceVerified }" @click="startFaceVerify">
         <view class="face-icon">{{ form.faceVerified ? '✓' : '脸' }}</view>
@@ -96,11 +96,23 @@
       </view>
     </view>
 
+    <view v-else class="form-section">
+      <view class="section-title">支付宝实名认证</view>
+      <text class="section-desc">提交真实姓名和身份证号后，将跳转支付宝完成实名校验。认证通过后会自动回到当前页面。</text>
+      <view class="alipay-card">
+        <view class="alipay-badge">支</view>
+        <view class="alipay-copy">
+          <text class="alipay-title">{{ form.status === 1 ? '支付宝实名认证已完成' : '使用支付宝完成实名校验' }}</text>
+          <text class="alipay-desc">{{ form.status === 2 ? '认证进行中，完成后回到本页会自动同步结果。' : '不再需要手动上传身份证照片或点击假人脸认证。' }}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="notice-card">
       <view class="notice-title">认证说明</view>
       <text class="notice-line">仅用于平台账户实名校验、提现和发票等合规场景。</text>
       <text class="notice-line">身份证信息将加密存储，仅脱敏显示。</text>
-      <text class="notice-line">审核通常需 1-3 个工作日，请耐心等待。</text>
+      <text class="notice-line">{{ useAlipayRealname ? '若已配置支付宝实名能力，认证结果会自动同步；未配置时仍走人工审核。' : '审核通常需 1-3 个工作日，请耐心等待。' }}</text>
     </view>
 
     <view class="bottom-bar">
@@ -113,8 +125,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { submitRealnameCert, getRealnameCertStatus } from '@/api/user.js'
+import { submitRealnameCert, getRealnameCertStatus, startAlipayRealname, syncAlipayRealname } from '@/api/user.js'
 import { uploadFile } from '@/api/file.js'
+
+const ALIPAY_REALNAME_DRAFT_KEY = 'alipay_realname_draft'
 
 const form = ref({
   realName: '',
@@ -124,6 +138,8 @@ const form = ref({
   faceVerified: false,
   idCardValid: false,
   status: 0,
+  verifyMode: 'manual',
+  certifyId: '',
   rejectReason: '',
   submittedAt: ''
 })
@@ -132,13 +148,20 @@ const idCardError = ref('')
 const uploading = ref(null)
 const submitting = ref(false)
 
-const isReadonly = computed(() => form.value.status === 1 || form.value.status === 2)
+const useAlipayRealname = computed(() => form.value.verifyMode === 'alipay')
+const isReadonly = computed(() => form.value.status === 1 || (form.value.status === 2 && !useAlipayRealname.value))
 const validIdCard = computed(() => form.value.idCardValid || validateIdCard(form.value.idCard))
 const hasIdImages = computed(() => Boolean(form.value.idFront && form.value.idBack))
 const rejectReason = computed(() => form.value.rejectReason)
 
+const isMaskedValue = (value) => String(value || '').includes('*')
+
 const canSubmit = computed(() => {
   if (form.value.status === 1) return false
+  if (useAlipayRealname.value) {
+    if (form.value.status === 2 && form.value.certifyId) return !submitting.value
+    return Boolean(form.value.realName.trim() && validIdCard.value && !submitting.value)
+  }
   return Boolean(form.value.realName.trim() && validIdCard.value && hasIdImages.value && form.value.faceVerified)
 })
 
@@ -147,21 +170,82 @@ const statusMeta = computed(() => {
     return { text: '已认证', desc: '您的实名认证已完成，可用于提现、发票和身份校验。', icon: '✓', className: 'success' }
   }
   if (form.value.status === 2) {
-    return { text: '审核中', desc: '资料已提交，平台将在 1-3 个工作日内完成审核。', icon: '审', className: 'pending' }
+    return {
+      text: useAlipayRealname.value ? '认证中' : '审核中',
+      desc: useAlipayRealname.value ? '已发起支付宝实名校验，完成后回到本页将自动同步结果。' : '资料已提交，平台将在 1-3 个工作日内完成审核。',
+      icon: '审',
+      className: 'pending'
+    }
   }
   if (form.value.status === 3) {
     return { text: '已拒绝', desc: '认证未通过，请修改后重新提交。', icon: '✗', className: 'rejected' }
   }
-  return { text: '未认证', desc: '完成身份信息、证件上传和人脸识别后提交审核。', icon: '认', className: 'idle' }
+  return {
+    text: '未认证',
+    desc: useAlipayRealname.value ? '填写真实姓名和身份证号后，将跳转支付宝完成实名校验。' : '完成身份信息、证件上传和人脸识别后提交审核。',
+    icon: '认',
+    className: 'idle'
+  }
 })
 
 const submitText = computed(() => {
   if (form.value.status === 1) return '已完成认证'
-  if (form.value.status === 2) return '认证审核中'
+  if (form.value.status === 2) return useAlipayRealname.value ? '同步认证结果' : '认证审核中'
   if (submitting.value) return '提交中...'
+  if (useAlipayRealname.value) return '去支付宝认证'
   if (form.value.status === 3) return '重新提交认证'
   return '提交实名认证'
 })
+
+const saveAlipayDraft = () => {
+  if (!useAlipayRealname.value) return
+  uni.setStorageSync(ALIPAY_REALNAME_DRAFT_KEY, {
+    realName: form.value.realName.trim(),
+    idCard: form.value.idCard.toUpperCase(),
+    certifyId: form.value.certifyId || '',
+    updatedAt: Date.now()
+  })
+}
+
+const restoreAlipayDraft = (fallbackCertifyId = '') => {
+  const draft = uni.getStorageSync(ALIPAY_REALNAME_DRAFT_KEY)
+  if (!draft || typeof draft !== 'object') return false
+  if (draft.certifyId && fallbackCertifyId && draft.certifyId !== fallbackCertifyId) return false
+  if (draft.realName) form.value.realName = draft.realName
+  if (draft.idCard) {
+    form.value.idCard = draft.idCard
+    form.value.idCardValid = validateIdCard(draft.idCard)
+  }
+  return true
+}
+
+const clearAlipayDraft = () => {
+  uni.removeStorageSync(ALIPAY_REALNAME_DRAFT_KEY)
+}
+
+const launchAlipayRealname = async () => {
+  saveAlipayDraft()
+  const result = await startAlipayRealname({
+    realName: form.value.realName.trim(),
+    idCard: form.value.idCard.toUpperCase()
+  })
+  form.value.status = 2
+  form.value.certifyId = result?.certifyId || ''
+  saveAlipayDraft()
+  if (result?.redirectUrl) {
+    if (typeof window !== 'undefined') {
+      window.location.href = result.redirectUrl
+    } else {
+      uni.showModal({
+        title: '当前端不支持直接跳转',
+        content: '请在 H5 页面中完成支付宝实名认证。',
+        showCancel: false
+      })
+    }
+  } else {
+    uni.showToast({ title: '未获取到支付宝认证地址', icon: 'none' })
+  }
+}
 
 const validateIdCard = (value) => {
   const id = String(value || '').trim().toUpperCase()
@@ -197,6 +281,10 @@ const validateIdCardField = () => {
     idCardError.value = ''
     return true
   }
+  if (isMaskedValue(form.value.idCard)) {
+    idCardError.value = ''
+    return true
+  }
   const valid = validateIdCard(form.value.idCard)
   idCardError.value = valid ? '' : '身份证号格式不正确，请检查号码、出生日期和校验位'
   return valid
@@ -227,6 +315,10 @@ const chooseImage = async (type) => {
 }
 
 const startFaceVerify = () => {
+  if (useAlipayRealname.value) {
+    submitForm()
+    return
+  }
   if (isReadonly.value || form.value.faceVerified) return
   if (!form.value.realName.trim() || !validateIdCardField()) {
     uni.showToast({ title: '请先填写正确的身份信息', icon: 'none' })
@@ -249,6 +341,55 @@ const startFaceVerify = () => {
 }
 
 const submitForm = async () => {
+  if (useAlipayRealname.value) {
+    submitting.value = true
+    try {
+      if (form.value.status === 2 && form.value.certifyId) {
+        const status = await syncAlipayRealname({ certifyId: form.value.certifyId })
+        form.value.status = status?.status ?? form.value.status
+        form.value.rejectReason = status?.rejectReason || ''
+        if (status?.status === 1) {
+          form.value.faceVerified = true
+          clearAlipayDraft()
+          uni.showToast({ title: '实名认证成功', icon: 'success' })
+        } else if (status?.status === 3) {
+          uni.showToast({ title: form.value.rejectReason || '实名认证未通过，请重新发起', icon: 'none' })
+        } else {
+          const restored = restoreAlipayDraft(form.value.certifyId)
+          uni.showModal({
+            title: '认证未完成',
+            content: restored
+              ? '本次支付宝认证尚未完成，是否重新发起一次实名认证？'
+              : '本次支付宝认证尚未完成。若要重新发起，请重新填写姓名和身份证号。',
+            confirmText: restored ? '重新发起' : '知道了',
+            success: async (res) => {
+              if (!res.confirm || !restored) return
+              try {
+                submitting.value = true
+                await launchAlipayRealname()
+              } catch (retryErr) {
+                uni.showToast({ title: retryErr.message || '重新发起失败', icon: 'none' })
+              } finally {
+                submitting.value = false
+              }
+            }
+          })
+        }
+      } else {
+        if (!validateIdCardField()) {
+          uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
+          return
+        }
+        await launchAlipayRealname()
+      }
+    } catch (err) {
+      uni.showToast({ title: err.message || '发起认证失败', icon: 'none' })
+    } finally {
+      submitting.value = false
+    }
+    return
+  }
+
   if (!validateIdCardField()) {
     uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
     return
@@ -285,18 +426,35 @@ const submitForm = async () => {
 
 onMounted(async () => {
   try {
+    let certifyId = ''
+    if (typeof window !== 'undefined') {
+      const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : ''
+      certifyId = new URLSearchParams(window.location.search).get('certifyId')
+        || new URLSearchParams(hashQuery).get('certifyId')
+        || ''
+    }
+    if (certifyId) {
+      await syncAlipayRealname({ certifyId })
+    }
     const data = await getRealnameCertStatus()
     if (data && data.status > 0) {
       form.value.status = data.status
-      if (data.maskedRealName) {
+      const restored = data?.verifyMode === 'alipay' && data.status !== 1 && restoreAlipayDraft(data?.certifyId || certifyId)
+      if (data.maskedRealName && !restored && !useAlipayRealname.value) {
         form.value.realName = data.maskedRealName
       }
-      if (data.maskedIdCard) {
+      if (data.maskedIdCard && !restored && !useAlipayRealname.value) {
         form.value.idCard = data.maskedIdCard
         form.value.idCardValid = true
       }
       form.value.rejectReason = data.rejectReason || ''
       form.value.submittedAt = data.submittedAt || ''
+    }
+    form.value.verifyMode = data?.verifyMode || 'manual'
+    form.value.certifyId = data?.certifyId || certifyId || ''
+    if (useAlipayRealname.value && form.value.status === 1) {
+      form.value.faceVerified = true
+      clearAlipayDraft()
     }
   } catch (err) {
     console.warn('获取认证状态失败:', err.message)
@@ -511,6 +669,50 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr;
   gap: 18rpx;
   margin-top: 22rpx;
+}
+
+.alipay-card {
+  margin-top: 22rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: rgba(22, 119, 255, 0.08);
+  border: 1rpx solid rgba(22, 119, 255, 0.22);
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.alipay-badge {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  background: rgba(22, 119, 255, 0.2);
+  color: #63a7ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.alipay-copy {
+  flex: 1;
+}
+
+.alipay-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #f6f2e8;
+}
+
+.alipay-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  color: #9fb8d8;
 }
 
 .upload-card {

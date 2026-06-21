@@ -38,4 +38,13 @@ public class AlipayConfig {
 
     /** 字符集。 */
     private String charset = "UTF-8";
+
+    /** 是否启用支付宝实名认证。 */
+    private boolean realnameEnabled = false;
+
+    /** 支付宝实名认证完成后的前端回跳地址。 */
+    private String realnameReturnUrl;
+
+    /** 实名认证业务码，默认人脸实人认证。 */
+    private String realnameBizCode = "FACE";
 }

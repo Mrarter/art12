@@ -2,6 +2,7 @@ package com.shiyiju.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shiyiju.common.constant.UserConstant;
+import com.shiyiju.common.service.AlipayService;
 import com.shiyiju.common.exception.BusinessException;
 import com.shiyiju.common.result.ResultCode;
 import com.shiyiju.user.util.UserIdUtil;
@@ -9,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.shiyiju.common.util.JwtUtil;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.RealnameAlipayStartDTO;
 import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.entity.ArtistCertification;
 import com.shiyiju.user.entity.ArtistProfile;
@@ -24,6 +26,7 @@ import com.shiyiju.user.vo.LoginVO;
 import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.UserInteractionStatsVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
+import com.shiyiju.user.vo.RealnameAlipayStartVO;
 import com.shiyiju.user.util.PinyinUtil;
 import com.shiyiju.common.result.PageResult;
 import lombok.RequiredArgsConstructor;
@@ -54,12 +57,19 @@ public class UserService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final JdbcTemplate jdbcTemplate;
     private final SmsService smsService;
+    private final AlipayService alipayService;
     
     @org.springframework.beans.factory.annotation.Value("${wechat.appid:}")
     private String wechatAppId;
     
     @org.springframework.beans.factory.annotation.Value("${wechat.secret:}")
     private String wechatSecret;
+
+    @org.springframework.beans.factory.annotation.Value("${wechat.official-appid:}")
+    private String officialWechatAppId;
+
+    @org.springframework.beans.factory.annotation.Value("${wechat.official-secret:}")
+    private String officialWechatSecret;
 
     @org.springframework.beans.factory.annotation.Value("${sms.code-length:6}")
     private int smsCodeLength;
@@ -83,8 +93,10 @@ public class UserService {
                 || "your-wechat-secret".equals(wechatSecret);
         boolean appIdIsPlaceholder = wechatAppId == null || wechatAppId.isEmpty()
                 || "your-wechat-appid".equals(wechatAppId);
+        boolean officialSecretMissing = officialWechatSecret == null || officialWechatSecret.isEmpty();
+        boolean officialAppIdMissing = officialWechatAppId == null || officialWechatAppId.isEmpty();
 
-        if (secretIsPlaceholder || appIdIsPlaceholder) {
+        if (secretIsPlaceholder || appIdIsPlaceholder || officialSecretMissing || officialAppIdMissing) {
             String projectRoot = System.getProperty("user.dir");
             // 向上查找 art12 项目根目录（支持从子模块启动）
             java.io.File dotEnv = findDotEnvFile(new java.io.File(projectRoot));
@@ -120,6 +132,20 @@ public class UserService {
                             log.info("从 .env 加载 wechat.appid 成功: {}", maskAppId(wechatAppId));
                         }
                     }
+                    if (officialAppIdMissing && props.containsKey("WECHAT_OFFICIAL_APPID")) {
+                        String fromDotEnv = props.getProperty("WECHAT_OFFICIAL_APPID");
+                        if (fromDotEnv != null && !fromDotEnv.isBlank()) {
+                            officialWechatAppId = fromDotEnv;
+                            log.info("从 .env 加载 wechat.official-appid 成功: {}", maskAppId(officialWechatAppId));
+                        }
+                    }
+                    if (officialSecretMissing && props.containsKey("WECHAT_OFFICIAL_SECRET")) {
+                        String fromDotEnv = props.getProperty("WECHAT_OFFICIAL_SECRET");
+                        if (fromDotEnv != null && !fromDotEnv.isBlank()) {
+                            officialWechatSecret = fromDotEnv;
+                            log.info("从 .env 加载 wechat.official-secret 成功 (长度={})", officialWechatSecret.length());
+                        }
+                    }
                 } catch (Exception e) {
                     log.warn("读取 .env 文件失败: {}", e.getMessage());
                 }
@@ -149,8 +175,7 @@ public class UserService {
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginVO wxLogin(WxLoginDTO dto) {
-        // TODO: 调用微信接口获取 openid
-        String openid = getOpenidFromWx(dto.getCode());
+        String openid = getOpenidFromWx(dto.getCode(), dto.getLoginScene());
         
         // 查询用户是否存在
         User user = userMapper.selectOne(
@@ -474,7 +499,7 @@ public class UserService {
      * 调用微信接口获取 openId，含密钥校验和 H5 开发降级
      * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
      */
-    private String getOpenidFromWx(String code) {
+    private String getOpenidFromWx(String code, String loginScene) {
         if (code == null || code.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "微信授权码不能为空");
         }
@@ -482,6 +507,11 @@ public class UserService {
         // ==== 第一步：H5 开发环境降级（不调用真实微信 API） ====
         if (isDevMockCode(code)) {
             return getDevMockOpenId(code);
+        }
+
+        if (isOfficialH5Scene(loginScene)) {
+            validateOfficialWechatConfig();
+            return getOpenidFromOfficialWechat(code);
         }
 
         // ==== 第二步：校验微信密钥配置 ====
@@ -556,6 +586,50 @@ public class UserService {
             throw new BusinessException(500, 
                 "微信登录服务暂不可用，请联系管理员配置小程序密钥。\n" + sb.toString());
         }
+    }
+
+    private void validateOfficialWechatConfig() {
+        boolean appIdMissing = officialWechatAppId == null || officialWechatAppId.isEmpty()
+                || "your-wechat-appid".equals(officialWechatAppId)
+                || !officialWechatAppId.startsWith("wx");
+        boolean secretMissing = officialWechatSecret == null || officialWechatSecret.isEmpty()
+                || "your-wechat-secret".equals(officialWechatSecret);
+        if (appIdMissing || secretMissing) {
+            throw new BusinessException(500, "微信公众号配置不完整，请联系管理员");
+        }
+    }
+
+    private String getOpenidFromOfficialWechat(String code) {
+        try {
+            String url = String.format(
+                    "https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code",
+                    officialWechatAppId, officialWechatSecret, code
+            );
+            log.info("正在调用微信公众号 OAuth, appid={}, code长度={}", maskAppId(officialWechatAppId), code.length());
+            String response = cn.hutool.http.HttpUtil.get(url, 5000);
+            log.debug("微信公众号 OAuth 响应: {}", response);
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            if (json.containsKey("openid")) {
+                String openid = json.getString("openid");
+                log.info("微信公众号 OAuth 成功, openid={}", maskOpenId(openid));
+                return openid;
+            }
+            Integer errcode = json.getInteger("errcode");
+            String errmsg = json.getString("errmsg");
+            log.error("微信公众号 OAuth 返回错误: errcode={}, errmsg={}, appid={}",
+                    errcode, errmsg, maskAppId(officialWechatAppId));
+            throw new BusinessException(ResultCode.PARAM_ERROR,
+                    "公众号微信登录失败(" + errcode + "): " + errmsg);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用微信公众号 OAuth 异常, appid={}", maskAppId(officialWechatAppId), e);
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "公众号微信登录服务异常，请稍后重试");
+        }
+    }
+
+    private boolean isOfficialH5Scene(String loginScene) {
+        return "h5".equalsIgnoreCase(loginScene) || "official".equalsIgnoreCase(loginScene);
     }
 
     /**
@@ -1144,6 +1218,18 @@ public class UserService {
             }
         }
         return "";
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean isAlipayFailed(String certifyStatus) {
+        String status = stringValue(certifyStatus).toUpperCase(Locale.ROOT);
+        return "FAIL".equals(status)
+            || "FAILED".equals(status)
+            || "REFUSED".equals(status)
+            || "DENIED".equals(status);
     }
 
     private String stringValue(Object value) {
@@ -2556,6 +2642,9 @@ public class UserService {
             existing.setIdFrontUrl(dto.getIdFrontUrl());
             existing.setIdBackUrl(dto.getIdBackUrl());
             existing.setFaceVerified(Boolean.TRUE.equals(dto.getFaceVerified()) ? 1 : 0);
+            existing.setVerifyChannel("manual");
+            existing.setCertifyId(null);
+            existing.setExternalStatus(null);
             existing.setStatus(0);
             existing.setRejectReason(null);
             existing.setReviewTime(null);
@@ -2570,6 +2659,7 @@ public class UserService {
             cert.setIdFrontUrl(dto.getIdFrontUrl());
             cert.setIdBackUrl(dto.getIdBackUrl());
             cert.setFaceVerified(Boolean.TRUE.equals(dto.getFaceVerified()) ? 1 : 0);
+            cert.setVerifyChannel("manual");
             cert.setStatus(0);
             realnameCertMapper.insert(cert);
         }
@@ -2592,6 +2682,8 @@ public class UserService {
             }
             return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
                 .status(0)
+                .verifyMode(alipayService.isRealnameEnabled() ? "alipay" : "manual")
+                .alipayEnabled(alipayService.isRealnameEnabled())
                 .build();
         }
 
@@ -2607,12 +2699,121 @@ public class UserService {
 
         return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
             .status(displayStatus)
+            .verifyMode("alipay".equalsIgnoreCase(cert.getVerifyChannel()) ? "alipay" : "manual")
+            .alipayEnabled(alipayService.isRealnameEnabled())
+            .certifyId(cert.getCertifyId())
             .maskedRealName(maskedRealName)
             .maskedIdCard(maskedIdCard)
             .rejectReason(cert.getRejectReason())
             .submittedAt(cert.getCreateTime())
             .reviewTime(cert.getReviewTime())
             .build();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public RealnameAlipayStartVO startAlipayRealname(Long userId, RealnameAlipayStartDTO dto) {
+        if (!alipayService.isRealnameEnabled()) {
+            throw new BusinessException(400, "支付宝实名认证暂未配置，请先使用人工审核模式");
+        }
+
+        RealnameCertification existing = realnameCertMapper.selectOne(
+            new LambdaQueryWrapper<RealnameCertification>().eq(RealnameCertification::getUserId, userId));
+        if (existing != null && Objects.equals(existing.getStatus(), 1)) {
+            throw new BusinessException(400, "您已通过实名认证");
+        }
+
+        String realName = dto.getRealName().trim();
+        String idCard = dto.getIdCard().trim().toUpperCase();
+        String idCardHash = sha256(idCard);
+        String maskedIdCard = maskIdCard(idCard);
+
+        RealnameCertification dup = realnameCertMapper.selectOne(
+            new LambdaQueryWrapper<RealnameCertification>()
+                .eq(RealnameCertification::getIdCardHash, idCardHash)
+                .eq(RealnameCertification::getStatus, 1)
+                .ne(existing != null, RealnameCertification::getUserId, userId));
+        if (dup != null) {
+            throw new BusinessException(400, "该身份证号已被其他账号认证");
+        }
+
+        String outerOrderNo = "RN" + System.currentTimeMillis() + userId;
+        Map<String, String> initResult = alipayService.initializeRealnameCert(
+            outerOrderNo, realName, idCard, alipayService.getRealnameReturnUrl());
+        String certifyId = initResult.get("certifyId");
+        String redirectUrl = alipayService.buildRealnameCertifyUrl(certifyId, alipayService.getRealnameReturnUrl());
+
+        if (existing != null) {
+            existing.setRealName(realName);
+            existing.setIdCard(maskedIdCard);
+            existing.setIdCardHash(idCardHash);
+            existing.setFaceVerified(0);
+            existing.setVerifyChannel("alipay");
+            existing.setCertifyId(certifyId);
+            existing.setExternalStatus("INIT");
+            existing.setStatus(0);
+            existing.setRejectReason(null);
+            existing.setReviewTime(null);
+            existing.setReviewerId(null);
+            realnameCertMapper.updateById(existing);
+        } else {
+            RealnameCertification cert = new RealnameCertification();
+            cert.setUserId(userId);
+            cert.setRealName(realName);
+            cert.setIdCard(maskedIdCard);
+            cert.setIdCardHash(idCardHash);
+            cert.setFaceVerified(0);
+            cert.setVerifyChannel("alipay");
+            cert.setCertifyId(certifyId);
+            cert.setExternalStatus("INIT");
+            cert.setStatus(0);
+            realnameCertMapper.insert(cert);
+        }
+
+        return RealnameAlipayStartVO.builder()
+            .certifyId(certifyId)
+            .redirectUrl(redirectUrl)
+            .build();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public com.shiyiju.user.vo.RealnameCertStatusVO syncAlipayRealnameStatus(Long userId, String certifyId) {
+        if (!alipayService.isRealnameEnabled()) {
+            return getRealnameCertStatus(userId);
+        }
+        RealnameCertification cert = realnameCertMapper.selectOne(
+            new LambdaQueryWrapper<RealnameCertification>()
+                .eq(RealnameCertification::getUserId, userId)
+                .eq(hasText(certifyId), RealnameCertification::getCertifyId, certifyId)
+                .orderByDesc(RealnameCertification::getUpdateTime)
+                .last("LIMIT 1"));
+        if (cert == null || !hasText(cert.getCertifyId())) {
+            return getRealnameCertStatus(userId);
+        }
+
+        Map<String, String> queryResult = alipayService.queryRealnameCert(cert.getCertifyId());
+        String certifyStatus = firstNonBlank(queryResult.get("certifyStatus"), "INIT");
+        cert.setExternalStatus(certifyStatus);
+
+        if (Boolean.parseBoolean(queryResult.get("passed"))) {
+            cert.setFaceVerified(1);
+            cert.setStatus(1);
+            cert.setVerifyChannel("alipay");
+            cert.setReviewTime(LocalDateTime.now());
+            cert.setReviewerId(0L);
+            cert.setRejectReason(null);
+            realnameCertMapper.updateById(cert);
+            jdbcTemplate.update("UPDATE users SET real_name_verified = 1 WHERE id = ?", cert.getUserId());
+        } else if (isAlipayFailed(certifyStatus)) {
+            cert.setStatus(2);
+            cert.setRejectReason(firstNonBlank(queryResult.get("failReason"), "支付宝实名认证未通过"));
+            cert.setReviewTime(LocalDateTime.now());
+            cert.setReviewerId(0L);
+            realnameCertMapper.updateById(cert);
+        } else {
+            realnameCertMapper.updateById(cert);
+        }
+
+        return getRealnameCertStatus(userId);
     }
 
     /**

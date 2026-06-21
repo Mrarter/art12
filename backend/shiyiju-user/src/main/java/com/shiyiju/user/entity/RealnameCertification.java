@@ -40,6 +40,15 @@ public class RealnameCertification implements Serializable {
     /** 人脸核验状态：0-未核验，1-已通过 */
     private Integer faceVerified;
 
+    /** 实名认证渠道：manual/alipay */
+    private String verifyChannel;
+
+    /** 支付宝认证流水号 */
+    private String certifyId;
+
+    /** 外部认证状态 */
+    private String externalStatus;
+
     /** 审核状态：0-待审核，1-已通过，2-已拒绝 */
     private Integer status;
 

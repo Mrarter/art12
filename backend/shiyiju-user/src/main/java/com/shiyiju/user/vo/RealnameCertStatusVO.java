@@ -19,6 +19,15 @@ public class RealnameCertStatusVO {
     /** 审核状态：0-未认证，1-已通过，2-审核中，3-已拒绝 */
     private Integer status;
 
+    /** 认证模式：manual/alipay */
+    private String verifyMode;
+
+    /** 是否已启用支付宝实名认证 */
+    private Boolean alipayEnabled;
+
+    /** 最近一次支付宝认证流水号 */
+    private String certifyId;
+
     /** 脱敏真实姓名（如：张**） */
     private String maskedRealName;
 

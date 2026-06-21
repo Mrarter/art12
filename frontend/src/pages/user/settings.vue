@@ -195,7 +195,7 @@ export default {
       return String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
     },
     getRealNameStatus(status) {
-      const map = { 0: '未认证', 1: '已认证', 2: '审核中' }
+      const map = { 0: '未认证', 1: '已认证', 2: '审核中', 3: '已拒绝' }
       return map[status] || '未认证'
     },
     goProfile() {

@@ -1,7 +1,10 @@
 package com.shiyiju.common.service;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.shiyiju.common.config.AlipayConfig;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,7 +16,9 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.net.URLEncoder;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -27,6 +32,9 @@ import java.util.stream.Collectors;
 public class AlipayService {
 
     private static final String WAP_PAY_METHOD = "alipay.trade.wap.pay";
+    private static final String CERTIFY_INIT_METHOD = "alipay.user.certify.open.initialize";
+    private static final String CERTIFY_QUERY_METHOD = "alipay.user.certify.open.query";
+    private static final String CERTIFY_OPEN_METHOD = "alipay.user.certify.open.certify";
 
     private final AlipayConfig alipayConfig;
 
@@ -79,6 +87,89 @@ public class AlipayService {
         }
     }
 
+    public boolean isRealnameEnabled() {
+        return alipayConfig.isRealnameEnabled();
+    }
+
+    public String getRealnameReturnUrl() {
+        return alipayConfig.getRealnameReturnUrl();
+    }
+
+    public Map<String, String> initializeRealnameCert(String outerOrderNo, String realName, String idCard, String returnUrl) {
+        ensureRealnameEnabled();
+
+        Map<String, Object> identityParam = new LinkedHashMap<>();
+        identityParam.put("identity_type", "CERT_INFO");
+        identityParam.put("cert_type", "IDENTITY_CARD");
+        identityParam.put("cert_name", realName);
+        identityParam.put("cert_no", idCard);
+
+        Map<String, Object> merchantConfig = new LinkedHashMap<>();
+        if (hasText(returnUrl)) {
+            merchantConfig.put("return_url", returnUrl);
+        }
+
+        Map<String, Object> bizContent = new LinkedHashMap<>();
+        bizContent.put("outer_order_no", outerOrderNo);
+        bizContent.put("biz_code", alipayConfig.getRealnameBizCode());
+        bizContent.put("identity_param", identityParam);
+        if (!merchantConfig.isEmpty()) {
+            bizContent.put("merchant_config", merchantConfig);
+        }
+
+        JSONObject response = executeOpenApi(CERTIFY_INIT_METHOD, bizContent, null);
+        JSONObject result = response.getJSONObject("alipay_user_certify_open_initialize_response");
+        if (result == null) {
+            throw new IllegalStateException("支付宝实名认证初始化失败：响应缺少结果");
+        }
+        String code = result.getString("code");
+        if (!"10000".equals(code)) {
+            throw new IllegalStateException(firstNonBlank(result.getString("sub_msg"), result.getString("msg"), "支付宝实名认证初始化失败"));
+        }
+        String certifyId = result.getString("certify_id");
+        if (!hasText(certifyId)) {
+            throw new IllegalStateException("支付宝实名认证初始化失败：未返回 certify_id");
+        }
+        return Map.of(
+                "certifyId", certifyId,
+                "outerOrderNo", outerOrderNo
+        );
+    }
+
+    public String buildRealnameCertifyUrl(String certifyId, String returnUrl) {
+        ensureRealnameEnabled();
+
+        Map<String, Object> bizContent = new LinkedHashMap<>();
+        bizContent.put("certify_id", certifyId);
+
+        Map<String, String> params = buildSignedParams(CERTIFY_OPEN_METHOD, bizContent, returnUrl);
+        return alipayConfig.getGatewayUrl() + "?" + params.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + encodeQueryValue(entry.getValue()))
+                .collect(Collectors.joining("&"));
+    }
+
+    public Map<String, String> queryRealnameCert(String certifyId) {
+        ensureRealnameEnabled();
+
+        Map<String, Object> bizContent = new LinkedHashMap<>();
+        bizContent.put("certify_id", certifyId);
+        JSONObject response = executeOpenApi(CERTIFY_QUERY_METHOD, bizContent, null);
+        JSONObject result = response.getJSONObject("alipay_user_certify_open_query_response");
+        if (result == null) {
+            throw new IllegalStateException("支付宝实名认证查询失败：响应缺少结果");
+        }
+        String code = result.getString("code");
+        if (!"10000".equals(code)) {
+            throw new IllegalStateException(firstNonBlank(result.getString("sub_msg"), result.getString("msg"), "支付宝实名认证查询失败"));
+        }
+
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("passed", String.valueOf(Boolean.TRUE.equals(result.getBoolean("passed"))));
+        data.put("certifyStatus", firstNonBlank(result.getString("certify_status"), result.getString("status"), ""));
+        data.put("failReason", firstNonBlank(result.getString("fail_reason"), result.getString("sub_msg"), ""));
+        return data;
+    }
+
     private void ensureEnabled() {
         if (!alipayConfig.isEnabled()) {
             throw new IllegalStateException("支付宝支付未启用，请配置 ALIPAY_ENABLED=true");
@@ -89,6 +180,53 @@ public class AlipayService {
                 || !hasText(alipayConfig.getNotifyUrl())) {
             throw new IllegalStateException("支付宝配置不完整，请检查 APP_ID、应用私钥、支付宝公钥和回调地址");
         }
+    }
+
+    private void ensureRealnameEnabled() {
+        if (!alipayConfig.isRealnameEnabled()) {
+            throw new IllegalStateException("支付宝实名认证未启用，请配置 ALIPAY_REALNAME_ENABLED=true");
+        }
+        if (!hasText(alipayConfig.getRealnameReturnUrl())) {
+            throw new IllegalStateException("支付宝实名认证回跳地址未配置，请检查 ALIPAY_REALNAME_RETURN_URL");
+        }
+        if (!hasText(alipayConfig.getAppId())
+                || !hasText(alipayConfig.getPrivateKey())
+                || !hasText(alipayConfig.getAlipayPublicKey())) {
+            throw new IllegalStateException("支付宝实名认证配置不完整，请检查 APP_ID、应用私钥和支付宝公钥");
+        }
+    }
+
+    private JSONObject executeOpenApi(String method, Map<String, Object> bizContent, String returnUrl) {
+        Map<String, String> params = buildSignedParams(method, bizContent, returnUrl);
+        Map<String, Object> formParams = new LinkedHashMap<>(params);
+        try (HttpResponse response = HttpRequest.post(alipayConfig.getGatewayUrl())
+                .form(formParams)
+                .timeout(10000)
+                .execute()) {
+            String body = response.body();
+            if (!response.isOk()) {
+                throw new IllegalStateException("支付宝接口调用失败: HTTP " + response.getStatus());
+            }
+            return JSON.parseObject(body);
+        } catch (Exception e) {
+            throw new IllegalStateException("支付宝接口调用失败", e);
+        }
+    }
+
+    private Map<String, String> buildSignedParams(String method, Map<String, Object> bizContent, String returnUrl) {
+        Map<String, String> params = new TreeMap<>();
+        params.put("app_id", alipayConfig.getAppId());
+        params.put("method", method);
+        params.put("charset", alipayConfig.getCharset());
+        params.put("sign_type", alipayConfig.getSignType());
+        params.put("timestamp", java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        params.put("version", "1.0");
+        if (hasText(returnUrl)) {
+            params.put("return_url", returnUrl);
+        }
+        params.put("biz_content", JSON.toJSONString(bizContent));
+        params.put("sign", sign(params));
+        return params;
     }
 
     private String sign(Map<String, String> params) {
@@ -149,7 +287,21 @@ public class AlipayService {
                 .replace(">", "&gt;");
     }
 
+    private String encodeQueryValue(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return "";
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return "";
     }
 }

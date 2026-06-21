@@ -222,7 +222,7 @@
 <script>
 import { wxLogin, phoneLogin, passwordLogin, register, sendSmsCode } from '@/api/user'
 import { useUserStore } from '@/store/modules/user'
-import { getAndClearRedirectUrl } from '@/utils/auth'
+import { getAndClearRedirectUrl, saveRedirectUrl } from '@/utils/auth'
 import loginBrandLogo from '@/static/logo.png'
 
 const TAB_BAR_PAGES = new Set([
@@ -233,6 +233,7 @@ const TAB_BAR_PAGES = new Set([
   '/pages/user/index'
 ])
 const IS_MP_WEIXIN = process.env.UNI_PLATFORM === 'mp-weixin'
+const H5_WECHAT_OFFICIAL_APP_ID = import.meta.env?.VITE_WECHAT_OFFICIAL_APP_ID || 'wx28ba08314ff0cd14'
 
 export default {
   data() {
@@ -268,17 +269,22 @@ export default {
         phone: '',
         captcha: '',
         password: ''
-      }
+      },
+      isH5Wechat: false,
+      oauthCode: '',
+      oauthHandled: false
     }
   },
 
   computed: {
     wechatLoginSupported() {
-      return IS_MP_WEIXIN
+      return IS_MP_WEIXIN || this.isH5Wechat
     },
 
     wechatLoginLabel() {
-      return this.wechatLoginSupported ? '微信登录' : '微信小程序登录'
+      if (IS_MP_WEIXIN) return '微信登录'
+      if (this.isH5Wechat) return '微信授权登录'
+      return '微信小程序登录'
     },
 
     indicatorLeft() {
@@ -497,11 +503,17 @@ export default {
       this.wechatLoading = true
 
       try {
+        if (!IS_MP_WEIXIN && this.isH5Wechat) {
+          this.startOfficialWechatOauth()
+          return
+        }
+
         const profile = await this.resolveWechatProfile()
         const { code } = await this.resolveWechatLoginCode()
 
         const data = await wxLogin({
           code,
+          loginScene: 'mini',
           ...profile
         })
 
@@ -566,9 +578,84 @@ export default {
     // ============ 工具方法 ===========
     initLogin(options = {}) {
       this.redirect = this.decodeRedirect(options.redirect || '')
+      this.syncH5WechatContext()
+      this.captureOauthCode(options)
       const userStore = useUserStore()
+      if (this.shouldHandleOauthCallback()) {
+        this.handleOfficialWechatLogin()
+        return
+      }
+      const cachedOpenId = userStore.openId || uni.getStorageSync('openId') || ''
+      if (!IS_MP_WEIXIN && this.isH5Wechat && userStore.isLogin && (!cachedOpenId || cachedOpenId.startsWith('mock_openid_'))) {
+        this.startOfficialWechatOauth()
+        return
+      }
       if (userStore.isLogin) {
         this.afterLogin()
+      }
+    },
+
+    syncH5WechatContext() {
+      if (typeof window === 'undefined') return
+      const ua = window.navigator?.userAgent || ''
+      this.isH5Wechat = /MicroMessenger/i.test(ua) && !/miniProgram/i.test(ua)
+    },
+
+    captureOauthCode(options = {}) {
+      const query = this.readRouteOptions()
+      this.oauthCode = query.code || options.code || ''
+      if (!this.redirect) {
+        this.redirect = this.decodeRedirect(query.redirect || '')
+      }
+    },
+
+    readRouteOptions() {
+      if (typeof window === 'undefined') return {}
+      const url = new URL(window.location.href)
+      const searchEntries = Array.from(url.searchParams.entries())
+      const hashQuery = window.location.hash.split('?')[1] || ''
+      const hashEntries = Array.from(new URLSearchParams(hashQuery).entries())
+      return Object.fromEntries([...searchEntries, ...hashEntries])
+    },
+
+    shouldHandleOauthCallback() {
+      return !IS_MP_WEIXIN && this.isH5Wechat && !!this.oauthCode && !this.oauthHandled
+    },
+
+    startOfficialWechatOauth() {
+      if (typeof window === 'undefined') {
+        this.wechatLoading = false
+        return
+      }
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.delete('code')
+      currentUrl.searchParams.delete('state')
+      const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(H5_WECHAT_OFFICIAL_APP_ID)}&redirect_uri=${encodeURIComponent(currentUrl.toString())}&response_type=code&scope=snsapi_base&state=shiyiju_h5_login#wechat_redirect`
+      window.location.replace(authUrl)
+    },
+
+    async handleOfficialWechatLogin() {
+      this.oauthHandled = true
+      this.wechatLoading = true
+      try {
+        const data = await wxLogin({
+          code: this.oauthCode,
+          loginScene: 'h5'
+        })
+        const userStore = useUserStore()
+        const userInfo = this.buildLoginUserInfo(data)
+        userStore.onLoginSuccess(data.token, userInfo)
+        userStore.setOpenId(data.openId || '')
+        if (this.redirect) {
+          saveRedirectUrl(this.redirect)
+        }
+        uni.showToast({ title: '微信授权成功', icon: 'success' })
+        setTimeout(() => this.afterLogin(), 1200)
+      } catch (e) {
+        this.oauthHandled = false
+        this.handleRequestError(e, '微信授权失败')
+      } finally {
+        this.wechatLoading = false
       }
     },
 

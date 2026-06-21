@@ -314,6 +314,9 @@ public class UserSchemaInitializer {
               id_front_url VARCHAR(512) DEFAULT NULL COMMENT '身份证正面照URL',
               id_back_url VARCHAR(512) DEFAULT NULL COMMENT '身份证背面照URL',
               face_verified TINYINT DEFAULT 0 COMMENT '人脸核验状态',
+              verify_channel VARCHAR(32) DEFAULT 'manual' COMMENT '实名认证渠道：manual/alipay',
+              certify_id VARCHAR(128) DEFAULT NULL COMMENT '支付宝实名认证流水号',
+              external_status VARCHAR(64) DEFAULT NULL COMMENT '外部实名认证状态',
               status INT DEFAULT 0 COMMENT '审核状态：0-待审核，1-已通过，2-已拒绝',
               reject_reason VARCHAR(500) DEFAULT NULL COMMENT '拒绝原因',
               review_time DATETIME DEFAULT NULL COMMENT '审核时间',
@@ -546,6 +549,12 @@ public class UserSchemaInitializer {
     private void ensureRealnameColumns() {
         addColumnIfMissing("users", "real_name_verified",
             "ALTER TABLE users ADD COLUMN real_name_verified TINYINT DEFAULT 0 COMMENT '实名认证状态：0-未认证，1-已认证'");
+        addColumnIfMissing("realname_certifications", "verify_channel",
+            "ALTER TABLE realname_certifications ADD COLUMN verify_channel VARCHAR(32) DEFAULT 'manual' COMMENT '实名认证渠道：manual/alipay' AFTER face_verified");
+        addColumnIfMissing("realname_certifications", "certify_id",
+            "ALTER TABLE realname_certifications ADD COLUMN certify_id VARCHAR(128) DEFAULT NULL COMMENT '支付宝实名认证流水号' AFTER verify_channel");
+        addColumnIfMissing("realname_certifications", "external_status",
+            "ALTER TABLE realname_certifications ADD COLUMN external_status VARCHAR(64) DEFAULT NULL COMMENT '外部实名认证状态' AFTER certify_id");
     }
 
     private boolean tableExists(String tableName) {

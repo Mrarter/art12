@@ -2,11 +2,13 @@ package com.shiyiju.user.controller;
 
 import com.shiyiju.common.result.Result;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.RealnameAlipayStartDTO;
 import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.user.service.UserService;
 import com.shiyiju.user.vo.LoginVO;
+import com.shiyiju.user.vo.RealnameAlipayStartVO;
 import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.UserInteractionStatsVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
@@ -345,7 +347,7 @@ public class UserController {
     /**
      * 提交实名认证申请 (POST /user/realname/submit)
      */
-    @PostMapping("/user/realname/submit")
+    @PostMapping("/realname/submit")
     public Result<Void> submitRealnameCert(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @Valid @RequestBody com.shiyiju.user.dto.RealnameCertSubmitDTO dto) {
@@ -359,13 +361,40 @@ public class UserController {
     /**
      * 查询实名认证状态 (GET /user/realname/status)
      */
-    @GetMapping("/user/realname/status")
+    @GetMapping("/realname/status")
     public Result<com.shiyiju.user.vo.RealnameCertStatusVO> getRealnameCertStatus(
             @RequestHeader(value = "X-User-Id", required = false) Long userId) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
         return Result.success(userService.getRealnameCertStatus(userId));
+    }
+
+    /**
+     * 发起支付宝实名认证 (POST /user/realname/alipay/start)
+     */
+    @PostMapping("/realname/alipay/start")
+    public Result<RealnameAlipayStartVO> startAlipayRealname(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Valid @RequestBody RealnameAlipayStartDTO dto) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.startAlipayRealname(userId, dto));
+    }
+
+    /**
+     * 同步支付宝实名认证结果 (POST /user/realname/alipay/sync)
+     */
+    @PostMapping("/realname/alipay/sync")
+    public Result<com.shiyiju.user.vo.RealnameCertStatusVO> syncAlipayRealname(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody(required = false) Map<String, String> params) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        String certifyId = params == null ? null : params.get("certifyId");
+        return Result.success(userService.syncAlipayRealnameStatus(userId, certifyId));
     }
 
     /**

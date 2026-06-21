@@ -216,6 +216,24 @@ export const getRealnameCertStatus = () => {
   })
 }
 
+/** 发起支付宝实名认证 */
+export const startAlipayRealname = (data) => {
+  return request({
+    url: '/user/realname/alipay/start',
+    method: 'POST',
+    data
+  })
+}
+
+/** 同步支付宝实名认证结果 */
+export const syncAlipayRealname = (data) => {
+  return request({
+    url: '/user/realname/alipay/sync',
+    method: 'POST',
+    data
+  })
+}
+
 // ===================== 以下为已有 API =====================
 
 // 手机号登录
