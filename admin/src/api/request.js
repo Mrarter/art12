@@ -121,12 +121,12 @@ requestApi.interceptors.response.use(
 
 export { requestApi }
 
-// 文件上传方法（直接调用后端上传接口）
+// 文件上传方法（统一走 file 服务，避免不同容器写入各自本地目录）
 export const uploadFile = async (file, onProgress) => {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await axios.post('/api/product/upload', formData, {
+  const response = await axios.post('/api/file/upload/image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
       ...(localStorage.getItem('admin_token') && {
@@ -159,12 +159,12 @@ export const getFullImageUrl = (url) => {
 
   // 已有完整域名（包括 http://, https://）
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    // 本地文件服务的绝对路径 → 转为相对路径走 Vite 代理
-    if (url.includes('localhost:8087') || url.includes('127.0.0.1:8087')) {
-      const path = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8087/, '')
-      return ensureUploadPrefix(path)
+    // 历史遗留的本地/内网文件服务绝对路径 → 转为相对路径走站点代理
+    const localUploadPath = normalizePrivateUploadUrl(url)
+    if (localUploadPath) {
+      return ensureUploadPrefix(localUploadPath)
     }
-    if (isLocalRuntime && url.includes('shiyiju.online/upload/')) {
+    if (isLocalRuntime && /^https?:\/\/(?:a\.)?art1\.cn\/upload\//.test(url)) {
       const path = url.replace(/^https?:\/\/[^/]+/, '')
       return ensureUploadPrefix(path)
     }
@@ -182,6 +182,25 @@ export const getFullImageUrl = (url) => {
   return ensureUploadPrefix(url)
 }
 
+export const getImageThumbnailUrl = (url, width = 360) => {
+  const source = getFullImageUrl(url)
+  if (!source) return ''
+  if (source.startsWith('/images/')) return source
+
+  try {
+    const parsed = new URL(source, window.location.origin)
+    if (!parsed.pathname.startsWith('/upload/')) {
+      return source
+    }
+    return `${parsed.origin}/api/file/upload/thumb?url=${encodeURIComponent(source)}&w=${width}`
+  } catch (error) {
+    if (source.startsWith('/upload/') || source.startsWith('upload/')) {
+      return `/api/file/upload/thumb?url=${encodeURIComponent(source)}&w=${width}`
+    }
+    return source
+  }
+}
+
 // 确保路径经过 upload 代理
 const ensureUploadPrefix = (path) => {
   if (path.startsWith('/upload/') || path.startsWith('/uploads/')) return path
@@ -189,6 +208,24 @@ const ensureUploadPrefix = (path) => {
   if (path.startsWith('/images/')) return path
   // 其他情况补 /upload/ 前缀
   return '/upload' + (path.startsWith('/') ? path : '/' + path)
+}
+
+const normalizePrivateUploadUrl = (url) => {
+  try {
+    const parsed = new URL(url)
+    const { hostname, pathname } = parsed
+    if (!pathname.startsWith('/upload/') && !pathname.startsWith('/uploads/')) {
+      return ''
+    }
+    const isLoopbackHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname)
+    const isPrivateIpv4Host =
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+    return (isLoopbackHost || isPrivateIpv4Host) ? pathname : ''
+  } catch (error) {
+    return ''
+  }
 }
 
 export default request

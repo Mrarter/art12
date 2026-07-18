@@ -165,7 +165,7 @@ export default {
       uni.navigateTo({ url: '/pages/distribution/rules' })
     },
     goToWithdrawal() {
-      uni.navigateTo({ url: '/pages/user/wallet' })
+      uni.navigateTo({ url: '/pages/user-extra/wallet' })
     },
     goToProductList() {
       uni.navigateTo({ url: '/pages/gallery/index' })

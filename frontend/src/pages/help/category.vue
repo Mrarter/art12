@@ -36,6 +36,8 @@
 </template>
 
 <script>
+import { AUCTION_ENABLED } from '@/utils/platform.js'
+
 export default {
   data() {
     return {
@@ -46,6 +48,9 @@ export default {
   },
   onLoad(options) {
     this.categoryType = options.type || 'account'
+    if (!AUCTION_ENABLED && this.categoryType === 'auction') {
+      this.categoryType = 'transaction'
+    }
     this.initCategory()
   },
   methods: {

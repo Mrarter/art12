@@ -52,6 +52,8 @@ public class Artwork implements Serializable {
     private BigDecimal price;
     /** 原始价格（元） */
     private BigDecimal originalPrice;
+    /** 运费（元） */
+    private BigDecimal freight;
     private Integer stock;
     private Integer status;
     private Integer weight; // 权重，数值越大越靠前
@@ -84,6 +86,8 @@ public class Artwork implements Serializable {
     // 单个作品价格增长配置
     @TableField(exist = false)  // 数据库中无此列
     private Boolean customPriceGrowthEnabled; // 是否启用自定义价格增长
+    @TableField(exist = false)  // 数据库中无此列
+    private Boolean platformPriceGrowthEnabled; // 是否启用平台涨价策略
     @TableField(exist = false)  // 数据库中无此列
     private BigDecimal customBaseDailyRate; // 自定义基础日增长率
     @TableField(exist = false)  // 数据库中无此列

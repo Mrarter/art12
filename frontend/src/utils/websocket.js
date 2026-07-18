@@ -193,6 +193,10 @@ class WebSocketManager {
     }
   }
 
+  removeAllListeners() {
+    this.listeners.clear()
+  }
+
   /**
    * 触发事件
    * @param {string} event - 事件名
@@ -221,7 +225,7 @@ export default {
    * @param {number} lotId - 拍品ID
    */
   connectAuction(lotId) {
-    const baseUrl = getApp().globalData.wsBaseUrl || import.meta.env?.VITE_WS_BASE_URL || 'wss://shiyiju.online'
+    const baseUrl = getApp().globalData.wsBaseUrl || import.meta.env?.VITE_WS_BASE_URL || 'wss://a.art1.cn'
     const wsUrl = `${baseUrl}/ws/auction/lot/${lotId}`
     return wsManager.connect(wsUrl)
   },
@@ -277,6 +281,6 @@ export default {
    * 移除所有监听
    */
   offAll() {
-    this.listeners.clear()
+    wsManager.removeAllListeners()
   }
 }

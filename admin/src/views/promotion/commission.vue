@@ -188,12 +188,9 @@ const loadData = async () => {
     tableData.value = data.list
     pagination.total = data.total
   } catch (e) {
-    tableData.value = [
-      { id: 1, commissionCode: 'CMS202604250001A7K3', promoterName: '经纪人A', promoterPhone: '13900139001', type: 'direct', orderNo: 'SYJ20240120001', buyerName: '张三', orderAmount: 58000, rate: 0.1, commission: 5800, status: 'settled', createTime: '2024-01-20 10:30:00' },
-      { id: 2, commissionCode: 'CMS202604250002D4P8', promoterName: '经纪人A', promoterPhone: '13900139001', type: 'team', orderNo: 'SYJ20240120002', buyerName: '李四', orderAmount: 42000, rate: 0.05, commission: 2100, status: 'settled', createTime: '2024-01-19 14:20:00' },
-      { id: 3, commissionCode: 'CMS202604250003H2N5', promoterName: '经纪人B', promoterPhone: '13900139002', type: 'direct', orderNo: 'SYJ20240120003', buyerName: '王五', orderAmount: 65000, rate: 0.1, commission: 6500, status: 'pending', createTime: '2024-01-18 09:15:00' }
-    ]
-    pagination.total = 1
+    tableData.value = []
+    pagination.total = 0
+    ElMessage.error('经纪人分成记录加载失败')
   } finally {
     loading.value = false
   }

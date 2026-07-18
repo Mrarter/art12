@@ -1,11 +1,11 @@
 import AppIntents
 
 struct RunDebugActionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Run Debug Action"
-    static var description = IntentDescription("Returns a quick debug confirmation from the Art12 app.")
+    static var title: LocalizedStringResource = "Run Smoke Test"
+    static var description = IntentDescription("Returns a quick smoke-test confirmation from the 艺本艺术 iOS shell app.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "Art12 debug action completed.")
+        .result(dialog: "艺本艺术 iOS smoke test completed.")
     }
 }
 
@@ -14,10 +14,10 @@ struct Art12DebugShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: RunDebugActionIntent(),
             phrases: [
-                "Run debug action in \(.applicationName)",
-                "Start Art12 debug in \(.applicationName)"
+                "Run smoke test in \(.applicationName)",
+                "Start 艺本艺术 test build in \(.applicationName)"
             ],
-            shortTitle: "Debug Action",
+            shortTitle: "Smoke Test",
             systemImageName: "hammer.circle"
         )
     }

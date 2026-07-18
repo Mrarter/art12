@@ -99,16 +99,16 @@ const handleLogin = async () => {
 .login-header {
   text-align: center;
   margin-bottom: 30px;
-  
-  h1 {
-    font-size: 28px;
-    color: #333;
-    margin-bottom: 10px;
-  }
-  
-  p {
-    font-size: 14px;
-    color: #999;
-  }
+}
+
+.login-header h1 {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.login-header p {
+  font-size: 14px;
+  color: #999;
 }
 </style>

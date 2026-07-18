@@ -21,6 +21,9 @@ public class WxLoginDTO implements Serializable {
     /** 加密算法的初始向量 */
     private String iv;
 
+    /** 小程序手机号授权 code */
+    private String phoneCode;
+
     /** 昵称 */
     private String nickname;
 
@@ -41,4 +44,7 @@ public class WxLoginDTO implements Serializable {
 
     /** 登录场景：mini / h5 */
     private String loginScene;
+
+    /** 绑定微信收款账户时是否设为默认 */
+    private Boolean setDefault;
 }

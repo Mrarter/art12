@@ -24,6 +24,8 @@
 
 <script>
 import { useUserStore } from '@/store/modules/user.js'
+import { AUCTION_ENABLED, isAuctionPath, showAuctionDisabledToast } from '@/utils/platform.js'
+import { checkTokenValid, saveRedirectUrl } from '@/utils/auth.js'
 
 export default {
   name: 'CustomTabBar',
@@ -39,7 +41,9 @@ export default {
       selectedColor: '#D4AF37',
       tabList: [
         { pagePath: '/pages/index/index', text: '首页', icon: '/static/tabbar/home-luxury.png', selectedIcon: '/static/tabbar/home-luxury-active.png', badge: 0 },
-        { pagePath: '/pages/auction/index', text: '拍卖', icon: '/static/tabbar/auction-luxury.png', selectedIcon: '/static/tabbar/auction-luxury-active.png', badge: 0 },
+        AUCTION_ENABLED
+          ? { pagePath: '/pages/auction/index', text: '拍卖', icon: '/static/tabbar/auction-luxury.png', selectedIcon: '/static/tabbar/auction-luxury-active.png', badge: 0 }
+          : { pagePath: '/pages/gallery/index', text: '画廊', icon: '/static/tabbar/gallery-luxury.png', selectedIcon: '/static/tabbar/gallery-luxury-active.png', badge: 0 },
         { pagePath: '/pages/artist/publish', text: '发布', icon: '/static/tabbar/gallery-luxury.png', selectedIcon: '/static/tabbar/gallery-luxury-active.png', badge: 0, navigateType: 'navigateTo' },
         { pagePath: '/pages/cart/index', text: '购物车', icon: '/static/tabbar/cart-luxury.png', selectedIcon: '/static/tabbar/cart-luxury-active.png', badge: 0 },
         { pagePath: '/pages/user/index', text: '我的', icon: '/static/tabbar/user-luxury.png', selectedIcon: '/static/tabbar/user-luxury-active.png', badge: 0 }
@@ -51,7 +55,8 @@ export default {
       return useUserStore()
     },
     isLoggedIn() {
-      return this.userStore.isAuthenticated || this.userStore.isLogin
+      const check = checkTokenValid()
+      return this.userStore.isLogin && check.valid && !check.isGuest
     },
     identities() {
       const raw = this.userStore.identities || this.userStore.userInfo?.identities || this.userStore.userInfo?.identity || this.userStore.userInfo?.currentIdentity
@@ -83,11 +88,22 @@ export default {
     visibleTabList() {
       return this.tabList
         .map((item, index) => ({ ...item, index }))
-        .filter(item => item.text !== '发布' || this.canShowPublish)
+        .filter(item => (item.text !== '发布' || this.canShowPublish) && (AUCTION_ENABLED || !isAuctionPath(item.pagePath)))
     }
   },
   methods: {
     switchTab(item) {
+      if (!AUCTION_ENABLED && isAuctionPath(item.pagePath)) {
+        showAuctionDisabledToast()
+        return
+      }
+
+      if (item.pagePath === '/pages/user/index' && !this.isLoggedIn) {
+        saveRedirectUrl(item.pagePath)
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+
       if (item.navigateType === 'navigateTo') {
         uni.navigateTo({ url: item.pagePath })
         return

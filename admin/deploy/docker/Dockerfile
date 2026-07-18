@@ -1,4 +1,4 @@
-# 拾艺局管理后台 Dockerfile
+# 艺本艺术管理后台 Dockerfile
 
 # 构建阶段
 FROM node:20-alpine AS builder

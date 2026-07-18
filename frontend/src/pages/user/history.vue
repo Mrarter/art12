@@ -80,7 +80,7 @@
 </template>
 
 <script>
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -131,9 +131,9 @@ export default {
       return `${diff}天前`
     },
     formatPrice(price) {
-      const yuan = fenToYuan(price)
+      const yuan = Number(price || 0)
       if (yuan >= 10000) return `${(yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1)}万`
-      return formatYuanNumber(yuan)
+      return formatArtworkPriceNumber(yuan)
     },
     switchTab(tab) {
       this.currentTab = tab

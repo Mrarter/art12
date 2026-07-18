@@ -105,10 +105,66 @@
           <text class="amount-value">¥{{ formatMoney(orderInfo.payAmount) }}</text>
         </view>
       </view>
+
+      <view class="card refund-card" v-if="showRefundSection">
+        <view class="refund-card-head">
+          <text class="card-title">售后信息</text>
+          <text class="refund-type-badge" :class="{ gold: orderInfo.refundType === 2 }">
+            {{ orderInfo.refundType === 2 ? '退款退货' : '仅退款' }}
+          </text>
+        </view>
+        <view class="info-row" v-if="orderInfo.refundReason">
+          <text class="info-label">退款原因</text>
+          <text class="info-value remark">{{ orderInfo.refundReason }}</text>
+        </view>
+        <view class="info-row" v-if="Number(orderInfo.refundAmount || 0) > 0">
+          <text class="info-label">申请金额</text>
+          <text class="info-value refund-amount">¥{{ formatMoney(orderInfo.refundAmount) }}</text>
+        </view>
+        <view class="return-logistics-card" v-if="orderInfo.refundType === 2">
+          <view class="return-logistics-head">
+            <view>
+              <text class="return-logistics-title">退货运单</text>
+              <text class="return-logistics-tip">{{ returnLogisticsTip }}</text>
+            </view>
+            <view
+              v-if="canSubmitReturnLogistics"
+              class="mini-action-btn"
+              @click="openReturnModal"
+            >提交运单</view>
+          </view>
+          <view v-if="hasReturnTracking">
+            <view class="info-row">
+              <text class="info-label">物流公司</text>
+              <text class="info-value">{{ orderInfo.returnCompanyName || '--' }}</text>
+            </view>
+            <view class="info-row">
+              <text class="info-label">运单号</text>
+              <view class="info-value">
+                <text>{{ orderInfo.returnTrackingNo }}</text>
+                <text class="copy-btn" @click="copyText(orderInfo.returnTrackingNo, '运单号已复制')">复制</text>
+              </view>
+            </view>
+            <view class="info-row" v-if="orderInfo.returnShipTime">
+              <text class="info-label">提交时间</text>
+              <text class="info-value">{{ formatDateTime(orderInfo.returnShipTime) }}</text>
+            </view>
+            <view class="info-row" v-if="Number(orderInfo.returnStatus || 0) > 0">
+              <text class="info-label">物流状态</text>
+              <text class="info-value">{{ getReturnStatusText(orderInfo.returnStatus) }}</text>
+            </view>
+            <view class="info-row" v-if="orderInfo.returnReceiveTime">
+              <text class="info-label">签收时间</text>
+              <text class="info-value">{{ formatDateTime(orderInfo.returnReceiveTime) }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
     </template>
 
     <view class="bottom-bar" v-if="!loading && !loadError">
       <view class="ghost-btn" @click="contactSeller">联系卖家</view>
+      <view class="ghost-btn" @click="shareOrderArtwork" v-if="shareArtworkId">分享作品</view>
       <view class="ghost-btn" @click="viewLogistics" v-if="['SHIPPED', 'COMPLETED'].includes(orderInfo.status)">查看物流</view>
       <view class="ghost-btn" @click="cancelOrder" v-if="orderInfo.status === 'PENDING_PAYMENT'">取消订单</view>
       <view class="primary-btn" @click="payOrder" v-if="canPayOrder">去支付</view>
@@ -116,13 +172,78 @@
       <view class="ghost-btn" @click="applyRefund" v-if="canApplyRefund">申请退款</view>
       <view class="primary-btn" @click="reviewOrder" v-if="orderInfo.status === 'COMPLETED'">去评价</view>
     </view>
+
+    <view class="ship-modal-mask" v-if="returnModalVisible" @click="closeReturnModal">
+      <view class="ship-modal" @click.stop>
+        <view class="ship-modal-head">
+          <view>
+            <text class="ship-title">提交退货运单</text>
+            <text class="ship-subtitle">提交后卖家可根据运单跟进退货进度</text>
+          </view>
+          <button class="ship-close" @click="closeReturnModal">×</button>
+        </view>
+
+        <view class="ship-order-summary">
+          <image class="ship-cover" :src="summaryGoodsImage" mode="aspectFill"></image>
+          <view class="ship-summary-main">
+            <text class="ship-goods-name">{{ summaryGoodsTitle }}</text>
+            <text class="ship-order-no">订单号：{{ orderInfo.orderNo || '--' }}</text>
+            <text class="ship-buyer">退款类型：退款退货</text>
+          </view>
+        </view>
+
+        <view class="ship-form">
+          <view class="ship-field">
+            <text class="ship-label">运单号</text>
+            <input
+              class="ship-input"
+              v-model.trim="returnShipForm.trackingNo"
+              maxlength="32"
+              placeholder="请输入退货运单号"
+              placeholder-class="ship-placeholder"
+              @input="onReturnTrackingInput"
+            />
+            <text class="ship-helper" v-if="returnShipDetectState.message">{{ returnShipDetectState.message }}</text>
+          </view>
+
+          <view class="ship-field">
+            <text class="ship-label">物流公司</text>
+            <picker mode="selector" :range="shipCompanies" range-key="name" :value="returnShipForm.companyIndex" @change="onReturnCompanyChange">
+              <view class="ship-picker">
+                <text>{{ selectedReturnCompany.name || '请选择物流公司' }}</text>
+                <text class="ship-picker-arrow">{{ shipCompanyLoading ? '加载中' : '›' }}</text>
+              </view>
+            </picker>
+          </view>
+
+          <view class="ship-field" v-if="selectedReturnCompany.code === 'OTHER'">
+            <text class="ship-label">物流名称</text>
+            <input
+              class="ship-input"
+              v-model.trim="returnShipForm.customCompanyName"
+              maxlength="20"
+              placeholder="请输入物流公司名称"
+              placeholder-class="ship-placeholder"
+            />
+          </view>
+        </view>
+
+        <view class="ship-modal-actions">
+          <button class="ship-action secondary" @click="closeReturnModal">取消</button>
+          <button class="ship-action primary" :disabled="returnSubmitting" @click="submitReturnLogistics">
+            {{ returnSubmitting ? '提交中...' : '确认提交' }}
+          </button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script>
-import { getOrderDetail, cancelOrder, confirmReceive } from '@/api/order.js'
+import { getOrderDetail, cancelOrder, confirmReceive, getLogisticsCompanies, getLogisticsByTrackingNo, submitRefundReturnLogistics } from '@/api/order.js'
 import { getFullImageUrl } from '@/utils/image.js'
 import { fenToYuan, formatYuanNumber } from '@/utils/price.js'
+import { buildH5ShareUrl, setH5ShareMeta, shareH5OrCopy } from '@/utils/share.js'
 
 export default {
   data() {
@@ -130,7 +251,17 @@ export default {
       loading: false,
       loadError: '',
       orderId: '',
-      orderInfo: this.emptyOrder()
+      orderInfo: this.emptyOrder(),
+      shipCompanyLoading: false,
+      shipCompanies: this.defaultShipCompanies(),
+      returnModalVisible: false,
+      returnSubmitting: false,
+      returnShipDetectTimer: null,
+      returnShipDetectState: {
+        message: '',
+        source: ''
+      },
+      returnShipForm: this.emptyReturnShipForm()
     }
   },
 
@@ -143,6 +274,41 @@ export default {
     },
     canApplyRefund() {
       return ['PAID', 'SHIPPED'].includes(this.orderInfo.status)
+    },
+    showRefundSection() {
+      return ['REFUNDING', 'REFUNDED'].includes(this.orderInfo.status) || Number(this.orderInfo.refundType || 0) > 0
+    },
+    hasReturnTracking() {
+      return Boolean(this.orderInfo.returnTrackingNo)
+    },
+    canSubmitReturnLogistics() {
+      return this.orderInfo.status === 'REFUNDING' &&
+        Number(this.orderInfo.refundType || 0) === 2 &&
+        !this.hasReturnTracking
+    },
+    returnLogisticsTip() {
+      if (!this.hasReturnTracking) {
+        return '请回寄后尽快提交运单号，方便卖家确认。'
+      }
+      if (Number(this.orderInfo.returnStatus || 0) === 4) {
+        return '退货包裹已签收，系统将自动处理退款。'
+      }
+      return '已提交回寄信息，等待卖家确认收货。'
+    },
+    selectedReturnCompany() {
+      return this.shipCompanies[this.returnShipForm.companyIndex] || this.shipCompanies[0] || {}
+    },
+    summaryGoodsTitle() {
+      return this.orderInfo.goodsList?.[0]?.goodsName || '订单商品'
+    },
+    summaryGoodsImage() {
+      return this.resolveGoodsImage(this.orderInfo.goodsList?.[0] || {})
+    },
+    shareArtworkId() {
+      return this.orderInfo.goodsList?.[0]?.goodsId || ''
+    },
+    shareArtworkTitle() {
+      return this.orderInfo.goodsList?.[0]?.goodsName || '艺本艺术作品'
     },
     fullAddress() {
       const address = this.orderInfo.address || {}
@@ -182,6 +348,14 @@ export default {
     }
   },
 
+  onShareAppMessage() {
+    return {
+      title: `${this.shareArtworkTitle}｜艺本艺术`,
+      path: this.buildArtworkShareRoute(),
+      imageUrl: this.summaryGoodsImage
+    }
+  },
+
   methods: {
     emptyOrder() {
       return {
@@ -191,7 +365,40 @@ export default {
         goodsAmount: 0,
         freight: 0,
         discountAmount: 0,
-        payAmount: 0
+        payAmount: 0,
+        refundType: null,
+        refundStatus: null,
+        refundReason: '',
+        refundAmount: 0,
+        refundImages: '',
+        returnCompanyCode: '',
+        returnCompanyName: '',
+        returnTrackingNo: '',
+        returnStatus: null,
+        returnShipTime: '',
+        returnReceiveTime: ''
+      }
+    },
+
+    defaultShipCompanies() {
+      return [
+        { code: 'SF', name: '顺丰速运' },
+        { code: 'YTO', name: '圆通速递' },
+        { code: 'ZTO', name: '中通快递' },
+        { code: 'STO', name: '申通快递' },
+        { code: 'YD', name: '韵达快递' },
+        { code: 'JTSD', name: '极兔速递' },
+        { code: 'EMS', name: 'EMS' },
+        { code: 'YZPY', name: '邮政快递包裹' },
+        { code: 'OTHER', name: '其他物流' }
+      ]
+    },
+
+    emptyReturnShipForm() {
+      return {
+        companyIndex: 0,
+        customCompanyName: '',
+        trackingNo: ''
       }
     },
 
@@ -224,11 +431,23 @@ export default {
             detail.payAmount ?? detail.pay_amount ?? detail.totalAmount ?? detail.goodsAmount ?? 0,
             derivedPayAmount
           ),
+          refundAmount: this.normalizeFenAmount(detail.refundAmount ?? detail.refund_amount ?? 0),
           status: detail.status ?? detail.orderStatus ?? detail.paymentStatus ?? '',
           statusText: detail.statusText || detail.status_text || '',
           address: detail.address || null,
-          goodsList
+          goodsList,
+          refundType: detail.refundType ?? detail.refund_type ?? null,
+          refundStatus: detail.refundStatus ?? detail.refund_status ?? null,
+          refundReason: detail.refundReason ?? detail.refund_reason ?? '',
+          refundImages: detail.refundImages ?? detail.refund_images ?? '',
+          returnCompanyCode: detail.returnCompanyCode ?? detail.return_company_code ?? '',
+          returnCompanyName: detail.returnCompanyName ?? detail.return_company_name ?? '',
+          returnTrackingNo: detail.returnTrackingNo ?? detail.return_tracking_no ?? '',
+          returnStatus: detail.returnStatus ?? detail.return_status ?? null,
+          returnShipTime: detail.returnShipTime ?? detail.return_ship_time ?? '',
+          returnReceiveTime: detail.returnReceiveTime ?? detail.return_receive_time ?? ''
         }
+        this.updateShareMeta()
       } catch (e) {
         this.orderInfo = this.emptyOrder()
         this.loadError = e?.message || '订单加载失败'
@@ -269,16 +488,57 @@ export default {
       return map[status] || '未知状态'
     },
 
-    copyOrderNo() {
-      if (!this.orderInfo.orderNo) return
+    getReturnStatusText(status) {
+      const map = {
+        1: '已寄回',
+        2: '运输中',
+        3: '派送中',
+        4: '已签收',
+        5: '拒收',
+        6: '退件'
+      }
+      return map[Number(status)] || '待回寄'
+    },
+
+    copyText(value, title = '复制成功') {
+      if (!value) return
       uni.setClipboardData({
-        data: this.orderInfo.orderNo,
-        success: () => uni.showToast({ title: '复制成功', icon: 'success' })
+        data: String(value),
+        success: () => uni.showToast({ title, icon: 'success' })
       })
+    },
+
+    copyOrderNo() {
+      this.copyText(this.orderInfo.orderNo)
     },
 
     goGoodsDetail(id) {
       if (id) uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
+    },
+
+    buildArtworkShareRoute() {
+      return this.shareArtworkId
+        ? `/pages/gallery/detail?id=${encodeURIComponent(this.shareArtworkId)}&from=order-share`
+        : '/pages/gallery/index?from=order-share'
+    },
+
+    async shareOrderArtwork() {
+      if (!this.shareArtworkId) return
+      await shareH5OrCopy({
+        title: `${this.shareArtworkTitle}｜艺本艺术`,
+        text: '来看看这件艺术作品的详情与流通记录',
+        route: this.buildArtworkShareRoute()
+      })
+    },
+
+    updateShareMeta() {
+      if (!this.shareArtworkId) return
+      setH5ShareMeta({
+        title: `${this.shareArtworkTitle}｜艺本艺术`,
+        description: '查看作品详情与流通记录',
+        imageUrl: this.summaryGoodsImage,
+        url: buildH5ShareUrl(this.buildArtworkShareRoute())
+      })
     },
 
     normalizeGoodsItem(item = {}, detail = {}) {
@@ -377,6 +637,177 @@ export default {
 
     applyRefund() {
       uni.navigateTo({ url: `/pages/order/refund?id=${this.orderId}` })
+    },
+
+    ensureOtherCompanyOption(companies = []) {
+      const normalized = companies
+        .filter(item => item?.code && item?.name)
+        .map(item => ({ code: item.code, name: item.name }))
+      return normalized.some(item => item.code === 'OTHER')
+        ? normalized
+        : [...normalized, { code: 'OTHER', name: '其他物流' }]
+    },
+
+    async loadShipCompanies() {
+      if (this.shipCompanies.length > this.defaultShipCompanies().length) return
+      this.shipCompanyLoading = true
+      try {
+        const result = await getLogisticsCompanies()
+        const list = Array.isArray(result) ? result : (result?.records || result?.list || [])
+        this.shipCompanies = this.ensureOtherCompanyOption(list.length ? list : this.defaultShipCompanies())
+      } catch (e) {
+        this.shipCompanies = this.defaultShipCompanies()
+      } finally {
+        this.shipCompanyLoading = false
+      }
+    },
+
+    openReturnModal() {
+      this.returnModalVisible = true
+      this.resetReturnShipForm()
+      this.loadShipCompanies()
+    },
+
+    closeReturnModal() {
+      if (this.returnSubmitting) return
+      this.returnModalVisible = false
+      this.resetReturnShipForm()
+    },
+
+    onReturnCompanyChange(event) {
+      this.returnShipForm.companyIndex = Number(event.detail.value || 0)
+      this.returnShipDetectState = {
+        message: this.selectedReturnCompany?.name ? `已选择${this.selectedReturnCompany.name}` : '',
+        source: 'manual'
+      }
+    },
+
+    resetReturnShipForm() {
+      this.returnShipForm = this.emptyReturnShipForm()
+      this.returnShipDetectState = {
+        message: '',
+        source: ''
+      }
+      if (this.returnShipDetectTimer) {
+        clearTimeout(this.returnShipDetectTimer)
+        this.returnShipDetectTimer = null
+      }
+    },
+
+    matchTrackingCompany(trackingNo = '') {
+      const value = String(trackingNo || '').replace(/\s+/g, '').toUpperCase()
+      if (!value || value.length < 6) return ''
+      if (value.startsWith('SF') || /^4\d{14,15}$/.test(value)) return 'SF'
+      if (/^(YT|DD)\w{8,}$/.test(value)) return 'YTO'
+      if (/^(ZTO|ZT)\w{8,}$/.test(value) || /^75\d{11,13}$/.test(value)) return 'ZTO'
+      if (/^(STO|ST)\w{8,}$/.test(value) || /^77\d{11,13}$/.test(value)) return 'STO'
+      if (/^(YD|YDWL)\w{8,}$/.test(value) || /^43\d{13,15}$/.test(value)) return 'YD'
+      if (/^(JT|JTSD)\w{8,}$/.test(value) || /^78\d{11,13}$/.test(value)) return 'JTSD'
+      if (/^(EMS|E[A-Z0-9]{9}CN|9\d{11,19})$/.test(value)) return 'EMS'
+      if (/^(YZ|YP|POST)\w{8,}$/.test(value)) return 'YZPY'
+      return ''
+    },
+
+    applyReturnDetectedCompany(companyCode, message, source = 'auto') {
+      if (!companyCode) return false
+      const index = this.shipCompanies.findIndex(item => item.code === companyCode)
+      if (index < 0) return false
+      this.returnShipForm.companyIndex = index
+      if (companyCode !== 'OTHER') {
+        this.returnShipForm.customCompanyName = ''
+      }
+      this.returnShipDetectState = {
+        message: message || `已识别为${this.shipCompanies[index].name}`,
+        source
+      }
+      return true
+    },
+
+    async detectReturnTrackingCompany(trackingNo) {
+      const value = String(trackingNo || '').replace(/\s+/g, '')
+      if (!value || value.length < 6) {
+        this.returnShipDetectState = { message: '', source: '' }
+        return
+      }
+
+      const guessedCode = this.matchTrackingCompany(value)
+      if (guessedCode) {
+        this.applyReturnDetectedCompany(
+          guessedCode,
+          `已识别为${this.shipCompanies.find(item => item.code === guessedCode)?.name || '对应物流公司'}`
+        )
+        return
+      }
+
+      try {
+        const result = await getLogisticsByTrackingNo(value)
+        if (this.applyReturnDetectedCompany(
+          result?.companyCode,
+          `已匹配历史物流：${result?.companyName || '已识别物流公司'}`,
+          'history'
+        )) {
+          return
+        }
+      } catch (error) {
+        // keep manual selection available
+      }
+
+      this.returnShipDetectState = {
+        message: '暂未识别物流公司，请手动选择',
+        source: 'unknown'
+      }
+    },
+
+    onReturnTrackingInput(event) {
+      const value = event?.detail?.value ?? this.returnShipForm.trackingNo
+      this.returnShipForm.trackingNo = value
+      if (this.returnShipDetectTimer) {
+        clearTimeout(this.returnShipDetectTimer)
+      }
+      this.returnShipDetectTimer = setTimeout(() => {
+        this.detectReturnTrackingCompany(value)
+      }, 250)
+    },
+
+    validateReturnShipForm() {
+      const company = this.selectedReturnCompany
+      const trackingNo = this.returnShipForm.trackingNo.replace(/\s+/g, '')
+      const customName = this.returnShipForm.customCompanyName.trim()
+      if (!company.code) return '请选择物流公司'
+      if (company.code === 'OTHER' && !customName) return '请输入物流公司名称'
+      if (!trackingNo) return '请输入退货运单号'
+      if (!/^[A-Za-z0-9-]{6,32}$/.test(trackingNo)) return '运单号需为6-32位字母、数字或横线'
+      return ''
+    },
+
+    async submitReturnLogistics() {
+      if (this.returnSubmitting) return
+      const error = this.validateReturnShipForm()
+      if (error) {
+        uni.showToast({ title: error, icon: 'none' })
+        return
+      }
+      const company = this.selectedReturnCompany
+      const trackingNo = this.returnShipForm.trackingNo.replace(/\s+/g, '')
+      const companyName = company.code === 'OTHER'
+        ? this.returnShipForm.customCompanyName.trim()
+        : company.name
+      this.returnSubmitting = true
+      try {
+        await submitRefundReturnLogistics({
+          orderId: this.orderId,
+          companyCode: company.code,
+          companyName,
+          trackingNo
+        })
+        uni.showToast({ title: '运单已提交', icon: 'success' })
+        this.returnModalVisible = false
+        await this.loadOrderDetail()
+      } catch (e) {
+        uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+      } finally {
+        this.returnSubmitting = false
+      }
     },
 
     reviewOrder() {
@@ -628,6 +1059,72 @@ export default {
   border-radius: 999rpx;
 }
 
+.refund-card-head,
+.return-logistics-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.refund-type-badge {
+  flex: 0 0 auto;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(245, 240, 232, 0.72);
+  font-size: 22rpx;
+}
+
+.refund-type-badge.gold {
+  background: rgba(242, 198, 94, 0.14);
+  color: #f2c65e;
+}
+
+.refund-amount {
+  color: #f2c65e;
+}
+
+.return-logistics-card {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(242, 198, 94, 0.14);
+  background: rgba(242, 198, 94, 0.05);
+}
+
+.return-logistics-title,
+.return-logistics-tip {
+  display: block;
+}
+
+.return-logistics-title {
+  color: #f5f0e8;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.return-logistics-tip {
+  margin-top: 8rpx;
+  color: #a9a39a;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.mini-action-btn {
+  flex: 0 0 auto;
+  padding: 0 22rpx;
+  min-width: 136rpx;
+  height: 60rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(242, 198, 94, 0.36);
+  color: #f2c65e;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .amount-row.total {
   border-top: 1rpx solid rgba(255, 255, 255, 0.06);
   margin-top: 14rpx;
@@ -681,5 +1178,209 @@ export default {
   color: #16120b;
   background: #d9aa3d;
   font-weight: 600;
+}
+
+.ship-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.ship-modal {
+  width: 100%;
+  max-height: 86vh;
+  padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-radius: 28rpx 28rpx 0 0;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 86% 0%, rgba(201, 162, 39, 0.14), transparent 32%),
+    #171719;
+  color: #f6f2e8;
+  box-shadow: 0 -24rpx 60rpx rgba(0, 0, 0, 0.44);
+}
+
+.ship-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 22rpx;
+}
+
+.ship-title,
+.ship-subtitle {
+  display: block;
+}
+
+.ship-title {
+  font-size: 34rpx;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #f6f2e8;
+}
+
+.ship-subtitle {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  line-height: 1.35;
+  color: rgba(246, 242, 232, 0.58);
+}
+
+.ship-close {
+  width: 58rpx;
+  height: 58rpx;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(246, 242, 232, 0.72);
+  font-size: 38rpx;
+  line-height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ship-close::after,
+.ship-action::after {
+  border: none;
+}
+
+.ship-order-summary {
+  display: flex;
+  gap: 18rpx;
+  padding: 18rpx;
+  margin-bottom: 18rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ship-cover {
+  width: 116rpx;
+  height: 116rpx;
+  flex: 0 0 116rpx;
+  border-radius: 12rpx;
+  background: #202024;
+}
+
+.ship-summary-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.ship-goods-name,
+.ship-order-no,
+.ship-buyer {
+  display: block;
+}
+
+.ship-goods-name {
+  font-size: 28rpx;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #f6f2e8;
+}
+
+.ship-order-no,
+.ship-buyer {
+  font-size: 22rpx;
+  line-height: 1.35;
+  color: rgba(246, 242, 232, 0.58);
+}
+
+.ship-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.ship-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.ship-label {
+  font-size: 24rpx;
+  color: rgba(246, 242, 232, 0.72);
+}
+
+.ship-picker,
+.ship-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 14rpx;
+  background: #202024;
+  color: #f6f2e8;
+  font-size: 26rpx;
+}
+
+.ship-picker {
+  min-height: 76rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ship-picker-arrow {
+  color: #8f8a80;
+  font-size: 24rpx;
+}
+
+.ship-input {
+  height: 76rpx;
+  padding: 0 22rpx;
+}
+
+.ship-helper {
+  font-size: 22rpx;
+  line-height: 1.4;
+  color: rgba(242, 198, 94, 0.86);
+}
+
+.ship-placeholder {
+  color: rgba(246, 242, 232, 0.35);
+}
+
+.ship-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.ship-action {
+  height: 78rpx;
+  border-radius: 39rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.ship-action.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(246, 242, 232, 0.72);
+}
+
+.ship-action.primary {
+  background: linear-gradient(135deg, #d6aa4c, #f2c65e);
+  color: #1a1610;
+}
+
+.ship-action[disabled] {
+  opacity: 0.6;
 }
 </style>

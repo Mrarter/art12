@@ -230,11 +230,11 @@ curl http://localhost:8080/actuator/health
 ```
 
 ### 3. 配置正式域名
-当前生产环境默认域名为 `https://shiyiju.online`：
-- H5/API：`https://shiyiju.online`
-- 管理后台：`https://admin.shiyiju.online`
-- 文件上传访问：`https://shiyiju.online/upload`
+当前生产环境默认域名为 `https://a.art1.cn`：
+- H5/API：`https://a.art1.cn`
+- 管理后台：`https://admin.art1.cn`
+- 文件上传访问：`https://a.art1.cn/upload`
 
 ### 4. 小程序配置
 在微信小程序后台添加 request 合法域名：
-- `https://shiyiju.online`
+- `https://a.art1.cn`

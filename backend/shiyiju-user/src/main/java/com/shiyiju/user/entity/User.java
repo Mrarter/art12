@@ -40,6 +40,12 @@ public class User implements Serializable {
     /** 邮箱 */
     private String email;
 
+    /** 真实姓名 */
+    private String realName;
+
+    /** 加密存储的完整身份证号 */
+    private String idCardEncrypted;
+
     /** 微信号 */
     private String wechat;
 
@@ -63,6 +69,9 @@ public class User implements Serializable {
 
     /** 用户状态：0-禁用，1-正常 */
     private Integer status;
+
+    /** 实名认证状态：0-未认证，1-已认证 */
+    private Integer realNameVerified;
 
     /** 粉丝数 */
     private Integer followerCount;

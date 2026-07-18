@@ -46,29 +46,18 @@
       {{ isLoggedIn ? '退出登录' : '登录 / 注册' }}
     </view>
 
-    <view class="about-mask" v-if="showAboutPopup" @click="showAboutPopup = false">
-      <view class="about-sheet" @click.stop>
-        <text class="about-name">艺本艺术</text>
-        <text class="about-desc">连接艺术家、收藏者与经纪人的艺术品交易平台</text>
-        <view class="about-links">
-          <text @click="goPage('/pages/user/agreement?type=user')">用户协议</text>
-          <text @click="goPage('/pages/user/agreement?type=privacy')">隐私政策</text>
-        </view>
-        <view class="about-close" @click="showAboutPopup = false">知道了</view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script>
 import { useUserStore } from '@/store/modules/user.js'
+import { APP_VERSION } from '@/constants/app.js'
 
 export default {
   data() {
     return {
-      version: '1.0.0',
+      version: APP_VERSION,
       cacheSize: '0 KB',
-      showAboutPopup: false,
       localRealNameStatus: null,
       settings: {
         pushEnabled: true,
@@ -106,7 +95,7 @@ export default {
               icon: '机',
               tone: 'gold',
               value: this.userInfo.phone ? this.formatPhone(this.userInfo.phone) : '未绑定',
-              path: this.comingSoon('绑定手机号', '手机号绑定页正在开发中，后续会补充验证码和换绑流程。')
+              path: '/pages/user/account-security?tab=phone'
             },
             {
               label: '实名认证',
@@ -115,7 +104,7 @@ export default {
               tone: 'green',
               value: this.getRealNameStatus(this.effectiveRealNameStatus),
               certified: this.effectiveRealNameStatus === 1,
-              path: '/pages/user/realname'
+              path: '/pages/user-extra/realname'
             },
             {
               label: '登录密码',
@@ -123,7 +112,7 @@ export default {
               icon: '密',
               tone: 'blue',
               value: '修改',
-              path: this.comingSoon('密码管理', '密码设置页正在开发中，后续会补充修改与找回能力。')
+              path: '/pages/user/account-security?tab=password'
             }
           ]
         },
@@ -146,10 +135,11 @@ export default {
         {
           title: '关于与支持',
           items: [
-            { label: '用户协议', icon: '协', tone: 'blue', value: '', path: '/pages/user/agreement?type=user' },
-            { label: '隐私政策', icon: '隐', tone: 'green', value: '', path: '/pages/user/agreement?type=privacy' },
+            { label: '收货地址', icon: '址', tone: 'gold', value: '', path: '/pages/user/address' },
+            { label: '消息通知', icon: '息', tone: 'blue', value: '', path: '/pages/message/list' },
+            { label: '帮助中心', icon: '帮', tone: 'green', value: '', path: '/pages/help/index' },
             { label: '意见反馈', icon: '馈', tone: 'purple', value: '', path: '/pages/user/feedback' },
-            { label: '关于我们', icon: '关', tone: 'gold', value: '', action: this.showAbout }
+            { label: '关于我们', icon: '关', tone: 'gold', value: '', path: '/pages/about/index' }
           ]
         }
       ]
@@ -209,7 +199,7 @@ export default {
       uni.navigateTo({ url: '/pages/login/index' })
     },
     goPage(url) {
-      if (!this.isLoggedIn && !url.includes('/pages/user/agreement') && !url.includes('/pages/user/feedback')) {
+      if (!this.isLoggedIn && !url.includes('/pages/user-extra/agreement') && !url.includes('/pages/user/feedback')) {
         this.goLogin()
         return
       }
@@ -258,9 +248,6 @@ export default {
         uni.hideLoading()
         uni.showToast({ title: '已是最新版本', icon: 'success' })
       }, 800)
-    },
-    showAbout() {
-      this.showAboutPopup = true
     },
     handleLogout() {
       uni.showModal({
@@ -463,55 +450,4 @@ $purple: #8c73c9;
   }
 }
 
-.about-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.58);
-  display: flex;
-  align-items: flex-end;
-}
-
-.about-sheet {
-  width: 100%;
-  padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
-  background: $panel;
-  border-radius: 24rpx 24rpx 0 0;
-  border-top: 1rpx solid $line;
-  box-sizing: border-box;
-}
-
-.about-name {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 700;
-  margin-bottom: 12rpx;
-}
-
-.about-desc {
-  display: block;
-  font-size: 25rpx;
-  line-height: 38rpx;
-  color: $muted;
-}
-
-.about-links {
-  display: flex;
-  gap: 28rpx;
-  margin: 32rpx 0;
-  color: $gold;
-  font-size: 26rpx;
-}
-
-.about-close {
-  height: 84rpx;
-  border-radius: 12rpx;
-  background: $gold;
-  color: #16130b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  font-weight: 700;
-}
 </style>

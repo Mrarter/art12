@@ -15,8 +15,9 @@ spring:
       database: 0
 
 wxpay:
-  app-id: ${WECHAT_APPID:wx53de6703ba23756d}
-  mini-app-id: ${WECHAT_APPID:wx53de6703ba23756d}
+  app-id: ${WXPAY_OFFICIAL_APP_ID:${WECHAT_APPID:wx53de6703ba23756d}}
+  official-app-id: ${WXPAY_OFFICIAL_APP_ID:${WECHAT_APPID:wx53de6703ba23756d}}
+  mini-app-id: ${WXPAY_MINI_APP_ID:${WECHAT_APPID:wx53de6703ba23756d}}
   mch-id: 1743449441
   mch-key: test_mch_key_placeholder
   api-key: test_api_key_placeholder
@@ -28,5 +29,11 @@ alipay:
   private-key: ${ALIPAY_PRIVATE_KEY:}
   alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
   gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
-  notify-url: ${ALIPAY_NOTIFY_URL:http://110.42.211.199:8080/order/pay/alipay/notify}
+  notify-url: ${ALIPAY_NOTIFY_URL:http://110.42.211.199:8080/pay/alipay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://110.42.211.199/#/pages/order/list}
+
+wallet:
+  service-url: ${WALLET_SERVICE_URL:http://shiyiju-user:8081}
+
+resale:
+  service-url: ${RESALE_SERVICE_URL:http://shiyiju-user:8081}

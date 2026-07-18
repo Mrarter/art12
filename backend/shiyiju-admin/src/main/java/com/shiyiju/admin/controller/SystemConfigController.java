@@ -1,6 +1,7 @@
 package com.shiyiju.admin.controller;
 
 import com.shiyiju.admin.service.SystemConfigPersistenceService;
+import com.shiyiju.common.result.PageResult;
 import com.shiyiju.common.result.Result;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,6 +59,33 @@ public class SystemConfigController {
     @GetMapping("/priceGrowth")
     public Result<Map<String, Object>> getPriceGrowthConfig() {
         return Result.success(systemConfigPersistenceService.getPriceGrowthConfig());
+    }
+
+    /**
+     * 获取平台抽佣财务统计
+     */
+    @GetMapping("/platformCommission/finance")
+    public Result<Map<String, Object>> getPlatformCommissionFinance() {
+        return Result.success(systemConfigPersistenceService.getPlatformCommissionFinance());
+    }
+
+    /**
+     * 获取平台抽佣流水
+     */
+    @GetMapping("/platformCommission/flows")
+    public Result<PageResult<Map<String, Object>>> getPlatformCommissionFlows(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword) {
+        return Result.success(systemConfigPersistenceService.getPlatformCommissionFlows(page, size, keyword));
+    }
+
+    /**
+     * 获取平台抽佣流水详情
+     */
+    @GetMapping("/platformCommission/flows/{billId}")
+    public Result<Map<String, Object>> getPlatformCommissionFlowDetail(@PathVariable Long billId) {
+        return Result.success(systemConfigPersistenceService.getPlatformCommissionFlowDetail(billId));
     }
 
     /**

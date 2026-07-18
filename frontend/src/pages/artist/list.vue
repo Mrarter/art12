@@ -219,7 +219,7 @@ $accent-gold: #d4af37;
 .artist-card {
   display: flex;
   align-items: center;
-  min-height: 160rpx;
+  min-height: 184rpx;
   padding: 24rpx;
   margin-bottom: 18rpx;
   background: $bg-card;
@@ -228,10 +228,11 @@ $accent-gold: #d4af37;
 }
 
 .artist-avatar {
-  width: 108rpx;
-  height: 108rpx;
-  border-radius: 54rpx;
-  margin-right: 22rpx;
+  flex-shrink: 0;
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 66rpx;
+  margin-right: 26rpx;
   background: $bg-elevated;
 }
 

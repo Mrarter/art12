@@ -205,7 +205,7 @@ const normalizeStatus = (data) => {
 }
 
 const formatAmount = (value) => {
-  return (Number(value || 0) / 100).toLocaleString('zh-CN', {
+  return Number(value || 0).toLocaleString('zh-CN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })

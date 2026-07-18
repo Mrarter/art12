@@ -3,7 +3,9 @@ package com.shiyiju.admin;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @SpringBootApplication(scanBasePackages = "com.shiyiju")
 @MapperScan("com.shiyiju.admin.mapper")
 public class AdminApplication {

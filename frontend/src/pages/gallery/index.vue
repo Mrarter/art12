@@ -41,7 +41,8 @@
                   <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
                   <template v-else>
                     <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
-                    <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                    <text class="original-price" v-if="showPublishPrice(item)">{{ formatPrice(getPublishPrice(item)) }}</text>
+                    <text class="discount-badge" v-if="getDiscountText(item)">{{ getDiscountText(item) }}</text>
                   </template>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
@@ -75,7 +76,8 @@
                   <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
                   <template v-else>
                     <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
-                    <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                    <text class="original-price" v-if="showPublishPrice(item)">{{ formatPrice(getPublishPrice(item)) }}</text>
+                    <text class="discount-badge" v-if="getDiscountText(item)">{{ getDiscountText(item) }}</text>
                   </template>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
@@ -116,7 +118,7 @@
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getGalleryList, getCategories, getRecommend } from '@/api/product.js'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
 
 export default {
   components: {
@@ -361,7 +363,7 @@ export default {
     },
     
     formatPrice(price) {
-      return formatYuanNumber(fenToYuan(price))
+      return formatArtworkPriceNumber(price)
     },
 
     getCardTitle(item) {
@@ -394,21 +396,47 @@ export default {
       const resaleStatus = String(resaleListing?.status || '').toLowerCase()
       const resalePrice = Number(resaleListing?.resalePrice || 0)
       if (resalePrice > 0 && (!resaleStatus || resaleStatus === 'pending')) {
-        return Math.round(resalePrice * 100)
+        return resalePrice
       }
       const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
       if (currentPrice > 0) return currentPrice
       return Number(item.price || 0)
     },
 
+    getPublishPrice(item) {
+      return Number(item.publishPrice || item.publish_price || item.originalPrice || item.original_price || item.price || 0)
+    },
+
+    showPublishPrice(item) {
+      const publishPrice = this.getPublishPrice(item)
+      const currentPrice = Number(this.getCurrentPrice(item) || 0)
+      return publishPrice > 0 && currentPrice > 0 && currentPrice < publishPrice
+    },
+
+    getDiscountText(item) {
+      if (!this.showPublishPrice(item)) return ''
+      const amount = this.getPublishPrice(item) - Number(this.getCurrentPrice(item) || 0)
+      return `限时优惠${this.formatDiscountAmount(amount)}元`
+    },
+
+    formatDiscountAmount(amount) {
+      const value = Number(amount || 0)
+      if (value <= 0) return '0'
+      return Number.isInteger(value)
+        ? value.toLocaleString('zh-CN')
+        : value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    },
+
     showRiseTip(item) {
-      return !this.isSoldArtwork(item) && (item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0)
+      return !this.isSoldArtwork(item)
+        && item.platformPriceGrowthEnabled !== false
+        && !!this.getRiseTipText(item)
     },
 
     getRiseTipText(item) {
       if (!item.tomorrowIncreaseMin && !item.tomorrowIncreaseMax) return ''
-      const min = (item.tomorrowIncreaseMin || 0) / 100
-      const max = (item.tomorrowIncreaseMax || 0) / 100
+      const min = Number(item.tomorrowIncreaseMin || 0)
+      const max = Number(item.tomorrowIncreaseMax || 0)
       const fmt = (v) => Number.isInteger(v) ? v.toString() : v.toFixed(1)
       return `预估上涨￥${fmt(min)}--￥${fmt(max)}`
     },
@@ -825,6 +853,17 @@ $accent-gold-light: #e6c65c;
     content: '¥';
     font-size: 16rpx;
   }
+}
+
+.discount-badge {
+  margin-left: 8rpx;
+  padding: 3rpx 8rpx;
+  border-radius: 4rpx;
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  font-size: 18rpx;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .price-change {

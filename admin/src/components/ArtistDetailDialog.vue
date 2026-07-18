@@ -6,7 +6,7 @@
         <div class="user-profile">
           <div class="profile-header">
             <div class="avatar-wrapper">
-              <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
+              <el-avatar :src="getAvatarUrl(profileForm.avatar)" :size="80" fit="cover" />
               <el-upload
                 class="avatar-uploader"
                 :show-file-list="false"
@@ -204,7 +204,7 @@
               </div>
               <div class="artwork-info">
                 <p class="artwork-title">{{ artwork.title }}</p>
-                <p class="artwork-price">¥{{ formatAmount(artwork.price) }}</p>
+                <p class="artwork-price">¥{{ formatArtworkAmount(artwork.price) }}</p>
               </div>
             </div>
           </div>
@@ -324,6 +324,16 @@ const formatAmount = (value) => {
     maximumFractionDigits: 2
   })
 }
+
+const formatArtworkAmount = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const DEFAULT_AVATAR_URL = '/upload/images/2026/05/11/cbebfaeaf7b241d4917a7eb8f3eaf30b.png'
+const getAvatarUrl = (avatar) => getFullImageUrl(avatar || DEFAULT_AVATAR_URL)
 
 // 打开用户资料弹窗
 const openUserProfile = async (row) => {

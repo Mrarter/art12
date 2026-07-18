@@ -152,6 +152,20 @@
             <el-option label="下架" value="0" />
           </el-select>
         </el-form-item>
+        <el-form-item label="排序">
+          <div class="sort-controls">
+            <el-select v-model="searchForm.sortField" placeholder="时间" @change="handleSearch">
+              <el-option label="时间" value="publishTime" />
+              <el-option label="热度" value="heat" />
+              <el-option label="权重" value="weight" />
+              <el-option label="价格" value="price" />
+            </el-select>
+            <el-select v-model="searchForm.sortOrder" placeholder="排序方向" @change="handleSearch">
+              <el-option label="从高到低" value="desc" />
+              <el-option label="从低到高" value="asc" />
+            </el-select>
+          </div>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" native-type="submit">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
@@ -159,7 +173,7 @@
       </el-form>
     </div>
     
-    <el-table :data="tableData" v-loading="loading" border stripe>
+    <el-table :data="tableData" v-loading="loading" border stripe :row-class-name="getProductRowClassName">
       <el-table-column label="作品uid" width="150">
         <template #default="{ row }">
           <span class="artwork-code">{{ getArtworkUid(row) }}</span>
@@ -455,13 +469,13 @@
               :http-request="handleImageUpload"
               action="#"
             >
-              <img v-if="editForm.cover" :src="editForm.cover" class="avatar" />
+              <img v-if="editForm.cover" :src="getFullImageUrl(editForm.cover)" class="avatar" />
               <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
             </el-upload>
             <div class="upload-tip">支持 JPG/PNG，大小不超过 10MB</div>
           </div>
         </el-form-item>
-        <el-form-item :label="isEditResaleLocked ? '当前实时价格' : '价格'" prop="price">
+        <el-form-item :label="isEditResaleLocked ? '当前实时价格' : (editForm.artworkId ? '当前价格' : '价格')" prop="price">
           <el-input-number
             v-model="editForm.price"
             :min="0"
@@ -471,7 +485,7 @@
             style="width: 100%"
           />
           <span style="color: #999; font-size: 12px;">
-            {{ isEditResaleLocked ? '转售中展示前台成交价，保存时不回写上线价格' : '单位：元' }}
+            {{ isEditResaleLocked ? '转售中展示前台成交价，保存时不回写上线价格' : (editForm.artworkId ? '单位：元，保存后会同步更新作品当前展示价格' : '单位：元') }}
           </span>
         </el-form-item>
         <el-form-item label="发布价格" prop="originalPrice">
@@ -480,11 +494,10 @@
             :min="0"
             :precision="2"
             :controls="false"
-            :disabled="Boolean(editForm.artworkId)"
             style="width: 100%"
           />
           <span style="color: #999; font-size: 12px;">
-            {{ editForm.artworkId ? '最初上线时的定价，不可修改' : '最初上线时的定价，单位：元' }}
+            最初上线时的定价，单位：元
           </span>
         </el-form-item>
         <el-form-item label="作品类型" prop="ownershipType">
@@ -589,7 +602,7 @@
                 </div>
                 <div class="price-log-meta">
                   <span>{{ formatPriceLogPrice(log.oldPrice) }} → {{ formatPriceLogPrice(log.newPrice) }}</span>
-                  <em>{{ formatPriceLogRate(log.changeRate) }}</em>
+                  <em>{{ formatPriceLogChange(log) }}</em>
                   <small>{{ log.createdAt || '-' }}</small>
                 </div>
               </div>
@@ -724,7 +737,7 @@ import { getArtworkPriceLogs } from '@/api/artworkPrice'
 import ImageCropper from '@/components/ImageCropper.vue'
 import ArtistDetailDialog from '@/components/ArtistDetailDialog.vue'
 
-const SITE_ORIGIN = import.meta.env.VITE_SITE_ORIGIN || 'https://shiyiju.online'
+const SITE_ORIGIN = import.meta.env.VITE_SITE_ORIGIN || 'https://a.art1.cn'
 const DEFAULT_ARTWORK_URL = '/images/default-artwork.png'
 const router = useRouter()
 const loading = ref(false)
@@ -800,7 +813,9 @@ const searchForm = reactive({
   title: '',
   artistName: '',
   categoryId: '',
-  status: ''
+  status: '',
+  sortField: 'publishTime',
+  sortOrder: 'desc'
 })
 
 const pagination = reactive({
@@ -838,6 +853,10 @@ const editForm = reactive({
   activeResaleListing: null,
   dailyViewCount: 0,
   dailyLikeCount: 0,
+  displayViewCount: 0,
+  displayLikeCount: 0,
+  salesCount: 0,
+  createTime: '',
   dailyViewMin: 0,
   dailyViewMax: 0,
   dailyLikeMin: 0,
@@ -931,6 +950,15 @@ const getReleasePriceYuan = (source = {}) => {
   return Number.isFinite(currentPrice) ? currentPrice : 0
 }
 
+const getBasePriceFromDisplayPrice = (displayPrice, riseRate) => {
+  const current = Number(displayPrice || 0)
+  const rise = Number(riseRate || 0)
+  if (!Number.isFinite(current) || current <= 0) return 0
+  const multiplier = 1 + rise
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return current
+  return Number((current / multiplier).toFixed(2))
+}
+
 const isEditResaleLocked = computed(() => getResalePriceYuan(editForm) > 0)
 const editDisplayPrice = computed(() => {
   const resalePrice = getResalePriceYuan(editForm)
@@ -945,16 +973,35 @@ const getEarliestOnlinePriceYuanFromLogs = (logs = []) => {
   return Math.min(...prices) / 100
 }
 const editEarliestOnlinePrice = computed(() => {
-  return getEarliestOnlinePriceYuanFromLogs(priceLogs.value) || getReleasePriceYuan(editForm)
+  return getReleasePriceYuan(editForm) || getEarliestOnlinePriceYuanFromLogs(priceLogs.value)
 })
 const editGrowthText = computed(() => {
-  const rise = Number(editForm.priceRise || 0)
+  const base = Number(editEarliestOnlinePrice.value || 0)
+  const current = Number(editDisplayPrice.value || 0)
+  const rise = base > 0 && Number.isFinite(current) ? (current / base - 1) : Number(editForm.priceRise || 0)
   return `${rise > 0 ? '+' : ''}${(rise * 100).toFixed(2)}%`
 })
 
 const getPriceGrowthBaseYuan = (source = {}) => {
   const resalePrice = getResalePriceYuan(source)
-  return Number(resalePrice || source.basePrice || source.price || 0)
+  return Number(resalePrice || source.originalPrice || source.basePrice || source.price || 0)
+}
+
+const parseDateValue = (value) => {
+  if (!value) return null
+  const normalized = typeof value === 'string' ? value.replace(' ', 'T') : value
+  const date = new Date(normalized)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const getOnlineDays = (source = {}, dayOffset = 0) => {
+  const createDate = parseDateValue(source.createTime)
+  if (!createDate) return Math.max(0, dayOffset)
+  const today = new Date()
+  const start = new Date(createDate.getFullYear(), createDate.getMonth(), createDate.getDate())
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const days = Math.floor((end.getTime() - start.getTime()) / 86400000)
+  return Math.max(0, days + dayOffset)
 }
 
 const getPriceGrowthConfigFor = (source = {}) => {
@@ -965,15 +1012,56 @@ const getPriceGrowthConfigFor = (source = {}) => {
       : Number(priceConfigForm.baseDailyRate || 0),
     matureDailyRate: customEnabled && source.customMatureDailyRate != null
       ? Number(source.customMatureDailyRate)
-      : Number(priceConfigForm.matureDailyRate || priceConfigForm.baseDailyRate || 0)
+      : Number(priceConfigForm.matureDailyRate || priceConfigForm.baseDailyRate || 0),
+    matureDays: customEnabled && source.customMatureDays != null
+      ? Number(source.customMatureDays)
+      : Number(priceConfigForm.matureDays || 0),
+    artistRate: Number(priceConfigForm.defaultBadgeRate || 1),
+    viewThreshold: Number(priceConfigForm.viewThreshold || 0),
+    viewRate: customEnabled && source.customViewRate != null
+      ? Number(source.customViewRate)
+      : Number(priceConfigForm.viewRate || 1),
+    favoriteThreshold: Number(priceConfigForm.favoriteThreshold || 0),
+    favoriteRate: customEnabled && source.customFavoriteRate != null
+      ? Number(source.customFavoriteRate)
+      : Number(priceConfigForm.favoriteRate || 1),
+    saleRate: Number(priceConfigForm.saleRate || 0),
+    maxSaleCount: Number(priceConfigForm.maxSaleCount || 0),
+    maxGrowthMultiple: customEnabled && source.customMaxGrowthMultiple != null
+      ? Number(source.customMaxGrowthMultiple)
+      : Number(priceConfigForm.maxGrowthMultiple || 1)
   }
+}
+
+const calculateConfiguredPrice = (source = {}, dayOffset = 0) => {
+  const price = getPriceGrowthBaseYuan(source)
+  if (!Number.isFinite(price) || price <= 0) return 0
+  if (priceConfigForm.enabled === false) return price
+
+  const config = getPriceGrowthConfigFor(source)
+  const onlineDays = getOnlineDays(source, dayOffset)
+  const matureDays = Math.max(0, config.matureDays || 0)
+  const baseDays = matureDays > 0 ? Math.min(onlineDays, matureDays) : 0
+  const matureGrowthDays = matureDays > 0 ? Math.max(onlineDays - matureDays, 0) : onlineDays
+  const timeFactor = Math.pow(1 + (config.baseDailyRate || 0), baseDays) *
+    Math.pow(1 + (config.matureDailyRate || 0), matureGrowthDays)
+
+  const viewCount = Number(source.displayViewCount ?? source.viewCount ?? source.dailyViewCount ?? 0)
+  const likeCount = Number(source.displayLikeCount ?? source.favoriteCount ?? source.dailyLikeCount ?? 0)
+  const viewFactor = viewCount >= config.viewThreshold ? config.viewRate : 1
+  const favoriteFactor = likeCount >= config.favoriteThreshold ? config.favoriteRate : 1
+  const saleCount = Math.min(Math.max(Number(source.salesCount || source.saleCount || 0), 0), Math.max(config.maxSaleCount || 0, 0))
+  const saleFactor = Math.pow(1 + (config.saleRate || 0), saleCount)
+  const rawPrice = price * timeFactor * Math.max(config.artistRate || 1, 1) * viewFactor * favoriteFactor * saleFactor
+  const maxPrice = price * Math.max(config.maxGrowthMultiple || 1, 1)
+  return Number(Math.min(rawPrice, maxPrice).toFixed(2))
 }
 
 const getExpectedIncreaseRange = (source = {}) => {
   const price = getPriceGrowthBaseYuan(source)
   const explicitMin = Number(source.tomorrowIncreaseMin || 0)
   const explicitMax = Number(source.tomorrowIncreaseMax || 0)
-  if (explicitMin > 0 || explicitMax > 0) {
+  if (!source.ignorePresetIncrease && (explicitMin > 0 || explicitMax > 0)) {
     return {
       min: Math.min(explicitMin || explicitMax, explicitMax || explicitMin) / 100,
       max: Math.max(explicitMin, explicitMax) / 100
@@ -981,6 +1069,17 @@ const getExpectedIncreaseRange = (source = {}) => {
   }
 
   if (!Number.isFinite(price) || price <= 0) return { min: 0, max: 0 }
+  const todayPrice = calculateConfiguredPrice(source, 0)
+  const tomorrowPrice = calculateConfiguredPrice(source, 1)
+  const configuredIncrease = Math.max(tomorrowPrice - todayPrice, 0)
+  if (configuredIncrease > 0) {
+    return {
+      min: configuredIncrease,
+      max: configuredIncrease,
+      currentPrice: todayPrice,
+      nextPrice: tomorrowPrice
+    }
+  }
   const { baseDailyRate, matureDailyRate } = getPriceGrowthConfigFor(source)
   const minRate = Math.min(baseDailyRate || matureDailyRate || 0, matureDailyRate || baseDailyRate || 0)
   const maxRate = Math.max(baseDailyRate || 0, matureDailyRate || 0)
@@ -998,9 +1097,13 @@ const formatIncreaseRange = (range) => {
   return `${formatMoneyYuan(min)} - ${formatMoneyYuan(max)}`
 }
 
-const editPriceIncreaseRangeText = computed(() => formatIncreaseRange(getExpectedIncreaseRange(editForm)))
+const editPriceIncreaseSource = computed(() => ({
+  ...editForm,
+  ignorePresetIncrease: true
+}))
+const editPriceIncreaseRangeText = computed(() => formatIncreaseRange(getExpectedIncreaseRange(editPriceIncreaseSource.value)))
 const editPriceIncreaseCountText = computed(() => {
-  const range = getExpectedIncreaseRange(editForm)
+  const range = getExpectedIncreaseRange(editPriceIncreaseSource.value)
   if (range.min <= 0 && range.max <= 0) return '暂无预计'
   return `最低 ${formatMoneyYuan(range.min)}，最高 ${formatMoneyYuan(range.max)}`
 })
@@ -1032,21 +1135,35 @@ const artworkPriceIncreaseCountText = computed(() => {
 })
 
 const visiblePriceLogs = computed(() => {
-  if (priceLogs.value.length) return priceLogs.value
-  const range = getExpectedIncreaseRange(editForm)
-  if (range.min <= 0 && range.max <= 0) return []
+  const logs = []
+  const range = getExpectedIncreaseRange(editPriceIncreaseSource.value)
+  const yuanBase = getPriceGrowthBaseYuan(editPriceIncreaseSource.value)
+  const currentPrice = Number(editDisplayPrice.value || 0)
+  if (yuanBase > 0 && currentPrice > 0 && Math.abs(currentPrice - yuanBase) >= 0.005) {
+    logs.push({
+      id: 'current-preview',
+      oldPrice: yuanBase * 100,
+      newPrice: currentPrice * 100,
+      changeRate: currentPrice / yuanBase - 1,
+      changeReason: 'CURRENT',
+      remark: '根据当前价格和发布价格实时计算累计涨幅',
+      createdAt: '实时预览'
+    })
+  }
+  if (range.min <= 0 && range.max <= 0) return logs
   const maxIncrease = Math.max(range.min, range.max)
-  const yuanBase = getPriceGrowthBaseYuan(editForm)
-  const basePriceInFen = yuanBase * 100
-  return [{
+  const forecastOldPrice = Number(range.currentPrice || yuanBase)
+  const forecastNewPrice = Number(range.nextPrice || (forecastOldPrice + maxIncrease))
+  logs.push({
     id: 'forecast',
-    oldPrice: basePriceInFen,
-    newPrice: basePriceInFen + maxIncrease * 100,
-    changeRate: yuanBase > 0 ? maxIncrease / yuanBase : 0,
+    oldPrice: forecastOldPrice * 100,
+    newPrice: forecastNewPrice * 100,
+    changeAmount: maxIncrease,
     changeReason: 'FORECAST',
-    remark: `根据${isEditResaleLocked.value ? '转售挂单价' : '最早上线价格'} ${formatMoneyYuan(yuanBase)} 和调控配置计算，预计每日上涨 ${formatIncreaseRange(range)}`,
+    remark: `按系统价格增长配置预估，下一日预计上涨 ${formatIncreaseRange(range)}`,
     createdAt: '实时预估'
-  }]
+  })
+  return logs
 })
 
 // 艺术家搜索相关
@@ -1140,6 +1257,7 @@ const priceLogReasonText = (reason = '') => {
     COLLECT: '收藏触发',
     SCORE: '评分触发',
     MANUAL: '人工调价',
+    CURRENT: '当前累计涨幅',
     FORECAST: '预计涨价'
   }
   return map[reason] || reason || '价格变化'
@@ -1158,6 +1276,14 @@ const formatPriceLogRate = (value) => {
   if (!Number.isFinite(rate) || rate === 0) return '0%'
   const normalized = Math.abs(rate) > 1 ? rate : rate * 100
   return `${normalized > 0 ? '+' : ''}${normalized.toFixed(2)}%`
+}
+
+const formatPriceLogChange = (log = {}) => {
+  if (log.changeReason === 'FORECAST') {
+    const amount = Number(log.changeAmount || 0)
+    return amount > 0 ? `+${formatMoneyYuan(amount)}` : formatMoneyYuan(0)
+  }
+  return formatPriceLogRate(log.changeRate)
 }
 
 const loadPriceLogs = async (artworkId) => {
@@ -1458,6 +1584,10 @@ const getArtworkCategoryTags = (row = {}) => {
   return tags
 }
 
+const getProductRowClassName = ({ row }) => {
+  return Number(row?.status) === 1 ? '' : 'offline-artwork-row'
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -1481,6 +1611,10 @@ const loadData = async () => {
       }
     }
     if (searchForm.status) params.status = searchForm.status
+    if (searchForm.sortField) {
+      params.sortField = searchForm.sortField
+      params.sortOrder = searchForm.sortOrder || 'desc'
+    }
     const data = await request.get('/product/list', { params })
     // 映射后端数据格式到前端
     tableData.value = (data.records || data.list || []).map(item => {
@@ -1571,7 +1705,15 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
-  Object.assign(searchForm, { artworkId: '', title: '', artistName: '', categoryId: '', status: '' })
+  Object.assign(searchForm, {
+    artworkId: '',
+    title: '',
+    artistName: '',
+    categoryId: '',
+    status: '',
+    sortField: 'publishTime',
+    sortOrder: 'desc'
+  })
   handleSearch()
 }
 
@@ -1626,6 +1768,10 @@ const handleEdit = async (row) => {
     favoriteCount: row.favoriteCount || 0,
     resaleListing: row.resaleListing || null,
     activeResaleListing: row.activeResaleListing || null,
+    displayViewCount: row.displayViewCount || row.viewCount || 0,
+    displayLikeCount: row.displayLikeCount ?? row.favoriteCount ?? 0,
+    salesCount: row.salesCount || row.saleCount || 0,
+    createTime: row.createTime || '',
     customPriceGrowthEnabled: Boolean(row.customPriceGrowthEnabled)
   })
   setDailyHeatRange(row.dailyViewCount || 0, row.dailyLikeCount || 0)
@@ -1670,6 +1816,10 @@ const handleAdd = () => {
     favoriteCount: 0,
     resaleListing: null,
     activeResaleListing: null,
+    displayViewCount: 0,
+    displayLikeCount: 0,
+    salesCount: 0,
+    createTime: '',
     customPriceGrowthEnabled: false
   })
   setDailyHeatRange(0, 0)
@@ -1699,7 +1849,13 @@ const handleImageUpload = async (options) => {
 
   try {
     const result = await uploadFile(file)
-    editForm.cover = result?.url || result?.path || ''
+    const imageUrl = typeof result === 'string'
+      ? result
+      : (result?.url || result?.data || result?.path || '')
+    if (!imageUrl) {
+      throw new Error('上传接口未返回图片地址')
+    }
+    editForm.cover = imageUrl
     onSuccess?.(result)
     ElMessage.success('图片上传成功')
   } catch (e) {
@@ -1727,9 +1883,7 @@ const handleSave = async () => {
     const dailyLikeCount = randomIntInRange(editForm.dailyLikeMin, editForm.dailyLikeMax)
     editForm.dailyViewCount = dailyViewCount
     editForm.dailyLikeCount = dailyLikeCount
-    const originalPriceForSave = editForm.artworkId
-      ? Number(editForm.releasePriceSnapshot || editForm.basePrice || editForm.persistedPrice || 0)
-      : Number(editForm.originalPrice || editForm.price || 0)
+    const originalPriceForSave = Number(editForm.originalPrice || editForm.price || 0)
     
     const params = {
       title: editForm.title,
@@ -1967,6 +2121,31 @@ onMounted(() => {
   text-decoration: line-through;
 }
 
+:deep(.offline-artwork-row) {
+  color: #a8abb2;
+  background-color: #f5f7fa !important;
+}
+
+:deep(.offline-artwork-row td.el-table__cell) {
+  background-color: #f5f7fa !important;
+}
+
+:deep(.offline-artwork-row .artwork-code),
+:deep(.offline-artwork-row .title),
+:deep(.offline-artwork-row .artist),
+:deep(.offline-artwork-row .size-year),
+:deep(.offline-artwork-row .original),
+:deep(.offline-artwork-row .daily-heat-cell),
+:deep(.offline-artwork-row .favorite-count-cell),
+:deep(.offline-artwork-row .commission-text) {
+  color: #a8abb2 !important;
+}
+
+:deep(.offline-artwork-row .cover-wrapper) {
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+
 .art-info {
   display: flex;
   flex-direction: column;
@@ -2069,6 +2248,17 @@ onMounted(() => {
   color: #606266;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.sort-controls {
+  display: flex;
+  gap: 8px;
+  width: 250px;
+
+  .el-select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .favorite-count-cell {
@@ -2484,14 +2674,12 @@ onMounted(() => {
 /* 表格表头样式 */
 :deep(.el-table__header-wrapper) {
   .el-table__header {
-    tr {
-      width: 1541px;
-      
-      th {
-        padding-top: 0;
-        padding-bottom: 0;
-      }
-    }
+    width: 1541px;
+  }
+
+  .el-table__header tr th {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 }
 </style>

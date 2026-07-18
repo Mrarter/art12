@@ -93,7 +93,7 @@ async function refresh(){
 }
 
 function formatAmount(value) {
-  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 function resetFilters(){ filters.keyword=''; filters.status=''; filters.visible=''; filters.type=''; refresh() }
 function openDetail(item){ current.value=item; detailVisible.value=true }

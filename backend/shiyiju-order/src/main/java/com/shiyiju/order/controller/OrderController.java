@@ -239,12 +239,28 @@ public class OrderController {
     public Result<Void> applyRefund(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @PathVariable Long id,
-            @RequestBody Map<String, String> params
+            @RequestBody Map<String, Object> params
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
-        orderService.applyRefund(id, userId, params.get("reason"));
+        orderService.applyRefund(id, userId, params);
+        return Result.success();
+    }
+
+    /**
+     * 提交退货运单 (POST /orders/{id}/refund-return-logistics)
+     */
+    @PostMapping("/orders/{id}/refund-return-logistics")
+    public Result<Void> submitRefundReturnLogistics(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        orderService.submitRefundReturnLogistics(id, userId, params);
         return Result.success();
     }
 
@@ -263,10 +279,12 @@ public class OrderController {
             return Result.fail(401, "请先登录");
         }
         String openId = params.get("openId") != null ? params.get("openId").toString() : null;
+        String payScene = params.get("payScene") != null ? params.get("payScene").toString() : "mini";
         return Result.success(orderService.unifiedOrder(
                 Long.valueOf(params.get("orderId").toString()), 
                 userId,
-                openId));
+                openId,
+                payScene));
     }
 
     /**
@@ -282,13 +300,16 @@ public class OrderController {
             return Result.fail(401, "请先登录");
         }
         String openId = params.get("openId") != null ? params.get("openId").toString() : null;
-        if (openId == null || openId.isEmpty()) {
+        String payScene = params.get("payScene") != null ? params.get("payScene").toString() : "mini";
+        boolean appScene = "app".equalsIgnoreCase(payScene);
+        if (!appScene && (openId == null || openId.isEmpty())) {
             return Result.fail(400, "缺少openId参数");
         }
         return Result.success(orderService.unifiedOrderWithParams(
                 Long.valueOf(params.get("orderId").toString()), 
                 userId,
-                openId));
+                openId,
+                payScene));
     }
 
     /**
@@ -303,7 +324,26 @@ public class OrderController {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
+        String returnScene = params.get("returnScene") == null ? null : params.get("returnScene").toString();
         return Result.success(orderService.createAlipayWapPay(
+                Long.valueOf(params.get("orderId").toString()),
+                userId,
+                returnScene));
+    }
+
+    /**
+     * 支付宝 App 支付下单 (POST /pay/alipay/app)
+     * 返回 App SDK 调起支付所需的 orderString。
+     */
+    @PostMapping("/pay/alipay/app")
+    public Result<Map<String, Object>> createAlipayAppPay(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(orderService.createAlipayAppPay(
                 Long.valueOf(params.get("orderId").toString()),
                 userId));
     }

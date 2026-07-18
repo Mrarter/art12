@@ -6,6 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 /**
  * 本地旧库兼容初始化。
  * 当前 art12 的本地库以 sys_user 为主，用户服务仍依赖 users 表，
@@ -25,6 +29,7 @@ public class UserSchemaInitializer {
         ensureArtistProfileTable();
         ensureArtistCertificationsTable();
         ensureArtistProfileColumns();
+        ensureArtistCertificationColumns();
         ensureRealnameTable();
         ensureRealnameColumns();
         ensureUserFollowsTable();
@@ -35,6 +40,7 @@ public class UserSchemaInitializer {
         ensureCommissionRecordTable();
         ensureResaleTables();
         backfillUsersFromLegacyTables();
+        applyLocalLoginOverrides();
     }
 
     private void ensureUsersTable() {
@@ -48,6 +54,8 @@ public class UserSchemaInitializer {
               avatar VARCHAR(255) DEFAULT NULL,
               phone VARCHAR(20) DEFAULT NULL,
               email VARCHAR(128) DEFAULT NULL,
+              real_name VARCHAR(100) DEFAULT NULL COMMENT '真实姓名',
+              id_card_encrypted VARCHAR(512) DEFAULT NULL COMMENT '加密存储的完整身份证号',
               wechat VARCHAR(64) DEFAULT NULL,
               password VARCHAR(255) DEFAULT NULL,
               gender INT DEFAULT 0,
@@ -56,6 +64,7 @@ public class UserSchemaInitializer {
               region VARCHAR(128) DEFAULT NULL,
               identities VARCHAR(255) DEFAULT 'collector',
               status INT DEFAULT 1,
+              real_name_verified TINYINT DEFAULT 0 COMMENT '实名认证状态：0-未认证，1-已认证',
               follower_count INT DEFAULT 0,
               following_count INT DEFAULT 0,
               register_time DATETIME DEFAULT NULL,
@@ -75,8 +84,12 @@ public class UserSchemaInitializer {
             "ALTER TABLE users ADD COLUMN password VARCHAR(255) DEFAULT NULL COMMENT '登录密码哈希' AFTER phone");
         addColumnIfMissing("users", "email",
             "ALTER TABLE users ADD COLUMN email VARCHAR(128) DEFAULT NULL COMMENT '邮箱' AFTER phone");
+        addColumnIfMissing("users", "real_name",
+            "ALTER TABLE users ADD COLUMN real_name VARCHAR(100) DEFAULT NULL COMMENT '真实姓名' AFTER email");
+        addColumnIfMissing("users", "id_card_encrypted",
+            "ALTER TABLE users ADD COLUMN id_card_encrypted VARCHAR(512) DEFAULT NULL COMMENT '加密存储的完整身份证号' AFTER real_name");
         addColumnIfMissing("users", "wechat",
-            "ALTER TABLE users ADD COLUMN wechat VARCHAR(64) DEFAULT NULL COMMENT '微信号' AFTER email");
+            "ALTER TABLE users ADD COLUMN wechat VARCHAR(64) DEFAULT NULL COMMENT '微信号' AFTER id_card_encrypted");
     }
 
     private void backfillUsersFromLegacyTables() {
@@ -232,6 +245,89 @@ public class UserSchemaInitializer {
         int inserted = jdbcTemplate.update(sql);
         if (inserted > 0) {
             log.info("从 user_account 回填 users 成功: {} 条", inserted);
+        }
+    }
+
+    /**
+     * 本地联调需要固定的手机号/密码测试账号。
+     * 这里在启动时把 sys_user 与 users 同步到可密码登录状态，
+     * 既覆盖新导入库，也兼容已经初始化过 users 表的本地环境。
+     */
+    private void applyLocalLoginOverrides() {
+        applyLocalLoginOverride("USR2026050700010008", "李小璐", "18800188000", "123456");
+    }
+
+    private void applyLocalLoginOverride(String uid, String nickname, String phone, String rawPassword) {
+        if (uid == null || uid.isBlank() || phone == null || phone.isBlank() || rawPassword == null || rawPassword.isBlank()) {
+            return;
+        }
+
+        if (tableExists("sys_user")) {
+            String uidColumn = firstExistingColumn("sys_user", "uid");
+            String phoneColumn = firstExistingColumn("sys_user", "phone", "mobile");
+            String nicknameColumn = firstExistingColumn("sys_user", "nickname", "name");
+            if (uidColumn != null && phoneColumn != null) {
+                if (nicknameColumn != null) {
+                    jdbcTemplate.update(
+                        "UPDATE sys_user SET " + phoneColumn + " = ?, " + nicknameColumn + " = COALESCE(NULLIF(" + nicknameColumn + ", ''), ?) WHERE " + uidColumn + " = ?",
+                        phone, nickname, uid
+                    );
+                } else {
+                    jdbcTemplate.update(
+                        "UPDATE sys_user SET " + phoneColumn + " = ? WHERE " + uidColumn + " = ?",
+                        phone, uid
+                    );
+                }
+            }
+        }
+
+        String passwordHash = sha256("shiyiju:user:password:" + rawPassword);
+        Integer existingCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(1) FROM users WHERE uid = ?",
+            Integer.class,
+            uid
+        );
+
+        if (existingCount != null && existingCount > 0) {
+            jdbcTemplate.update(
+                """
+                UPDATE users
+                SET nickname = COALESCE(NULLIF(nickname, ''), ?),
+                    phone = ?,
+                    password = ?,
+                    status = COALESCE(status, 1),
+                    update_time = NOW()
+                WHERE uid = ?
+                """,
+                nickname, phone, passwordHash, uid
+            );
+            return;
+        }
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO users (
+              uid, nickname, phone, password, identities, status,
+              follower_count, following_count, register_time, last_login_time,
+              create_time, update_time, deleted
+            )
+            VALUES (?, ?, ?, ?, 'artist,collector', 1, 0, 0, NOW(), NOW(), NOW(), NOW(), 0)
+            """,
+            uid, nickname, phone, passwordHash
+        );
+    }
+
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(bytes.length * 2);
+            for (byte b : bytes) {
+                builder.append(String.format("%02x", b));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
         }
     }
 
@@ -555,6 +651,17 @@ public class UserSchemaInitializer {
             "ALTER TABLE realname_certifications ADD COLUMN certify_id VARCHAR(128) DEFAULT NULL COMMENT '支付宝实名认证流水号' AFTER verify_channel");
         addColumnIfMissing("realname_certifications", "external_status",
             "ALTER TABLE realname_certifications ADD COLUMN external_status VARCHAR(64) DEFAULT NULL COMMENT '外部实名认证状态' AFTER certify_id");
+    }
+
+    private void ensureArtistCertificationColumns() {
+        addColumnIfMissing("artist_certifications", "art_field",
+            "ALTER TABLE artist_certifications ADD COLUMN art_field VARCHAR(100) DEFAULT NULL COMMENT '艺术领域' AFTER resume");
+        addColumnIfMissing("artist_certifications", "id_front_url",
+            "ALTER TABLE artist_certifications ADD COLUMN id_front_url VARCHAR(512) DEFAULT NULL COMMENT '身份证正面照URL' AFTER art_field");
+        addColumnIfMissing("artist_certifications", "id_back_url",
+            "ALTER TABLE artist_certifications ADD COLUMN id_back_url VARCHAR(512) DEFAULT NULL COMMENT '身份证反面照URL' AFTER id_front_url");
+        addColumnIfMissing("artist_certifications", "face_verified",
+            "ALTER TABLE artist_certifications ADD COLUMN face_verified TINYINT DEFAULT 0 COMMENT '人脸核验状态' AFTER id_back_url");
     }
 
     private boolean tableExists(String tableName) {

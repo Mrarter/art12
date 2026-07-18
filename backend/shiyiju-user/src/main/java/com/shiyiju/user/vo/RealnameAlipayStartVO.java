@@ -17,4 +17,7 @@ public class RealnameAlipayStartVO {
     private String certifyId;
 
     private String redirectUrl;
+
+    /** 是否已经完成认证，无需再次跳转支付宝 */
+    private Boolean verified;
 }

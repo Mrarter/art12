@@ -18,8 +18,18 @@ public class OperationLogService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public void createLog(Long adminId, String adminName, String module, String operation,
+                          String detail, String ip, String userAgent) {
+        ensureTableExists();
+        jdbcTemplate.update(
+            "INSERT INTO admin_operation_log (admin_id, admin_name, module, operation, detail, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            adminId, adminName, module, operation, detail, ip, userAgent
+        );
+    }
+
     public PageResult<Map<String, Object>> getLogs(String adminName, String operation, 
                                                      String startDate, String endDate, int page, int size) {
+        ensureTableExists();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         List<Object> args = new ArrayList<>();
         
@@ -77,6 +87,7 @@ public class OperationLogService {
     }
 
     public Map<String, Object> getStats() {
+        ensureTableExists();
         Map<String, Object> stats = new LinkedHashMap<>();
         
         stats.put("todayCount", jdbcTemplate.queryForObject(
@@ -89,5 +100,27 @@ public class OperationLogService {
         stats.put("topOperations", new ArrayList<>());
         
         return stats;
+    }
+
+    private void ensureTableExists() {
+        boolean exists = !jdbcTemplate.queryForList("SHOW TABLES LIKE 'admin_operation_log'").isEmpty();
+        if (exists) {
+            return;
+        }
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS admin_operation_log (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                admin_id BIGINT DEFAULT NULL COMMENT '操作人ID',
+                admin_name VARCHAR(50) DEFAULT NULL COMMENT '操作人名称',
+                operation VARCHAR(100) DEFAULT NULL COMMENT '操作类型',
+                module VARCHAR(50) DEFAULT NULL COMMENT '操作模块',
+                detail TEXT COMMENT '操作详情',
+                ip VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
+                user_agent VARCHAR(500) DEFAULT NULL COMMENT 'UserAgent',
+                create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_admin_id (admin_id),
+                KEY idx_create_time (create_time)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作日志表'
+            """);
     }
 }

@@ -1,5 +1,5 @@
-# 拾艺局 Ingress 配置
-# 用于外部访问 API 和前端
+# 艺本艺术 Ingress 配置
+# 用于外部访问 API、官网和 H5 应用
 
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -27,8 +27,28 @@ spec:
                 port:
                   number: 80
             # 限流注释
-    # 前端 H5
-    - host: www.shiyiju.com
+    # 官网根域名
+    - host: a.art1.cn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    - host: art1.cn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    - host: www.art1.cn
       http:
         paths:
           - path: /
@@ -39,7 +59,7 @@ spec:
                 port:
                   number: 80
     # 管理后台
-    - host: admin.shiyiju.com
+    - host: admin.art1.cn
       http:
         paths:
           - path: /
@@ -51,7 +71,7 @@ spec:
                   number: 80
 
 ---
-# 前端 Service (H5)
+# 前端 Service (官网 + H5 应用共用)
 apiVersion: v1
 kind: Service
 metadata:
@@ -66,7 +86,7 @@ spec:
     app: frontend
 
 ---
-# 前端 Deployment (H5)
+# 前端 Deployment (官网 + H5 应用共用)
 apiVersion: apps/v1
 kind: Deployment
 metadata:

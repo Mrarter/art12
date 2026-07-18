@@ -90,7 +90,7 @@ public class FinanceEventHandler {
 
     private void handleArtistIncome(FinanceEvent e) {
         if (e.getUserId() == null || e.getAmount() == null || e.getAmount().compareTo(BigDecimal.ZERO) <= 0) return;
-        walletService.income(e.getUserId(), e.getAmount(), "income",
+        walletService.frozenIncome(e.getUserId(), e.getAmount(), "order_sale",
                 e.getRelatedId(), e.getRelatedType(),
                 "艺术家收益: " + e.getRemark());
     }

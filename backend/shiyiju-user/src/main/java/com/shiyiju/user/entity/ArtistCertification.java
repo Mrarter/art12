@@ -34,6 +34,18 @@ public class ArtistCertification implements Serializable {
     /** 个人履历 */
     private String resume;
 
+    /** 艺术领域 */
+    private String artField;
+
+    /** 身份证正面照URL */
+    private String idFrontUrl;
+
+    /** 身份证反面照URL */
+    private String idBackUrl;
+
+    /** 人脸核验状态 */
+    private Integer faceVerified;
+
     /** 代表作图片URLs，逗号分隔 */
     private String artworks;
 

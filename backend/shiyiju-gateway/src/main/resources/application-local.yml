@@ -138,7 +138,7 @@ spring:
           predicates:
             - Path=/system/admin/list,/system/banner/list,/system/operation-log/list,/system/operation-log/stats
           filters:
-            - RewritePath=/system(?<segment>/?.*), /admin$\{segment}
+            - RewritePath=/system(?<segment>/?.*), /admin/system$\{segment}
         - id: shiyiju-admin-message
           uri: http://127.0.0.1:8090
           predicates:
@@ -160,7 +160,7 @@ spring:
         - id: shiyiju-pay-callback
           uri: http://127.0.0.1:8083
           predicates:
-            - Path=/pay/callback/**
+            - Path=/pay/callback/**,/pay/alipay/**
           filters:
             - StripPrefix=0
       globalcors:

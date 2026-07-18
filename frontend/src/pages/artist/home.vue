@@ -5,8 +5,11 @@
         <image src="/static/art-icons/icon-back.svg" mode="aspectFit"></image>
       </view>
       <view class="nav-title"></view>
-      <view class="nav-icon external" @click="shareArtist">
-        <image src="/static/art-icons/icon-share.svg" mode="aspectFit"></image>
+      <view class="nav-actions">
+        <button v-if="isOwnArtistPage" class="nav-edit-entry" @click.stop="editHomepage()">编辑</button>
+        <view class="nav-icon external" @click="shareArtist">
+          <image src="/static/art-icons/icon-share.svg" mode="aspectFit"></image>
+        </view>
       </view>
     </view>
 
@@ -177,10 +180,17 @@
 
       <view v-else class="style2-panel">
         <view class="style2-circulation-stats">
+          <view class="style2-transaction-amount">
+            <view class="style2-transaction-copy">
+              <text class="style2-transaction-label">平台累计成交金额</text>
+              <text class="style2-transaction-desc">包含首发成交与转售成交</text>
+            </view>
+            <text class="style2-transaction-value">{{ platformDealAmountDisplay }}</text>
+          </view>
           <view class="style2-stat" v-for="item in circulationStats" :key="item.label">
             <view class="style2-stat-icon" :style="{ '--stat-icon': `url(${item.icon})` }"></view>
             <view class="style2-stat-label">{{ item.label }}</view>
-            <view class="style2-stat-value">
+            <view class="style2-stat-value" :class="{ amount: item.type === 'amount' }">
               <text>{{ item.value }}</text>
               <small>{{ item.unit }}</small>
             </view>
@@ -238,16 +248,6 @@
         </view>
       </view>
 
-      <view class="style2-bottom-cta">
-        <button class="style2-reserve-btn" @click="goWorks">
-          <image src="/static/art-icons/icon-calendar.svg" mode="aspectFit"></image>
-          <text>预约看展</text>
-        </button>
-        <button class="style2-consult-btn" @click="consult">
-          <image src="/static/art-icons/icon-comment.svg" mode="aspectFit"></image>
-          <text>收藏咨询</text>
-        </button>
-      </view>
     </template>
 
     <template v-else>
@@ -360,9 +360,11 @@
 <script>
 import * as userApi from '@/api/user'
 import { getProductList } from '@/api/product'
+import { getArtworkTrades, getArtworkResaleStats } from '@/api/resale'
 import { resolveSchoolEmblemFromEntries } from '@/utils/schoolEmblems'
 import { getCurrentUserIdentity } from '@/utils/auth'
 import { buildDefaultResumeEntries, parseArtistResume } from '@/utils/artistResume'
+import { buildH5ShareUrl, setH5ShareMeta, shareH5OrCopy } from '@/utils/share'
 
 export default {
   data() {
@@ -412,6 +414,7 @@ export default {
       priceUpdatedAt: '',
       priceLoading: false,
       priceError: false,
+      platformDealAmountYuan: 0,
       pageReady: false
     }
   },
@@ -551,6 +554,9 @@ export default {
         { icon: '/static/art-icons/icon-platform-custody.svg', label: '平台保管', value: String(custodyCount), unit: '件' }
       ]
     },
+    platformDealAmountDisplay() {
+      return this.formatCompactYuanAmount(this.platformDealAmountYuan)
+    },
     circulationDate() {
       return '2024.06.06'
     },
@@ -617,6 +623,8 @@ export default {
         if (artistId || artistName) {
           await this.fetchRealTimePrices(artistId, artistName)
         }
+        await this.fetchPlatformDealAmount()
+        this.updateShareMeta()
       } catch (e) {
         console.error('加载艺术家数据失败', e)
         this.applyArtistData({}, artistId)
@@ -718,14 +726,15 @@ export default {
         // 创建 id -> 实时作品信息映射
         const productMap = {}
         records.forEach(r => {
-          const cp = this.resolveCurrentPrice(r)
+          const productRecord = { ...r, _pricesNormalized: true }
+          const cp = this.resolveCurrentPrice(productRecord)
           productMap[r.id] = {
             _pricesNormalized: true,
             price: cp,
             currentPrice: cp,
-            publishPrice: this.resolvePublishPrice(r),
-            originalPrice: this.resolveOriginalPrice(r),
-            dealPrice: this.resolveDealPrice(r),
+            publishPrice: this.resolvePublishPrice(productRecord),
+            originalPrice: this.resolveOriginalPrice(productRecord),
+            dealPrice: this.resolveDealPrice(productRecord),
             priceRise: this.normalizeGrowthRate(r.priceRise || r.price_rise || r.dailyIncreaseRate || 0),
             tomorrowIncreaseMin: Number(r.tomorrowIncreaseMin || 0),
             tomorrowIncreaseMax: Number(r.tomorrowIncreaseMax || 0),
@@ -766,6 +775,7 @@ export default {
         const h = String(now.getHours()).padStart(2, '0')
         const m = String(now.getMinutes()).padStart(2, '0')
         this.priceUpdatedAt = h + ':' + m + ' 更新'
+        await this.fetchPlatformDealAmount(records)
       } catch (e) {
         console.warn('[artist/home] 获取实时价格失败:', e)
         this.priceError = true
@@ -774,6 +784,39 @@ export default {
       } finally {
         this.priceLoading = false
       }
+    },
+
+    async fetchPlatformDealAmount(productRecords = []) {
+      const sourceWorks = productRecords.length ? productRecords : this.works
+      const works = sourceWorks.filter(item => item?.id)
+      if (!works.length) {
+        this.platformDealAmountYuan = 0
+        return
+      }
+
+      const tradeAmounts = await Promise.all(works.map(async work => {
+        try {
+          const [trades, stats] = await Promise.all([
+            getArtworkTrades(work.id).catch(() => []),
+            getArtworkResaleStats(work.id).catch(() => null)
+          ])
+          const tradeList = Array.isArray(trades) ? trades : []
+          const tradeTotal = tradeList.reduce((sum, trade) => sum + this.resolveTradeAmount(trade), 0)
+          if (tradeTotal > 0) return tradeTotal
+
+          const statTotal = this.resolveTradeAmount(stats?.totalAmount || stats?.totalTradeAmount || stats?.transactionAmount)
+          if (statTotal > 0) return statTotal
+
+          const firstPrice = this.resolveTradeAmount(stats?.firstPrice)
+          const resalePrice = this.resolveTradeAmount(stats?.resaleAmount || stats?.totalResaleAmount)
+          if (firstPrice > 0 || resalePrice > 0) return firstPrice + resalePrice
+        } catch (e) {
+          console.warn('[artist/home] 获取作品成交数据失败:', work.id, e)
+        }
+        return this.resolveTradeAmount(work.dealPrice || work.currentPrice || work.price || 0)
+      }))
+
+      this.platformDealAmountYuan = tradeAmounts.reduce((sum, amount) => sum + amount, 0)
     },
 
     normalizeTags(rawValue) {
@@ -824,17 +867,29 @@ export default {
       })
     },
 
+    normalizeDisplayYuan(value) {
+      const amount = Number(value || 0)
+      if (!Number.isFinite(amount) || amount <= 0) return 0
+      return amount
+    },
     formatPrice(v) {
-      const amount = Number(v || 0)
+      const amount = this.normalizeDisplayYuan(v)
       return amount > 0 ? amount.toLocaleString('zh-CN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       }) : '0.00'
     },
+    formatCompactYuanAmount(value) {
+      const amount = Number(value || 0)
+      if (!Number.isFinite(amount) || amount <= 0) return '¥0'
+      if (amount >= 10000) return `¥${(amount / 10000).toFixed(2).replace(/\.?0+$/, '')}万`
+      if (amount >= 1000) return `¥${Math.round(amount).toLocaleString('zh-CN')}`
+      return `¥${amount.toFixed(2).replace(/\.?0+$/, '')}`
+    },
     normalizeProductPrice(value) {
       const amount = Number(value || 0)
       if (!amount) return 0
-      return amount >= 100 ? amount / 100 : amount
+      return amount
     },
     normalizeGrowthRate(value) {
       const rate = Number(value || 0)
@@ -844,6 +899,10 @@ export default {
     resolvePublishPrice(item = {}) {
       if (item._pricesNormalized) {
         return Number(item.publishPrice || item.originalPrice || item.original_price || item.price || 0)
+      }
+      if (item.priceText && item.publishPrice == null && item.publish_price == null && item.originalPrice == null
+        && item.original_price == null && item.basePrice == null) {
+        return Number(item.price || 0)
       }
       return this.normalizeProductPrice(
         item.publishPrice ||
@@ -858,6 +917,9 @@ export default {
     resolveCurrentPrice(item = {}) {
       if (item._pricesNormalized) {
         return Number(item.currentPrice || item.price || item.publishPrice || item.originalPrice || 0)
+      }
+      if (item.priceText && item.currentPrice == null && item.current_price == null && item.displayPrice == null) {
+        return Number(item.price || 0)
       }
       const currentPrice = this.normalizeProductPrice(item.currentPrice || item.current_price || item.displayPrice || 0)
       const publishPrice = this.resolvePublishPrice(item)
@@ -877,7 +939,17 @@ export default {
       if (item._pricesNormalized) {
         return Number(item.dealPrice || item.tradePrice || item.soldPrice || item.transactionPrice || item.currentPrice || item.price || 0)
       }
+      if (item.priceText && item.dealPrice == null && item.tradePrice == null && item.soldPrice == null
+        && item.transactionPrice == null && item.currentPrice == null) {
+        return Number(item.price || 0)
+      }
       return this.normalizeProductPrice(item.dealPrice || item.tradePrice || item.soldPrice || item.transactionPrice || item.currentPrice || item.price || 0)
+    },
+    resolveTradeAmount(value) {
+      if (value && typeof value === 'object') {
+        return this.resolveTradeAmount(value.amount || value.tradeAmount || value.dealPrice || value.tradePrice || value.soldPrice || value.transactionPrice || value.resalePrice || value.price || 0)
+      }
+      return this.normalizeDisplayYuan(value)
     },
     buildCollectorLabel(region) {
       const value = String(region || '').trim()
@@ -908,7 +980,7 @@ export default {
       return `+${(((deal - original) / original) * 100).toFixed(1)}%`
     },
     formatYuanDelta(value) {
-      const amount = Number(value || 0)
+      const amount = this.normalizeDisplayYuan(value)
       if (amount <= 0) return ''
       if (amount < 1) return `¥${amount.toFixed(2)}`
       if (amount < 100) return `¥${amount.toFixed(1).replace(/\.0$/, '')}`
@@ -969,59 +1041,32 @@ export default {
       })
     },
     async shareArtist() {
-      const shareUrl = typeof window !== 'undefined'
-        ? `${window.location.origin}/#${this.sharePath}`
-        : this.sharePath
-
       // #ifdef H5
-      if (navigator?.share) {
-        try {
-          await navigator.share({
-            title: this.shareTitle,
-            text: `${this.artist.title || '艺术家主页'}，来看看TA的代表作品`,
-            url: shareUrl
-          })
-          return
-        } catch (error) {
-          if (error?.name === 'AbortError') {
-            return
-          }
-        }
-      }
-      if (typeof window !== 'undefined') {
-        uni.showActionSheet({
-          itemList: ['复制链接', '新窗口打开'],
-          success: ({ tapIndex }) => {
-            if (tapIndex === 0) {
-              uni.setClipboardData({
-                data: shareUrl,
-                success: () => {
-                  uni.showToast({ title: '链接已复制，可分享到微信或小红书', icon: 'none' })
-                },
-                fail: () => {
-                  uni.showToast({ title: '当前环境暂不支持复制', icon: 'none' })
-                }
-              })
-              return
-            }
-            window.open(shareUrl, '_blank', 'noopener,noreferrer')
-          },
-          fail: () => {
-            uni.showToast({ title: '当前环境暂不支持系统分享', icon: 'none' })
-          }
-        })
-        return
-      }
+      await shareH5OrCopy({
+        title: this.shareTitle,
+        text: `${this.artist.title || '艺术家主页'}，来看看TA的代表作品`,
+        route: this.sharePath
+      })
+      return
       // #endif
 
       uni.setClipboardData({
-        data: shareUrl,
+        data: this.sharePath,
         success: () => {
           uni.showToast({ title: '分享链接已复制', icon: 'none' })
         },
         fail: () => {
           uni.showToast({ title: '当前环境暂不支持分享', icon: 'none' })
         }
+      })
+    },
+    updateShareMeta() {
+      if (!this.artist.id) return
+      setH5ShareMeta({
+        title: this.shareTitle,
+        description: `${this.artist.title || '艺术家主页'}，查看TA的代表作品与艺术履历`,
+        imageUrl: this.artist.cover || this.artist.avatar,
+        url: buildH5ShareUrl(this.sharePath)
       })
     },
     consult() {
@@ -1107,6 +1152,12 @@ $gold-line: rgba(215, 165, 29, 0.65);
   flex: 1;
 }
 
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
 .nav-icon {
   width: 58rpx;
   height: 58rpx;
@@ -1120,6 +1171,24 @@ $gold-line: rgba(215, 165, 29, 0.65);
 
 .nav-icon.external {
   font-size: 40rpx;
+}
+
+.nav-edit-entry {
+  height: 50rpx;
+  padding: 0 22rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.24);
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 1;
+}
+
+.nav-edit-entry::after {
+  border: 0;
 }
 
 .profile-hero {
@@ -3010,7 +3079,7 @@ button::after {
 
 .style2-circulation-stats {
   position: relative;
-  padding: 32rpx 22rpx 28rpx;
+  padding: 24rpx 14rpx 28rpx;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
@@ -3018,17 +3087,61 @@ button::after {
   border-radius: 12rpx;
 }
 
+.style2-transaction-amount {
+  grid-column: 1 / -1;
+  min-height: 76rpx;
+  margin: 0 0 18rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(233, 187, 86, 0.18);
+  background:
+    linear-gradient(90deg, rgba(233, 187, 86, 0.09), rgba(233, 187, 86, 0.02)),
+    rgba(255, 255, 255, 0.025);
+}
+
+.style2-transaction-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.style2-transaction-label {
+  color: rgba(245, 241, 232, 0.86);
+  font-size: 22rpx;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.style2-transaction-desc {
+  color: rgba(245, 241, 232, 0.42);
+  font-size: 18rpx;
+  line-height: 1.1;
+}
+
+.style2-transaction-value {
+  flex-shrink: 0;
+  margin-left: 18rpx;
+  color: #f2c14e;
+  font-size: 34rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
 .style2-stat {
   position: relative;
   min-width: 0;
-  min-height: 146rpx;
+  min-height: 136rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 
-.style2-stat:not(:last-of-type)::after {
+.style2-stat:not(:nth-last-of-type(2))::after {
   content: '';
   position: absolute;
   top: 20rpx;
@@ -3039,9 +3152,9 @@ button::after {
 }
 
 .style2-stat-icon {
-  width: 44rpx;
-  height: 44rpx;
-  margin-bottom: 20rpx;
+  width: 40rpx;
+  height: 40rpx;
+  margin-bottom: 18rpx;
   background: #e9bb56;
   -webkit-mask: var(--stat-icon) center / contain no-repeat;
   mask: var(--stat-icon) center / contain no-repeat;
@@ -3049,8 +3162,8 @@ button::after {
 
 .style2-stat-label {
   color: rgba(245, 241, 232, 0.75);
-  font-size: 22rpx;
-  line-height: 1;
+  font-size: 20rpx;
+  line-height: 1.15;
   font-weight: 600;
 }
 
@@ -3062,14 +3175,18 @@ button::after {
 }
 
 .style2-stat-value text {
-  font-size: 34rpx;
+  font-size: 32rpx;
   letter-spacing: 0;
 }
 
+.style2-stat-value.amount text {
+  font-size: 27rpx;
+}
+
 .style2-stat-value small {
-  margin-left: 6rpx;
+  margin-left: 4rpx;
   color: rgba(245, 241, 232, 0.72);
-  font-size: 22rpx;
+  font-size: 20rpx;
   font-weight: 700;
 }
 

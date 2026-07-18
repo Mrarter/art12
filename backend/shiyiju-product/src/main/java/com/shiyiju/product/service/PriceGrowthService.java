@@ -58,7 +58,11 @@ public class PriceGrowthService {
             return BigDecimal.ZERO;
         }
         
-        if (artwork == null || resolveBasePrice(artwork) <= 0) {
+        if (artwork == null || resolveBasePrice(artwork).compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        if (!isPlatformPriceGrowthEnabled(artwork) || !hasGrowthStarted(artwork)) {
             return BigDecimal.ZERO;
         }
 
@@ -177,15 +181,14 @@ public class PriceGrowthService {
             return artwork.getPrice() != null ? artwork.getPrice().setScale(0, RoundingMode.HALF_UP).longValue() : 0L;
         }
 
-        long basePrice = resolveBasePrice(artwork);
-        if (basePrice <= 0) {
+        BigDecimal basePrice = resolveBasePrice(artwork);
+        if (basePrice.compareTo(BigDecimal.ZERO) <= 0) {
             BigDecimal p = artwork.getPrice();
-            return p != null ? p.longValue() : 0L;
+            return p != null ? p.setScale(0, RoundingMode.HALF_UP).longValue() : 0L;
         }
 
-        BigDecimal originalPrice = BigDecimal.valueOf(basePrice);
         BigDecimal multiplier = BigDecimal.ONE.add(calculatePriceRise(artwork));
-        BigDecimal currentPrice = originalPrice.multiply(multiplier);
+        BigDecimal currentPrice = basePrice.multiply(multiplier);
 
         return currentPrice.setScale(0, RoundingMode.HALF_UP).longValue();
     }
@@ -195,14 +198,25 @@ public class PriceGrowthService {
                 && (artwork.getHolderId() != null || ProductConstant.STATUS_SOLD_OUT.equals(artwork.getStatus()));
     }
 
-    private long resolveBasePrice(Artwork artwork) {
+    private boolean isPlatformPriceGrowthEnabled(Artwork artwork) {
+        return artwork == null || artwork.getPlatformPriceGrowthEnabled() == null || artwork.getPlatformPriceGrowthEnabled();
+    }
+
+    private boolean hasGrowthStarted(Artwork artwork) {
+        if (artwork == null || artwork.getCreateTime() == null) {
+            return true;
+        }
+        return LocalDate.now().isAfter(artwork.getCreateTime().toLocalDate());
+    }
+
+    private BigDecimal resolveBasePrice(Artwork artwork) {
         if (artwork == null) {
-            return 0L;
+            return BigDecimal.ZERO;
         }
         if (artwork.getOriginalPrice() != null && artwork.getOriginalPrice().compareTo(BigDecimal.ZERO) > 0) {
-            return artwork.getOriginalPrice().longValue();
+            return artwork.getOriginalPrice();
         }
-        return artwork.getPrice() != null ? artwork.getPrice().longValue() : 0L;
+        return artwork.getPrice() != null ? artwork.getPrice() : BigDecimal.ZERO;
     }
 
     /**
@@ -357,7 +371,10 @@ public class PriceGrowthService {
     }
 
     private Long calculateTomorrowIncrease(Artwork artwork, boolean min) {
-        if (artwork == null || artwork.getPrice() == null || artwork.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+        if (artwork == null
+                || !isPlatformPriceGrowthEnabled(artwork)
+                || artwork.getPrice() == null
+                || artwork.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             return 0L;
         }
         BigDecimal baseRate = resolveBaseDailyRate(artwork);
@@ -433,10 +450,8 @@ public class PriceGrowthService {
                     Long currentPrice = calculateCurrentPrice(artwork);
 
                     artwork.setPriceRise(priceRise);
-                    // 注意：只更新 priceRise，不覆盖用户设置的 price
-                    // price 是用户设置的销售价格，currentPrice 是计算后的当前价格
-                    artwork.setUpdateTime(LocalDateTime.now());
-                    artworkMapper.updateById(artwork);
+                    // 只更新 priceRise，避免用内存里的旧 Artwork 对象覆盖用户刚设置的 price/original_price。
+                    updateArtworkPriceRise(artwork.getId(), priceRise);
                     totalUpdated++;
 
                     // 涨价幅度变化或首次记录时写入涨价日志
@@ -483,9 +498,8 @@ public class PriceGrowthService {
         Long currentPrice = calculateCurrentPrice(artwork);
         
         artwork.setPriceRise(priceRise);
-        // 注意：不要覆盖用户设置的 price，只更新 priceRise
-        artwork.setUpdateTime(LocalDateTime.now());
-        artworkMapper.updateById(artwork);
+        // 只更新 priceRise，避免覆盖用户设置的 price/original_price。
+        updateArtworkPriceRise(artwork.getId(), priceRise);
         
         // 涨价幅度变化时写入涨价日志
         boolean hasExistingLog = priceLogMapper.selectCount(
@@ -499,6 +513,18 @@ public class PriceGrowthService {
     public PriceGrowthConfig getConfig() {
         syncPersistedPriceGrowthConfig(true);
         return config;
+    }
+
+    private void updateArtworkPriceRise(Long artworkId, BigDecimal priceRise) {
+        if (artworkId == null) {
+            return;
+        }
+        jdbcTemplate.update(
+            "UPDATE artwork SET price_rise = ?, update_time = ? WHERE id = ?",
+            priceRise != null ? priceRise : BigDecimal.ZERO,
+            LocalDateTime.now(),
+            artworkId
+        );
     }
 
     private void syncPersistedPriceGrowthConfig() {
@@ -619,7 +645,7 @@ public class PriceGrowthService {
         }
 
         try {
-            long basePrice = resolveBasePrice(artwork);
+            long basePrice = resolveBasePrice(artwork).setScale(0, RoundingMode.HALF_UP).longValue();
             ArtworkPriceLog log = new ArtworkPriceLog();
             log.setArtworkId(artwork.getId());
             log.setArtistId(artwork.getAuthorId());

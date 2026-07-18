@@ -20,6 +20,10 @@ public class Order implements Serializable {
     /** 买家用户ID */
     @TableField("buyer_user_id")
     private Long userId;
+
+    /** 卖家用户ID */
+    @TableField("seller_user_id")
+    private Long sellerUserId;
     
     /** 订单类型: DIRECT(立即购买), CART(购物车), AUCTION(拍卖) */
     @TableField("order_type")

@@ -48,7 +48,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getPayAccountList, deletePayAccount, setDefaultPayAccount } from '@/api/pay'
 
 const loading = ref(false)
@@ -57,9 +58,9 @@ const list = ref([])
 const typeLabel = (t) => ({ 1: '微', 2: '支', 3: '银' })[t] || '?'
 
 const displayInfo = (item) => {
-  if (item.accountType === 1) return '微信收款'
+  if (item.accountType === 1) return item.wechatOpenid ? `微信 ${item.wechatOpenid}` : '微信收款'
   if (item.accountType === 2) return item.alipayAccount || '支付宝收款'
-  if (item.accountType === 3) return item.bankCard || item.bankName || '银行卡'
+  if (item.accountType === 3) return `${item.bankName || '银行卡'} ${item.bankCard || ''}`.trim()
   return ''
 }
 
@@ -104,10 +105,10 @@ const onDelete = (item) => {
 }
 
 const goAdd = () => {
-  uni.navigateTo({ url: '/pages/user/pay-account/add' })
+  uni.navigateTo({ url: '/pages/user-extra/pay-account/add' })
 }
 
-onMounted(() => { loadList() })
+onShow(() => { loadList() })
 </script>
 
 <style lang="scss" scoped>

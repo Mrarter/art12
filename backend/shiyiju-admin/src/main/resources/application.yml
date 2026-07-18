@@ -15,6 +15,17 @@ spring:
       password:
       database: 0
 
+alipay:
+  enabled: ${ALIPAY_ENABLED:false}
+  app-id: ${ALIPAY_APP_ID:}
+  private-key: ${ALIPAY_PRIVATE_KEY:}
+  alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
+  gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+  notify-url: ${ALIPAY_NOTIFY_URL:https://a.art1.cn/pay/alipay/notify}
+  return-url: ${ALIPAY_RETURN_URL:https://a.art1.cn/#/pages/order/list}
+  sign-type: RSA2
+  charset: UTF-8
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

@@ -57,7 +57,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/system/admin/list", "/system/banner/list", "/system/operation-log/list",
             "/community/post/list", "/community/post/detail", "/community/topic/list",
             "/community/comment/list", "/message/list", "/message/template/list",
-            "/file/upload", "/pay/callback/notify", "/health", "/actuator"
+            "/file/upload", "/pay/callback/notify", "/pay/alipay/notify", "/health", "/actuator"
     );
 
     @Override

@@ -28,7 +28,7 @@ public class SmsService {
     @Value("${sms.sdk-app-id:}")
     private String sdkAppId;
 
-    @Value("${sms.sign-name:拾艺局}")
+    @Value("${sms.sign-name:艺本艺术}")
     private String signName;
 
     @Value("${sms.template-id:}")

@@ -28,6 +28,7 @@ import {
 
 const PLATFORM = process.env.UNI_PLATFORM || 'h5'
 const IS_MP = PLATFORM === 'mp-weixin'
+const IS_APP = PLATFORM === 'app-plus' || PLATFORM === 'app'
 const IS_DEV = process.env.NODE_ENV !== 'production'
 const IS_TEST = import.meta.env?.VITE_ENV === 'test' || import.meta.env?.MODE === 'test'
 
@@ -45,6 +46,7 @@ const GATEWAY_ORIGIN = IS_MP
 const FILE_ORIGIN = IS_MP
   ? (import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN_HOST}:9447`)
   : ''
+const IMAGE_ORIGIN = (import.meta.env?.VITE_IMAGE_BASE_URL || import.meta.env?.VITE_MP_FILE_ORIGIN || '').replace(/\/$/, '')
 
 const BASE_URL = IS_MP ? `${GATEWAY_ORIGIN}/api` : '/api'
 const TIMEOUT = 30000
@@ -136,13 +138,22 @@ const buildQueryString = (data) => {
 }
 
 const normalizeResourceUrls = (value) => {
-  if (!IS_MP) return value
+  if (!IS_MP && !IS_APP) return value
 
   if (typeof value === 'string') {
-    if (value.startsWith('/upload/')) return FILE_ORIGIN + value
-    if (value.startsWith('upload/')) return FILE_ORIGIN + '/' + value
+    const resourceOrigin = (IS_MP ? FILE_ORIGIN : IMAGE_ORIGIN).replace(/\/$/, '')
+    const withOrigin = (path) => resourceOrigin ? `${resourceOrigin}${path}` : path
+
+    if (value.startsWith('/upload/')) return withOrigin(value)
+    if (value.startsWith('upload/')) return withOrigin('/' + value)
+
+    const duplicated = value.match(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/uploads\/upload\/(.+)$/)
+    if (duplicated) {
+      return withOrigin(`/upload/${duplicated[1]}`)
+    }
+
     if (value.startsWith('http://localhost:8087') || value.startsWith('http://127.0.0.1:8087')) {
-      return FILE_ORIGIN + value.slice(value.indexOf(':8087') + 5)
+      return withOrigin(value.slice(value.indexOf(':8087') + 5))
     }
     // 注意：不再将 192.168.* 地址重写为 FILE_ORIGIN/GATEWAY_ORIGIN
     // 原因：图片服务器地址由后端直接返回（如 192.168.1.109:8087），不应被覆盖
@@ -406,14 +417,21 @@ const requestWithRetry = (options, retryCount = 0) => {
       if (qs) url += qs
     }
 
-    // 请求去重保护
-    const key = requestKey(url, options.method || 'GET')
-    if (pendingRequests.has(key)) {
+    const method = options.method || 'GET'
+    const shouldDedupe = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)
+
+    // 仅对有副作用的写请求做去重，避免并发 GET 误伤页面初始化状态查询。
+    const key = requestKey(url, method)
+    if (shouldDedupe && pendingRequests.has(key)) {
       log.warn('重复请求拦截:', key)
       return reject(new Error('请求已提交，请勿重复操作'))
     }
-    pendingRequests.set(key, true)
-    const cleanup = () => pendingRequests.delete(key)
+    if (shouldDedupe) {
+      pendingRequests.set(key, true)
+    }
+    const cleanup = () => {
+      if (shouldDedupe) pendingRequests.delete(key)
+    }
 
     // Token 注入
     const token = getAccessToken()
@@ -424,18 +442,18 @@ const requestWithRetry = (options, retryCount = 0) => {
     if (token) header['Authorization'] = 'Bearer ' + token
     if (userId) header['X-User-Id'] = String(userId)
 
-    log.req(options.method || 'GET', url, options.data)
+    log.req(method, url, options.data)
 
     uni.request({
       url,
-      method: options.method || 'GET',
-      data: ['POST', 'PUT', 'DELETE'].includes(options.method) ? options.data : undefined,
+      method,
+      data: ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) ? options.data : undefined,
       header,
       timeout: TIMEOUT,
 
       success: (res) => {
         cleanup()
-        log.res(options.method || 'GET', url, res.statusCode, res.data)
+        log.res(method, url, res.statusCode, res.data)
 
         if (res.statusCode === 200) {
           const body = res.data
@@ -493,7 +511,7 @@ const requestWithRetry = (options, retryCount = 0) => {
         }
 
         const friendly = friendlyError(errMsg, url)
-        log.err(options.method || 'GET', url, errMsg, retryCount)
+        log.err(method, url, errMsg, retryCount)
         checkNetworkStatus()
         showErrorToast(friendly)
         reject(new Error(friendly))

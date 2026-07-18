@@ -11,6 +11,13 @@
 		111111111111111111111112 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111112 /* ContentView.swift */; };
 		111111111111111111111113 /* DebugAppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111113 /* DebugAppIntent.swift */; };
 		111111111111111111111114 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111114 /* Assets.xcassets */; };
+		111111111111111111111115 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111116 /* LaunchScreen.storyboard */; };
+		111111111111111111111116 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111117 /* AppDelegate.swift */; };
+		111111111111111111111117 /* NativeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111118 /* NativeBridge.swift */; };
+		111111111111111111111118 /* WeChatLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111119 /* WeChatLoginService.swift */; };
+		111111111111111111111119 /* WechatOpenSDK-XCFramework.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 211111111111111111111121 /* WechatOpenSDK-XCFramework.xcframework */; };
+		111111111111111111111120 /* AlipaySDK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 211111111111111111111122 /* AlipaySDK.xcframework */; };
+		111111111111111111111121 /* AlipaySDK.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 211111111111111111111123 /* AlipaySDK.bundle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +26,14 @@
 		211111111111111111111113 /* DebugAppIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAppIntent.swift; sourceTree = "<group>"; };
 		211111111111111111111114 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		211111111111111111111115 /* Art12DebugApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Art12DebugApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		211111111111111111111116 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		211111111111111111111117 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		211111111111111111111118 /* NativeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBridge.swift; sourceTree = "<group>"; };
+		211111111111111111111119 /* WeChatLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatLoginService.swift; sourceTree = "<group>"; };
+		211111111111111111111120 /* Art12DebugApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Art12DebugApp.entitlements; sourceTree = "<group>"; };
+		211111111111111111111121 /* WechatOpenSDK-XCFramework.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = WechatOpenSDK-XCFramework.xcframework; path = ../Vendor/WechatOpenSDK-XCFramework.xcframework; sourceTree = "<group>"; };
+		211111111111111111111122 /* AlipaySDK.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = AlipaySDK.xcframework; path = ../Vendor/AlipaySDK.xcframework; sourceTree = "<group>"; };
+		211111111111111111111123 /* AlipaySDK.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.plug-in; name = AlipaySDK.bundle; path = ../Vendor/AlipaySDK.bundle; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -26,6 +41,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				111111111111111111111119 /* WechatOpenSDK-XCFramework.xcframework in Frameworks */,
+				111111111111111111111120 /* AlipaySDK.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,9 +61,17 @@
 			isa = PBXGroup;
 			children = (
 				211111111111111111111111 /* Art12DebugAppApp.swift */,
+				211111111111111111111120 /* Art12DebugApp.entitlements */,
+				211111111111111111111117 /* AppDelegate.swift */,
 				211111111111111111111112 /* ContentView.swift */,
 				211111111111111111111113 /* DebugAppIntent.swift */,
+				211111111111111111111118 /* NativeBridge.swift */,
+				211111111111111111111119 /* WeChatLoginService.swift */,
 				211111111111111111111114 /* Assets.xcassets */,
+				211111111111111111111116 /* LaunchScreen.storyboard */,
+				211111111111111111111121 /* WechatOpenSDK-XCFramework.xcframework */,
+				211111111111111111111122 /* AlipaySDK.xcframework */,
+				211111111111111111111123 /* AlipaySDK.bundle */,
 			);
 			path = Art12DebugApp;
 			sourceTree = "<group>";
@@ -118,6 +143,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				111111111111111111111114 /* Assets.xcassets in Resources */,
+				111111111111111111111115 /* LaunchScreen.storyboard in Resources */,
+				111111111111111111111121 /* AlipaySDK.bundle in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,8 +156,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				111111111111111111111111 /* Art12DebugAppApp.swift in Sources */,
+				111111111111111111111116 /* AppDelegate.swift in Sources */,
 				111111111111111111111112 /* ContentView.swift in Sources */,
 				111111111111111111111113 /* DebugAppIntent.swift in Sources */,
+				111111111111111111111117 /* NativeBridge.swift in Sources */,
+				111111111111111111111118 /* WeChatLoginService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,26 +288,42 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Art12DebugApp/Art12DebugApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Art12 Debug";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				CURRENT_PROJECT_VERSION = 126;
+				DEVELOPMENT_TEAM = 63B63UC362;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Art12DebugApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.shiyiju.art12debug;
+				MARKETING_VERSION = 0.1.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+					"-lz",
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					CoreTelephony,
+					"-framework",
+					CFNetwork,
+					"-framework",
+					CoreMotion,
+					"-framework",
+					QuartzCore,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = online.shiyiju.yibenart;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -286,26 +332,44 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Art12 Debug";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_ENTITLEMENTS = Art12DebugApp/Art12DebugApp.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 126;
+				DEVELOPMENT_TEAM = 63B63UC362;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Art12DebugApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.shiyiju.art12debug;
+				MARKETING_VERSION = 0.1.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+					"-lz",
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					CoreTelephony,
+					"-framework",
+					CFNetwork,
+					"-framework",
+					CoreMotion,
+					"-framework",
+					QuartzCore,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = online.shiyiju.yibenart;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = YibenArt_AppStore;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

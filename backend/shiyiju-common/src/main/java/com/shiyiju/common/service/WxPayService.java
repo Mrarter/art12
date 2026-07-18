@@ -6,12 +6,23 @@ import cn.hutool.http.HttpUtil;
 import com.shiyiju.common.config.WxPayConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.http.util.EntityUtils;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.SSLContext;
+import java.io.File;
+import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
 import java.util.*;
 
 /**
@@ -35,7 +46,7 @@ public class WxPayService {
      * 适用于PC网页支付场景
      */
     public String unifiedOrderNative(String orderNo, String totalAmount, String description) {
-        Map<String, String> params = buildUnifiedOrderParams(orderNo, totalAmount, description, "NATIVE", null);
+        Map<String, String> params = buildUnifiedOrderParams(orderNo, totalAmount, description, "NATIVE", null, null);
         String response = executePost(UNIFIED_ORDER_URL, params);
         Map<String, String> result = parseXmlResponse(response);
         
@@ -52,8 +63,8 @@ public class WxPayService {
      * 统一下单 (JSAPI支付 - 返回小程序调起支付所需的全部参数)
      * 适用于微信小程序和公众号支付
      */
-    public Map<String, String> unifiedOrderJsApi(String orderNo, String totalAmount, String openId, String description) {
-        Map<String, String> params = buildUnifiedOrderParams(orderNo, totalAmount, description, "JSAPI", openId);
+    public Map<String, String> unifiedOrderJsApi(String orderNo, String totalAmount, String openId, String description, String payScene) {
+        Map<String, String> params = buildUnifiedOrderParams(orderNo, totalAmount, description, "JSAPI", openId, payScene);
         String response = executePost(UNIFIED_ORDER_URL, params);
         Map<String, String> result = parseXmlResponse(response);
         
@@ -61,9 +72,27 @@ public class WxPayService {
         
         if ("SUCCESS".equals(result.get("return_code")) && "SUCCESS".equals(result.get("result_code"))) {
             String prepayId = result.get("prepay_id");
-            return buildMiniProgramPayParams(prepayId);
+            return buildMiniProgramPayParams(prepayId, payScene);
         } else {
             throw new RuntimeException("微信JSAPI支付下单失败: " + result.get("err_code_des"));
+        }
+    }
+
+    /**
+     * 统一下单 (APP支付 - 返回 App SDK 调起参数)
+     */
+    public Map<String, String> unifiedOrderApp(String orderNo, String totalAmount, String description) {
+        Map<String, String> params = buildUnifiedOrderParams(orderNo, totalAmount, description, "APP", null, "app");
+        String response = executePost(UNIFIED_ORDER_URL, params);
+        Map<String, String> result = parseXmlResponse(response);
+
+        log.info("微信APP支付统一下单结果: {}", result);
+
+        if ("SUCCESS".equals(result.get("return_code")) && "SUCCESS".equals(result.get("result_code"))) {
+            String prepayId = result.get("prepay_id");
+            return buildAppPayParams(prepayId);
+        } else {
+            throw new RuntimeException("微信APP支付下单失败: " + result.get("err_code_des"));
         }
     }
 
@@ -71,8 +100,8 @@ public class WxPayService {
      * 构建小程序调起支付所需的参数
      * 返回前端 wx.requestPayment 需要的 5 个参数
      */
-    private Map<String, String> buildMiniProgramPayParams(String prepayId) {
-        String appId = wxPayConfig.getAppId();
+    private Map<String, String> buildMiniProgramPayParams(String prepayId, String payScene) {
+        String appId = resolveAppId("JSAPI", payScene);
         String timeStamp = String.valueOf(System.currentTimeMillis() / 1000);
         String nonceStr = IdUtil.simpleUUID();
         String packageStr = "prepay_id=" + prepayId;
@@ -84,7 +113,7 @@ public class WxPayService {
         signParams.put("package", packageStr);
         signParams.put("signType", "MD5");
         signParams.put("timeStamp", timeStamp);
-        String paySign = generateSignature(signParams, wxPayConfig.getMchKey());
+        String paySign = generateSignature(signParams, resolveV2Key());
         
         Map<String, String> payResult = new HashMap<>();
         payResult.put("appId", appId);
@@ -94,6 +123,35 @@ public class WxPayService {
         payResult.put("signType", "MD5");
         payResult.put("paySign", paySign);
         payResult.put("prepay_id", prepayId);
+        return payResult;
+    }
+
+    /**
+     * 构建 App 调起支付所需的参数
+     */
+    private Map<String, String> buildAppPayParams(String prepayId) {
+        String appId = resolveAppId("APP", "app");
+        String timeStamp = String.valueOf(System.currentTimeMillis() / 1000);
+        String nonceStr = IdUtil.simpleUUID();
+        String packageStr = "Sign=WXPay";
+
+        Map<String, String> signParams = new TreeMap<>();
+        signParams.put("appid", appId);
+        signParams.put("noncestr", nonceStr);
+        signParams.put("package", packageStr);
+        signParams.put("partnerid", wxPayConfig.getMchId());
+        signParams.put("prepayid", prepayId);
+        signParams.put("timestamp", timeStamp);
+        String paySign = generateSignature(signParams, resolveV2Key());
+
+        Map<String, String> payResult = new HashMap<>();
+        payResult.put("appid", appId);
+        payResult.put("partnerid", wxPayConfig.getMchId());
+        payResult.put("prepayid", prepayId);
+        payResult.put("package", packageStr);
+        payResult.put("noncestr", nonceStr);
+        payResult.put("timestamp", timeStamp);
+        payResult.put("sign", paySign);
         return payResult;
     }
 
@@ -122,24 +180,28 @@ public class WxPayService {
      * 申请退款
      */
     public boolean refund(String orderNo, String refundNo, String totalAmount, String refundAmount) {
+        Map<String, String> result = refundWithResult(orderNo, refundNo, totalAmount, refundAmount, "用户申请退款");
+        return "SUCCESS".equals(result.get("return_code")) && "SUCCESS".equals(result.get("result_code"));
+    }
+
+    public Map<String, String> refundWithResult(String orderNo, String refundNo, String totalAmount,
+            String refundAmount, String reason) {
         Map<String, String> params = buildBaseParams();
         params.put("out_trade_no", orderNo);
         params.put("out_refund_no", refundNo);
         params.put("total_fee", totalAmount);
         params.put("refund_fee", refundAmount);
-        params.put("refund_desc", "用户申请退款");
+        params.put("refund_desc", reason == null || reason.isBlank() ? "用户申请退款" : reason);
         
-        // 退款需要双向证书，这里简化处理
         String response = executePostWithCert(REFUND_URL, params, wxPayConfig.getKeyPath());
-        Map<String, String> result = parseXmlResponse(response);
-        return "SUCCESS".equals(result.get("return_code")) && "SUCCESS".equals(result.get("result_code"));
+        return parseXmlResponse(response);
     }
 
     /**
      * 验证支付回调签名
      */
     public boolean verifyCallbackSign(Map<String, String> params, String sign) {
-        String signStr = generateSignature(params, wxPayConfig.getMchKey());
+        String signStr = generateSignature(params, resolveV2Key());
         return signStr.equals(sign);
     }
 
@@ -175,9 +237,9 @@ public class WxPayService {
     /**
      * 构建统一下单参数
      */
-    private Map<String, String> buildUnifiedOrderParams(String orderNo, String totalAmount, 
-            String description, String tradeType, String openId) {
-        Map<String, String> params = buildBaseParams();
+    private Map<String, String> buildUnifiedOrderParams(String orderNo, String totalAmount,
+            String description, String tradeType, String openId, String payScene) {
+        Map<String, String> params = buildBaseParams(tradeType, payScene);
         params.put("body", description);
         params.put("out_trade_no", orderNo);
         params.put("total_fee", totalAmount);
@@ -194,12 +256,47 @@ public class WxPayService {
      * 构建基础参数
      */
     private Map<String, String> buildBaseParams() {
+        return buildBaseParams(null, null);
+    }
+
+    private Map<String, String> buildBaseParams(String tradeType) {
+        return buildBaseParams(tradeType, null);
+    }
+
+    private Map<String, String> buildBaseParams(String tradeType, String payScene) {
         Map<String, String> params = new TreeMap<>();
-        params.put("appid", wxPayConfig.getAppId());
+        params.put("appid", resolveAppId(tradeType, payScene));
         params.put("mch_id", wxPayConfig.getMchId());
         params.put("nonce_str", IdUtil.simpleUUID());
         params.put("sign_type", "MD5");
         return params;
+    }
+
+    private String resolveAppId(String tradeType, String payScene) {
+        if ("JSAPI".equalsIgnoreCase(tradeType)) {
+            if ("h5".equalsIgnoreCase(payScene) || "official".equalsIgnoreCase(payScene)) {
+                String officialAppId = wxPayConfig.getOfficialAppId();
+                if (officialAppId != null && !officialAppId.isBlank()) {
+                    return officialAppId;
+                }
+            }
+            String miniAppId = wxPayConfig.getMiniAppId();
+            if (miniAppId != null && !miniAppId.isBlank()) {
+                return miniAppId;
+            }
+        }
+        if ("APP".equalsIgnoreCase(tradeType)) {
+            return wxPayConfig.getAppId();
+        }
+        return wxPayConfig.getAppId();
+    }
+
+    private String resolveV2Key() {
+        String apiKey = wxPayConfig.getApiKey();
+        if (apiKey != null && !apiKey.isBlank()) {
+            return apiKey;
+        }
+        return wxPayConfig.getMchKey();
     }
 
     /**
@@ -238,7 +335,7 @@ public class WxPayService {
      */
     private String executePost(String url, Map<String, String> params) {
         // 生成签名
-        String sign = generateSignature(params, wxPayConfig.getMchKey());
+        String sign = generateSignature(params, resolveV2Key());
         params.put("sign", sign);
         
         // 构建XML请求
@@ -261,16 +358,46 @@ public class WxPayService {
      * 执行带证书的POST请求 (退款用)
      */
     private String executePostWithCert(String url, Map<String, String> params, String certPath) {
-        // 签名
-        String sign = generateSignature(params, wxPayConfig.getMchKey());
+        if (certPath == null || certPath.isBlank()) {
+            throw new IllegalStateException("微信退款证书未配置，请设置 WXPAY_KEY_PATH");
+        }
+        File certFile = new File(certPath);
+        if (!certFile.isFile()) {
+            throw new IllegalStateException("微信退款证书不存在或不可读: " + certPath);
+        }
+        String sign = generateSignature(params, resolveV2Key());
         params.put("sign", sign);
-        
-        buildXmlRequest(params);
-        
-        // 注意: 使用证书需要KeyStore，这里简化处理
-        // 实际生产环境建议使用官方SDK或Apache HttpClient with SSL
-        log.warn("退款需要证书配置，当前环境未配置证书");
-        return "<xml><return_code>FAIL</return_code><return_msg>证书未配置</return_msg></xml>";
+        String xmlData = buildXmlRequest(params);
+
+        try (FileInputStream inputStream = new FileInputStream(certFile)) {
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            char[] password = wxPayConfig.getMchId().toCharArray();
+            keyStore.load(inputStream, password);
+
+            SSLContext sslContext = SSLContexts.custom()
+                    .loadKeyMaterial(keyStore, password)
+                    .build();
+            SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(
+                    sslContext,
+                    new String[]{"TLSv1.2"},
+                    null,
+                    SSLConnectionSocketFactory.getDefaultHostnameVerifier());
+
+            try (CloseableHttpClient httpClient = HttpClients.custom()
+                    .setSSLSocketFactory(sslSocketFactory)
+                    .build()) {
+                HttpPost httpPost = new HttpPost(url);
+                httpPost.setHeader("Content-Type", "text/xml; charset=UTF-8");
+                httpPost.setEntity(new StringEntity(xmlData, StandardCharsets.UTF_8));
+                try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                    String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                    log.debug("微信退款响应: {}", body);
+                    return body;
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("微信退款请求失败: " + e.getMessage(), e);
+        }
     }
 
     /**

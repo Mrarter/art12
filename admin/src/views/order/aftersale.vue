@@ -32,7 +32,12 @@
         </template>
       </el-table-column>
       <el-table-column label="金额" width="120">
-        <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
+        <template #default="{ row }">{{ formatAmount(row.displayAmount) }}</template>
+      </el-table-column>
+      <el-table-column label="退款方式" width="120">
+        <template #default>
+          <el-tag type="info">原路退回</el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="原因" min-width="150">
         <template #default="{ row }">{{ row.reason }}</template>
@@ -46,6 +51,12 @@
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
           <template v-if="row.status === 'pending'">
+            <el-button
+              v-if="canConfirmReturnReceived(row)"
+              type="warning"
+              link
+              @click="handleConfirmReturn(row)"
+            >确认收货</el-button>
             <el-button type="success" link @click="handleApprove(row)">通过</el-button>
             <el-button type="danger" link @click="handleReject(row)">拒绝</el-button>
           </template>
@@ -82,7 +93,26 @@
           <el-descriptions-item label="退款金额">
             <span class="amount">{{ formatAmount(currentRecord.amount) }}</span>
           </el-descriptions-item>
+          <el-descriptions-item label="渠道实付">
+            <span class="amount actual-paid">{{ formatAmount(currentRecord.actualPaidAmount) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="退款方式">支付金额原路退回</el-descriptions-item>
           <el-descriptions-item label="申请原因">{{ currentRecord.reason }}</el-descriptions-item>
+          <el-descriptions-item v-if="currentRecord.type === 'return'" label="回寄物流公司">
+            {{ currentRecord.returnCompanyName || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentRecord.type === 'return'" label="回寄运单号">
+            {{ currentRecord.returnTrackingNo || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentRecord.type === 'return'" label="回寄状态">
+            {{ getReturnStatusText(currentRecord.returnStatus) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentRecord.type === 'return' && currentRecord.returnShipTime" label="回寄时间">
+            {{ currentRecord.returnShipTime }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentRecord.type === 'return' && currentRecord.returnReceiveTime" label="签收时间">
+            {{ currentRecord.returnReceiveTime }}
+          </el-descriptions-item>
           <el-descriptions-item v-if="currentRecord.remark" label="处理备注">{{ currentRecord.remark }}</el-descriptions-item>
           <el-descriptions-item label="申请时间">{{ currentRecord.createTime }}</el-descriptions-item>
           <el-descriptions-item label="状态">
@@ -92,6 +122,11 @@
       </div>
       <template #footer v-if="currentRecord.status === 'pending'">
         <el-button @click="detailVisible = false">取消</el-button>
+        <el-button
+          v-if="canConfirmReturnReceived(currentRecord)"
+          type="warning"
+          @click="handleConfirmReturn(currentRecord)"
+        >确认收货</el-button>
         <el-button type="danger" @click="handleReject(currentRecord)">拒绝</el-button>
         <el-button type="success" @click="handleApprove(currentRecord)">通过</el-button>
       </template>
@@ -129,11 +164,30 @@ const getStatusText = (status) => {
   return map[status] || status
 }
 
+const getReturnStatusText = (status) => {
+  const map = {
+    1: '已寄回',
+    2: '运输中',
+    3: '派送中',
+    4: '已签收',
+    5: '拒收',
+    6: '退件'
+  }
+  return map[Number(status)] || '待回寄'
+}
+
 const formatAmount = (value) => {
-  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+  return `¥${Number(value || 0).toLocaleString('zh-CN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`
+}
+
+const canConfirmReturnReceived = (row) => {
+  return row?.status === 'pending' &&
+    row?.type === 'return' &&
+    Boolean(row?.returnTrackingNo) &&
+    Number(row?.returnStatus || 0) !== 4
 }
 
 const loadData = async () => {
@@ -152,13 +206,21 @@ const loadData = async () => {
       buyerName: item.buyerName || item.buyerNickname || '',
       buyerUid: item.buyerUid || '',
       type: item.type || 'refund',
+      refundType: item.refundType || (item.type === 'return' ? 2 : 1),
       amount: item.amount || item.payAmount || 0,
+      displayAmount: item.displayAmount || item.actualPaidAmount || item.amount || item.payAmount || 0,
+      actualPaidAmount: item.actualPaidAmount || item.payAmount || item.amount || 0,
       reason: item.reason || item.refundReason || '',
       status: item.status || 'pending',
       remark: item.remark || '',
       createTime: item.createTime || item.applyTime || '',
       handleTime: item.handleTime || '',
-      completeTime: item.completeTime || ''
+      completeTime: item.completeTime || '',
+      returnCompanyName: item.returnCompanyName || '',
+      returnTrackingNo: item.returnTrackingNo || '',
+      returnStatus: item.returnStatus || 0,
+      returnShipTime: item.returnShipTime || '',
+      returnReceiveTime: item.returnReceiveTime || ''
     }))
     pagination.total = data.total || 0
   } catch (e) {
@@ -171,14 +233,14 @@ const loadData = async () => {
 
 const handleApprove = async (row) => {
   try {
-    await ElMessageBox.confirm('确定通过该售后申请吗？', '提示', { type: 'success' })
+    await ElMessageBox.confirm('确定通过该售后申请，并将支付金额原路退回吗？', '提示', { type: 'success' })
     // 调用后端API保存
     await request.post('/order/aftersale/handle', {
       id: row.id,
       status: 'approved',
-      remark: '管理员通过'
+      remark: '管理员通过，支付金额原路退回'
     })
-    ElMessage.success('已通过')
+    ElMessage.success('已通过，退款将原路退回')
     detailVisible.value = false
     // 刷新列表
     loadData()
@@ -206,6 +268,23 @@ const handleReject = async (row) => {
   } catch (e) {
     if (e !== 'cancel') {
       ElMessage.error('操作失败')
+    }
+  }
+}
+
+const handleConfirmReturn = async (row) => {
+  try {
+    await ElMessageBox.confirm('确认已收到买家退回的商品，并自动执行退款吗？', '提示', { type: 'warning' })
+    await request.post('/order/aftersale/confirm-return', {
+      id: row.id,
+      remark: '退货回寄已签收，支付金额原路退回'
+    })
+    ElMessage.success('已确认签收并原路退款')
+    detailVisible.value = false
+    loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '操作失败')
     }
   }
 }
@@ -238,6 +317,10 @@ onMounted(() => {
     color: #f56c6c;
     font-weight: bold;
     font-size: 16px;
+  }
+
+  .actual-paid {
+    color: #e6a23c;
   }
 }
 

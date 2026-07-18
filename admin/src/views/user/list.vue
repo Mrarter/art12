@@ -103,7 +103,7 @@
       <el-table-column label="用户信息" min-width="288">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="getFullImageUrl(row.avatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
+            <el-avatar :src="getUserAvatarUrl(row)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
             <div class="user-detail">
               <p class="nickname">
                 {{ row.nickname }}
@@ -290,7 +290,7 @@
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
                   <p class="artwork-meta">{{ artwork.authorName || '-' }}</p>
-                  <p class="artwork-price">¥{{ formatAmount(artwork.price) }}</p>
+                  <p class="artwork-price">¥{{ formatArtworkAmount(artwork.price) }}</p>
                   <p v-if="artwork.holderSince" class="artwork-meta">持有于 {{ artwork.holderSince }}</p>
                 </div>
               </div>
@@ -309,8 +309,8 @@
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
                   <p class="artwork-price">
-                    <span>¥{{ formatAmount(artwork.price) }}</span>
-                    <span v-if="artwork.originalPrice && artwork.originalPrice > 0" class="original-price">¥{{ formatAmount(artwork.originalPrice) }}</span>
+                    <span>¥{{ formatArtworkAmount(artwork.price) }}</span>
+                    <span v-if="artwork.originalPrice && artwork.originalPrice > 0" class="original-price">¥{{ formatArtworkAmount(artwork.originalPrice) }}</span>
                   </p>
                   <div class="artwork-actions">
                     <el-button type="primary" link size="small" @click="editArtwork(artwork)">编辑</el-button>
@@ -419,7 +419,7 @@
                 <div class="work-info">
                   <p class="work-title">{{ work.title }}</p>
                   <p class="work-author">{{ work.authorName }}</p>
-                  <p class="work-price">¥{{ formatAmount(work.price) }}</p>
+                  <p class="work-price">¥{{ formatArtworkAmount(work.price) }}</p>
                 </div>
                 <div v-if="selectedExistingId === work.id" class="selected-badge">
                   <el-icon><Check /></el-icon>
@@ -532,9 +532,22 @@ import { copyId } from '@/utils/id'
 // requestApi -> /api (8080 网关) 用于调用其他微服务
 
 const getFullImageUrl = getUrl
-const DEFAULT_AVATAR_URL = '/images/default-avatar.png'
+const DEFAULT_AVATAR_URL = '/upload/images/2026/05/11/cbebfaeaf7b241d4917a7eb8f3eaf30b.png'
 
 const getAvatarUrl = (avatar) => getFullImageUrl(avatar || DEFAULT_AVATAR_URL)
+
+const getUserAvatar = (user = {}) => {
+  return user.artistAvatar ||
+    user.artist_avatar ||
+    user.userAvatar ||
+    user.user_avatar ||
+    user.avatarUrl ||
+    user.avatar_url ||
+    user.avatar ||
+    ''
+}
+
+const getUserAvatarUrl = (user = {}) => getAvatarUrl(getUserAvatar(user))
 
 const getArtworkCoverUrl = (artwork = {}) => {
   const raw = artwork.cover || artwork.coverImage || artwork.cover_image || getFirstImage(artwork.images)
@@ -680,6 +693,13 @@ const formatAmount = (value) => {
   })
 }
 
+const formatArtworkAmount = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
 // 复制文本
 const copyText = async (text, label) => {
   if (!text) return
@@ -801,7 +821,7 @@ const openUserProfile = async (row) => {
     nickname: row.nickname || '',
     phone: row.phone || '',
     email: row.email || '',
-    avatar: row.avatar || '',
+    avatar: getUserAvatar(currentUser.value || row),
     identities: [
       row.isArtist ? 'artist' : '',
       row.isPromoter ? 'promoter' : ''
@@ -1625,14 +1645,6 @@ onMounted(() => {
   }
 
   .profile-info {
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     .user-id {
       margin: 0 0 8px 0;
       font-size: 12px;
@@ -1644,6 +1656,14 @@ onMounted(() => {
       gap: 4px;
     }
   }
+}
+
+.profile-header .profile-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .avatar-uploader {

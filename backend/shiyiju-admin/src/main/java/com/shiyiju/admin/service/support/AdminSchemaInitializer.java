@@ -23,9 +23,11 @@ public class AdminSchemaInitializer {
     public void init() {
         createAdminRoleTable();
         createAdminUserTable();
+        createAdminSessionTable();
         createAdminRoleMenuTable();
         createMessageTemplateTable();
         createMessageRecordTable();
+        createContentArticleTable();
         seedRoles();
         seedSuperAdmin();
         seedMessageTemplates();
@@ -81,6 +83,23 @@ public class AdminSchemaInitializer {
             """);
     }
 
+    private void createAdminSessionTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS admin_session (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                admin_id BIGINT NOT NULL,
+                token_hash CHAR(64) NOT NULL,
+                expires_at DATETIME NOT NULL,
+                revoked TINYINT NOT NULL DEFAULT 0,
+                create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_access_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_admin_session_token (token_hash),
+                KEY idx_admin_session_admin (admin_id),
+                KEY idx_admin_session_expiry (expires_at, revoked)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """);
+    }
+
     private void createMessageTemplateTable() {
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS admin_message_template (
@@ -121,6 +140,44 @@ public class AdminSchemaInitializer {
             """);
     }
 
+    private void createContentArticleTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS content_article (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                title VARCHAR(120) NOT NULL,
+                subtitle VARCHAR(255) DEFAULT NULL,
+                author VARCHAR(80) DEFAULT NULL,
+                cover_image VARCHAR(500) DEFAULT NULL,
+                cover_original_image VARCHAR(500) DEFAULT NULL,
+                body_image VARCHAR(500) DEFAULT NULL,
+                category VARCHAR(40) DEFAULT 'APPRECIATION',
+                summary VARCHAR(500) DEFAULT NULL,
+                content LONGTEXT NOT NULL,
+                tags VARCHAR(255) DEFAULT NULL,
+                sort_no INT DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'DRAFT',
+                publish_time DATETIME DEFAULT NULL,
+                create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                KEY idx_article_status (status),
+                KEY idx_article_category (category),
+                KEY idx_article_publish_time (publish_time),
+                KEY idx_article_sort (sort_no)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """);
+        try {
+            jdbcTemplate.execute("ALTER TABLE content_article ADD COLUMN cover_original_image VARCHAR(500) DEFAULT NULL AFTER cover_image");
+        } catch (Exception ignored) {
+            // Column already exists in upgraded environments.
+        }
+        try {
+            jdbcTemplate.execute("ALTER TABLE content_article ADD COLUMN body_image VARCHAR(500) DEFAULT NULL AFTER cover_original_image");
+        } catch (Exception ignored) {
+            // Column already exists in upgraded environments.
+        }
+        schemaInspector.evictColumns("content_article");
+    }
+
     private void seedRoles() {
         jdbcTemplate.update("""
             INSERT INTO admin_role (role_code, role_name, description, status)
@@ -138,6 +195,20 @@ public class AdminSchemaInitializer {
                 description = VALUES(description),
                 status = VALUES(status)
             """);
+        seedRole("operation", "运营管理员", "负责用户、作品、订单和内容运营");
+        seedRole("finance", "财务管理员", "负责订单、售后、提现、分销和平台抽佣");
+        seedRole("audit", "审核管理员", "负责艺术家、作品、拍品和社区内容审核");
+    }
+
+    private void seedRole(String roleCode, String roleName, String description) {
+        jdbcTemplate.update("""
+            INSERT INTO admin_role (role_code, role_name, description, status)
+            VALUES (?, ?, ?, 1)
+            ON DUPLICATE KEY UPDATE
+                role_name = VALUES(role_name),
+                description = VALUES(description),
+                status = VALUES(status)
+            """, roleCode, roleName, description);
     }
 
     private void seedSuperAdmin() {

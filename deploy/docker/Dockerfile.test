@@ -9,18 +9,19 @@ WORKDIR /app
 COPY services/*.jar /app/
 
 # 创建启动脚本
-RUN echo '#!/bin/sh\n\
-case $SERVICE in\n\
-  gateway)   exec java -jar /app/shiyiju-gateway-1.0.0-SNAPSHOT.jar ;;\n\
-  user)      exec java -jar /app/shiyiju-user-1.0.0-SNAPSHOT.jar ;;\n\
-  product)   exec java -jar /app/shiyiju-product-1.0.0-SNAPSHOT.jar ;;\n\
-  order)     exec java -jar /app/shiyiju-order-1.0.0-SNAPSHOT.jar ;;\n\
-  auction)   exec java -jar /app/shiyiju-auction-1.0.0-SNAPSHOT.jar ;;\n\
-  promotion) exec java -jar /app/shiyiju-promotion-1.0.0-SNAPSHOT.jar ;;\n\
-  community) exec java -jar /app/shiyiju-community-1.0.0-SNAPSHOT.jar ;;\n\
-  file)      exec java -jar /app/shiyiju-file-1.0.0-SNAPSHOT.jar ;;\n\
-  message)   exec java -jar /app/shiyiju-message-1.0.0-SNAPSHOT.jar ;;\n\
-  admin)     exec java -jar /app/shiyiju-admin-1.0.0-SNAPSHOT.jar ;;\n\
-esac' > /start.sh && chmod +x /start.sh
+RUN printf '%s\n' \
+  '#!/bin/sh' \
+  'case $SERVICE in' \
+  '  gateway)   exec java -jar /app/shiyiju-gateway-1.0.0-SNAPSHOT.jar ;;' \
+  '  user)      exec java -jar /app/shiyiju-user-1.0.0-SNAPSHOT.jar ;;' \
+  '  product)   exec java -jar /app/shiyiju-product-1.0.0-SNAPSHOT.jar ;;' \
+  '  order)     exec java -jar /app/shiyiju-order-1.0.0-SNAPSHOT.jar ;;' \
+  '  auction)   exec java -jar /app/shiyiju-auction-1.0.0-SNAPSHOT.jar ;;' \
+  '  promotion) exec java -jar /app/shiyiju-promotion-1.0.0-SNAPSHOT.jar ;;' \
+  '  community) exec java -jar /app/shiyiju-community-1.0.0-SNAPSHOT.jar ;;' \
+  '  file)      exec java -jar /app/shiyiju-file-1.0.0-SNAPSHOT.jar ;;' \
+  '  message)   exec java -jar /app/shiyiju-message-1.0.0-SNAPSHOT.jar ;;' \
+  '  admin)     exec java -jar /app/shiyiju-admin-1.0.0-SNAPSHOT.jar ;;' \
+  'esac' > /start.sh && chmod +x /start.sh
 
 CMD ["sh", "/start.sh"]

@@ -80,10 +80,10 @@ export const withdrawApply = (data) => {
 
 /**
  * 获取提现记录
- * GET /promoter/withdraw/list
+ * GET /promoter/withdraw-log
  */
 export const getWithdrawList = (params) => {
-  return request.get('/promoter/withdraw/list', params)
+  return request.get('/promoter/withdraw-log', params)
 }
 
 /**

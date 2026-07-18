@@ -1,7 +1,9 @@
 package com.shiyiju.admin.controller;
 
 import com.shiyiju.admin.service.PromotionService;
+import com.shiyiju.admin.service.OperationLogService;
 import com.shiyiju.common.result.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,9 @@ public class PromotionAdminController {
 
     @Autowired
     private PromotionService promotionService;
+
+    @Autowired
+    private OperationLogService operationLogService;
 
     /**
      * 获取分销配置（真实查询）
@@ -102,8 +107,26 @@ public class PromotionAdminController {
     public Result<Map<String, Object>> getWithdrawList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Integer status) {
-        com.shiyiju.common.result.PageResult<Map<String, Object>> result = promotionService.getWithdraws(page, size, status);
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        Integer statusValue = switch (status == null ? "" : status.trim()) {
+            case "pending" -> 0;
+            case "approved" -> 1;
+            case "rejected" -> 2;
+            case "paid" -> 3;
+            case "" -> null;
+            default -> {
+                try {
+                    yield Integer.valueOf(status.trim());
+                } catch (NumberFormatException e) {
+                    yield null;
+                }
+            }
+        };
+        com.shiyiju.common.result.PageResult<Map<String, Object>> result =
+                promotionService.getWithdraws(page, size, statusValue, userId, startDate, endDate);
         Map<String, Object> response = new java.util.LinkedHashMap<>();
         response.put("list", result.getRecords());
         response.put("total", result.getTotal());
@@ -116,9 +139,21 @@ public class PromotionAdminController {
      * 处理提现申请
      */
     @PostMapping("/withdraw/approve")
-    public Result<Void> approveWithdraw(@RequestBody Map<String, Object> params) {
+    public Result<Void> approveWithdraw(@RequestBody Map<String, Object> params, HttpServletRequest request) {
         Long id = ((Number) params.get("id")).longValue();
-        promotionService.handleWithdraw(id, 1, "管理员通过", 1L, "admin");
+        promotionService.handleWithdraw(id, 1, "管理员审核通过，已启动打款", 1L, "admin");
+        saveWithdrawLog("audit", "提现审核通过并启动打款，记录ID=" + id, request);
+        return Result.success();
+    }
+
+    /**
+     * 确认提现到账
+     */
+    @PostMapping("/withdraw/pay")
+    public Result<Void> payWithdraw(@RequestBody Map<String, Object> params, HttpServletRequest request) {
+        Long id = ((Number) params.get("id")).longValue();
+        promotionService.handleWithdraw(id, 3, "管理员确认到账", 1L, "admin");
+        saveWithdrawLog("update", "提现确认到账，记录ID=" + id, request);
         return Result.success();
     }
 
@@ -126,11 +161,24 @@ public class PromotionAdminController {
      * 拒绝提现申请
      */
     @PostMapping("/withdraw/reject")
-    public Result<Void> rejectWithdraw(@RequestBody Map<String, Object> params) {
+    public Result<Void> rejectWithdraw(@RequestBody Map<String, Object> params, HttpServletRequest request) {
         Long id = ((Number) params.get("id")).longValue();
         String reason = params.get("reason") != null ? params.get("reason").toString() : "管理员拒绝";
         promotionService.handleWithdraw(id, 2, reason, 1L, "admin");
+        saveWithdrawLog("audit", "提现审核拒绝，记录ID=" + id + "，原因：" + reason, request);
         return Result.success();
+    }
+
+    private void saveWithdrawLog(String operation, String detail, HttpServletRequest request) {
+        operationLogService.createLog(
+            1L,
+            "admin",
+            "promotion",
+            operation,
+            detail,
+            request.getRemoteAddr(),
+            request.getHeader("User-Agent")
+        );
     }
 
     /**
@@ -140,8 +188,12 @@ public class PromotionAdminController {
     public Result<Map<String, Object>> getCommissionList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long userId) {
-        com.shiyiju.common.result.PageResult<Map<String, Object>> result = promotionService.getCommissions(page, size, userId);
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        com.shiyiju.common.result.PageResult<Map<String, Object>> result =
+                promotionService.getCommissions(page, size, userId, type, startDate, endDate);
         Map<String, Object> response = new java.util.LinkedHashMap<>();
         response.put("list", result.getRecords());
         response.put("total", result.getTotal());

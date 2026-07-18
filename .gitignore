@@ -37,6 +37,8 @@ admin/dist/
 
 # SSL证书（本地开发用）
 *.pem
+*.p12
+**/certs/wxpay/apiclient_cert.p12
 
 # SQLite 数据库
 *.db

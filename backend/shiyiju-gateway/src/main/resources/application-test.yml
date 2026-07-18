@@ -71,7 +71,7 @@ spring:
         - id: shiyiju-pay-callback
           uri: http://shiyiju-order:8083
           predicates:
-            - Path=/pay/callback/**
+            - Path=/pay/callback/**,/pay/alipay/**
           filters:
             - StripPrefix=0
       globalcors:

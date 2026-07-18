@@ -77,11 +77,17 @@ export function getLotDetail(lotId) {
  * 缴纳保证金
  * @param {number} sessionId - 专场ID
  */
-export function payDeposit(sessionId) {
+export function createDepositOrder(sessionId, data = {}) {
   return request({
-    url: `/auction/sessions/${sessionId}/deposit`,
-    method: 'POST'
+    url: `/auction/sessions/${sessionId}/deposit/orders`,
+    method: 'POST',
+    data,
+    requireAuth: true
   })
+}
+
+export function getDepositStatus(payNo) {
+  return request({ url: `/auction/deposits/${payNo}/status`, method: 'GET', requireAuth: true })
 }
 
 /**
@@ -89,11 +95,12 @@ export function payDeposit(sessionId) {
  * @param {number} lotId - 拍品ID
  * @param {number} bidPrice - 出价金额
  */
-export function placeBid(lotId, bidPrice) {
+export function placeBid(lotId, bidPrice, requestId) {
   return request({
     url: `/auction/lots/${lotId}/bid`,
     method: 'POST',
-    data: { bidPrice }
+    data: { bidPrice, requestId },
+    requireAuth: true
   })
 }
 

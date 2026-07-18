@@ -216,8 +216,11 @@ export default {
     },
 
     getItemPriceYuan(item) {
-      const raw = Number(item?.price || 0)
-      return raw >= 1000 ? fenToYuan(raw) : raw
+      const raw = item?.price
+      if (raw === null || raw === undefined || raw === '') return 0
+      const amount = Number(raw)
+      if (!Number.isFinite(amount)) return 0
+      return String(raw).includes('.') ? amount : fenToYuan(amount)
     },
 
     selectAddress() {

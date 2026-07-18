@@ -8,7 +8,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,6 +30,10 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class FileService {
+
+    private static final Set<String> THUMBNAIL_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
+    private static final int DEFAULT_THUMB_WIDTH = 960;
+    private static final int MAX_THUMB_WIDTH = 1600;
 
     @Value("${upload.storage-type:local}")
     private String storageType;
@@ -50,21 +60,21 @@ public class FileService {
      * 上传图片
      */
     public Map<String, String> uploadImage(MultipartFile file, Long userId) {
-        return uploadFile(file, "images", ALLOWED_IMAGE_TYPES, maxImageSize, userId);
+        return uploadFile(file, "images", ALLOWED_IMAGE_TYPES, maxImageSize, userId, true);
     }
 
     /**
      * 上传视频
      */
     public Map<String, String> uploadVideo(MultipartFile file, Long userId) {
-        return uploadFile(file, "videos", ALLOWED_VIDEO_TYPES, maxVideoSize, userId);
+        return uploadFile(file, "videos", ALLOWED_VIDEO_TYPES, maxVideoSize, userId, false);
     }
 
     /**
      * 通用文件上传
      */
-    private Map<String, String> uploadFile(MultipartFile file, String folder, 
-            String[] allowedTypes, long maxSize, Long userId) {
+    private Map<String, String> uploadFile(MultipartFile file, String folder,
+            String[] allowedTypes, long maxSize, Long userId, boolean generateThumbnail) {
         
         Map<String, String> result = new HashMap<>();
         
@@ -103,10 +113,14 @@ public class FileService {
                 uploadToCos(file, relativePath);
             } else {
                 uploadToLocal(file, relativePath);
+                if (generateThumbnail) {
+                    createThumbnailIfNeeded(file, relativePath, contentType);
+                }
             }
 
             // 返回结果
             result.put("url", cdnUrl + "/" + relativePath);
+            result.put("thumbUrl", buildThumbnailUrl(relativePath, DEFAULT_THUMB_WIDTH));
             result.put("filename", fileName);
             result.put("originalName", file.getOriginalFilename());
             result.put("size", String.valueOf(file.getSize()));
@@ -130,6 +144,30 @@ public class FileService {
         Files.createDirectories(path.getParent());
         Files.write(path, file.getBytes());
         log.info("文件已上传到本地: {}", fullPath);
+    }
+
+    public ThumbnailFile resolveThumbnailFile(String fileUrl, Integer width) throws IOException {
+        String relativePath = extractRelativePath(fileUrl);
+        if (relativePath.isEmpty()) {
+            throw new IOException("无法识别图片路径");
+        }
+
+        Path originalPath = Paths.get(localPath, relativePath);
+        if (!Files.exists(originalPath) || Files.isDirectory(originalPath)) {
+            throw new IOException("原图不存在");
+        }
+
+        int targetWidth = normalizeThumbnailWidth(width);
+        Path thumbnailPath = buildThumbnailPath(relativePath, targetWidth);
+        if (!Files.exists(thumbnailPath)) {
+            generateThumbnailFile(originalPath, thumbnailPath, detectContentType(originalPath), targetWidth);
+        }
+
+        String contentType = Files.probeContentType(thumbnailPath);
+        if (contentType == null || contentType.isBlank()) {
+            contentType = "image/jpeg";
+        }
+        return new ThumbnailFile(thumbnailPath, contentType);
     }
 
     /**
@@ -169,6 +207,7 @@ public class FileService {
                 deleteFromCos(relativePath);
             } else {
                 deleteFromLocal(relativePath);
+                deleteThumbnailFiles(relativePath);
             }
             
             log.info("文件已删除: {}", filePath);
@@ -254,5 +293,182 @@ public class FileService {
             }
         }
         return false;
+    }
+
+    private void createThumbnailIfNeeded(MultipartFile file, String relativePath, String contentType) {
+        if (!THUMBNAIL_IMAGE_TYPES.contains(String.valueOf(contentType))) {
+            return;
+        }
+        try {
+            Path originalPath = Paths.get(localPath, relativePath);
+            Path thumbnailPath = buildThumbnailPath(relativePath, DEFAULT_THUMB_WIDTH);
+            generateThumbnailFile(originalPath, thumbnailPath, contentType, DEFAULT_THUMB_WIDTH);
+        } catch (Exception e) {
+            log.warn("生成缩略图失败，将继续使用原图: {}", relativePath, e);
+        }
+    }
+
+    private void generateThumbnailFile(Path originalPath, Path thumbnailPath, String contentType, int targetWidth) throws IOException {
+        if (!THUMBNAIL_IMAGE_TYPES.contains(String.valueOf(contentType))) {
+            return;
+        }
+
+        BufferedImage originalImage;
+        try (InputStream inputStream = Files.newInputStream(originalPath)) {
+            originalImage = ImageIO.read(inputStream);
+        }
+        if (originalImage == null) {
+            throw new IOException("图片解码失败");
+        }
+
+        int originalWidth = originalImage.getWidth();
+        int originalHeight = originalImage.getHeight();
+        if (originalWidth <= 0 || originalHeight <= 0) {
+            throw new IOException("图片尺寸无效");
+        }
+
+        int safeWidth = Math.min(Math.max(targetWidth, 240), MAX_THUMB_WIDTH);
+        if (originalWidth <= safeWidth) {
+            Files.createDirectories(thumbnailPath.getParent());
+            Files.copy(originalPath, thumbnailPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return;
+        }
+
+        int resizedWidth = safeWidth;
+        int resizedHeight = Math.max(1, (int) Math.round((double) originalHeight * resizedWidth / originalWidth));
+        boolean isPng = "image/png".equalsIgnoreCase(contentType);
+        boolean isGif = "image/gif".equalsIgnoreCase(contentType);
+        boolean hasAlpha = originalImage.getColorModel().hasAlpha() && (isPng || isGif);
+        BufferedImage resizedImage = new BufferedImage(
+                resizedWidth,
+                resizedHeight,
+                hasAlpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB
+        );
+
+        Graphics2D graphics = resizedImage.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            if (!hasAlpha) {
+                graphics.setColor(Color.WHITE);
+                graphics.fillRect(0, 0, resizedWidth, resizedHeight);
+            }
+            graphics.drawImage(originalImage, 0, 0, resizedWidth, resizedHeight, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        Files.createDirectories(thumbnailPath.getParent());
+        String formatName = isGif ? "gif" : (hasAlpha ? "png" : "jpg");
+        if (!ImageIO.write(resizedImage, formatName, thumbnailPath.toFile())) {
+            throw new IOException("缩略图编码失败");
+        }
+    }
+
+    private int normalizeThumbnailWidth(Integer width) {
+        if (width == null) {
+            return DEFAULT_THUMB_WIDTH;
+        }
+        return Math.min(Math.max(width, 240), MAX_THUMB_WIDTH);
+    }
+
+    private String buildThumbnailUrl(String relativePath, int width) {
+        return cdnUrl + "/api/file/upload/thumb?url=" + relativePath + "&w=" + normalizeThumbnailWidth(width);
+    }
+
+    private Path buildThumbnailPath(String relativePath, int width) {
+        String extension = getExtension(relativePath);
+        int dotIndex = relativePath.lastIndexOf('.');
+        String pathWithoutExt = dotIndex >= 0 ? relativePath.substring(0, dotIndex) : relativePath;
+        String outputExtension;
+        if ("png".equalsIgnoreCase(extension)) {
+            outputExtension = "png";
+        } else if ("gif".equalsIgnoreCase(extension)) {
+            outputExtension = "gif";
+        } else {
+            outputExtension = "jpg";
+        }
+        String thumbRelativePath = pathWithoutExt + "-thumb-" + normalizeThumbnailWidth(width) + "." + outputExtension;
+        return Paths.get(localPath, thumbRelativePath);
+    }
+
+    private String extractRelativePath(String fileUrl) {
+        String value = Objects.toString(fileUrl, "").trim();
+        if (value.isEmpty()) {
+            return "";
+        }
+        if (value.startsWith(cdnUrl + "/")) {
+            return value.substring((cdnUrl + "/").length());
+        }
+        if (value.startsWith("/upload/")) {
+            return value.substring("/upload/".length());
+        }
+        if (value.startsWith("upload/")) {
+            return value.substring("upload/".length());
+        }
+        try {
+            java.net.URL url = new java.net.URL(value);
+            String path = Objects.toString(url.getPath(), "");
+            if (path.startsWith("/upload/")) {
+                return path.substring("/upload/".length());
+            }
+        } catch (Exception ignored) {
+        }
+        return value.contains("/") ? value : "";
+    }
+
+    private String detectContentType(Path path) throws IOException {
+        String contentType = Files.probeContentType(path);
+        if (contentType != null && !contentType.isBlank()) {
+            return contentType;
+        }
+        String extension = getExtension(path.getFileName().toString());
+        if ("png".equalsIgnoreCase(extension)) {
+            return "image/png";
+        }
+        if ("gif".equalsIgnoreCase(extension)) {
+            return "image/gif";
+        }
+        return "image/jpeg";
+    }
+
+    private void deleteThumbnailFiles(String relativePath) throws IOException {
+        String pathWithoutExt = relativePath.contains(".")
+                ? relativePath.substring(0, relativePath.lastIndexOf('.'))
+                : relativePath;
+        Path parent = Paths.get(localPath, relativePath).getParent();
+        if (parent == null || !Files.exists(parent)) {
+            return;
+        }
+        String prefix = Paths.get(pathWithoutExt).getFileName().toString() + "-thumb-";
+        try (var stream = Files.list(parent)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().startsWith(prefix))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException ignored) {
+                        }
+                    });
+        }
+    }
+
+    public static final class ThumbnailFile {
+        private final Path path;
+        private final String contentType;
+
+        public ThumbnailFile(Path path, String contentType) {
+            this.path = path;
+            this.contentType = contentType;
+        }
+
+        public Path getPath() {
+            return path;
+        }
+
+        public String getContentType() {
+            return contentType;
+        }
     }
 }

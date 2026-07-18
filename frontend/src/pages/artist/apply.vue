@@ -506,11 +506,11 @@ export default {
     },
 
     showAgreement() {
-      uni.navigateTo({ url: '/pages/user/agreement?type=artist' })
+      uni.navigateTo({ url: '/pages/user-extra/agreement?type=artist' })
     },
 
     showPrivacy() {
-      uni.navigateTo({ url: '/pages/user/agreement?type=privacy' })
+      uni.navigateTo({ url: '/pages/user-extra/agreement?type=privacy' })
     },
 
     async loadCategories() {

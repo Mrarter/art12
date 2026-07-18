@@ -69,7 +69,7 @@
           :key="work.id"
         >
           <view class="work-cover-wrap" @click="goDetail(work.id)">
-            <image class="work-cover" :src="work.cover || fallbackCover" mode="aspectFill"></image>
+            <image class="work-cover" :src="resolveCover(work)" mode="aspectFill"></image>
             <view class="work-status-tag" :class="'status-' + work.status">
               {{ getStatusText(work.status) }}
             </view>
@@ -130,7 +130,8 @@
 import { getMyWorks, updateWorkStatus, deleteWork as deleteWorkApi } from '@/api/product.js'
 import { getCurrentUserIdentity } from '@/utils/auth'
 import { getUserCertificateSignNotices, markCertificateSignNoticesReadByArtwork } from '@/utils/certificateNotice'
-import { formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { getFullImageUrl } from '@/utils/image'
 
 const STATUS_OPTIONS = [
   { label: '全部', value: 'all' },
@@ -286,7 +287,7 @@ export default {
     normalizeWork(work = {}) {
       return {
         ...work,
-        cover: work.cover || work.coverImage || this.fallbackCover,
+        cover: this.resolveCover(work),
         title: work.title || work.name || '',
         year: work.year || work.createdYear || '',
         price: Number(work.price || 0),
@@ -346,10 +347,11 @@ export default {
     },
 
     formatPrice(price) {
-      const value = Number(price || 0)
-      if (!value) return '0.00'
-      const normalized = value >= 1000 ? value / 100 : value
-      return formatYuanNumber(normalized)
+      return formatArtworkPriceNumber(price)
+    },
+
+    resolveCover(work = {}) {
+      return getFullImageUrl(work.cover || work.coverImage || '', this.fallbackCover)
     },
 
     goBack() {

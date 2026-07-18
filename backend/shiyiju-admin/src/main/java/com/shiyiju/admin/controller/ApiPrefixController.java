@@ -37,14 +37,7 @@ public class ApiPrefixController {
      */
     @GetMapping("/info")
     public Result<Map<String, Object>> getAdminInfo(@RequestHeader(value = "Authorization", required = false) String token) {
-        if (token == null || token.isEmpty()) {
-            return Result.fail("未登录");
-        }
-        // 简化实现，返回基本结构
-        return Result.success(Map.of(
-            "id", 1,
-            "username", "admin",
-            "role", "super"
-        ));
+        Map<String, Object> admin = adminAccountService.getAdminInfo(token);
+        return admin == null ? Result.fail("登录已失效") : Result.success(admin);
     }
 }

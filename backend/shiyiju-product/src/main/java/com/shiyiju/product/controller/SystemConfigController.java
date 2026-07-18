@@ -45,7 +45,7 @@ public class SystemConfigController {
         promotion.put("directCommission", 5);
         promotion.put("teamCommission", 2);
         promotion.put("settlementType", "after_pay");
-        promotion.put("minWithdraw", 100);
+        promotion.put("minWithdraw", 0);
         promotion.put("withdrawFee", 0);
         promotion.put("withdrawDays", 3);
         promotion.put("promoterCondition", "free");

@@ -70,9 +70,10 @@
     <view class="pay-card">
       <view class="section-title">支付方式</view>
       <view
+        v-if="isMpWeixin"
         class="pay-option"
         :class="{ active: paymentMethod === 'wechat' }"
-        @click="paymentMethod = 'wechat'"
+        @click="selectPaymentMethod('wechat')"
       >
         <view class="pay-left">
           <text class="pay-icon wechat">微</text>
@@ -83,7 +84,7 @@
       <view
         class="pay-option"
         :class="{ active: paymentMethod === 'alipay' }"
-        @click="paymentMethod = 'alipay'"
+        @click="selectPaymentMethod('alipay')"
       >
         <view class="pay-left">
           <text class="pay-icon alipay">支</text>
@@ -107,7 +108,7 @@
           <text class="submit-price">¥{{ formatPrice(payableAmount) }}</text>
         </view>
         <button class="btn-submit" @click="onSubmit" :loading="submitting" :disabled="submitting">
-          {{ submitting ? '提交中...' : '提交订单' }}
+          {{ submitting ? '支付中...' : '立即支付' }}
         </button>
       </view>
     </view>
@@ -115,10 +116,13 @@
 </template>
 
 <script>
-import { getCartList, getAddressList, createOrderFromCart, directBuy, createResaleOrder } from '@/api/order'
+import { getCartList, getAddressList, createOrderFromCart, directBuy, createResaleOrder, createAlipayWapPay, createAlipayAppPay } from '@/api/order'
 import { getProductDetail } from '@/api/product'
 import { getResaleDetail } from '@/api/resale'
+import { getRealnameCertStatus } from '@/api/user'
 import { fenToYuan, formatYuanNumber, getArtworkDisplayPriceFen } from '@/utils/price'
+import { IS_MP_WEIXIN, getAlipayReturnScene, isAppRuntime } from '@/utils/platform'
+import { hasNativeAlipayPayBridge, requestNativeAlipayPay } from '@/utils/native'
 
 export default {
   data() {
@@ -133,7 +137,7 @@ export default {
       resaleId: null,
       resaleRecord: null,
       loading: false,
-      paymentMethod: 'wechat',
+      paymentMethod: IS_MP_WEIXIN ? 'wechat' : 'alipay',
       agreedNoReason: false,
       couponDiscount: 0,
       framingFee: 0,
@@ -158,6 +162,9 @@ export default {
     },
     hasPromoter() {
       return false
+    },
+    isMpWeixin() {
+      return IS_MP_WEIXIN
     }
   },
 
@@ -410,6 +417,166 @@ export default {
       })
     },
 
+    selectPaymentMethod(method) {
+      if (method === 'wechat' && this.isMpWeixin) {
+        this.paymentMethod = 'wechat'
+        return
+      }
+      this.paymentMethod = method === 'alipay' ? 'alipay' : this.paymentMethod
+    },
+
+    currentPageUrl() {
+      const pages = getCurrentPages()
+      const page = pages[pages.length - 1]
+      if (!page) return '/pages/order/confirm'
+      const route = page.route?.startsWith('/') ? page.route : `/${page.route || 'pages/order/confirm'}`
+      const options = page.options || {}
+      const query = Object.keys(options)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(options[key])}`)
+        .join('&')
+      return query ? `${route}?${query}` : route
+    },
+
+    async ensureRealnameVerified() {
+      try {
+        const status = await getRealnameCertStatus()
+        if (Number(status?.status) === 1) return true
+        const redirect = encodeURIComponent(this.currentPageUrl())
+        uni.showToast({ title: '请先完成实名认证', icon: 'none' })
+        setTimeout(() => {
+          uni.navigateTo({ url: `/pages/user-extra/realname?redirect=${redirect}` })
+        }, 300)
+        return false
+      } catch (e) {
+        uni.showToast({ title: e.message || '实名认证状态校验失败', icon: 'none' })
+        return false
+      }
+    },
+
+    async createPendingOrder() {
+      const params = {
+        addressId: this.selectedAddress.id,
+        remark: this.remark
+      }
+
+      if (this.goodsType === 'resale') {
+        if (!this.resaleRecord) {
+          throw new Error('转售记录未加载')
+        }
+        return createResaleOrder({
+          resaleId: this.resaleRecord.id,
+          resalePrice: this.resaleRecord.resalePrice,
+          artworkId: this.resaleRecord.artworkId,
+          addressId: this.selectedAddress.id
+        })
+      }
+
+      if (this.goodsType === 'direct') {
+        return directBuy({
+          artworkId: this.artworkId,
+          quantity: this.goodsList[0].quantity,
+          ...params
+        })
+      }
+
+      return createOrderFromCart({
+        cartIds: this.cartIds,
+        ...params
+      })
+    },
+
+    getOrderId(order = {}) {
+      return order.id || order.orderId || order.order_id
+    },
+
+    goPayPage(order) {
+      const id = this.getOrderId(order)
+      uni.navigateTo({
+        url: `/pages/order/pay?orderId=${id}&amount=${this.resolveOrderPayAmountYuan(order)}&paymentMethod=${this.paymentMethod}`
+      })
+    },
+
+    openAlipayApp(payUrl = '') {
+      if (!payUrl || typeof window === 'undefined') return false
+      const schemeUrl = `alipays://platformapi/startapp?appId=20000067&url=${encodeURIComponent(payUrl)}`
+      window.location.href = schemeUrl
+      setTimeout(() => {
+        if (document.visibilityState !== 'hidden') {
+          uni.showToast({ title: '如未自动打开，请在系统浏览器中打开后重试', icon: 'none' })
+        }
+      }, 2000)
+      return true
+    },
+
+    submitAlipayForm(payForm, payUrl = '') {
+      // #ifdef H5
+      if (payUrl) {
+        if (this.openAlipayApp(payUrl)) return
+        return
+      }
+      const container = document.createElement('div')
+      container.style.display = 'none'
+      container.innerHTML = payForm
+      document.body.appendChild(container)
+      const form = container.querySelector('form')
+      if (!form) {
+        document.body.removeChild(container)
+        throw new Error('支付宝支付表单异常')
+      }
+      form.method = 'POST'
+      form.acceptCharset = 'UTF-8'
+      form.enctype = 'application/x-www-form-urlencoded'
+      form.submit()
+      // #endif
+      // #ifndef H5
+      throw new Error('当前环境请使用支付宝 App 支付')
+      // #endif
+    },
+
+    async startAlipayPay(order) {
+      const id = this.getOrderId(order)
+      if (!id) {
+        throw new Error('订单创建成功，但订单号异常')
+      }
+
+      if (isAppRuntime() && hasNativeAlipayPayBridge()) {
+        const payParams = await createAlipayAppPay(id)
+        const orderInfo = payParams?.order_string || payParams?.orderInfo
+        if (!orderInfo) {
+          throw new Error('支付宝支付参数异常')
+        }
+        await requestNativeAlipayPay(orderInfo)
+        uni.redirectTo({ url: `/pages/order/pay?orderId=${id}&amount=${this.resolveOrderPayAmountYuan(order)}&paymentMethod=alipay&checkPay=1` })
+        return
+      }
+
+      // #ifdef APP-PLUS
+      if (isAppRuntime()) {
+        const payParams = await createAlipayAppPay(id)
+        const orderInfo = payParams?.order_string || payParams?.orderInfo
+        if (!orderInfo) {
+          throw new Error('支付宝支付参数异常')
+        }
+        await new Promise((resolve, reject) => {
+          uni.requestPayment({
+            provider: 'alipay',
+            orderInfo,
+            success: resolve,
+            fail: reject
+          })
+        })
+        uni.redirectTo({ url: `/pages/order/pay?orderId=${id}&amount=${this.resolveOrderPayAmountYuan(order)}&paymentMethod=alipay` })
+        return
+      }
+      // #endif
+
+      const payParams = await createAlipayWapPay(id, { returnScene: getAlipayReturnScene() })
+      if (!payParams?.pay_form && !payParams?.pay_url) {
+        throw new Error('支付宝支付参数异常')
+      }
+      this.submitAlipayForm(payParams.pay_form, payParams.pay_url)
+    },
+
     async onSubmit() {
       if (!this.selectedAddress) {
         uni.showToast({ title: '请选择收货地址', icon: 'none' })
@@ -423,46 +590,30 @@ export default {
         uni.showToast({ title: '请先同意退货规则', icon: 'none' })
         return
       }
-      
+
       if (this.submitting) return
       this.submitting = true
-      
+
+      let order = null
       try {
-        let order = null
-        const params = {
-          addressId: this.selectedAddress.id,
-          remark: this.remark
+        const realnameVerified = await this.ensureRealnameVerified()
+        if (!realnameVerified) return
+
+        order = await this.createPendingOrder()
+        if (this.paymentMethod === 'alipay') {
+          await this.startAlipayPay(order)
+          return
         }
-        
-        if (this.goodsType === 'resale') {
-          if (!this.resaleRecord) {
-            throw new Error('转售记录未加载')
-          }
-          order = await createResaleOrder({
-            resaleId: this.resaleRecord.id,
-            resalePrice: this.resaleRecord.resalePrice,
-            artworkId: this.resaleRecord.artworkId,
-            addressId: this.selectedAddress.id
-          })
-        } else if (this.goodsType === 'direct') {
-          order = await directBuy({
-            artworkId: this.artworkId,
-            quantity: this.goodsList[0].quantity,
-            ...params
-          })
-        } else {
-          order = await createOrderFromCart({
-            cartIds: this.cartIds,
-            ...params
-          })
-        }
-        
-        uni.navigateTo({
-          url: `/pages/order/pay?orderId=${order.id}&amount=${this.resolveOrderPayAmountYuan(order)}&paymentMethod=${this.paymentMethod}`
-        })
+
+        this.goPayPage(order)
       } catch (e) {
-        console.error('创建订单失败', e)
-        uni.showToast({ title: e.message || '订单提交失败', icon: 'none' })
+        console.error('创建订单或拉起支付失败', e)
+        if (order && this.getOrderId(order)) {
+          uni.showToast({ title: e.message || '支付拉起失败，请重试', icon: 'none' })
+          setTimeout(() => this.goPayPage(order), 600)
+        } else {
+          uni.showToast({ title: e.message || '订单提交失败', icon: 'none' })
+        }
       } finally {
         this.submitting = false
       }

@@ -39,6 +39,8 @@ wechat:
   secret: ${WECHAT_SECRET:181653dd5e2aa1fcca1b34c61155d15c2}
   official-appid: ${WECHAT_OFFICIAL_APPID:}
   official-secret: ${WECHAT_OFFICIAL_SECRET:}
+  open-appid: ${WECHAT_OPEN_APPID:}
+  open-secret: ${WECHAT_OPEN_SECRET:}
 
 alipay:
   enabled: ${ALIPAY_ENABLED:false}
@@ -49,7 +51,7 @@ alipay:
   notify-url: ${ALIPAY_NOTIFY_URL:}
   return-url: ${ALIPAY_RETURN_URL:}
   realname-enabled: ${ALIPAY_REALNAME_ENABLED:false}
-  realname-return-url: ${ALIPAY_REALNAME_RETURN_URL:https://shiyiju.online/#/pages/user/realname}
+  realname-return-url: ${ALIPAY_REALNAME_RETURN_URL:https://a.art1.cn/#/pages/user/realname}
   realname-biz-code: ${ALIPAY_REALNAME_BIZ_CODE:FACE}
 
 logging:

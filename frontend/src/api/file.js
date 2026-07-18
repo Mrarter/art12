@@ -61,7 +61,8 @@ const uploadFileByFetch = async (filePath, type, token) => {
   const headers = {}
   if (token) headers['Authorization'] = 'Bearer ' + token
 
-  const uploadUrl = API_ORIGIN ? API_ORIGIN + '/product/upload' : '/api/product/upload'
+  const uploadPath = type === 'video' ? '/file/upload/video' : '/file/upload/image'
+  const uploadUrl = API_ORIGIN ? API_ORIGIN + uploadPath : '/api' + uploadPath
   const uploadRes = await fetch(uploadUrl, { method: 'POST', headers, body: formData })
   if (!uploadRes.ok) throw new Error('上传失败: HTTP ' + uploadRes.status)
   return parseUploadResponse(await uploadRes.text())
@@ -74,14 +75,29 @@ export const openCropper = (src, opts = {}) => {
   return new Promise((resolve, reject) => {
     const { ratio = 'auto', shape = 'square', outputSize } = opts
     const route = encodeURIComponent(src)
-    const query = [`src=${route}`, `ratio=${ratio}`, `shape=${shape}`]
+    const eventKey = `cropResult:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
+    const query = [`src=${route}`, `ratio=${ratio}`, `shape=${shape}`, `eventKey=${encodeURIComponent(eventKey)}`]
     if (outputSize) query.push(`outputSize=${Number(outputSize) || 800}`)
-    const handler = (result) => { uni.$off('cropResult', handler); resolve(result) }
-    uni.$on('cropResult', handler)
+    const cleanup = () => {
+      uni.$off(eventKey, handler)
+    }
+    const handler = (result) => {
+      cleanup()
+      resolve(result)
+    }
+    uni.$on(eventKey, handler)
     uni.navigateTo({
       url: `/pages/common/cropper?${query.join('&')}`,
-      events: { onCrop: (result) => { uni.$off('cropResult', handler); resolve(result) } },
-      fail: (err) => { uni.$off('cropResult', handler); reject(err) }
+      events: {
+        onCrop: (result) => {
+          cleanup()
+          resolve(result)
+        }
+      },
+      fail: (err) => {
+        cleanup()
+        reject(err)
+      }
     })
   })
 }
@@ -92,7 +108,8 @@ export const openCropper = (src, opts = {}) => {
 export const uploadFile = (filePath, type = 'image') => {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token')
-    const uploadUrl = API_ORIGIN ? API_ORIGIN + '/product/upload' : '/api/product/upload'
+    const uploadPath = type === 'video' ? '/file/upload/video' : '/file/upload/image'
+    const uploadUrl = API_ORIGIN ? API_ORIGIN + uploadPath : '/api' + uploadPath
     console.log('[UPLOAD] 上传地址:', uploadUrl, '平台:', process.env.UNI_PLATFORM)
 
     if (process.env.UNI_PLATFORM === 'h5') {

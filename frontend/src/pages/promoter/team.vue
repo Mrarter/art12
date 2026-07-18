@@ -107,15 +107,16 @@ export default {
         })
         
         if (this.page === 1) {
-          this.members = res.list || []
+          this.members = res.records || res.list || []
           if (res.stats) {
             this.stats = res.stats
           }
         } else {
-          this.members = [...this.members, ...(res.list || [])]
+          this.members = [...this.members, ...(res.records || res.list || [])]
         }
         
-        this.hasMore = res.list && res.list.length === this.pageSize
+        const pageRecords = res.records || res.list || []
+        this.hasMore = pageRecords.length === this.pageSize
       } catch (e) {
         console.error('加载团队列表失败', e)
       }

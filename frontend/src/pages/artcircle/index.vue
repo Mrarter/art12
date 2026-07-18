@@ -121,12 +121,12 @@
       <!-- 空状态 -->
       <view class="empty-state" v-if="!loading && postList.length === 0">
         <image class="empty-icon" src="/static/icons/post-empty.png" mode="aspectFit"></image>
-        <text class="empty-text">暂无动态，快来发布第一条吧</text>
+        <text class="empty-text">{{ communityPostPublishEnabled ? '暂无动态，快来发布第一条吧' : '暂无动态，敬请期待更多内容' }}</text>
       </view>
     </scroll-view>
 
     <!-- 发布按钮 -->
-    <view class="publish-btn" @click="goPublish">
+    <view v-if="communityPostPublishEnabled" class="publish-btn" @click="goPublish">
       
     </view>
   </view>
@@ -134,11 +134,13 @@
 
 <script>
 import { getPosts, getTopics, likePost, unlikePost } from '@/api/community'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { COMMUNITY_POST_PUBLISH_ENABLED, showCommunityPostDisabledToast } from '@/utils/platform.js'
 
 export default {
   data() {
     return {
+      communityPostPublishEnabled: COMMUNITY_POST_PUBLISH_ENABLED,
       currentTopicId: null,
       topics: [],
       postList: [],
@@ -269,7 +271,7 @@ export default {
     },
 
     formatPrice(price) {
-      return formatYuanNumber(fenToYuan(price))
+      return formatArtworkPriceNumber(price)
     },
 
     previewImages(images, index) {
@@ -311,6 +313,10 @@ export default {
     },
 
     goPublish() {
+      if (!this.communityPostPublishEnabled) {
+        showCommunityPostDisabledToast()
+        return
+      }
       uni.navigateTo({ url: '/pages/artcircle/publish' })
     }
   }

@@ -1,5 +1,6 @@
 package com.shiyiju.order.exception;
 
+import com.shiyiju.common.exception.BusinessException;
 import com.shiyiju.common.result.Result;
 import com.shiyiju.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,12 @@ public class OrderExceptionHandler {
         extra.put("retryable", e.getRetryable());
         extra.put("shortMessage", e.getFailReason().getShortMessage());
 
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public Result<Void> handleBusinessException(BusinessException e) {
+        log.warn("订单业务异常 - code={}, message={}", e.getCode(), e.getMessage());
         return Result.fail(e.getCode(), e.getMessage());
     }
 

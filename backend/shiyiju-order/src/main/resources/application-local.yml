@@ -15,12 +15,17 @@ spring:
       database: 0
 
 wxpay:
-  app-id: wx4b7015f42a4fa49c
-  mini-app-id: wx4b7015f42a4fa49c
-  mch-id: 1743449441
-  mch-key: 2kl4khj788793498fjhksdoisafy9f93
-  api-key: 2kl4khj788793498fjhksdoisafy9f93
-  notify-url: http://127.0.0.1:8080/pay/callback/notify
+  app-id: ${WXPAY_APP_ID:wx_your_app_id}
+  official-app-id: ${WXPAY_OFFICIAL_APP_ID:${WXPAY_APP_ID:wx_your_app_id}}
+  mini-app-id: ${WXPAY_MINI_APP_ID:${WXPAY_APP_ID:wx_your_app_id}}
+  mch-id: ${WXPAY_MCH_ID:your_mch_id}
+  mch-key: ${WXPAY_MCH_KEY:your_mch_key}
+  api-key: ${WXPAY_API_KEY:${WXPAY_MCH_KEY:your_mch_key}}
+  notify-url: ${WXPAY_NOTIFY_URL:http://127.0.0.1:8080/pay/callback/notify}
+  trade-type: JSAPI
+  version: v2
+  key-path: ${WXPAY_KEY_PATH:}
+  serial-no: ${WXPAY_SERIAL_NO:}
 
 alipay:
   enabled: ${ALIPAY_ENABLED:false}
@@ -28,5 +33,5 @@ alipay:
   private-key: ${ALIPAY_PRIVATE_KEY:}
   alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
   gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
-  notify-url: ${ALIPAY_NOTIFY_URL:http://127.0.0.1:8080/order/pay/alipay/notify}
+  notify-url: ${ALIPAY_NOTIFY_URL:http://127.0.0.1:8080/pay/alipay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://127.0.0.1:5176/#/pages/order/list}

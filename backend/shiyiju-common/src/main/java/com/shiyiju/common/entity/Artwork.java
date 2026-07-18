@@ -30,6 +30,8 @@ public class Artwork implements Serializable {
     private BigDecimal price;
     /** 原始价格（元，DECIMAL） */
     private BigDecimal originalPrice;
+    /** 运费（元，DECIMAL） */
+    private BigDecimal freight;
     private Integer stock;
     private Integer status;
     private BigDecimal priceRise;
@@ -40,6 +42,8 @@ public class Artwork implements Serializable {
     private Integer dailyLikeCount;
     private Integer favoriteCount;
     private Integer saleCount;
+    @TableField(exist = false)
+    private Boolean platformPriceGrowthEnabled;
     /** 内容指纹 SHA256(title + authorId + yyyyMMdd)，用于幂等去重 */
     @TableField("content_fingerprint")
     private String contentFingerprint;

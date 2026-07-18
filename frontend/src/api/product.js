@@ -6,19 +6,48 @@ import request from './request'
 
 const IMAGE_BASE_URL = (import.meta.env?.VITE_IMAGE_BASE_URL || '').replace(/\/$/, '')
 
+const encodeThumbSource = (value) => encodeURIComponent(String(value || '').trim())
+
 export const normalizeImageUrl = (url) => {
   if (typeof url !== 'string') return url
   const value = url.trim()
+  const withBase = (path) => IMAGE_BASE_URL ? `${IMAGE_BASE_URL}${path}` : path
   const duplicated = value.match(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/uploads\/upload\/(.+)$/)
-  if (duplicated) return `/upload/${duplicated[1]}`
+  if (duplicated) return withBase(`/upload/${duplicated[1]}`)
   const localUpload = value.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/upload\/.+)$/)
   if (localUpload) {
-    return IMAGE_BASE_URL ? `${IMAGE_BASE_URL}${localUpload[1]}` : localUpload[1]
+    return withBase(localUpload[1])
   }
   if (value.startsWith('/upload/')) {
-    return IMAGE_BASE_URL ? `${IMAGE_BASE_URL}${value}` : value
+    return withBase(value)
+  }
+  if (value.startsWith('upload/')) {
+    return withBase(`/${value}`)
   }
   return value
+}
+
+export const buildImageThumbnailUrl = (url, width = 960) => {
+  const source = normalizeImageUrl(url)
+  if (typeof source !== 'string' || !source.trim()) return ''
+  const value = source.trim()
+
+  if (value.startsWith('/images/')) {
+    return value
+  }
+
+  try {
+    const parsed = new URL(value)
+    if (!parsed.pathname.startsWith('/upload/')) {
+      return value
+    }
+    return `${parsed.origin}/api/file/upload/thumb?url=${encodeThumbSource(value)}&w=${width}`
+  } catch {
+    if (value.startsWith('/upload/') || value.startsWith('upload/')) {
+      return `/api/file/upload/thumb?url=${encodeThumbSource(value)}&w=${width}`
+    }
+    return value
+  }
 }
 
 const normalizeImages = (images) => {
@@ -35,7 +64,10 @@ const firstImage = (images) => {
 
 const normalizeArtwork = (item = {}) => {
   const normalizedImages = normalizeImages(item.images)
-  const cover = normalizeImageUrl(item.coverImage || item.cover || firstImage(normalizedImages))
+  const artworkImage = firstImage(normalizedImages)
+  const cover = normalizeImageUrl(item.coverImage || item.cover || artworkImage)
+  const publishPrice = item.publishPrice ?? item.publish_price ?? item.originalPrice ?? item.original_price ?? item.price
+  const originalPrice = item.originalPrice ?? item.original_price ?? item.publishPrice ?? item.publish_price
   const resaleListing = item.resaleListing || item.activeResaleListing || null
   const resaleStatus = String(resaleListing?.status || '').toLowerCase()
   const activeResaleListing = resaleListing && (!resaleStatus || resaleStatus === 'pending')
@@ -43,6 +75,14 @@ const normalizeArtwork = (item = {}) => {
     : null
   return {
     ...item,
+    // Product API prices are returned in yuan. Keep them in yuan and convert only
+    // at explicit order/payment boundaries.
+    price: item.price,
+    publishPrice,
+    currentPrice: item.currentPrice ?? item.current_price,
+    originalPrice,
+    tomorrowIncreaseMin: item.tomorrowIncreaseMin,
+    tomorrowIncreaseMax: item.tomorrowIncreaseMax,
     cover,
     coverImage: cover || item.coverImage,
     images: normalizedImages,
@@ -126,9 +166,20 @@ export const searchProduct = (params) => {
 export const getBanners = () => {
   return request.get('/product/banners').then((list = []) => {
     if (!Array.isArray(list)) return list
+    const normalizeBannerLinkType = (linkType) => {
+      const normalized = String(linkType || '').trim().toLowerCase()
+      if (normalized === 'banner' || normalized === 'home') return 'home'
+      if (normalized === 'auction') return 'auction'
+      if (normalized === 'article') return 'article'
+      if (normalized === 'artist') return 'artist'
+      if (normalized === 'gallery') return 'gallery'
+      return normalized
+    }
     return list.map(item => ({
       ...item,
-      imageUrl: normalizeImageUrl(item.imageUrl || item.image || item.coverImage || item.cover)
+      linkType: normalizeBannerLinkType(item.linkType || item.type),
+      imageUrl: normalizeImageUrl(item.imageUrl || item.image || item.coverImage || item.cover),
+      thumbImageUrl: buildImageThumbnailUrl(item.imageUrl || item.image || item.coverImage || item.cover, 1280)
     }))
   })
 }

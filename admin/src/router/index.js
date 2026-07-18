@@ -189,6 +189,19 @@ const routes = [
         ]
       },
       {
+        path: 'content',
+        name: 'Content',
+        meta: { title: '内容管理', icon: 'Document' },
+        children: [
+          {
+            path: 'article',
+            name: 'ArticlePublish',
+            component: () => import('@/views/content/article.vue'),
+            meta: { title: '文章发布' }
+          }
+        ]
+      },
+      {
         path: 'trade',
         name: 'Trade',
         meta: { title: '收藏交易', icon: 'ShoppingCart' },

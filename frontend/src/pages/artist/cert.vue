@@ -2,16 +2,19 @@
   <view class="cert-page">
     <!-- 顶部说明 -->
     <view class="cert-header">
-      <view class="header-icon">
-        
+      <view class="header-icon" :class="`status-${certStatus.status || 'none'}`">
+        <text class="header-icon-symbol">{{ headerIcon }}</text>
       </view>
       <view class="header-text">
         <text class="title">{{ headerTitle }}</text>
         <text class="desc">{{ headerDesc }}</text>
+        <text class="reject-reason" v-if="certStatus.status === 'rejected' && certStatus.rejectReason">
+          认证未成功原因：{{ certStatus.rejectReason }}
+        </text>
       </view>
     </view>
 
-    <view class="guide-card" v-if="certStatus.status === 'none' || certStatus.status === 'rejected'">
+    <view class="guide-card" v-if="showGuideStep">
       <view class="guide-kicker">提交申请开始前的准备</view>
       <view class="guide-title">认证指南</view>
       <view class="guide-desc">当前阶段，分享平台并邀请好友完成注册，可获得平台赠送的 3,600 元年度服务费权益。</view>
@@ -31,15 +34,30 @@
           <text class="fee-label">年度服务费</text>
           <text class="fee-value">¥3,600 / 年</text>
         </view>
-        <view class="fee-item">
+        <view class="fee-item secondary">
           <text class="fee-label">平台服务分成</text>
-          <text class="fee-value">每笔消费 15%</text>
+          <text class="fee-value subtle">每笔消费 15%</text>
         </view>
       </view>
     </view>
 
+    <view class="agreement-card" v-if="showGuideStep">
+      <view class="agreement-head">
+        <text class="agreement-title">艺术家认证条款</text>
+        <text class="agreement-desc">申请前请确认已阅读以下规则，平台将据此进行审核与后续管理。</text>
+      </view>
+
+      <view class="agreement-list">
+        <view class="agreement-item" v-for="item in agreementRules" :key="item.title">
+          <text class="agreement-item-title">{{ item.title }}</text>
+          <text class="agreement-item-desc">{{ item.desc }}</text>
+        </view>
+      </view>
+
+    </view>
+
     <!-- 认证状态 -->
-    <view class="cert-status" v-if="certStatus.status !== 'none'">
+    <view class="cert-status" v-if="certStatus.status !== 'none' && certStatus.status !== 'rejected'">
       <view class="status-badge" :class="certStatus.status">
         
         <text class="status-text">{{ certStatus.text }}</text>
@@ -56,112 +74,67 @@
     </view>
 
     <!-- 认证表单 -->
-    <view class="cert-form" v-if="certStatus.status === 'none' || certStatus.status === 'rejected'">
-      <!-- 基本信息 -->
-      <view class="form-section">
+    <view class="cert-form" v-if="showFormStep">
+      <!-- 实名认证用户直接展示已同步身份信息，其他用户允许补充填写。 -->
+      <view class="form-section identity-section">
         <view class="section-title">录入信息</view>
-        
         <view class="form-item">
-          <view class="item-label">
-            <text class="required">*</text>
-            <text>真实姓名</text>
-          </view>
-          <input class="item-input" v-model="form.realName" placeholder="请输入真实姓名" placeholder-class="placeholder" />
-        </view>
-
-        <view class="form-item">
-          <view class="item-label">
-            <text class="required">*</text>
-            <text>身份证号</text>
-          </view>
+          <view class="item-label"><text class="required">*</text>真实姓名</view>
           <input
             class="item-input"
+            :class="{ locked: realnameLocked }"
+            v-model="form.realName"
+            :disabled="realnameLocked"
+            placeholder="请输入真实姓名"
+            maxlength="30"
+          />
+          <text v-if="realnameLocked" class="field-hint">已根据实名认证信息自动填写，不可修改</text>
+        </view>
+        <view class="form-item">
+          <view class="item-label"><text class="required">*</text>身份证号</view>
+          <input
+            class="item-input"
+            :class="{ locked: realnameLocked }"
             v-model="form.idCard"
+            :disabled="realnameLocked"
             placeholder="请输入18位身份证号"
-            placeholder-class="placeholder"
             maxlength="18"
-            @input="onIdCardInput"
             @blur="validateIdCardField"
           />
-          <text v-if="idCardError" class="field-error">{{ idCardError }}</text>
-        </view>
-
-        <view class="form-item">
-          <view class="item-label">
-            <text class="required">*</text>
-            <text>艺术领域</text>
-          </view>
-          <picker class="item-picker" mode="selector" :range="artFields" range-key="name" @change="onFieldChange">
-            <view class="picker-content">
-              <text :class="{ placeholder: !form.artFieldName }">{{ form.artFieldName || '请选择擅长领域' }}</text>
-              
-            </view>
-          </picker>
-        </view>
-
-        <view class="form-item">
-          <view class="item-label">
-            <text class="required">*</text>
-            <text>个人简介</text>
-          </view>
-          <textarea class="item-textarea" v-model="form.resume" placeholder="请简单介绍一下您的艺术背景和创作风格..." placeholder-class="placeholder" maxlength="200" show-word-limit></textarea>
+          <text v-if="realnameLocked" class="field-hint">已根据实名认证信息自动填写，不可修改</text>
+          <text v-else-if="idCardError" class="field-error">{{ idCardError }}</text>
         </view>
       </view>
 
-      <!-- 证件上传 -->
-      <view class="form-section">
-        <view class="section-title">证件信息</view>
-        
-        <view class="upload-group">
-          <view class="upload-title">
-            <text class="required">*</text>
-            <text>身份证照片</text>
-          </view>
-          <view class="upload-tips">请上传清晰、完整的身份证正反面照片</view>
-          <view class="upload-grid">
-            <view class="upload-item" @click="chooseImage('idCardFront')">
-              <image v-if="form.idCardFront" :src="form.idCardFront" mode="aspectFill" class="upload-image"></image>
-              <view v-else class="upload-placeholder">
-                
-                <text class="upload-text">身份证正面</text>
-              </view>
-              <view class="upload-label">正面</view>
-            </view>
-            <view class="upload-item" @click="chooseImage('idCardBack')">
-              <image v-if="form.idCardBack" :src="form.idCardBack" mode="aspectFill" class="upload-image"></image>
-              <view v-else class="upload-placeholder">
-                
-                <text class="upload-text">身份证背面</text>
-              </view>
-              <view class="upload-label">背面</view>
-            </view>
-          </view>
+      <view class="face-verify-card" :class="{ verified: form.faceVerified }" @click="startFaceVerify">
+        <view class="face-icon alipay" :class="{ verified: form.faceVerified }">{{ form.faceVerified ? '支' : '支' }}</view>
+        <view class="face-copy">
+          <text class="face-title">真人识别</text>
+          <text class="face-desc">
+            {{ form.faceVerified ? '请选在光线明亮，背景为白墙的位置。' : '请确认本人操作，完成人脸识别后可提交认证' }}
+          </text>
         </view>
-
-        <view class="face-verify-card" :class="{ verified: form.faceVerified }" @click="startFaceVerify">
-          <view class="face-icon">{{ form.faceVerified ? '✓' : '' }}</view>
-          <view class="face-copy">
-            <text class="face-title">人脸识别认证</text>
-            <text class="face-desc">
-              {{ form.faceVerified ? '已完成真人核验，将随认证资料一并提交' : '请确认本人操作，完成人脸识别后可提交认证' }}
-            </text>
-          </view>
-          <text class="face-action">{{ form.faceVerified ? '已认证' : '去认证' }}</text>
-        </view>
+        <text class="face-action">{{ form.faceVerified ? '真人识别' : '去认证' }}</text>
       </view>
 
       <!-- 作品展示 -->
       <view class="form-section">
         <view class="section-title">提供 20 件作品</view>
-        <view class="upload-tips">请提供 20 件本人代表作品，平台将用于判断作品风格、创作稳定性与销售适配度。当前已上传 {{ form.artworks.length }}/{{ MAX_ARTWORK_COUNT }} 件。</view>
+        <view class="upload-tips">请提供 20 件本人代表作品，平台将用于判断作品风格、创作稳定性与销售适配度。当前已选择 {{ form.artworks.length }}/{{ MAX_ARTWORK_COUNT }} 件，已上传 {{ uploadedArtworkCount }} 件。</view>
         
         <view class="works-uploader">
           <view class="works-list">
-            <view class="work-item" v-for="(item, index) in form.artworks" :key="index">
-              <image :src="item" mode="aspectFill"></image>
-              <view class="work-delete" @click="removeWork(index)">
-                
+            <view class="work-item" v-for="(item, index) in form.artworks" :key="item.id" :class="`status-${item.status}`">
+              <image :src="item.src" mode="aspectFill"></image>
+              <view class="work-status" v-if="item.status === 'uploading'">
+                <view class="work-spinner"></view>
+                <text>上传中</text>
               </view>
+              <view class="work-status failed" v-else-if="item.status === 'failed'" @click.stop="retryArtwork(index)">
+                <text>上传失败</text>
+                <text class="retry-text">点击重试</text>
+              </view>
+              <view class="work-delete" @click.stop="removeWork(index)"><text>×</text></view>
             </view>
             <view class="work-add" @click="chooseImage('artworks')" v-if="form.artworks.length < MAX_ARTWORK_COUNT">
               
@@ -182,17 +155,32 @@
     </view>
 
     <!-- 重新申请按钮 -->
-    <view class="form-footer" v-if="certStatus.status === 'rejected'">
-      <button class="submit-btn" @click="reApply">重新申请认证</button>
+    <view class="form-footer" v-if="showGuideStep">
+      <view class="agreement-check footer-agreement-check" @click="toggleAgreement">
+        <view class="agreement-checkbox" :class="{ checked: agreementAccepted }">
+          <text v-if="agreementAccepted">✓</text>
+        </view>
+        <view class="agreement-copy">
+          <text>我已阅读并同意</text>
+          <text class="link" @click.stop="showAgreement">《艺术家认证条款》</text>
+        </view>
+      </view>
+      <button class="submit-btn" :class="{ disabled: !agreementAccepted }" @click="enterFormStep">
+        {{ certStatus.status === 'rejected' ? '重新申请认证' : '进入认证页面' }}
+      </button>
+      <view class="submit-tips">
+        <text>需先勾选同意认证条款后才可进入认证页面</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { becomeArtist, getArtistCertStatus } from '@/api/user.js'
+import { onLoad } from '@dcloudio/uni-app'
+import { submitArtistCert, getArtistCertStatus, getRealnameCertStatus, startAlipayRealname, syncAlipayRealname } from '@/api/user.js'
 import { getCategories } from '@/api/product.js'
-import { openCropper } from '@/api/file.js'
+import { openCropper, uploadFile } from '@/api/file.js'
 
 const artFields = ref([
   { id: '', name: '加载中...' }
@@ -200,6 +188,11 @@ const artFields = ref([
 
 const MAX_ARTWORK_COUNT = 20
 const idCardError = ref('')
+const currentStep = ref('guide')
+const agreementAccepted = ref(false)
+const submitting = ref(false)
+const realnameSynced = ref(false)
+const returnedCertifyId = ref('')
 const guideSteps = [
   {
     no: '01',
@@ -208,13 +201,31 @@ const guideSteps = [
   },
   {
     no: '02',
-    title: '录入真实个人信息',
-    desc: '填写真实姓名、身份证号、艺术领域和个人简介，并完成身份证照片与本人核验，避免冒用他人作品或身份。'
+    title: '自动读取实名认证',
+    desc: '系统直接读取已完成实名认证的用户身份信息，姓名和证件号无需重复填写。'
   },
   {
     no: '03',
     title: '提供 20 件代表作品',
     desc: '上传 20 件本人原创代表作品，平台将结合题材、风格、完成度和连续创作能力进行审核。'
+  }
+]
+const agreementRules = [
+  {
+    title: '真实身份与原创承诺',
+    desc: '须使用本人真实身份申请，不得冒用他人信息，不得代发、代售或提交存在版权风险、抄袭争议的作品。'
+  },
+  {
+    title: '作品与主页要求',
+    desc: '平台会重点审核代表作品数量、创作成熟度、简介规范性与持续创作能力，课堂习作、草稿和非原创内容将影响审核结果。'
+  },
+  {
+    title: '交易与平台规则',
+    desc: '认证通过后可在平台发布和销售作品，须遵守站内交易规则，不得诱导站外交易、交换私人联系方式或规避平台流程。'
+  },
+  {
+    title: '费用、分成与处罚',
+    desc: '认证服务涉及年度服务费与平台分成；如出现侵权、欺诈、违规交易等行为，平台有权驳回申请、撤销认证或限制账号权限。'
   }
 ]
 
@@ -224,10 +235,8 @@ const form = ref({
   artField: '',
   artFieldName: '',
   resume: '',  // 后端字段名统一为resume
-  idCardFront: '',
-  idCardBack: '',
   faceVerified: false,
-  artworks: []  // 后端字段名统一为artworks
+  artworks: []  // { id, src }
 })
 
 const certStatus = ref({
@@ -238,6 +247,14 @@ const certStatus = ref({
   rejectReason: ''
 })
 
+const realnameLocked = computed(() => {
+  return realnameSynced.value && Boolean(form.value.realName && form.value.idCard)
+})
+
+const uploadedArtworkCount = computed(() => {
+  return form.value.artworks.filter(item => item.status === 'uploaded' && item.url).length
+})
+
 const headerTitle = computed(() => {
   if (certStatus.value.status === 'pending') return '艺术家身份认证中'
   if (certStatus.value.status === 'approved') return '认证艺术家'
@@ -245,22 +262,32 @@ const headerTitle = computed(() => {
   return '成为认证艺术家'
 })
 
+const headerIcon = computed(() => {
+  if (certStatus.value.status === 'pending') return '…'
+  if (certStatus.value.status === 'approved') return '✓'
+  if (certStatus.value.status === 'rejected') return '!'
+  return '艺'
+})
+
 const headerDesc = computed(() => {
   if (certStatus.value.status === 'pending') return '您的认证资料已提交，平台正在审核，请等待运营后台审核结果。'
   if (certStatus.value.status === 'approved') return '您已获得平台认证标识、作品发布权限和作品流通能力。'
-  if (certStatus.value.status === 'rejected') return '请根据审核意见补充资料后重新提交认证申请。'
+  if (certStatus.value.status === 'rejected') return certStatus.value.rejectReason ? '请根据未通过原因补充资料后重新提交认证申请。' : '请根据审核意见补充资料后重新提交认证申请。'
   return '完成认证后可发布作品、进入艺术家主页、获得平台认证标识与作品流通能力'
 })
 
 const canSubmit = computed(() => {
   return form.value.realName && 
-         validateIdCard(form.value.idCard) &&
-         form.value.artField && 
-         form.value.resume &&  // 改为resume
-         form.value.idCardFront && 
-         form.value.idCardBack &&
+         form.value.idCard &&
          form.value.faceVerified &&
-         form.value.artworks.length >= MAX_ARTWORK_COUNT
+         form.value.artworks.length >= MAX_ARTWORK_COUNT &&
+         uploadedArtworkCount.value >= MAX_ARTWORK_COUNT
+})
+const showGuideStep = computed(() => {
+  return (certStatus.value.status === 'none' || certStatus.value.status === 'rejected') && currentStep.value === 'guide'
+})
+const showFormStep = computed(() => {
+  return (certStatus.value.status === 'none' || certStatus.value.status === 'rejected') && currentStep.value === 'form'
 })
 
 const validateIdCard = (value) => {
@@ -288,15 +315,16 @@ const validateIdCard = (value) => {
   return checks[sum % 11] === id[17]
 }
 
-const onIdCardInput = (e) => {
-  form.value.idCard = String(e.detail.value || '').toUpperCase()
-  if (idCardError.value && validateIdCard(form.value.idCard)) {
-    idCardError.value = ''
-  }
+const isMaskedIdCard = (value) => {
+  return /\*/.test(String(value || '').trim())
 }
 
 const validateIdCardField = () => {
   if (!form.value.idCard) {
+    idCardError.value = ''
+    return true
+  }
+  if (realnameLocked.value || isMaskedIdCard(form.value.idCard)) {
     idCardError.value = ''
     return true
   }
@@ -311,22 +339,47 @@ const onFieldChange = (e) => {
   form.value.artFieldName = artFields.value[index].name
 }
 
+const applyRealnameInfo = (data = {}) => {
+  if (Number(data?.status) !== 1) return
+  const realName = String(data?.realName || '').trim()
+  const idCard = String(data?.idCard || data?.maskedIdCard || '').trim().toUpperCase()
+  if (!realName) return
+
+  form.value.realName = realName
+  form.value.idCard = idCard
+  realnameSynced.value = Boolean(realName && idCard)
+  form.value.faceVerified = true
+  idCardError.value = ''
+  validateIdCardField()
+}
+
+const createArtworkItem = (src, status = 'pending') => ({
+  id: `artwork-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  src,
+  url: '',
+  status
+})
+
+const cropArtworkPathsSequentially = async (paths = []) => {
+  const result = []
+  for (const path of paths) {
+    const cropped = await openCropper(path, { ratio: 'free', shape: 'square' }).catch(() => path)
+    result.push(createArtworkItem(cropped))
+  }
+  return result
+}
+
 const chooseImage = (type) => {
   uni.chooseImage({
     count: type === 'artworks' ? Math.min(MAX_ARTWORK_COUNT - form.value.artworks.length, 9) : 1,
     sizeType: ['compressed'],
-    success: (res) => {
-      if (type === 'idCardFront') {
-        form.value.idCardFront = res.tempFilePaths[0]
-      } else if (type === 'idCardBack') {
-        form.value.idCardBack = res.tempFilePaths[0]
-      } else if (type === 'artworks') {
+    success: async (res) => {
+      if (type === 'artworks') {
         const paths = res.tempFilePaths
-        Promise.all(paths.map(p =>
-          openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
-        )).then(croppedList => {
-          form.value.artworks.push(...croppedList)
-          form.value.artworks = form.value.artworks.slice(0, MAX_ARTWORK_COUNT)
+        cropArtworkPathsSequentially(paths).then((croppedList) => {
+          const entries = croppedList.slice(0, MAX_ARTWORK_COUNT - form.value.artworks.length)
+          form.value.artworks = [...form.value.artworks, ...entries]
+          entries.forEach(entry => uploadArtwork(entry))
         })
       }
     }
@@ -337,30 +390,109 @@ const removeWork = (index) => {
   form.value.artworks.splice(index, 1)  // 改为artworks
 }
 
+const updateArtwork = (id, patch) => {
+  const index = form.value.artworks.findIndex(item => item.id === id)
+  if (index < 0) return
+  const next = [...form.value.artworks]
+  next[index] = { ...next[index], ...patch }
+  form.value.artworks = next
+}
+
+const uploadArtwork = async (entry) => {
+  updateArtwork(entry.id, { status: 'uploading', error: '' })
+  try {
+    const url = await uploadFile(entry.src, 'artist-artwork')
+    updateArtwork(entry.id, { url, src: url, status: 'uploaded' })
+    return true
+  } catch (error) {
+    updateArtwork(entry.id, { status: 'failed', error: error?.message || '上传失败' })
+    return false
+  }
+}
+
+const retryArtwork = (index) => {
+  const entry = form.value.artworks[index]
+  if (!entry || entry.status === 'uploading') return
+  uploadArtwork(entry)
+}
+
 const startFaceVerify = () => {
-  if (form.value.faceVerified) return
-  uni.showModal({
-    title: '人脸识别认证',
-    content: '请确保由申请人本人操作。当前为本地调试流程，确认后标记为已完成。',
-    confirmText: '开始认证',
-    success: (res) => {
-      if (res.confirm) {
-        uni.showLoading({ title: '认证中...' })
-        setTimeout(() => {
-          uni.hideLoading()
-          form.value.faceVerified = true
-          uni.showToast({ title: '人脸认证完成', icon: 'success' })
-        }, 700)
+  // 优先使用后台已保存的实名认证信息，直接拉起支付宝真人认证。
+  // 只有后台没有完整实名信息时，才回到实名信息页补全资料。
+  startDirectAlipayRestart()
+}
+
+const buildDirectRestartReturnUrl = () => {
+  const fallback = 'https://a.art1.cn'
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : fallback
+  return `${origin}/#/pages/artist/cert`
+}
+
+const extractReturnedCertifyId = () => {
+  if (returnedCertifyId.value) return returnedCertifyId.value
+  if (typeof window === 'undefined') return ''
+  const hash = window.location.hash || ''
+  const hashQuery = hash.includes('?') ? hash.split('?')[1] : ''
+  return new URLSearchParams(window.location.search).get('certifyId')
+    || new URLSearchParams(hashQuery).get('certifyId')
+    || ''
+}
+
+const startDirectAlipayRestart = async () => {
+  uni.showLoading({ title: '拉起支付宝中...' })
+  try {
+    const result = await startAlipayRealname({
+      returnUrl: buildDirectRestartReturnUrl(),
+      restart: true
+    })
+    if (result?.redirectUrl) {
+      if (typeof window !== 'undefined') {
+        window.location.href = result.redirectUrl
+        return
       }
+      uni.showToast({ title: '请在 H5 页面中完成支付宝认证', icon: 'none' })
+      return
     }
+    if (result?.verified) {
+      uni.showToast({ title: '当前实名认证信息已就绪', icon: 'success' })
+      return
+    }
+    uni.showToast({ title: '未获取到支付宝认证地址', icon: 'none' })
+  } catch (e) {
+    const message = e?.message || '拉起支付宝失败'
+    if (message.includes('未找到完整实名信息')) {
+      const redirect = encodeURIComponent('/pages/artist/cert')
+      uni.navigateTo({ url: `/pages/user-extra/realname?restart=1&autoStart=1&redirect=${redirect}` })
+      return
+    }
+    uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+const toggleAgreement = () => {
+  agreementAccepted.value = !agreementAccepted.value
+}
+
+const enterFormStep = () => {
+  if (!agreementAccepted.value) {
+    uni.showToast({ title: '请先阅读并同意认证条款', icon: 'none' })
+    return
+  }
+  currentStep.value = 'form'
+  uni.pageScrollTo({
+    scrollTop: 0,
+    duration: 200
   })
 }
 
 const showAgreement = () => {
-  uni.navigateTo({ url: '/pages/user/agreement?type=artist_cert' })
+  uni.navigateTo({ url: '/pages/user-extra/agreement?type=artist_cert' })
 }
 
 const submitForm = async () => {
+  if (submitting.value) return
   if (!canSubmit.value) {
     if (!validateIdCardField()) {
       uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
@@ -370,18 +502,31 @@ const submitForm = async () => {
       uni.showToast({ title: `请上传${MAX_ARTWORK_COUNT}件代表作品`, icon: 'none' })
       return
     }
+    if (form.value.artworks.some(item => item.status === 'uploading')) {
+      uni.showToast({ title: '请等待图片上传完成', icon: 'none' })
+      return
+    }
+    if (form.value.artworks.some(item => item.status === 'failed')) {
+      uni.showToast({ title: '有图片上传失败，请点击图片重试', icon: 'none' })
+      return
+    }
     uni.showToast({ title: '请完善必填信息', icon: 'none' })
     return
   }
 
   uni.showLoading({ title: '提交中...' })
+  submitting.value = true
   
   try {
-    // 模拟上传和提交
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // 这里应该是实际的上传文件和提交逻辑
-    // const res = await becomeArtist(form.value)
+    const artworks = form.value.artworks.map(item => item.url || item.src)
+    await submitArtistCert({
+      realName: form.value.realName.trim(),
+      idCard: form.value.idCard.toUpperCase(),
+      artField: String(form.value.artField || '综合艺术'),
+      resume: form.value.resume.trim() || '已完成实名认证，申请成为平台认证艺术家。',
+      faceVerified: form.value.faceVerified,
+      artworks
+    })
     
     uni.hideLoading()
     uni.showToast({ title: '提交成功，请等待审核', icon: 'success' })
@@ -391,12 +536,23 @@ const submitForm = async () => {
     }, 1500)
   } catch (e) {
     uni.hideLoading()
-    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+    uni.showToast({ title: e.message || '提交失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
   }
+}
+
+const ensureUploaded = async (path) => {
+  const value = String(path || '').trim()
+  if (!value) return value
+  if (/^https?:\/\//.test(value) || value.startsWith('/upload/')) return value
+  return uploadFile(value, 'image')
 }
 
 const reApply = () => {
   certStatus.value.status = 'none'
+  currentStep.value = 'guide'
+  agreementAccepted.value = false
 }
 
 const normalizeCertStatus = (data = {}) => {
@@ -444,10 +600,38 @@ const loadCertStatus = async () => {
   } catch (e) {
     certStatus.value = normalizeCertStatus()
   }
+  currentStep.value = certStatus.value.status === 'none' || certStatus.value.status === 'rejected' ? 'guide' : 'form'
+}
+
+const loadRealnameInfo = async () => {
+  try {
+    const data = await getRealnameCertStatus()
+    applyRealnameInfo(data)
+  } catch (e) {
+    realnameSynced.value = false
+  }
+}
+
+const syncReturnedAlipayResult = async () => {
+  const certifyId = extractReturnedCertifyId()
+  if (!certifyId) return
+  try {
+    const data = await syncAlipayRealname({ certifyId })
+    applyRealnameInfo(data)
+    if (Number(data?.status) === 1) {
+      uni.showToast({ title: '已同步支付宝认证结果', icon: 'success' })
+    } else if (Number(data?.status) === 3) {
+      uni.showToast({ title: data?.rejectReason || '支付宝认证未通过', icon: 'none' })
+    }
+  } catch (e) {
+    console.warn('同步支付宝认证结果失败', e)
+  }
 }
 
 onMounted(async () => {
+  await syncReturnedAlipayResult()
   await loadCertStatus()
+  await loadRealnameInfo()
 
   // 从API加载分类数据
   try {
@@ -471,6 +655,10 @@ onMounted(async () => {
     ]
   }
 })
+
+onLoad((options = {}) => {
+  returnedCertifyId.value = String(options.certifyId || '').trim()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -491,11 +679,17 @@ onMounted(async () => {
     width: 80rpx;
     height: 80rpx;
     border-radius: 50%;
-    background: rgba(255,255,255,0.2);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 20rpx;
+    flex-shrink: 0;
+  }
+
+  .header-icon-symbol {
+    font-size: 40rpx;
+    font-weight: 800;
+    line-height: 1;
   }
 
   .header-text {
@@ -512,6 +706,14 @@ onMounted(async () => {
       font-size: 24rpx;
       opacity: 0.9;
       line-height: 1.5;
+    }
+
+    .reject-reason {
+      display: block;
+      margin-top: 12rpx;
+      font-size: 24rpx;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.88);
     }
   }
 }
@@ -629,6 +831,11 @@ onMounted(async () => {
     border-radius: 18rpx;
     background: rgba(216, 191, 121, 0.1);
     border: 1rpx solid rgba(216, 191, 121, 0.24);
+
+    &.secondary {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
   }
 
   .fee-label {
@@ -643,6 +850,111 @@ onMounted(async () => {
     font-size: 28rpx;
     font-weight: 700;
     color: #d8bf79;
+
+    &.subtle {
+      font-size: 22rpx;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.5);
+    }
+  }
+}
+
+.agreement-card {
+  margin: 0 20rpx 20rpx;
+  padding: 30rpx;
+  border-radius: 20rpx;
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.agreement-head {
+  margin-bottom: 24rpx;
+}
+
+.agreement-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #f6f2e8;
+}
+
+.agreement-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #9b958a;
+}
+
+.agreement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.agreement-item {
+  padding: 22rpx 24rpx;
+  border-radius: 16rpx;
+  background: #202024;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.agreement-item-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #f6f2e8;
+  margin-bottom: 10rpx;
+}
+
+.agreement-item-desc {
+  display: block;
+  font-size: 23rpx;
+  line-height: 1.7;
+  color: #9b958a;
+}
+
+.agreement-check {
+  margin-top: 26rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.footer-agreement-check {
+  margin: 0 0 20rpx;
+  justify-content: center;
+}
+
+.agreement-checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.18);
+  background: #202024;
+  color: #16130b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 22rpx;
+  font-weight: 800;
+
+  &.checked {
+    background: #c9a227;
+    border-color: #c9a227;
+  }
+}
+
+.agreement-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  font-size: 24rpx;
+  color: #9b958a;
+
+  .link {
+    color: #c9a227;
   }
 }
 
@@ -740,6 +1052,14 @@ onMounted(async () => {
   color: #ff6b6b;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  color: #8bbd8f;
+}
+
 .upload-group {
   .upload-title {
     font-size: 28rpx;
@@ -825,6 +1145,38 @@ onMounted(async () => {
         height: 100%;
       }
 
+      .work-status {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8rpx;
+        background: rgba(0, 0, 0, 0.58);
+        color: #fff;
+        font-size: 22rpx;
+
+        &.failed {
+          background: rgba(125, 30, 35, 0.82);
+          color: #ffe1e1;
+        }
+      }
+
+      .retry-text {
+        color: #ffd666;
+        font-size: 20rpx;
+      }
+
+      .work-spinner {
+        width: 32rpx;
+        height: 32rpx;
+        border: 4rpx solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: artwork-upload-spin 0.8s linear infinite;
+      }
+
       .work-delete {
         position: absolute;
         top: 8rpx;
@@ -836,6 +1188,12 @@ onMounted(async () => {
         display: flex;
         align-items: center;
         justify-content: center;
+
+        text {
+          color: #fff;
+          font-size: 32rpx;
+          line-height: 1;
+        }
       }
     }
 
@@ -856,6 +1214,10 @@ onMounted(async () => {
       }
     }
   }
+}
+
+@keyframes artwork-upload-spin {
+  to { transform: rotate(360deg); }
 }
 
 .form-footer {
@@ -920,6 +1282,26 @@ onMounted(async () => {
 
   .header-icon {
     background: rgba(201, 162, 39, 0.16);
+
+    &.status-pending {
+      background: rgba(201, 162, 39, 0.18);
+      color: #f1d27a;
+    }
+
+    &.status-approved {
+      background: rgba(48, 181, 104, 0.18);
+      color: #7fe0a1;
+    }
+
+    &.status-rejected {
+      background: rgba(255, 107, 107, 0.16);
+      color: #ff9c9c;
+    }
+
+    &.status-none {
+      background: rgba(201, 162, 39, 0.16);
+      color: #f1d27a;
+    }
   }
 
   .header-text {
@@ -933,6 +1315,10 @@ onMounted(async () => {
     .desc {
       color: #9b958a;
       opacity: 1;
+    }
+
+    .reject-reason {
+      color: #f3d7d7;
     }
   }
 }
@@ -981,9 +1367,18 @@ onMounted(async () => {
     color: #f6f2e8;
   }
 
+  .item-input.locked {
+    color: #d7d1c7;
+    background: rgba(201, 162, 39, 0.08);
+  }
+
   .item-picker .picker-content {
     color: #f6f2e8;
   }
+}
+
+.form-footer {
+  padding-bottom: calc(30rpx + env(safe-area-inset-bottom));
 }
 
 .placeholder,
@@ -1017,14 +1412,24 @@ onMounted(async () => {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: rgba(201, 162, 39, 0.2);
-  color: #c9a227;
+  background: rgba(22, 119, 255, 0.16);
+  color: #1677ff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
   font-weight: 800;
   flex-shrink: 0;
+
+  &.verified {
+    background: rgba(82, 196, 26, 0.16);
+    color: #52c41a;
+  }
+
+  &.alipay {
+    font-size: 34rpx;
+    letter-spacing: 1rpx;
+  }
 }
 
 .face-copy {

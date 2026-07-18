@@ -506,10 +506,10 @@ onMounted(() => {
     font-size: 24px;
     margin-bottom: 4px;
   }
+}
 
-  span {
-    font-size: 12px;
-  }
+.image-upload-wrapper span {
+  font-size: 12px;
 }
 
 .upload-tip {

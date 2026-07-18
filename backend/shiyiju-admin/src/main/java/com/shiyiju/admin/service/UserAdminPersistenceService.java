@@ -7,6 +7,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -28,7 +31,7 @@ import java.util.stream.Collectors;
 public class UserAdminPersistenceService {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final String DEFAULT_AVATAR_URL = "/images/default-avatar.png";
+    private static final String DEFAULT_AVATAR_URL = "/upload/images/2026/05/11/cbebfaeaf7b241d4917a7eb8f3eaf30b.png";
 
     private final JdbcTemplate jdbcTemplate;
     private final SchemaInspector schemaInspector;
@@ -64,6 +67,7 @@ public class UserAdminPersistenceService {
         if (schemaInspector.hasColumn(userTable, "user_no")) {
             uidSelect = "COALESCE(" + uidSelect + ", user_no)";
         }
+        String artistAvatarExpr = buildArtistAvatarExpr(userTable, userIdColumn);
 
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
@@ -100,7 +104,7 @@ public class UserAdminPersistenceService {
         queryArgs.add(size);
         
         String baseSql = """
-            SELECT %s AS id, %s AS uid, nickname, %s AS avatar, %s AS phone, status, %s AS register_time, %s AS identities_value,
+            SELECT %s AS id, %s AS uid, nickname, %s AS avatar, %s AS artist_avatar, %s AS phone, status, %s AS register_time, %s AS identities_value,
                    %s AS promoter_level_value,
                    %s AS available_commission_value,
                    %s AS total_commission_value
@@ -109,6 +113,7 @@ public class UserAdminPersistenceService {
                 userIdColumn,
                 uidSelect,
                 avatarCol,
+                artistAvatarExpr,
                 phoneCol,
                 createTimeColumn,
                 identityColumn,
@@ -199,9 +204,16 @@ public class UserAdminPersistenceService {
         
         // 用户状态列（兼容不同表的状态字段名）
         String userStatusSelect = schemaInspector.firstExistingColumn(userTable, "status", "user_status", "state");
+        String artistAvatarSelect = "NULL";
+        for (String candidate : List.of("avatar_url", "avatar", "user_avatar")) {
+            if (schemaInspector.hasColumn(artistTable, candidate)) {
+                artistAvatarSelect = "a." + candidate;
+                break;
+            }
+        }
         
         String sql = """
-            SELECT a.id, %s AS user_id, %s AS user_uid, %s AS artist_name, u.nickname, u.phone, u.avatar, u.%s AS user_status,
+            SELECT a.id, %s AS user_id, %s AS user_uid, %s AS artist_name, u.nickname, u.phone, u.avatar, %s AS artist_avatar, u.%s AS user_status,
                    %s AS artist_status,
                    %s AS review_time,
                    COALESCE(art.artwork_count, 0) AS artwork_count,
@@ -215,6 +227,7 @@ public class UserAdminPersistenceService {
                 schemaInspector.hasColumn(artistTable, "user_id") ? "a.user_id" : "0",
                 artistColumnOrNull("user_uid"),
                 nameSelect,
+                artistAvatarSelect,
                 userStatusSelect,
                 statusCol,
                 reviewTimeCol,
@@ -236,6 +249,8 @@ public class UserAdminPersistenceService {
             record.put("nickname", artistName != null ? artistName : row.get("nickname"));
             record.put("phone", row.get("phone"));
             record.put("avatar", row.get("avatar"));
+            record.put("userAvatar", row.get("avatar"));
+            record.put("artistAvatar", row.get("artist_avatar"));
             // 用户状态：转换为前端期望的格式
             Object userStatus = row.get("user_status");
             String userStatusStr = normalizeUserStatus(userStatus);
@@ -508,6 +523,13 @@ public class UserAdminPersistenceService {
 
         jdbcTemplate.update(sql.toString(), args.toArray());
         syncPromoterIdentity(userId, identities);
+        if (identities.contains("artist")) {
+            ensureArtistRecordExists(
+                userId,
+                firstNonBlank(Objects.toString(params.get("realName"), "").trim(), nickname),
+                Objects.toString(params.get("resume"), null)
+            );
+        }
         updateArtistCertification(userId, params);
     }
 
@@ -636,6 +658,97 @@ public class UserAdminPersistenceService {
         );
     }
 
+    private void ensureArtistRecordExists(Long userId, String realName, String resume) {
+        String artistTable = artistTable();
+        if (userId == null || artistTable == null || !userExists(userId) || schemaInspector.getColumns(artistTable).isEmpty()) {
+            return;
+        }
+
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM " + artistTable + " WHERE user_id = ?",
+            Integer.class,
+            userId
+        );
+        if (count != null && count > 0) {
+            return;
+        }
+
+        if ("artist_profile".equals(artistTable)) {
+            createArtistProfileRecord(userId, realName, resume);
+            return;
+        }
+
+        String artistName = firstNonBlank(realName, lookupUserNickname(userId), "艺术家");
+        String artistCode = generateArtistCode();
+        String userUid = getUserUidById(userId);
+        LocalDateTime now = LocalDateTime.now();
+
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+        addInsertValue(columns, values, artistTable, "user_id", userId);
+        addInsertValue(columns, values, artistTable, "user_uid", nullableText(userUid));
+        addInsertValue(columns, values, artistTable, "real_name", artistName);
+        addInsertValue(columns, values, artistTable, "artist_name", artistName);
+        addInsertValue(columns, values, artistTable, "name", artistName);
+        addInsertValue(columns, values, artistTable, "id_card", null);
+        addInsertValue(columns, values, artistTable, artistResumeColumn(artistTable), nullableText(resume));
+        addInsertValue(columns, values, artistTable, artistWorksColumn(artistTable), null);
+        addInsertValue(columns, values, artistTable, artistExhibitsColumn(artistTable), null);
+        addInsertValue(columns, values, artistTable, "artist_code", artistCode);
+        addInsertValue(columns, values, artistTable, artistStatusColumn(artistTable), 1);
+        addInsertValue(columns, values, artistTable, createTimeColumn(artistTable), now);
+        addInsertValue(columns, values, artistTable, "review_time", now);
+        addInsertValue(columns, values, artistTable, "update_time", now);
+        addInsertValue(columns, values, artistTable, "updated_at", now);
+
+        String placeholders = columns.stream().map(col -> "?").collect(Collectors.joining(", "));
+        jdbcTemplate.update(
+            "INSERT INTO " + artistTable + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")",
+            values.toArray()
+        );
+    }
+
+    private void syncArtistProfilesFromUserIdentities() {
+        String artistTable = artistTable();
+        if (artistTable == null || schemaInspector.getColumns(artistTable).isEmpty()) {
+            return;
+        }
+
+        String userTable = userTable();
+        String identityColumn = identityColumn(userTable);
+        if ("NULL".equals(identityColumn)) {
+            return;
+        }
+
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        String userUidColumn = userUidColumn(userTable);
+        String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") && userUidColumn != null
+            ? "((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidColumn + ") OR (a.user_uid IS NULL AND a.user_id = u." + userIdColumn + "))"
+            : "a.user_id = u." + userIdColumn;
+
+        StringBuilder sql = new StringBuilder("""
+            SELECT u.%s AS user_id, u.nickname
+            FROM %s u
+            LEFT JOIN %s a ON %s
+            WHERE %s LIKE ? AND a.id IS NULL
+            """.formatted(userIdColumn, userTable, artistTable, userJoinCondition, identityColumn));
+
+        List<Object> args = new ArrayList<>();
+        args.add("%artist%");
+        if (schemaInspector.hasColumn(userTable, "deleted")) {
+            sql.append(" AND COALESCE(u.deleted, 0) = 0");
+        }
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        for (Map<String, Object> row : rows) {
+            ensureArtistRecordExists(
+                toLong(row.get("user_id")),
+                Objects.toString(row.get("nickname"), "").trim(),
+                null
+            );
+        }
+    }
+
     private String lookupUserNickname(Long userId) {
         String userTable = userTable();
         String userIdColumn = userPrimaryKeyColumn(userTable);
@@ -758,6 +871,11 @@ public class UserAdminPersistenceService {
         args.addAll(userIds);
         jdbcTemplate.update(sql, args.toArray());
         log.info("批量分配用户身份：{} 个用户 -> identities={}", userIds.size(), identitiesStr);
+        if (newIdentities.contains("artist")) {
+            for (Long userId : userIds) {
+                ensureArtistRecordExists(userId, null, null);
+            }
+        }
     }
 
     public Map<String, Object> getUserDetail(Long userId) {
@@ -794,6 +912,7 @@ public class UserAdminPersistenceService {
                                            String startDate, String endDate, String sortField, String sortOrder,
                                            String categoryId) {
         syncArtworkArtists();
+        syncArtistProfilesFromUserIdentities();
 
         String artistTable = artistTable();
         if (schemaInspector.getColumns(artistTable).isEmpty()) {
@@ -1266,9 +1385,10 @@ public class UserAdminPersistenceService {
         String phone = Objects.toString(params.get("phone"), "").trim();
         String nickname = Objects.toString(params.get("nickname"), "").trim();
         String realName = Objects.toString(params.get("realName"), "").trim();
+        String idCard = Objects.toString(params.get("idCard"), "").trim();
         String avatar = Objects.toString(params.get("avatar"), "").trim();
         // 空头像时使用默认头像
-        String finalAvatar = avatar.isEmpty() ? DEFAULT_AVATAR_URL : avatar;
+        String finalAvatar = avatar == null || avatar.isBlank() ? DEFAULT_AVATAR_URL : avatar;
         
         if (realName.isEmpty()) {
             throw new IllegalArgumentException("真实姓名不能为空");
@@ -1291,7 +1411,8 @@ public class UserAdminPersistenceService {
         if (userId == null) {
             // 使用真实姓名作为昵称（如果昵称为空）
             String finalNickname = nickname.isEmpty() ? realName : nickname;
-            Map<String, Object> userResult = createUserForAdmin(phone, finalNickname, avatar, List.of("artist", "collector"));
+            String defaultPassword = resolveDefaultLoginPassword(idCard);
+            Map<String, Object> userResult = createUserForAdmin(phone, finalNickname, avatar, List.of("artist", "collector"), defaultPassword);
             userId = (Long) userResult.get("userId");
             isNewUser = true;
         } else {
@@ -1358,7 +1479,13 @@ public class UserAdminPersistenceService {
         result.put("userUid", userUid);
         result.put("artistCode", artistCode);
         result.put("isNewUser", isNewUser);
-        result.put("message", isNewUser ? "新用户已创建，用户ID：" + userId + "，用户UID：" + userUid + "，艺术家编号：" + artistCode : "已添加到现有用户，用户ID：" + userId + "，用户UID：" + userUid);
+        if (isNewUser) {
+            String defaultPassword = resolveDefaultLoginPassword(idCard);
+            result.put("defaultPassword", defaultPassword);
+            result.put("message", "新用户已创建，用户ID：" + userId + "，用户UID：" + userUid + "，艺术家编号：" + artistCode + "，默认密码：" + defaultPassword);
+        } else {
+            result.put("message", "已添加到现有用户，用户ID：" + userId + "，用户UID：" + userUid);
+        }
         return result;
     }
 
@@ -2105,7 +2232,7 @@ public class UserAdminPersistenceService {
                 String suffix = phone.length() >= 4 ? phone.substring(phone.length() - 4) : phone;
                 nickname = "用户" + suffix;
             }
-            Map<String, Object> userResult = createUserForAdmin(phone, nickname, avatar, List.of("promoter", "collector"));
+            Map<String, Object> userResult = createUserForAdmin(phone, nickname, avatar, List.of("promoter", "collector"), "123456");
             userId = (Long) userResult.get("userId");
             isNewUser = true;
         } else {
@@ -2402,6 +2529,47 @@ public class UserAdminPersistenceService {
         return value == null ? 0 : value;
     }
 
+    private String buildArtistAvatarExpr(String userTable, String userIdColumn) {
+        String artistTable = artistTable();
+        if (artistTable == null || schemaInspector.getColumns(artistTable).isEmpty()) {
+            return "NULL";
+        }
+
+        String artistAvatarColumn = null;
+        for (String candidate : List.of("avatar_url", "avatar", "user_avatar")) {
+            if (schemaInspector.hasColumn(artistTable, candidate)) {
+                artistAvatarColumn = candidate;
+                break;
+            }
+        }
+        if (artistAvatarColumn == null) {
+            return "NULL";
+        }
+
+        List<String> conditions = new ArrayList<>();
+        if (schemaInspector.hasColumn(artistTable, "user_id")) {
+            conditions.add("a.user_id = " + userTable + "." + userIdColumn);
+        }
+        if (schemaInspector.hasColumn(artistTable, "user_uid")) {
+            for (String candidate : List.of("uid", "user_uid", "user_no")) {
+                if (schemaInspector.hasColumn(userTable, candidate)) {
+                    conditions.add("a.user_uid = " + userTable + "." + candidate);
+                    break;
+                }
+            }
+        }
+        if (conditions.isEmpty()) {
+            return "NULL";
+        }
+
+        String artistIdOrder = schemaInspector.hasColumn(artistTable, "id") ? " ORDER BY a.id DESC" : "";
+        return "(SELECT a." + artistAvatarColumn + " FROM " + artistTable + " a WHERE ("
+            + String.join(" OR ", conditions)
+            + ") AND a." + artistAvatarColumn + " IS NOT NULL AND a." + artistAvatarColumn + " <> ''"
+            + artistIdOrder
+            + " LIMIT 1)";
+    }
+
     private Map<String, Object> mapUserRow(Map<String, Object> row) {
         List<String> identities = normalizeIdentities(row.get("identities_value"));
         Map<String, Object> item = new LinkedHashMap<>();
@@ -2410,6 +2578,8 @@ public class UserAdminPersistenceService {
         item.put("nickname", row.get("nickname"));
         // 支持 avatar 或 avatar_url 列名
         item.put("avatar", row.get("avatar") != null ? row.get("avatar") : row.get("avatar_url"));
+        item.put("artistAvatar", row.get("artist_avatar"));
+        item.put("userAvatar", item.get("avatar"));
         // 支持 phone 或 mobile 列名
         item.put("phone", row.get("phone") != null ? row.get("phone") : row.get("mobile"));
         item.put("email", null);
@@ -2594,6 +2764,9 @@ public class UserAdminPersistenceService {
 
             Long linkedUserId = findArtistUserIdForArtworkAuthor(authorId, authorUid, authorName);
             if (linkedUserId == null) {
+                if ((authorId != null && userExists(authorId)) || (authorUid != null && !authorUid.isBlank())) {
+                    continue;
+                }
                 linkedUserId = insertSyncedArtist(authorId, authorUid, authorName, Objects.toString(row.get("author_avatar"), ""), Objects.toString(row.get("author_bio"), ""));
             }
             if (linkedUserId != null && userExists(linkedUserId)) {
@@ -2605,17 +2778,21 @@ public class UserAdminPersistenceService {
 
     private Long findArtistUserIdForArtworkAuthor(Long authorId, String authorUid, String authorName) {
         String artistTable = artistTable();
+        String userTable = userTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        String userUidColumn = userUidColumn(userTable);
+        String statusColumn = artistStatusColumn(artistTable);
         List<String> conditions = new ArrayList<>();
         List<Object> args = new ArrayList<>();
         if (authorId != null && schemaInspector.hasColumn(artistTable, "user_id")) {
-            conditions.add("user_id = ?");
+            conditions.add("a.user_id = ?");
             args.add(authorId);
         }
         if (authorUid != null && !authorUid.isBlank() && schemaInspector.hasColumn(artistTable, "user_uid")) {
-            conditions.add("user_uid = ?");
+            conditions.add("a.user_uid = ?");
             args.add(authorUid);
         }
-        String nameExpr = artistNameExpression(artistTable).replace("a.", "");
+        String nameExpr = artistNameExpression(artistTable);
         if (!"NULL".equals(nameExpr)) {
             conditions.add("BINARY " + nameExpr + " = BINARY ?");
             args.add(authorName);
@@ -2623,8 +2800,15 @@ public class UserAdminPersistenceService {
         if (conditions.isEmpty()) {
             return null;
         }
+        String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") && userUidColumn != null
+            ? "((a.user_uid IS NOT NULL AND a.user_uid = u." + userUidColumn + ") OR (a.user_uid IS NULL AND a.user_id = u." + userIdColumn + "))"
+            : "a.user_id = u." + userIdColumn;
         List<Long> ids = jdbcTemplate.queryForList(
-            "SELECT user_id FROM " + artistTable + " WHERE " + String.join(" OR ", conditions) + " ORDER BY id DESC LIMIT 1",
+            "SELECT u." + userIdColumn + " FROM " + artistTable + " a "
+                + "INNER JOIN " + userTable + " u ON " + userJoinCondition
+                + " WHERE (" + String.join(" OR ", conditions) + ")"
+                + " AND a." + statusColumn + " <> 3"
+                + " ORDER BY a.id DESC LIMIT 1",
             Long.class,
             args.toArray()
         );
@@ -2639,7 +2823,7 @@ public class UserAdminPersistenceService {
         String finalAvatar = (avatar == null || avatar.isEmpty()) ? DEFAULT_AVATAR_URL : avatar;
         Long userId = authorId;
         if (userId == null || !userExists(userId)) {
-            Map<String, Object> userResult = createUserForAdmin("", authorName, avatar, List.of("artist", "collector"));
+            Map<String, Object> userResult = createUserForAdmin("", authorName, avatar, List.of("artist", "collector"), "123456");
             userId = (Long) userResult.get("userId");
             authorUid = getUserUidById(userId);
         }
@@ -2749,33 +2933,32 @@ public class UserAdminPersistenceService {
      * 创建用户（管理员后台）
      * @return 包含 userId (数字ID) 和 userUid (19位UID) 的 Map
      */
-    private Map<String, Object> createUserForAdmin(String phone, String nickname, String avatar, List<String> identities) {
+    private Map<String, Object> createUserForAdmin(String phone, String nickname, String avatar, List<String> identities, String rawPassword) {
         String userTable = userTable();
         LocalDateTime now = LocalDateTime.now();
         Long userId;
-        String userUid = generateUserUid(); // 所有表都生成标准的19位UID
+        String userUid;
+        String passwordHash = rawPassword == null || rawPassword.isBlank() ? null : hashUserPassword(rawPassword);
         
         // nickname 截断处理，防止超过数据库字段长度限制
         String finalNickname = nickname.length() > 50 ? nickname.substring(0, 50) : nickname;
         
         // 空头像时使用默认头像
-        String finalAvatar = avatar.isEmpty() ? DEFAULT_AVATAR_URL : avatar;
+        String finalAvatar = avatar == null || avatar.isBlank() ? DEFAULT_AVATAR_URL : avatar;
 
         if ("users".equals(userTable)) {
             // users 表：使用 uid 列存储标准19位UID
             String avatarColumn = avatarColumn(userTable);
-            jdbcTemplate.update("""
-                INSERT INTO users (nickname, phone, %s, identities, status, uid, register_time, create_time, update_time)
-                VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
-                """.formatted(avatarColumn),
-                finalNickname,
-                phone,
-                finalAvatar,
-                String.join(",", identities),
-                userUid,
-                now,
-                now,
-                now
+            List<String> columns = new ArrayList<>(List.of("nickname", "phone", avatarColumn, "identities", "status", "register_time", "create_time", "update_time"));
+            List<Object> values = new ArrayList<>(List.of(finalNickname, phone, finalAvatar, String.join(",", identities), 1, now, now, now));
+            if (schemaInspector.hasColumn("users", "password")) {
+                columns.add(3, "password");
+                values.add(3, passwordHash);
+            }
+            String placeholders = columns.stream().map(col -> "?").collect(Collectors.joining(", "));
+            jdbcTemplate.update(
+                "INSERT INTO users (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")",
+                values.toArray()
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else if ("user_account".equals(userTable)) {
@@ -2790,12 +2973,11 @@ public class UserAdminPersistenceService {
             addInsertValue(columns, values, userTable, "nickname", safeNickname);
             addInsertValue(columns, values, userTable, "phone", phone);
             addInsertValue(columns, values, userTable, avatarColumn, finalAvatar);
+            addInsertValue(columns, values, userTable, "password", passwordHash);
             addInsertValue(columns, values, userTable, "identities", String.join(",", identities));
             addInsertValue(columns, values, userTable, "identity", primaryIdentity(identities));
             addInsertValue(columns, values, userTable, "identity_json", toIdentityJson(identities));
             addInsertValue(columns, values, userTable, "status", 1);
-            addInsertValue(columns, values, userTable, "uid", userUid);
-            addInsertValue(columns, values, userTable, "user_uid", userUid);
             addInsertValue(columns, values, userTable, "register_time", now);
             addInsertValue(columns, values, userTable, "create_time", now);
             addInsertValue(columns, values, userTable, "created_at", now);
@@ -2806,7 +2988,10 @@ public class UserAdminPersistenceService {
                 "INSERT INTO " + userTable + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")",
                 values.toArray()
             );
-            userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            userId = findUserIdByOpenid(userTable, tempOpenid);
+            if (userId == null) {
+                userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            }
         } else {
             // sys_user 表：nickname 限制64字符
             String safeNickname64 = nickname.length() > 64 ? nickname.substring(0, 64) : nickname;
@@ -2824,6 +3009,8 @@ public class UserAdminPersistenceService {
             );
             userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         }
+        userUid = generateUserUid(userId);
+        updateUserUid(userTable, userId, userUid);
         
         // 返回结果
         Map<String, Object> result = new LinkedHashMap<>();
@@ -2868,7 +3055,36 @@ public class UserAdminPersistenceService {
      * @return 包含 userId (数字ID) 和 userUid (19位UID) 的 Map
      */
     public Map<String, Object> createUser(String phone, String nickname, List<String> identities) {
-        return createUserForAdmin(phone, nickname, "", identities);
+        return createUserForAdmin(phone, nickname, "", identities, "123456");
+    }
+
+    private String resolveDefaultLoginPassword(String idCard) {
+        if (idCard == null) {
+            return "123456";
+        }
+        String normalized = idCard.trim();
+        if (normalized.length() >= 6) {
+            return normalized.substring(normalized.length() - 6);
+        }
+        return "123456";
+    }
+
+    private String hashUserPassword(String password) {
+        return sha256("shiyiju:user:password:" + password);
+    }
+
+    private String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("密码哈希失败", e);
+        }
     }
 
     private Map<String, Object> findUserRow(Long userId) {
@@ -3124,9 +3340,9 @@ public class UserAdminPersistenceService {
 
     /**
      * 生成19位用户UID
-     * 格式: USR + YYYYMMDD + 4位序列号 + 4位随机码
+     * 格式: USR + YYYYMMDD + 4位序列号 + 4位用户ID
      */
-    private String generateUserUid() {
+    private String generateUserUid(Long userId) {
         String userTable = userTable();
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         
@@ -3143,8 +3359,46 @@ public class UserAdminPersistenceService {
             "USR" + date + "%"
         );
         String seq = String.format("%04d", (maxSeq != null ? maxSeq + 1 : 1));
-        String random = UUID.randomUUID().toString().replace("-", "").substring(0, 4).toUpperCase();
-        return "USR" + date + seq + random;
+        return "USR" + date + seq + userIdSuffix(userId);
+    }
+
+    private String userIdSuffix(Long userId) {
+        if (userId == null || userId < 0) {
+            return "0000";
+        }
+        return String.format("%04d", userId % 10000);
+    }
+
+    private Long findUserIdByOpenid(String userTable, String openid) {
+        if (openid == null || openid.isBlank() || !schemaInspector.hasColumn(userTable, "openid")) {
+            return null;
+        }
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT " + userIdColumn + " FROM " + userTable + " WHERE openid = ? ORDER BY " + userIdColumn + " DESC LIMIT 1",
+                Long.class,
+                openid
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private void updateUserUid(String userTable, Long userId, String userUid) {
+        if (userId == null || userUid == null || userUid.isBlank()) {
+            return;
+        }
+        String uidCol = schemaInspector.firstExistingColumn(userTable, "uid", "user_uid", "user_no");
+        if (uidCol == null || !schemaInspector.hasColumn(userTable, uidCol)) {
+            return;
+        }
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        jdbcTemplate.update(
+            "UPDATE " + userTable + " SET " + uidCol + " = ? WHERE " + userIdColumn + " = ?",
+            userUid,
+            userId
+        );
     }
 
     /**
@@ -3520,7 +3774,7 @@ public class UserAdminPersistenceService {
             return 0;
         }
         double raw = value instanceof Number number ? number.doubleValue() : Double.parseDouble(Objects.toString(value, "0"));
-        return raw / 100.0;
+        return raw;
     }
 
     /**
@@ -3760,17 +4014,14 @@ public class UserAdminPersistenceService {
             item.put("title", row.get("title"));
             item.put("cover", row.get("cover"));
             item.put("coverImage", row.get("cover"));
-            // price 存储的是分（整数）
-            long priceInFen = row.get("price") != null ? ((Number) row.get("price")).longValue() : 0L;
-            long originalPriceInFen = row.get("original_price") != null ? ((Number) row.get("original_price")).longValue() : 0L;
-            // 计算实时价格：basePrice * (1 + priceRise)，结果仍然是分
-            long basePriceFen = originalPriceInFen > 0 ? originalPriceInFen : priceInFen;
+            BigDecimal priceYuan = toBigDecimal(row.get("price"));
+            BigDecimal originalPriceYuan = toBigDecimal(row.get("original_price"));
+            BigDecimal basePriceYuan = originalPriceYuan.compareTo(BigDecimal.ZERO) > 0 ? originalPriceYuan : priceYuan;
             double priceRise = row.get("price_rise") != null ? ((Number) row.get("price_rise")).doubleValue() : 0.0;
-            long currentPriceFen = Math.round(basePriceFen * (1 + priceRise));
-            // 返回实时价格（元，用于显示）和实时价格原始值（分，保持一致性）
-            item.put("price", currentPriceFen / 100.0);  // 转换为元（带小数）
-            item.put("currentPrice", currentPriceFen);  // 分（整数）
-            item.put("originalPrice", originalPriceInFen > 0 ? originalPriceInFen / 100.0 : null);  // 转换为元
+            BigDecimal currentPriceYuan = basePriceYuan.multiply(BigDecimal.valueOf(1 + priceRise));
+            item.put("price", currentPriceYuan.doubleValue());
+            item.put("currentPrice", currentPriceYuan.doubleValue());
+            item.put("originalPrice", originalPriceYuan.compareTo(BigDecimal.ZERO) > 0 ? originalPriceYuan.doubleValue() : null);
             item.put("priceRise", priceRise);
             item.put("authorName", row.get("author_name"));
             item.put("categoryId", row.get("category_id"));
@@ -3960,6 +4211,23 @@ public class UserAdminPersistenceService {
         }).toList();
 
         return Map.of("list", list, "total", total);
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue());
+        }
+        try {
+            return new BigDecimal(value.toString());
+        } catch (NumberFormatException ex) {
+            return BigDecimal.ZERO;
+        }
     }
 
     private String firstNonBlankColumnExpr(String tableName, String... candidates) {

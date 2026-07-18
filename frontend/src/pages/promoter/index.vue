@@ -225,7 +225,8 @@ export default {
         const res = await getEarningsTrend(this.selectedPeriod)
         if (res && res.length > 0) {
           this.trendData = res
-          this.maxTrendValue = Math.max(...res.map(item => item.amount))
+          this.trendData = res.map(item => ({ ...item, amount: Number(item.amount ?? item.value ?? 0) }))
+          this.maxTrendValue = Math.max(...this.trendData.map(item => item.amount), 1)
         }
       } catch (e) {
         console.error('加载收益趋势失败', e)

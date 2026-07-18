@@ -18,8 +18,10 @@ import com.shiyiju.product.mapper.BannerMapper;
 import com.shiyiju.product.mapper.CategoryMapper;
 import com.shiyiju.common.vo.ArtistInfoVO;
 import com.shiyiju.common.vo.ArtworkVO;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -45,6 +48,18 @@ public class ProductService {
     private final PriceGrowthService priceGrowthService;
     private final RestTemplate restTemplate;
     private final JdbcTemplate jdbcTemplate;
+
+    @Value("${shiyiju.services.user-url:http://localhost:8081}")
+    private String userServiceBaseUrl;
+
+    @PostConstruct
+    public void initArtworkColumns() {
+        try {
+            ensureArtworkPriceGrowthColumns();
+        } catch (Exception e) {
+            log.warn("初始化作品扩展字段失败，后续写入时将重试", e);
+        }
+    }
 
     /** 获取艺术门类列表（按权重降序，权重大的在前） */
     public List<Category> getCategoryList() {
@@ -132,14 +147,14 @@ public class ProductService {
         vo.setSize(artwork.getSize());
         vo.setYear(artwork.getYear());
         vo.setDescription(artwork.getDescription());
-        // 优先使用 cover 字段，备选 coverImage
-        String coverUrl = artwork.getCover() != null ? artwork.getCover() : artwork.getCoverImage();
+        String coverUrl = firstNonBlank(artwork.getCover(), artwork.getCoverImage());
         vo.setCoverImage(coverUrl);
         if (artwork.getImages() != null) {
             vo.setImages(Arrays.asList(artwork.getImages().split(",")));
         }
         vo.setPrice(artwork.getPrice());
         vo.setOriginalPrice(artwork.getOriginalPrice());
+        applyFreight(vo, artwork);
         vo.setCurrentPrice(BigDecimal.valueOf(priceGrowthService.calculateCurrentPrice(artwork)));
         vo.setStock(artwork.getStock());
         vo.setStatus(artwork.getStatus());
@@ -194,10 +209,10 @@ public class ProductService {
                     .or().like(Artwork::getDescription, query.getKeyword()));
         }
         if (query.getMinPrice() != null) {
-            wrapper.ge(Artwork::getPrice, query.getMinPrice() * 100L);
+            wrapper.ge(Artwork::getPrice, BigDecimal.valueOf(query.getMinPrice()));
         }
         if (query.getMaxPrice() != null) {
-            wrapper.le(Artwork::getPrice, query.getMaxPrice() * 100L);
+            wrapper.le(Artwork::getPrice, BigDecimal.valueOf(query.getMaxPrice()));
         }
         if (query.getYearFrom() != null) {
             wrapper.ge(Artwork::getYear, query.getYearFrom());
@@ -304,18 +319,22 @@ public class ProductService {
     /** 获取首页Banner */
     public List<Banner> getBanners() {
         try {
+            List<Banner> banners = getBannersFallback();
+            if (!banners.isEmpty()) {
+                return banners;
+            }
+
             LambdaQueryWrapper<Banner> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(Banner::getStatus, 1);
-            // 处理时间条件：(start_time IS NULL OR start_time <= now) AND (end_time IS NULL OR end_time >= now)
             LocalDateTime now = LocalDateTime.now();
             wrapper.and(w -> w
-                .and(n -> n.isNull(Banner::getStartTime).or().le(Banner::getStartTime, now))
-                .and(n -> n.isNull(Banner::getEndTime).or().ge(Banner::getEndTime, now))
+                    .and(n -> n.isNull(Banner::getStartTime).or().le(Banner::getStartTime, now))
+                    .and(n -> n.isNull(Banner::getEndTime).or().ge(Banner::getEndTime, now))
             );
             wrapper.orderByAsc(Banner::getSort);
             return bannerMapper.selectList(wrapper);
-        } catch (BadSqlGrammarException e) {
-            log.warn("Banner 查询命中旧库结构，降级到兼容查询: {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Banner 查询降级到兼容查询: {}", e.getMessage());
             return getBannersFallback();
         }
     }
@@ -358,11 +377,11 @@ public class ProductService {
         }
         if (query.getMinPrice() != null && columnExists("artwork", "price")) {
             where.append(" AND price >= ?");
-            whereArgs.add(query.getMinPrice() * 100L);
+            whereArgs.add(BigDecimal.valueOf(query.getMinPrice()));
         }
         if (query.getMaxPrice() != null && columnExists("artwork", "price")) {
             where.append(" AND price <= ?");
-            whereArgs.add(query.getMaxPrice() * 100L);
+            whereArgs.add(BigDecimal.valueOf(query.getMaxPrice()));
         }
         if (query.getYearFrom() != null && columnExists("artwork", "year")) {
             where.append(" AND year >= ?");
@@ -420,6 +439,7 @@ public class ProductService {
                        %s AS cover_image,
                        price,
                        %s AS original_price,
+                       freight,
                        %s AS stock,
                        status,
                        %s AS weight,
@@ -467,9 +487,9 @@ public class ProductService {
             artwork.setYear(getIntOrNull(rs, "year"));
             artwork.setDescription(rs.getString("description"));
             artwork.setCoverImage(rs.getString("cover_image"));
-            artwork.setPrice(BigDecimal.valueOf(getLongOrDefault(rs, "price", 0L)));
-            Long origPriceVal = getLongOrNull(rs, "original_price");
-            artwork.setOriginalPrice(origPriceVal != null ? BigDecimal.valueOf(origPriceVal) : null);
+            artwork.setPrice(getBigDecimalOrDefault(rs, "price", BigDecimal.ZERO));
+            artwork.setOriginalPrice(getBigDecimalOrNull(rs, "original_price"));
+            artwork.setFreight(getBigDecimalOrDefault(rs, "freight", BigDecimal.ZERO));
             artwork.setStock(getIntOrNull(rs, "stock"));
             artwork.setStatus(getIntOrDefault(rs, "status", 1));
             artwork.setWeight(getIntOrDefault(rs, "weight", 0));
@@ -514,14 +534,16 @@ public class ProductService {
         String typeColumn = columnExists("banner", "link_type") ? "link_type"
                 : (columnExists("banner", "type") ? "type" : "NULL");
         String valueColumn = columnExists("banner", "link_value") ? "link_value"
-                : (columnExists("banner", "target") ? "target" : "NULL");
-        String sortColumn = columnExists("banner", "sort") ? "sort"
-                : (columnExists("banner", "sort_no") ? "sort_no" : "0");
+                : (columnExists("banner", "link_url") ? "link_url"
+                : (columnExists("banner", "target") ? "target" : "NULL"));
+        String sortColumn = columnExists("banner", "sort_no") ? "sort_no"
+                : (columnExists("banner", "sort_order") ? "sort_order"
+                : (columnExists("banner", "sort") ? "sort" : "0"));
         String statusCondition = columnExists("banner", "status")
-                ? " AND (status = 1 OR status = 'ENABLED')"
+                ? " AND (status = 1 OR status = '1' OR status = 'ENABLED')"
                 : "";
         String startCondition = columnExists("banner", "start_time")
-                ? " AND (start_time IS NULL OR start_time <= NOW())"
+                ? " AND (start_time IS NULL OR start_time <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR))"
                 : "";
         String endCondition = columnExists("banner", "end_time")
                 ? " AND (end_time IS NULL OR end_time >= NOW())"
@@ -611,6 +633,15 @@ public class ProductService {
         return rs.wasNull() ? null : value;
     }
 
+    private BigDecimal getBigDecimalOrNull(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        return rs.getBigDecimal(column);
+    }
+
+    private BigDecimal getBigDecimalOrDefault(java.sql.ResultSet rs, String column, BigDecimal defaultValue) throws java.sql.SQLException {
+        BigDecimal value = getBigDecimalOrNull(rs, column);
+        return value != null ? value : defaultValue;
+    }
+
     private Long getLongOrDefault(java.sql.ResultSet rs, String column, Long defaultValue) throws java.sql.SQLException {
         Long value = getLongOrNull(rs, column);
         return value != null ? value : defaultValue;
@@ -629,6 +660,7 @@ public class ProductService {
     /** 创建作品 */
     @Transactional
     public Long createArtwork(ArtworkUpdateDTO dto) {
+        ensureArtworkPriceGrowthColumns();
         // 处理艺术家：如果有作者名称但没有作者ID，自动查找或创建
         Long authorId = dto.getAuthorId();
         String authorName = dto.getAuthorName();
@@ -663,10 +695,14 @@ public class ProductService {
         artwork.setAuthorName(authorName);
         artwork.setContentFingerprint(contentFingerprint);
         artwork.setCategoryId(dto.getCategoryId());
-        artwork.setCoverImage(dto.getCover() != null ? dto.getCover() : "https://picsum.photos/400/400");
+        String coverUrl = firstNonBlank(dto.getCover(), "https://picsum.photos/400/400");
+        artwork.setCover(coverUrl);
+        artwork.setCoverImage(coverUrl);
         artwork.setImages(dto.getImages());
-        artwork.setPrice(dto.getPrice() != null ? dto.getPrice() : BigDecimal.ZERO);
-        artwork.setOriginalPrice(dto.getOriginalPrice() != null ? dto.getOriginalPrice() : null);
+        BigDecimal artworkPrice = normalizeIncomingArtworkPrice(dto.getPrice());
+        artwork.setPrice(artworkPrice);
+        artwork.setOriginalPrice(dto.getOriginalPrice() != null ? normalizeIncomingArtworkPrice(dto.getOriginalPrice()) : artworkPrice);
+        artwork.setFreight(normalizeOptionalAmount(dto.getFreight()));
         artwork.setStock(dto.getStock() != null ? dto.getStock() : 1);
         artwork.setDescription(dto.getDescription());
         artwork.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
@@ -691,6 +727,7 @@ public class ProductService {
         if (artwork.getId() != null) {
             artwork.setArtworkId(artwork.getId());
             artworkMapper.updateById(artwork);
+            persistArtworkPriceGrowthFlags(artwork.getId(), dto);
         }
         return artwork.getId();
     }
@@ -747,9 +784,23 @@ public class ProductService {
         return "qt"; // 其他
     }
 
+    /**
+     * 作品服务统一按“元”入库。
+     *
+     * 不能再按金额大小猜测“分/元”：合法高价作品（如 1000000 元）也可能
+     * 刚好能被 100 整除，自动 /100 会把真实发布价误存成 10000 元。
+     */
+    private BigDecimal normalizeIncomingArtworkPrice(BigDecimal price) {
+        if (price == null) {
+            return BigDecimal.ZERO;
+        }
+        return price.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
     /** 更新作品 */
     @Transactional
     public void updateArtwork(ArtworkUpdateDTO dto) {
+        ensureArtworkPriceGrowthColumns();
         // 调试日志
         System.out.println("【DEBUG】updateArtwork 开始执行: id=" + dto.getId() 
             + ", price=" + dto.getPrice() 
@@ -792,13 +843,19 @@ public class ProductService {
             artwork.setAuthorId(dto.getAuthorId());
         }
         if (dto.getCategoryId() != null) artwork.setCategoryId(dto.getCategoryId());
-        if (dto.getCover() != null) artwork.setCoverImage(dto.getCover());
+        if (dto.getCover() != null) {
+            artwork.setCover(dto.getCover());
+            artwork.setCoverImage(dto.getCover());
+        }
         if (dto.getImages() != null) artwork.setImages(dto.getImages());
         if (dto.getPrice() != null) {
-            artwork.setPrice(dto.getPrice());
+            artwork.setPrice(normalizeIncomingArtworkPrice(dto.getPrice()));
         }
         if (dto.getOriginalPrice() != null) {
-            artwork.setOriginalPrice(dto.getOriginalPrice());
+            artwork.setOriginalPrice(normalizeIncomingArtworkPrice(dto.getOriginalPrice()));
+        }
+        if (dto.getFreight() != null) {
+            artwork.setFreight(normalizeOptionalAmount(dto.getFreight()));
         }
         if (dto.getStock() != null) artwork.setStock(dto.getStock());
         if (dto.getDescription() != null) artwork.setDescription(dto.getDescription());
@@ -821,6 +878,7 @@ public class ProductService {
             + ", artwork.originalPrice=" + artwork.getOriginalPrice());
         
         artworkMapper.updateById(artwork);
+        persistArtworkPriceGrowthFlags(artwork.getId(), dto);
     }
 
     /** 批量更新作品状态 */
@@ -916,8 +974,7 @@ public class ProductService {
         vo.setYear(artwork.getYear());
         vo.setEdition(artwork.getEdition());
         vo.setDescription(artwork.getDescription());
-        // 优先使用 cover 字段，备选 coverImage
-        String coverUrl = artwork.getCover() != null ? artwork.getCover() : artwork.getCoverImage();
+        String coverUrl = firstNonBlank(artwork.getCover(), artwork.getCoverImage());
         vo.setCoverImage(coverUrl);
         if (artwork.getImages() != null) {
             vo.setImages(Arrays.asList(artwork.getImages().split(",")));
@@ -925,6 +982,7 @@ public class ProductService {
         vo.setSource(artwork.getSource());
         vo.setPrice(artwork.getPrice());
         vo.setOriginalPrice(artwork.getOriginalPrice());
+        applyFreight(vo, artwork);
         // 实时计算当前价格（包含最新浏览量、收藏量等因素）
         Long currentPrice = priceGrowthService.calculateCurrentPrice(artwork);
         vo.setCurrentPrice(currentPrice != null ? BigDecimal.valueOf(currentPrice) : null);
@@ -1070,6 +1128,7 @@ public class ProductService {
         vo.setStatus(artwork.getStatus());
 
         // 单个作品价格增长配置
+        vo.setPlatformPriceGrowthEnabled(artwork.getPlatformPriceGrowthEnabled());
         vo.setCustomPriceGrowthEnabled(artwork.getCustomPriceGrowthEnabled());
         vo.setCustomBaseDailyRate(artwork.getCustomBaseDailyRate());
         vo.setCustomMatureDailyRate(artwork.getCustomMatureDailyRate());
@@ -1137,6 +1196,7 @@ public class ProductService {
         });
         vo.setPriceRise(priceGrowthService.calculatePriceRise(artwork));
         vo.setCurrentPrice(BigDecimal.valueOf(priceGrowthService.calculateCurrentPrice(artwork)));
+        applyFreight(vo, artwork);
         vo.setIsNew(artwork.getCreateTime() != null
                 && artwork.getCreateTime().isAfter(LocalDateTime.now().minusDays(30)));
         vo.setIsHot((artwork.getSaleCount() != null && artwork.getSaleCount() > 0)
@@ -1167,6 +1227,7 @@ public class ProductService {
         vo.setDistributionEarnings(artwork.getDistributionEarnings());
         vo.setDistributionUsers(artwork.getDistributionUsers());
         vo.setResaleListing(findActiveResaleListing(artwork.getId()));
+        vo.setPlatformPriceGrowthEnabled(artwork.getPlatformPriceGrowthEnabled());
         vo.setCustomPriceGrowthEnabled(artwork.getCustomPriceGrowthEnabled());
         vo.setCustomBaseDailyRate(artwork.getCustomBaseDailyRate());
         vo.setCustomMatureDailyRate(artwork.getCustomMatureDailyRate());
@@ -1207,7 +1268,7 @@ public class ProductService {
         }
         try {
             // 调用 user 服务的艺术家查询接口
-            String url = "http://localhost:8081/artist/by-name?name=" + java.net.URLEncoder.encode(artistName.trim(), "UTF-8");
+            String url = userServiceBaseUrl() + "/artist/by-name?name=" + java.net.URLEncoder.encode(artistName.trim(), "UTF-8");
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             if (isSuccessResponse(response)) {
                 return (Map<String, Object>) response.get("data");
@@ -1349,6 +1410,8 @@ public class ProductService {
     }
 
     private void ensureArtworkPriceGrowthColumns() {
+        addColumnIfMissing("artwork", "platform_price_growth_enabled", "TINYINT(1) DEFAULT 1 COMMENT '是否启用平台涨价策略'");
+        addColumnIfMissing("artwork", "freight", "DECIMAL(10,2) DEFAULT 0 COMMENT '运费（元）'");
         addColumnIfMissing("artwork", "custom_price_growth_enabled", "TINYINT(1) DEFAULT 0 COMMENT '是否启用单作品自定义涨价配置'");
         addColumnIfMissing("artwork", "custom_base_daily_rate", "DECIMAL(10,6) DEFAULT NULL COMMENT '自定义基础日增长率'");
         addColumnIfMissing("artwork", "custom_mature_daily_rate", "DECIMAL(10,6) DEFAULT NULL COMMENT '自定义成熟期日增长率'");
@@ -1356,6 +1419,19 @@ public class ProductService {
         addColumnIfMissing("artwork", "custom_view_rate", "DECIMAL(10,4) DEFAULT NULL COMMENT '自定义浏览量加成系数'");
         addColumnIfMissing("artwork", "custom_favorite_rate", "DECIMAL(10,4) DEFAULT NULL COMMENT '自定义收藏量加成系数'");
         addColumnIfMissing("artwork", "custom_max_growth_multiple", "DECIMAL(10,2) DEFAULT NULL COMMENT '自定义最大涨幅倍数'");
+    }
+
+    private BigDecimal normalizeOptionalAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO;
+        }
+        return amount.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void applyFreight(ArtworkVO vo, Artwork artwork) {
+        BigDecimal freight = artwork.getFreight() != null ? artwork.getFreight() : BigDecimal.ZERO;
+        vo.setFreight(freight);
+        vo.setPostageFee(freight);
     }
 
     private void addColumnIfMissing(String tableName, String columnName, String definition) {
@@ -1371,7 +1447,8 @@ public class ProductService {
         }
         try {
             Map<String, Object> row = jdbcTemplate.queryForMap("""
-                    SELECT custom_price_growth_enabled,
+                    SELECT platform_price_growth_enabled,
+                           custom_price_growth_enabled,
                            custom_base_daily_rate,
                            custom_mature_daily_rate,
                            custom_mature_days,
@@ -1381,6 +1458,7 @@ public class ProductService {
                     FROM artwork
                     WHERE id = ?
                     """, artwork.getId());
+            artwork.setPlatformPriceGrowthEnabled(toInt(row.get("platform_price_growth_enabled"), 1) == 1);
             artwork.setCustomPriceGrowthEnabled(toInt(row.get("custom_price_growth_enabled"), 0) == 1);
             artwork.setCustomBaseDailyRate(toBigDecimal(row.get("custom_base_daily_rate")));
             artwork.setCustomMatureDailyRate(toBigDecimal(row.get("custom_mature_daily_rate")));
@@ -1392,6 +1470,25 @@ public class ProductService {
         } catch (Exception e) {
             log.warn("加载作品价格增长配置失败: artworkId={}, error={}", artwork.getId(), e.getMessage());
         }
+    }
+
+    private void persistArtworkPriceGrowthFlags(Long artworkId, ArtworkUpdateDTO dto) {
+        if (artworkId == null || dto == null) {
+            return;
+        }
+        List<String> assignments = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        if (dto.getPlatformPriceGrowthEnabled() != null) {
+            assignments.add("platform_price_growth_enabled = ?");
+            args.add(Boolean.TRUE.equals(dto.getPlatformPriceGrowthEnabled()) ? 1 : 0);
+        }
+        if (assignments.isEmpty()) {
+            return;
+        }
+        assignments.add("update_time = ?");
+        args.add(LocalDateTime.now());
+        args.add(artworkId);
+        jdbcTemplate.update("UPDATE artwork SET " + String.join(", ", assignments) + " WHERE id = ?", args.toArray());
     }
 
     private BigDecimal toBigDecimal(Object value) {
@@ -1427,7 +1524,7 @@ public class ProductService {
         }
         try {
             // 调用 user 服务的艺术家详情接口
-            String url = "http://localhost:8081/user/artist/info/" + authorId;
+            String url = userServiceBaseUrl() + "/user/artist/info/" + authorId;
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             if (isSuccessResponse(response)) {
                 Map<String, Object> data = (Map<String, Object>) response.get("data");
@@ -1510,7 +1607,7 @@ public class ProductService {
         }
         try {
             // 调用 user 服务的 API，使用 UriComponentsBuilder 正确编码参数
-            String baseUrl = "http://localhost:8081/user/artist/find-or-create";
+            String baseUrl = userServiceBaseUrl() + "/user/artist/find-or-create";
             URI uri = UriComponentsBuilder.fromUriString(baseUrl)
                     .queryParam("name", artistName.trim())
                     .build()
@@ -1529,5 +1626,22 @@ public class ProductService {
             log.error("调用艺术家查找/创建接口失败: {}", e.getMessage());
         }
         return null;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String userServiceBaseUrl() {
+        if (userServiceBaseUrl == null || userServiceBaseUrl.trim().isEmpty()) {
+            return "http://localhost:8081";
+        }
+        return userServiceBaseUrl.replaceAll("/+$", "");
     }
 }

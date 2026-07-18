@@ -57,6 +57,11 @@
           <el-menu-item index="/trade/orders">正式订单</el-menu-item>
           <el-menu-item index="/trade/certificates">收藏证书</el-menu-item>
         </el-sub-menu>
+
+        <el-menu-item index="/promotion/withdraw">
+          <el-icon><Money /></el-icon>
+          <template #title>提现管理</template>
+        </el-menu-item>
         
         <el-sub-menu index="/auction">
           <template #title>
@@ -74,7 +79,6 @@
             <span>分销管理</span>
           </template>
           <el-menu-item index="/promotion/commission">经纪人分成记录</el-menu-item>
-          <el-menu-item index="/promotion/withdraw">提现管理</el-menu-item>
         </el-sub-menu>
         
         <el-sub-menu index="/community">
@@ -85,6 +89,15 @@
           <el-menu-item index="/community/post">帖子管理</el-menu-item>
           <el-menu-item index="/community/comment">评论管理</el-menu-item>
           <el-menu-item index="/community/topic">话题管理</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="/content">
+          <template #title>
+            <el-icon><Document /></el-icon>
+            <span>内容管理</span>
+          </template>
+          <el-menu-item index="/content/article">文章发布</el-menu-item>
+          <el-menu-item index="/system/banner">Banner管理</el-menu-item>
         </el-sub-menu>
         
         <el-sub-menu index="/price-control">
@@ -102,7 +115,6 @@
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
           </template>
-          <el-menu-item index="/system/banner">Banner管理</el-menu-item>
           <el-menu-item index="/system/config">参数配置</el-menu-item>
           <el-menu-item index="/system/admin">管理员</el-menu-item>
         </el-sub-menu>
@@ -150,6 +162,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import request from '@/api/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -162,8 +175,13 @@ const adminName = computed(() => {
 
 const activeMenu = computed(() => route.path)
 
-const handleCommand = (command) => {
+const handleCommand = async (command) => {
   if (command === 'logout') {
+    try {
+      await request.post('/logout')
+    } catch (e) {
+      // 即使网络异常也清理本地会话。
+    }
     localStorage.removeItem('admin_token')
     localStorage.removeItem('admin_info')
     router.push('/login')
@@ -203,12 +221,7 @@ const handleMenuSelect = (index) => {
       color: #fff;
       font-size: 18px;
       font-weight: bold;
-      
-      img {
-        width: 32px;
-        height: 32px;
-      }
-      
+
       .el-icon {
         font-size: 24px;
       }
@@ -256,5 +269,10 @@ const handleMenuSelect = (index) => {
       background: #f0f2f5;
     }
   }
+}
+
+.sidebar .logo img {
+  width: 32px;
+  height: 32px;
 }
 </style>

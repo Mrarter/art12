@@ -15,6 +15,8 @@ public class ArtworkUpdateDTO {
     private String images;
     private BigDecimal price;
     private BigDecimal originalPrice;
+    /** 运费（元） */
+    private BigDecimal freight;
     private Integer stock;
     private String description;
     private Integer status;
@@ -33,6 +35,8 @@ public class ArtworkUpdateDTO {
     // 分销相关
     private Boolean distributionEnabled;
     private Integer commissionRate;
+    /** 是否启用平台涨价策略 */
+    private Boolean platformPriceGrowthEnabled;
     // 防重复提交请求ID（客户端生成）
     private String requestId;
     // 内容指纹（服务端计算，用于数据库级幂等）

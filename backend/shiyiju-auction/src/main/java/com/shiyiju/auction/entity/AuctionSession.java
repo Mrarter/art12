@@ -13,6 +13,7 @@ public class AuctionSession implements Serializable {
     private String title;
     private String coverImage;
     private String description;
+    private String rules;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Integer status;

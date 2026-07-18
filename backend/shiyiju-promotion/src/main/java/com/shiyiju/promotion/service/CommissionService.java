@@ -42,7 +42,7 @@ public class CommissionService {
      * 计算并发放佣金（二级分销+团队奖励）
      */
     @Transactional
-    public void calculateAndSettleCommission(Long orderId, String orderNo, BigDecimal orderAmount,
+    public synchronized void calculateAndSettleCommission(Long orderId, String orderNo, BigDecimal orderAmount,
                                               Long buyerId, Long promoterId, Long artworkId) {
         log.info("开始计算佣金 - orderId:{}, amount:{}, buyerId:{}, promoterId:{}",
                 orderId, orderAmount, buyerId, promoterId);
@@ -51,12 +51,19 @@ public class CommissionService {
             return;
         }
 
+        PromoterRecord directPromoter = findActivePromoter(promoterId);
+        if (directPromoter == null || promoterId.equals(buyerId)) {
+            log.warn("忽略无效推广关系 - orderId:{}, buyerId:{}, promoterId:{}",
+                    orderId, buyerId, promoterId);
+            return;
+        }
+
         // 一级佣金：直接推广佣金
         settleCommission(orderId, orderNo, orderAmount, promoterId, buyerId, artworkId, 1,
                 "promoter_reward", DIRECT_COMMISSION_RATE);
 
         // 二级佣金：直接艺荐官的上级团队奖励
-        settleTeamCommission(orderId, orderNo, orderAmount, buyerId, promoterId, artworkId);
+        settleTeamCommission(orderId, orderNo, orderAmount, promoterId, artworkId, directPromoter);
     }
 
     /**
@@ -67,6 +74,20 @@ public class CommissionService {
                                    int level, String commissionType, BigDecimal rate) {
         BigDecimal commissionAmount = orderAmount.multiply(rate).setScale(2, java.math.RoundingMode.DOWN);
         if (commissionAmount.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        Long existing = commissionRecordMapper.selectCount(new LambdaQueryWrapper<CommissionRecord>()
+                .eq(CommissionRecord::getOrderId, orderId)
+                .eq(CommissionRecord::getUserId, userId)
+                .eq(CommissionRecord::getCommissionLevel, level));
+        if (existing != null && existing > 0) {
+            log.info("佣金已结算，跳过重复请求 - orderId:{}, userId:{}, level:{}", orderId, userId, level);
+            return;
+        }
+
+        // 先入账，入账失败时由事务统一回滚，避免出现“记录已结算但钱包未入账”。
+        walletService.income(userId, commissionAmount,
+                "commission", orderId, "order",
+                (level == 1 ? "一级推广佣金" : "二级团队奖励") + " " + orderNo);
 
         // 写入统一佣金记录表
         CommissionRecord record = new CommissionRecord();
@@ -87,34 +108,28 @@ public class CommissionService {
         // 更新艺荐官统计
         updatePromoterStats(userId, orderAmount, 1);
 
-        // 佣金入账到钱包
-        try {
-            walletService.income(userId, commissionAmount,
-                    "commission", orderId, "order",
-                    (level == 1 ? "一级推广佣金" : "二级团队奖励") + " " + orderNo);
-            log.info("佣金结算完成 - userId:{}, type:{}, amount:{}", userId, commissionType, commissionAmount);
-        } catch (Exception e) {
-            log.error("佣金入账失败: userId={}, amount={}", userId, commissionAmount, e);
-        }
+        log.info("佣金结算完成 - userId:{}, type:{}, amount:{}", userId, commissionType, commissionAmount);
     }
 
     /**
      * 二级佣金：团队奖励
      */
     private void settleTeamCommission(Long orderId, String orderNo, BigDecimal orderAmount,
-                                       Long buyerId, Long directPromoterId, Long artworkId) {
-        PromoterRecord directPromoter = promoterRecordMapper.selectOne(
-                new LambdaQueryWrapper<PromoterRecord>()
-                        .eq(PromoterRecord::getUserId, directPromoterId)
-                        .eq(PromoterRecord::getStatus, 1));
-
-        if (directPromoter == null) return;
-
+                                       Long directPromoterId, Long artworkId, PromoterRecord directPromoter) {
         Long upperPromoterId = directPromoter.getParentId();
         if (upperPromoterId == null || upperPromoterId.equals(directPromoterId)) return;
+        if (findActivePromoter(upperPromoterId) == null) return;
 
         settleCommission(orderId, orderNo, orderAmount, upperPromoterId, directPromoterId, artworkId,
                 2, "team_reward", TEAM_COMMISSION_RATE);
+    }
+
+    private PromoterRecord findActivePromoter(Long userId) {
+        if (userId == null) return null;
+        return promoterRecordMapper.selectOne(new LambdaQueryWrapper<PromoterRecord>()
+                .eq(PromoterRecord::getUserId, userId)
+                .eq(PromoterRecord::getStatus, 1)
+                .last("LIMIT 1"));
     }
 
     /**

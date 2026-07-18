@@ -2,9 +2,9 @@
   <view class="mine-page">
     <view class="page-glow"></view>
 
-    <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="topbar" :style="topbarStyle">
       <text class="topbar-title">我的</text>
-      <view class="topbar-actions">
+      <view class="topbar-actions" :style="topbarActionsStyle">
         <view class="round-action" @click="goMessage">
           <image class="action-icon-img" src="/static/icons/bell.svg" mode="aspectFit"></image>
           <view class="action-badge" v-if="totalUnreadCount > 0">{{ totalUnreadCount > 99 ? '99+' : totalUnreadCount }}</view>
@@ -17,7 +17,10 @@
 
     <view class="profile-card" @click="handleProfileClick">
       <view class="profile-main" v-if="isLoggedIn">
-        <image class="avatar" :src="userInfo.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
+        <view class="avatar-wrap">
+          <image class="avatar" :src="userInfo.avatar || '/static/images/avatar.png'" mode="aspectFill"></image>
+          <view class="avatar-gold-v" v-if="isArtist">V</view>
+        </view>
         <view class="profile-info">
           <view class="name-row">
             <text class="nickname">{{ userInfo.nickname || '艺本艺术用户' }}</text>
@@ -28,8 +31,9 @@
               class="identity-tag"
               v-for="item in identityTags"
               :key="item.value"
-              :class="[item.value, { active: activeWorkspace === item.value }]"
-              @click.stop="switchWorkspace(item.value)"
+              :class="[item.value, { active: activeWorkspace === item.value, clickable: isIdentityTagClickable(item) }]"
+              @tap.stop="handleIdentityTagClick(item)"
+              @click.stop="handleIdentityTagClick(item)"
             >{{ item.label }}</text>
           </view>
           <view class="identity-active-hint" v-if="hasCertifiedIdentity">
@@ -37,13 +41,14 @@
           </view>
         </view>
         <view class="profile-actions">
-          <view class="home-link" v-if="hasCertifiedIdentity" @click.stop="goPersonalHome">个人主页</view>
-          <view class="edit-link" @click.stop="goProfile">编辑</view>
+          <view class="home-link" v-if="isArtist" @click.stop="goPersonalHome">个人主页</view>
         </view>
       </view>
 
       <view class="login-main" v-else>
-        <image class="avatar" src="/static/images/avatar.png" mode="aspectFill"></image>
+        <view class="avatar-wrap">
+          <image class="avatar" src="/static/images/avatar.png" mode="aspectFill"></image>
+        </view>
         <view class="profile-info">
           <text class="login-title">登录 / 注册</text>
           <text class="login-desc">登录后查看订单、藏品和身份工作台</text>
@@ -59,10 +64,29 @@
       </view>
     </view>
 
+    <view class="section artist-cert-entry" v-if="showArtistCertificationEntry" @click="goArtistCertification">
+      <view class="artist-cert-copy">
+        <view class="artist-cert-head">
+          <text class="artist-cert-title">{{ artistCertificationCard.title }}</text>
+          <text
+            v-if="artistCertificationCard.badge"
+            class="artist-cert-badge"
+            :class="artistCertificationCard.badgeTone"
+          >{{ artistCertificationCard.badge }}</text>
+        </view>
+        <text class="artist-cert-desc">{{ artistCertificationCard.desc }}</text>
+        <text v-if="artistCertificationCard.tip" class="artist-cert-tip">{{ artistCertificationCard.tip }}</text>
+      </view>
+      <view v-if="artistCertificationCard.cta" class="artist-cert-cta" :class="artistCertificationCard.ctaTone">
+        <text>{{ artistCertificationCard.cta }}</text>
+        <text class="artist-cert-arrow">›</text>
+      </view>
+    </view>
+
     <view class="section" v-if="isLoggedIn">
       <view class="section-head">
         <text class="section-title">我的交易</text>
-        <text class="section-link" @click="goPage('/pages/user/purchased')">全部订单</text>
+        <text class="section-link" @click="goPage('/pages/order/list?type=all')">全部订单</text>
       </view>
       <view class="order-grid">
         <view class="order-item" v-for="item in orderItems" :key="item.type" @click="handleTransactionEntry(item)">
@@ -148,24 +172,6 @@
       </view>
     </view>
 
-    <view class="section service-section">
-      <view class="section-head">
-        <text class="section-title">常用服务</text>
-      </view>
-      <view class="service-list">
-        <view class="service-row" v-for="item in serviceItems" :key="item.label" @click="goPage(item.path, item.tab)">
-          <view class="service-left">
-            <view class="service-icon" :class="item.tone">
-              <image v-if="item.iconPath" class="icon-image" :src="item.iconPath" mode="aspectFit"></image>
-              <text v-else>{{ item.icon }}</text>
-            </view>
-            <text class="service-label">{{ item.label }}</text>
-          </view>
-          <text class="chevron">›</text>
-        </view>
-      </view>
-    </view>
-
     <view class="safe-area-bottom"></view>
     <CustomTabBar :currentIndex="4" />
   </view>
@@ -177,6 +183,8 @@ import { useUserStore } from '@/store/modules/user.js'
 import { getOrderCounts, getOrderList } from '@/api/order.js'
 import { getArtistCertStatus } from '@/api/user.js'
 import { getUnreadCertificateSignNoticeCount } from '@/utils/certificateNotice'
+import { AUCTION_ENABLED, isAuctionPath, showAuctionDisabledToast } from '@/utils/platform.js'
+import { checkTokenValid, saveRedirectUrl } from '@/utils/auth.js'
 
 const COMING_SOON = '/pages/common/coming-soon'
 
@@ -188,6 +196,7 @@ export default {
   data() {
     return {
       statusBarHeight: 20,
+      navRightSafeInset: 0,
       activeWorkspace: 'collector',
       workspaceManuallySelected: false,
       unreadCount: 0,
@@ -221,6 +230,7 @@ export default {
         leads: 0
       },
       artistCertStatus: null,
+      artistCertApprovedDismissed: false,
       orderCounts: {
         pending: 0,
         paid: 0,
@@ -232,6 +242,17 @@ export default {
   },
 
   computed: {
+    topbarStyle() {
+      return {
+        paddingTop: `${this.statusBarHeight}px`
+      }
+    },
+    topbarActionsStyle() {
+      if (!this.navRightSafeInset) return {}
+      return {
+        marginRight: `${this.navRightSafeInset}px`
+      }
+    },
     userStore() {
       return useUserStore()
     },
@@ -239,7 +260,7 @@ export default {
       return this.userStore.userInfo || {}
     },
     isLoggedIn() {
-      return this.userStore.isAuthenticated || this.userStore.isLogin
+      return this.hasAccountLogin()
     },
     identities() {
       const raw = this.userInfo.identities || this.userInfo.identity_json || this.userInfo.identity || this.userStore.identities
@@ -296,6 +317,62 @@ export default {
     totalUnreadCount() {
       return Number(this.certificateUnreadCount || 0)
     },
+    normalizedArtistCertStatus() {
+      const status = this.artistCertStatus?.status
+      if (status === 0 || status === '0' || status === 'pending') return 'pending'
+      if (status === 1 || status === '1' || status === 'approved' || this.artistCertStatus?.isArtist === true || this.isArtist) return 'approved'
+      if (status === 2 || status === '2' || status === 'rejected') return 'rejected'
+      return 'none'
+    },
+    showArtistCertificationEntry() {
+      if (!this.isLoggedIn) return false
+      if (this.normalizedArtistCertStatus !== 'approved') return true
+      return !this.artistCertApprovedDismissed
+    },
+    artistCertificationCard() {
+      if (this.normalizedArtistCertStatus === 'approved') {
+        return {
+          title: '艺术家认证已开通',
+          desc: '已获得认证标识、作品发布权限和艺术家主页展示能力。',
+          tip: '',
+          badge: '已认证',
+          badgeTone: 'approved',
+          cta: '',
+          ctaTone: ''
+        }
+      }
+      if (this.normalizedArtistCertStatus === 'pending') {
+        return {
+          title: '艺术家身份认证中',
+          desc: '认证资料已提交，平台正在审核，通过后将开通艺术家主页与作品发布。',
+          tip: '审核期间可随时查看当前进度。',
+          badge: '审核中',
+          badgeTone: 'pending',
+          cta: '查看进度',
+          ctaTone: 'pending'
+        }
+      }
+      if (this.normalizedArtistCertStatus === 'rejected') {
+        return {
+          title: '艺术家认证未通过',
+          desc: this.artistCertStatus?.rejectReason || '可根据审核意见补充资料后重新提交认证申请。',
+          tip: '认证成功后可以在平台销售作品。',
+          badge: '待重提',
+          badgeTone: 'rejected',
+          cta: '重新认证',
+          ctaTone: 'rejected'
+        }
+      }
+      return {
+        title: '申请艺术家认证',
+        desc: '完成认证后可发布作品、展示个人主页并获得平台认证标识。',
+        tip: '提交前请准备真实身份信息和 20 件代表作品。',
+        badge: '',
+        badgeTone: '',
+        cta: '去认证',
+        ctaTone: 'default'
+      }
+    },
     identityTags() {
       const tags = []
       if (this.isArtist) tags.push({ value: 'artist', label: '认证艺术家' })
@@ -332,9 +409,7 @@ export default {
     },
     assetItems() {
       const items = [
-        { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
-        { label: '购物车', desc: '待收藏作品', icon: '车', iconPath: '/static/art-icons/icon-cart.svg', tone: 'red', path: '/pages/cart/index', tab: true },
-        { label: '我的钱包', desc: `余额 ¥${this.assetStats.wallet}`, icon: '钱', iconPath: '/static/art-icons/icon-budget.svg', tone: 'gold', path: '/pages/user/wallet' },
+        { label: '我的钱包', desc: `余额 ¥${this.assetStats.wallet}`, icon: '钱', iconPath: '/static/art-icons/icon-budget.svg', tone: 'gold', path: '/pages/user-extra/wallet' },
         { label: '优惠券', desc: `${this.assetStats.coupon} 张可用`, icon: '券', iconPath: '/static/art-icons/icon-download.svg', tone: 'purple', path: '/pages/user/coupon' }
       ]
       if (this.isArtistPending) {
@@ -342,24 +417,6 @@ export default {
           label: '认证进度',
           desc: '艺术家资料审核中',
           icon: '审',
-          iconPath: '/static/art-icons/icon-verify.svg',
-          tone: 'purple',
-          path: '/pages/artist/cert'
-        })
-      } else if (this.isArtistRejected) {
-        items.unshift({
-          label: '重新认证',
-          desc: '补充资料后再次提交',
-          icon: '认',
-          iconPath: '/static/art-icons/icon-verify.svg',
-          tone: 'purple',
-          path: '/pages/artist/cert'
-        })
-      } else if (!this.showIdentityWorkspace) {
-        items.unshift({
-          label: '去认证',
-          desc: '认证艺术家身份',
-          icon: '认',
           iconPath: '/static/art-icons/icon-verify.svg',
           tone: 'purple',
           path: '/pages/artist/cert'
@@ -385,6 +442,7 @@ export default {
             { label: '关注', value: this.formatCount(this.userStats.following) }
           ],
           actions: [
+            { label: '转售市场', desc: '二级流通交易', icon: '售', tone: 'orange', path: '/pages/resale/market' },
             { label: '发布转售', desc: '转售已购作品', icon: '发', tone: 'gold', path: '/pages/resale/publish' },
             { label: '我的转售', desc: '管理转售记录', icon: '管', tone: 'green', path: '/pages/resale/my' },
             { label: '收藏证书', desc: '已购作品凭证', icon: '证', iconPath: '/static/art-icons/icon-verify.svg', tone: 'purple', path: this.comingSoon('收藏证书', '收藏证书列表正在整理中，可先从已购作品进入单件作品证书。') }
@@ -459,16 +517,6 @@ export default {
         }
       }
       return configs[this.activeWorkspace] || configs.collector
-    },
-    serviceItems() {
-      return [
-        { label: '收货地址', icon: '址', iconPath: '/static/art-icons/icon-location.svg', tone: 'gold', path: '/pages/user/address' },
-        { label: '消息通知', icon: '息', iconPath: '/static/icons/bell.svg', tone: 'blue', path: '/pages/message/list' },
-        { label: '帮助中心', icon: '帮', iconPath: '/static/art-icons/icon-headset.svg', tone: 'green', path: '/pages/help/index' },
-        { label: '意见反馈', icon: '馈', iconPath: '/static/art-icons/icon-comment.svg', tone: 'purple', path: '/pages/user/feedback' },
-        { label: '通知设置', icon: '通', iconPath: '/static/icons/gear.svg', tone: 'blue', path: '/pages/setting/notification' },
-        { label: '关于我们', icon: '关', iconPath: '/static/art-icons/icon-profile.svg', tone: 'gold', path: '/pages/about/index' }
-      ]
     }
   },
 
@@ -477,10 +525,23 @@ export default {
   },
 
   methods: {
+    hasAccountLogin() {
+      const check = checkTokenValid()
+      return this.userStore.isLogin && check.valid && !check.isGuest
+    },
+    redirectToLoginIfNeeded() {
+      if (this.hasAccountLogin()) return false
+      saveRedirectUrl('/pages/user/index')
+      uni.navigateTo({ url: '/pages/login/index' })
+      return true
+    },
     async initPage() {
       // 1. 先设置状态栏高度（同步，不阻塞）
       const systemInfo = uni.getSystemInfoSync()
       this.statusBarHeight = systemInfo.statusBarHeight || 20
+      this.navRightSafeInset = this.getTopbarRightInset(systemInfo)
+
+      if (this.redirectToLoginIfNeeded()) return
       
       // 2. 初始化基础状态（同步）
       this.syncDefaultWorkspace()
@@ -491,6 +552,7 @@ export default {
       // 如果 401，会触发登录流程，不影响页面渲染
       this.userStore.initUserInfo().then(async (info) => {
         if (info) {
+          this.syncArtistCertApprovedDismissed()
           await this.userStore.fetchCenterData()
           await this.loadArtistCertStatus()
           this.loadLocalStats()
@@ -502,6 +564,18 @@ export default {
       }).catch(() => {
         // 获取失败不处理，让页面保持游客状态
       })
+    },
+    getTopbarRightInset(systemInfo = {}) {
+      try {
+        if (typeof uni.getMenuButtonBoundingClientRect !== 'function') return 0
+        const menuButton = uni.getMenuButtonBoundingClientRect()
+        const windowWidth = Number(systemInfo.windowWidth || uni.getSystemInfoSync().windowWidth || 375)
+        const menuButtonLeft = Number(menuButton?.left || 0)
+        if (!menuButtonLeft || !windowWidth) return 0
+        return Math.max(windowWidth - menuButtonLeft + 12, 88)
+      } catch (e) {
+        return 0
+      }
     },
     syncDefaultWorkspace() {
       const hasActive = this.availableWorkspaces.some(item => item.value === this.activeWorkspace)
@@ -517,6 +591,21 @@ export default {
       if (!value || !this.availableWorkspaces.some(item => item.value === value)) return
       this.workspaceManuallySelected = true
       this.activeWorkspace = value
+    },
+    handleIdentityTagClick(item) {
+      if (!item?.value) return
+      if (item.value === 'artist') {
+        this.goPage('/pages/artist/identity')
+        return
+      }
+      if (item.value === 'artistPending' || item.value === 'artistRejected') {
+        this.goArtistCertification()
+        return
+      }
+      this.switchWorkspace(item.value)
+    },
+    isIdentityTagClickable(item) {
+      return ['artist', 'artistPending', 'artistRejected'].includes(item?.value)
     },
     loadLocalStats() {
       const center = this.userStore.centerData || {}
@@ -547,6 +636,21 @@ export default {
     },
     refreshUnreadIndicators() {
       this.certificateUnreadCount = this.isLoggedIn ? getUnreadCertificateSignNoticeCount() : 0
+    },
+    getArtistCertApprovedDismissedKey() {
+      const userId = this.userInfo.id || this.userInfo.userId || this.userStore.userInfo?.id || ''
+      return userId ? `artist_cert_approved_dismissed:${userId}` : ''
+    },
+    syncArtistCertApprovedDismissed() {
+      const storageKey = this.getArtistCertApprovedDismissedKey()
+      this.artistCertApprovedDismissed = storageKey ? !!uni.getStorageSync(storageKey) : false
+    },
+    dismissArtistCertApprovedEntry() {
+      const storageKey = this.getArtistCertApprovedDismissedKey()
+      this.artistCertApprovedDismissed = true
+      if (storageKey) {
+        uni.setStorageSync(storageKey, true)
+      }
     },
     async loadOrderCounts() {
       try {
@@ -590,6 +694,15 @@ export default {
     async loadArtistCertStatus() {
       try {
         this.artistCertStatus = await getArtistCertStatus()
+        if (this.normalizedArtistCertStatus !== 'approved') {
+          const storageKey = this.getArtistCertApprovedDismissedKey()
+          this.artistCertApprovedDismissed = false
+          if (storageKey) {
+            uni.removeStorageSync(storageKey)
+          }
+        } else {
+          this.syncArtistCertApprovedDismissed()
+        }
       } catch (e) {
         this.artistCertStatus = null
       }
@@ -610,6 +723,12 @@ export default {
     },
     goSettings() {
       this.goPage('/pages/user/settings')
+    },
+    goArtistCertification() {
+      if (this.normalizedArtistCertStatus === 'approved') {
+        this.dismissArtistCertApprovedEntry()
+      }
+      this.goPage('/pages/artist/cert')
     },
     goOrderList(type = 'all') {
       this.goPage(`/pages/order/list?type=${type}`)
@@ -633,6 +752,10 @@ export default {
     },
     goPage(path, isTab = false) {
       if (!path) return
+      if (!AUCTION_ENABLED && isAuctionPath(path)) {
+        showAuctionDisabledToast()
+        return
+      }
       if (!this.isLoggedIn && !path.includes('/pages/login') && !path.includes('/pages/help') && !path.includes('/pages/about')) {
         uni.navigateTo({ url: '/pages/login/index' })
         return
@@ -645,13 +768,16 @@ export default {
     },
     isTabPath(path) {
       const purePath = path.split('?')[0]
-      return [
+      const tabPaths = [
         '/pages/index/index',
         '/pages/gallery/index',
-        '/pages/auction/index',
         '/pages/cart/index',
         '/pages/user/index'
-      ].includes(purePath)
+      ]
+      if (AUCTION_ENABLED) {
+        tabPaths.push('/pages/auction/index')
+      }
+      return tabPaths.includes(purePath)
     },
     comingSoon(title, desc) {
       return `${COMING_SOON}?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`
@@ -779,13 +905,39 @@ $purple: #8c73c9;
   gap: 22rpx;
 }
 
+.avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 112rpx;
+  height: 112rpx;
+}
+
 .avatar {
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
   background: $panel-2;
   border: 2rpx solid rgba($gold, 0.35);
-  flex-shrink: 0;
+  display: block;
+}
+
+.avatar-gold-v {
+  position: absolute;
+  right: -2rpx;
+  bottom: 2rpx;
+  width: 34rpx;
+  height: 34rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2rpx solid rgba(23, 23, 25, 0.96);
+  background: linear-gradient(135deg, #ffdf6c 0%, $gold 56%, #8f6a12 100%);
+  color: #171719;
+  font-size: 22rpx;
+  line-height: 1;
+  font-weight: 900;
+  box-shadow: 0 4rpx 12rpx rgba($gold, 0.28);
 }
 
 .profile-info {
@@ -834,6 +986,15 @@ $purple: #8c73c9;
     background: $gold;
     border-color: $gold;
     font-weight: 700;
+  }
+
+  &.clickable {
+    cursor: pointer;
+  }
+
+  &.clickable:active {
+    transform: scale(0.97);
+    opacity: 0.86;
   }
 
   &.artist {
@@ -944,6 +1105,112 @@ $purple: #8c73c9;
   color: $muted;
 }
 
+.artist-cert-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.16) 0%, rgba(88, 185, 130, 0.08) 100%),
+    rgba(23, 23, 25, 0.96);
+  overflow: hidden;
+}
+
+.artist-cert-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.artist-cert-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.artist-cert-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: $text;
+}
+
+.artist-cert-badge {
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  line-height: 1;
+  font-weight: 700;
+  border: 1rpx solid transparent;
+
+  &.approved {
+    color: #101512;
+    background: rgba($green, 0.96);
+    border-color: rgba($green, 0.4);
+  }
+
+  &.pending {
+    color: #1d1707;
+    background: rgba(#e2ba58, 0.96);
+    border-color: rgba(#e2ba58, 0.42);
+  }
+
+  &.rejected {
+    color: #fff2f2;
+    background: rgba($red, 0.2);
+    border-color: rgba($red, 0.36);
+  }
+}
+
+.artist-cert-desc {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: $text;
+}
+
+.artist-cert-tip {
+  font-size: 21rpx;
+  line-height: 1.5;
+  color: $muted;
+}
+
+.artist-cert-cta {
+  flex-shrink: 0;
+  min-width: 144rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #16130b;
+  background: $gold;
+
+  &.approved {
+    color: #101512;
+    background: $green;
+  }
+
+  &.pending {
+    color: #1d1707;
+    background: #e2ba58;
+  }
+
+  &.rejected {
+    color: #fff2f2;
+    background: rgba($red, 0.9);
+  }
+}
+
+.artist-cert-arrow {
+  font-size: 24rpx;
+  line-height: 1;
+}
+
 .section {
   padding: 24rpx;
 }
@@ -1017,6 +1284,75 @@ $purple: #8c73c9;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 14rpx;
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+}
+
+.payment-entry {
+  min-height: 156rpx;
+  padding: 20rpx 14rpx;
+  border-radius: 14rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
+    $panel-2;
+  border: 1rpx solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.payment-icon {
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 900;
+
+  &.alipay {
+    color: #63a7ff;
+    background: rgba(22, 119, 255, 0.16);
+  }
+
+  &.wechat {
+    color: #44d486;
+    background: rgba(7, 193, 96, 0.16);
+  }
+
+  &.bank {
+    color: $gold;
+    background: rgba($gold, 0.16);
+  }
+}
+
+.payment-copy {
+  min-width: 0;
+}
+
+.payment-title {
+  display: block;
+  color: $text;
+  font-size: 24rpx;
+  line-height: 30rpx;
+  font-weight: 700;
+}
+
+.payment-desc {
+  display: block;
+  margin-top: 6rpx;
+  color: $dim;
+  font-size: 19rpx;
+  line-height: 27rpx;
 }
 
 .identity-entry-scroll {

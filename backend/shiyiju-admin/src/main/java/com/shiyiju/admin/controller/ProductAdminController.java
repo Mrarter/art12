@@ -22,7 +22,7 @@ public class ProductAdminController {
     private final ProductAdminPersistenceService productAdminPersistenceService;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${shiyiju.services.product-url:http://localhost:8082}")
+    @Value("${shiyiju.services.product-url:http://shiyiju-product:8082}")
     private String productServiceBaseUrl;
 
     public ProductAdminController(ProductAdminPersistenceService productAdminPersistenceService) {
@@ -106,11 +106,13 @@ public class ProductAdminController {
         @RequestParam(required = false) Long categoryId,
         @RequestParam(required = false) String artType,
         @RequestParam(required = false) String status,
+        @RequestParam(required = false) String sortField,
+        @RequestParam(required = false) String sortOrder,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
         return Result.success(productAdminPersistenceService.listProducts(
-            keyword, id, artworkCode, title, authorName, categoryId, artType, status, page, size
+            keyword, id, artworkCode, title, authorName, categoryId, artType, status, sortField, sortOrder, page, size
         ));
     }
 

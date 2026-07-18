@@ -9,10 +9,18 @@ import com.shiyiju.file.service.FileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,6 +209,25 @@ public class FileController {
         return Result.success(fileInfo);
     }
 
+    @GetMapping("/thumb")
+    public ResponseEntity<Resource> getThumbnail(
+            @RequestParam("url") String url,
+            @RequestParam(value = "w", required = false) Integer width
+    ) throws IOException {
+        try {
+            FileService.ThumbnailFile thumbnailFile = fileService.resolveThumbnailFile(url, width);
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic())
+                    .contentType(MediaType.parseMediaType(thumbnailFile.getContentType()))
+                    .body(new FileSystemResource(thumbnailFile.getPath()));
+        } catch (IOException e) {
+            log.warn("缩略图生成失败，回退原图: {}", url, e);
+            return ResponseEntity.status(302)
+                    .location(URI.create(resolveOriginalImageUrl(url)))
+                    .build();
+        }
+    }
+
     /**
      * 保存文件信息到数据库
      */
@@ -242,5 +269,18 @@ public class FileController {
         result.put("maxVideoSize", maxVideoSize);
         result.put("contentType", file.getContentType());
         return Result.success(result);
+    }
+
+    private String resolveOriginalImageUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return "/images/default-artwork.png";
+        }
+        if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
+            return url;
+        }
+        if (url.startsWith("upload/")) {
+            return "/" + url;
+        }
+        return "/upload/" + url;
     }
 }

@@ -140,6 +140,49 @@ public class OrderAdminController {
         }
     }
 
+    /**
+     * 确认退货回寄已签收，并自动退款
+     */
+    @PostMapping("/aftersale/confirm-return")
+    public Result<Void> confirmAftersaleReturn(@RequestBody Map<String, Object> params) {
+        Long id = Long.parseLong(params.get("id").toString());
+        String remark = params.get("remark") != null ? params.get("remark").toString() : "";
+
+        try {
+            orderService.confirmRefundReturnReceived(id, remark);
+            log.info("确认退货回寄签收成功: id={}", id);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("确认退货回寄签收失败", e);
+            return Result.fail("操作失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 支付单列表。
+     */
+    @GetMapping("/payment/list")
+    public Result<PageResult<Map<String, Object>>> getPaymentList(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String channel,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return Result.success(orderService.getPayments(status, channel, keyword, page, size));
+    }
+
+    /**
+     * 支付渠道通知日志。
+     */
+    @GetMapping("/payment/notify-logs")
+    public Result<PageResult<Map<String, Object>>> getPaymentNotifyLogs(
+            @RequestParam(required = false) String channel,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return Result.success(orderService.getPaymentNotifyLogs(channel, keyword, page, size));
+    }
+
     private Integer parseAftersaleStatus(Object status) {
         if (status == null) {
             return 0;

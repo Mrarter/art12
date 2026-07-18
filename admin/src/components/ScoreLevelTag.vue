@@ -11,12 +11,18 @@ const props = defineProps({
   level: {
     type: String,
     default: 'U'
+  },
+  certified: {
+    type: Boolean,
+    default: false
   }
 })
 
 const displayLevel = computed(() => {
-  if (props.level === 'U') return '未认证'
-  return props.level || '未认证'
+  if (!props.level || props.level === 'U') {
+    return props.certified ? '待评分' : '未评级'
+  }
+  return props.level
 })
 
 const tagType = computed(() => {
@@ -24,7 +30,7 @@ const tagType = computed(() => {
   if (props.level === 'A+') return 'danger'
   if (props.level === 'A') return 'warning'
   if (props.level === 'B') return 'success'
-  if (props.level === 'U') return 'info'
+  if (!props.level || props.level === 'U') return props.certified ? 'warning' : 'info'
   return ''
 })
 </script>

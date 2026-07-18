@@ -149,6 +149,19 @@
 
         <view class="ship-form">
           <view class="ship-field">
+            <text class="ship-label">运单号</text>
+            <input
+              class="ship-input"
+              v-model.trim="shipForm.trackingNo"
+              maxlength="32"
+              placeholder="请输入运单号"
+              placeholder-class="ship-placeholder"
+              @input="onTrackingInput"
+            />
+            <text class="ship-helper" v-if="shipDetectState.message">{{ shipDetectState.message }}</text>
+          </view>
+
+          <view class="ship-field">
             <text class="ship-label">物流公司</text>
             <picker mode="selector" :range="shipCompanies" range-key="name" :value="shipForm.companyIndex" @change="onCompanyChange">
               <view class="ship-picker">
@@ -170,25 +183,24 @@
           </view>
 
           <view class="ship-field">
-            <text class="ship-label">运单号</text>
-            <input
-              class="ship-input"
-              v-model.trim="shipForm.trackingNo"
-              maxlength="32"
-              placeholder="请输入运单号"
-              placeholder-class="ship-placeholder"
-            />
-          </view>
-
-          <view class="ship-field">
             <text class="ship-label">发货备注</text>
             <textarea
               class="ship-textarea"
               v-model.trim="shipForm.remark"
-              maxlength="80"
+              maxlength="120"
               placeholder="可填写包装、保价或交接说明"
               placeholder-class="ship-placeholder"
             />
+            <view class="ship-image-list">
+              <view class="ship-image-item" v-for="(image, index) in shipForm.images" :key="image + index">
+                <image class="ship-image-preview" :src="image" mode="aspectFill"></image>
+                <view class="ship-image-remove" @click="removeShipImage(index)">×</view>
+              </view>
+              <view class="ship-image-add" v-if="shipForm.images.length < 3" @click="chooseShipImages">
+                <text class="ship-image-add-icon">+</text>
+                <text class="ship-image-add-text">上传照片</text>
+              </view>
+            </view>
           </view>
         </view>
 
@@ -205,7 +217,8 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { getOrderList, getSoldOrderList, cancelOrder, confirmReceive, shipOrder, getLogisticsCompanies } from '@/api/order'
+import { getOrderList, getSoldOrderList, cancelOrder, confirmReceive, shipOrder, getLogisticsCompanies, getLogisticsByTrackingNo } from '@/api/order'
+import { uploadFile, openCropper } from '@/api/file'
 import { getFullImageUrl } from '@/utils/image'
 import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
@@ -233,11 +246,17 @@ const shipModalVisible = ref(false)
 const shipSubmitting = ref(false)
 const shipCompanyLoading = ref(false)
 const shippingOrder = ref(null)
+const trackingDetectTimer = ref(null)
+const shipDetectState = ref({
+  message: '',
+  source: ''
+})
 const shipForm = ref({
   companyIndex: 0,
   customCompanyName: '',
   trackingNo: '',
-  remark: ''
+  remark: '',
+  images: []
 })
 
 const fallbackCompanies = [
@@ -455,7 +474,13 @@ const resetShipForm = () => {
     companyIndex: 0,
     customCompanyName: '',
     trackingNo: '',
-    remark: ''
+    remark: '',
+    images: []
+  }
+  shipDetectState.value = { message: '', source: '' }
+  if (trackingDetectTimer.value) {
+    clearTimeout(trackingDetectTimer.value)
+    trackingDetectTimer.value = null
   }
 }
 
@@ -475,6 +500,110 @@ const closeShipModal = (force = false) => {
 
 const onCompanyChange = (event) => {
   shipForm.value.companyIndex = Number(event.detail.value || 0)
+  shipDetectState.value = {
+    message: selectedShipCompany.value?.name ? `已选择${selectedShipCompany.value.name}` : '',
+    source: 'manual'
+  }
+}
+
+const matchTrackingCompany = (trackingNo = '') => {
+  const value = String(trackingNo || '').replace(/\s+/g, '').toUpperCase()
+  if (!value || value.length < 6) return null
+  if (value.startsWith('SF') || /^4\d{14,15}$/.test(value)) return 'SF'
+  if (/^(YT|DD)\w{8,}$/.test(value)) return 'YTO'
+  if (/^(ZTO|ZT)\w{8,}$/.test(value) || /^75\d{11,13}$/.test(value)) return 'ZTO'
+  if (/^(STO|ST)\w{8,}$/.test(value) || /^77\d{11,13}$/.test(value)) return 'STO'
+  if (/^(YD|YDWL)\w{8,}$/.test(value) || /^43\d{13,15}$/.test(value)) return 'YD'
+  if (/^(JT|JTSD)\w{8,}$/.test(value) || /^78\d{11,13}$/.test(value)) return 'JTSD'
+  if (/^(EMS|E[A-Z0-9]{9}CN|9\d{11,19})$/.test(value)) return 'EMS'
+  if (/^(YZ|YP|POST)\w{8,}$/.test(value)) return 'YZPY'
+  return null
+}
+
+const applyDetectedCompany = (companyCode, message, source = 'auto') => {
+  if (!companyCode) return false
+  const index = shipCompanies.value.findIndex(item => item.code === companyCode)
+  if (index < 0) return false
+  shipForm.value.companyIndex = index
+  if (companyCode !== 'OTHER') {
+    shipForm.value.customCompanyName = ''
+  }
+  shipDetectState.value = {
+    message: message || `已识别为${shipCompanies.value[index].name}`,
+    source
+  }
+  return true
+}
+
+const detectTrackingCompany = async (trackingNo) => {
+  const value = String(trackingNo || '').replace(/\s+/g, '')
+  if (!value || value.length < 6) {
+    shipDetectState.value = { message: '', source: '' }
+    return
+  }
+
+  const guessedCode = matchTrackingCompany(value)
+  if (guessedCode) {
+    applyDetectedCompany(guessedCode, `已识别为${shipCompanies.value.find(item => item.code === guessedCode)?.name || '对应物流公司'}`)
+    return
+  }
+
+  try {
+    const result = await getLogisticsByTrackingNo(value)
+    if (applyDetectedCompany(result?.companyCode, `已匹配历史物流：${result?.companyName || '已识别物流公司'}`, 'history')) {
+      return
+    }
+  } catch (error) {
+    // ignore lookup errors and keep manual selection available
+  }
+
+  shipDetectState.value = {
+    message: '暂未识别物流公司，请手动选择',
+    source: 'unknown'
+  }
+}
+
+const onTrackingInput = (event) => {
+  const value = event?.detail?.value ?? shipForm.value.trackingNo
+  shipForm.value.trackingNo = value
+  if (trackingDetectTimer.value) {
+    clearTimeout(trackingDetectTimer.value)
+  }
+  trackingDetectTimer.value = setTimeout(() => {
+    detectTrackingCompany(value)
+  }, 250)
+}
+
+const chooseShipImages = () => {
+  uni.chooseImage({
+    count: 3 - shipForm.value.images.length,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const paths = res.tempFilePaths || []
+      Promise.all(paths.map(path =>
+        openCropper(path, { ratio: 'free', shape: 'square' }).catch(() => path)
+      )).then((croppedList) => {
+        shipForm.value.images = [...shipForm.value.images, ...croppedList].slice(0, 3)
+      })
+    }
+  })
+}
+
+const removeShipImage = (index) => {
+  shipForm.value.images.splice(index, 1)
+}
+
+const buildShippingRemark = (remark, imageUrls = []) => {
+  const parts = []
+  if (remark) {
+    parts.push(remark.trim())
+  }
+  if (imageUrls.length) {
+    parts.push(`发货照片：${imageUrls.join('，')}`)
+  }
+  const merged = parts.join('\n') || '艺术家工作台发货'
+  return merged.length > 480 ? `${merged.slice(0, 477)}...` : merged
 }
 
 const validateShipForm = () => {
@@ -510,12 +639,26 @@ const submitShipOrder = async () => {
   const companyName = company.code === 'OTHER' ? shipForm.value.customCompanyName.trim() : company.name
   shipSubmitting.value = true
   try {
+    let uploadedImages = []
+    if (shipForm.value.images.length) {
+      uni.showLoading({ title: '上传图片中...' })
+      uploadedImages = await Promise.all(
+        shipForm.value.images.map((image) => {
+          if (typeof image === 'string' && (/^https?:\/\//.test(image) || image.startsWith('/upload/'))) {
+            return Promise.resolve(image)
+          }
+          return uploadFile(image)
+        })
+      )
+      uni.hideLoading()
+    }
+
     await shipOrder({
       orderId: shippingOrder.value.id,
       companyCode: company.code,
       companyName,
       trackingNo,
-      remark: shipForm.value.remark || '艺术家工作台发货'
+      remark: buildShippingRemark(shipForm.value.remark, uploadedImages)
     })
     uni.showToast({ title: '发货成功', icon: 'success' })
     closeShipModal(true)
@@ -523,6 +666,7 @@ const submitShipOrder = async () => {
   } catch (e) {
     uni.showToast({ title: e.message || '发货失败', icon: 'none' })
   } finally {
+    uni.hideLoading()
     shipSubmitting.value = false
   }
 }
@@ -1364,6 +1508,72 @@ onMounted(() => {
   height: 132rpx;
   padding: 18rpx 22rpx;
   line-height: 1.45;
+}
+
+.ship-helper {
+  font-size: 22rpx;
+  line-height: 1.4;
+  color: rgba(242, 200, 91, 0.86);
+}
+
+.ship-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.ship-image-item,
+.ship-image-add {
+  position: relative;
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.ship-image-item {
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: #202024;
+}
+
+.ship-image-preview {
+  width: 100%;
+  height: 100%;
+}
+
+.ship-image-remove {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.ship-image-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  border: 1rpx dashed rgba(201, 162, 39, 0.42);
+  background: rgba(201, 162, 39, 0.06);
+  color: rgba(246, 242, 232, 0.72);
+}
+
+.ship-image-add-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #f2c85b;
+}
+
+.ship-image-add-text {
+  font-size: 20rpx;
 }
 
 .ship-placeholder {

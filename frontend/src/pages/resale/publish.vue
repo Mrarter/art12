@@ -95,7 +95,7 @@ export default {
       const num = Number(value)
       if (!Number.isFinite(num)) return 0
       if (String(value).includes('.')) return num
-      return num >= 1000 ? fenToYuan(num) : num
+      return fenToYuan(num)
     },
 
     async loadArtworkInfo(id) {

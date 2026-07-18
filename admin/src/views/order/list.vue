@@ -88,7 +88,7 @@
       />
     </div>
 
-    <el-dialog v-model="detailVisible" title="订单详情" width="720px" destroy-on-close>
+    <el-dialog v-model="detailVisible" title="订单详情" width="860px" destroy-on-close>
       <div v-if="currentOrder.id" class="order-detail">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单号">{{ currentOrder.orderNo }}</el-descriptions-item>
@@ -101,8 +101,60 @@
           <el-descriptions-item label="支付时间">{{ currentOrder.paidAt || '-' }}</el-descriptions-item>
           <el-descriptions-item label="商品金额">{{ formatAmount(resolveDetailGoodsAmount(currentOrder)) }}</el-descriptions-item>
           <el-descriptions-item label="实付金额">{{ formatAmount(resolveDetailPayAmount(currentOrder)) }}</el-descriptions-item>
+          <el-descriptions-item label="运单号">{{ resolveTrackingNo(currentOrder) }}</el-descriptions-item>
+          <el-descriptions-item label="运单位置">
+            <div class="tracking-location" :class="{ empty: !resolveTrackingLocationMeta(currentOrder).primary }">
+              <div class="tracking-location-primary">{{ resolveTrackingLocationMeta(currentOrder).primary || '-' }}</div>
+              <div v-if="resolveTrackingLocationMeta(currentOrder).secondary" class="tracking-location-secondary">
+                {{ resolveTrackingLocationMeta(currentOrder).secondary }}
+              </div>
+            </div>
+          </el-descriptions-item>
           <el-descriptions-item label="下单时间" :span="2">{{ currentOrder.createTime || '-' }}</el-descriptions-item>
         </el-descriptions>
+
+        <div class="fee-section">
+          <div class="detail-section-title">费用明细</div>
+          <el-descriptions :column="3" border class="fee-descriptions">
+            <el-descriptions-item label="商品金额">{{ formatAmount(resolveFeeAmount('goodsAmount', resolveDetailGoodsAmount(currentOrder))) }}</el-descriptions-item>
+            <el-descriptions-item label="运费">{{ formatAmount(resolveFeeAmount('freightAmount', currentOrder.freightAmount || currentOrder.freight)) }}</el-descriptions-item>
+            <el-descriptions-item label="优惠">{{ formatAmount(resolveFeeAmount('discountAmount', currentOrder.discountAmount || currentOrder.discount)) }}</el-descriptions-item>
+            <el-descriptions-item label="实付金额">{{ formatAmount(resolveFeeAmount('payAmount', resolveDetailPayAmount(currentOrder))) }}</el-descriptions-item>
+            <el-descriptions-item label="平台抽佣">{{ formatAmount(resolveFeeAmount('platformCommissionAmount')) }}</el-descriptions-item>
+            <el-descriptions-item label="经纪人分佣">{{ formatAmount(resolveFeeAmount('brokerCommissionAmount')) }}</el-descriptions-item>
+            <el-descriptions-item label="预计结算金额" :span="3">
+              <span class="settlement-amount">{{ formatAmount(resolveFeeAmount('settlementAmount', resolveDetailPayAmount(currentOrder))) }}</span>
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <el-table
+            v-if="commissionDetails.length"
+            :data="commissionDetails"
+            border
+            size="small"
+            class="commission-table"
+          >
+            <el-table-column label="接收人" min-width="150">
+              <template #default="{ row }">
+                <p>{{ row.receiverName || row.userId || '-' }}</p>
+                <p class="phone">{{ row.receiverUid || '-' }}</p>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="120">
+              <template #default="{ row }">{{ getCommissionTypeText(row.type, row.level) }}</template>
+            </el-table-column>
+            <el-table-column label="比例" width="90">
+              <template #default="{ row }">{{ formatRate(row.rate) }}</template>
+            </el-table-column>
+            <el-table-column label="金额" width="110">
+              <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">{{ getCommissionStatusText(row.status) }}</template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+          </el-table>
+        </div>
 
         <el-table :data="currentOrder.items || []" border class="detail-items">
           <el-table-column label="作品" min-width="320">
@@ -132,7 +184,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import request, { getFullImageUrl as getUrl } from '@/api/request'
@@ -168,7 +220,7 @@ const getStatusText = (status) => {
 }
 
 const formatAmount = (value) => {
-  return `¥${(Number(value || 0) / 100).toLocaleString('zh-CN', {
+  return `¥${Number(value || 0).toLocaleString('zh-CN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`
@@ -179,9 +231,6 @@ const normalizeAmountScale = (rawValue, referenceValue = 0) => {
   const reference = Number(referenceValue || 0)
   if (amount <= 0) {
     return reference > 0 ? reference : 0
-  }
-  if (reference > 0 && amount > reference * 10) {
-    return reference
   }
   return amount
 }
@@ -216,6 +265,70 @@ const resolveDetailPayAmount = (order = {}) => {
   const discount = Number(order.discountAmount || order.discount || 0)
   const derived = Math.max(goodsAmount + freight - discount, 0)
   return normalizeAmountScale(order.payAmount || order.amount || 0, derived)
+}
+
+const resolveTrackingNo = (order = {}) => {
+  return order.logistics?.trackingNo || order.logistics?.expressNo || '-'
+}
+
+const formatTrackingNode = (track = {}) => {
+  const pieces = [track.time, track.location, track.desc].filter(Boolean)
+  return pieces.length ? pieces.join(' / ') : ''
+}
+
+const resolveTrackingLocationMeta = (order = {}) => {
+  const latestTrack = order.logistics?.traces?.[0] || {}
+  const primary = latestTrack.time || order.logistics?.statusText || ''
+  const secondary = [latestTrack.location, latestTrack.desc].filter(Boolean).join(' / ')
+  return {
+    primary,
+    secondary
+  }
+}
+
+const resolveTrackingLocation = (order = {}) => {
+  const meta = resolveTrackingLocationMeta(order)
+  return meta.secondary ? [meta.primary, meta.secondary].filter(Boolean).join(' / ') : meta.primary || '-'
+}
+
+const resolveFinancialSummary = () => {
+  return currentOrder.value.financialSummary || currentOrder.value.feeSummary || currentOrder.value.fees || {}
+}
+
+const resolveFeeAmount = (key, fallback = 0) => {
+  const summary = resolveFinancialSummary()
+  return summary[key] ?? fallback ?? 0
+}
+
+const commissionDetails = computed(() => {
+  const summary = resolveFinancialSummary()
+  return summary.commissionDetails || []
+})
+
+const formatRate = (value) => {
+  if (value === null || value === undefined || value === '') return '-'
+  return `${Number(value).toFixed(2)}%`
+}
+
+const getCommissionTypeText = (type, level) => {
+  const normalized = String(type || '').toLowerCase()
+  if (normalized === 'promoter_reward' || normalized === '1') return '经纪人分佣'
+  if (normalized === 'team_reward' || normalized === '2') return '团队奖励'
+  return level === 2 ? '团队奖励' : '经纪人分佣'
+}
+
+const getCommissionStatusText = (status) => {
+  const normalized = String(status ?? '').toLowerCase()
+  const map = {
+    pending: '待结算',
+    settled: '已结算',
+    freeze: '冻结中',
+    cancel: '已取消',
+    '0': '待结算',
+    '1': '已结算',
+    '2': '已失效'
+  }
+  return map[normalized] || status || '-'
 }
 
 const formatArtworkDetail = (row = {}) => {
@@ -322,6 +435,30 @@ onMounted(() => {
   margin-top: 16px;
 }
 
+.fee-section {
+  margin-top: 16px;
+}
+
+.detail-section-title {
+  margin-bottom: 10px;
+  color: #303133;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fee-descriptions {
+  margin-bottom: 12px;
+}
+
+.settlement-amount {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.commission-table {
+  margin-top: 12px;
+}
+
 .no-cover {
   width: 50px;
   height: 50px;
@@ -355,5 +492,26 @@ onMounted(() => {
   color: #909399;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.tracking-location {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.5;
+}
+
+.tracking-location.empty {
+  color: #909399;
+}
+
+.tracking-location-primary {
+  color: #303133;
+  font-weight: 500;
+}
+
+.tracking-location-secondary {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

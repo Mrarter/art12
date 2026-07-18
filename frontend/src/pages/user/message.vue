@@ -341,7 +341,7 @@ const handleAction = (msg) => {
       }
       break
     case 'auction':
-      uni.navigateTo({ url: '/pages/auction/detail?id=' + msg.id })
+      uni.navigateTo({ url: '/pages/auction-flow/detail?id=' + msg.id })
       break
     default:
       break

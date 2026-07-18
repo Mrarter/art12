@@ -16,4 +16,6 @@ public class AuctionBid implements Serializable {
     private BigDecimal bidPrice;
     private LocalDateTime bidTime;
     private Integer status;
+    /** 客户端幂等键，防止网络重试造成重复出价。 */
+    private String requestId;
 }

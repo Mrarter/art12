@@ -136,12 +136,11 @@
       <el-table-column label="用户信息" min-width="200">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="getFullImageUrl(row.avatar || row.userAvatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
+            <el-avatar :src="getArtistAvatarUrl(row)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
             <div class="user-detail">
               <p class="nickname">
                 {{ row.nickname || row.userNickname || '未知用户' }}
-                <el-tag v-if="row.certified" type="success" size="small">已认证</el-tag>
-                <el-tag v-else type="info" size="small">未认证</el-tag>
+                <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
               </p>
               <p class="phone">{{ row.phone || row.userPhone }}</p>
             </div>
@@ -194,7 +193,7 @@
       </el-table-column>
       <el-table-column label="评分等级" width="100" sortable>
         <template #default="{ row }">
-          <ScoreLevelTag :level="row.scoreLevel" />
+          <ScoreLevelTag :level="row.scoreLevel" :certified="row.certified" />
         </template>
       </el-table-column>
       <el-table-column prop="totalScore" label="总分" width="80" sortable>
@@ -219,7 +218,8 @@
             <el-tag v-if="row.badge === 'master'" size="small" type="danger">大师级</el-tag>
             <el-tag v-else-if="row.badge === 'popular'" size="small" type="warning">人气</el-tag>
             <el-tag v-if="row.scoreLevel && row.scoreLevel !== 'U'" size="small">{{ row.scoreLevel }}级</el-tag>
-            <el-tag v-if="row.scoreLevel === 'U'" size="small" type="info">未认证</el-tag>
+            <el-tag v-else-if="row.certified" size="small" type="warning">待评分</el-tag>
+            <el-tag v-else-if="row.scoreLevel === 'U'" size="small" type="info">未评级</el-tag>
             <span v-if="!row.certified && !row.badge && !row.scoreLevel" class="no-tags">-</span>
           </div>
         </template>
@@ -296,7 +296,7 @@
           <div class="user-profile">
             <div class="profile-header">
               <div class="avatar-wrapper">
-                <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
+                <el-avatar :src="getAvatarUrl(profileForm.avatar)" :size="80" fit="cover" />
                 <el-upload
                   class="avatar-uploader"
                   :show-file-list="false"
@@ -333,15 +333,20 @@
                     <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
                   </el-form-item>
                 </el-col>
+              </el-row>
+              <el-row :gutter="20">
                 <el-col :span="12">
-                  <el-form-item label="手机号">
-                    <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
+                  <el-form-item label="邮箱">
+                    <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="登录手机号">
+                    <el-input v-model="profileForm.phone" placeholder="请输入登录手机号" />
+                    <div class="form-tip">默认登录密码：身份证后 6 位；没有身份证时为 `123456`</div>
                   </el-form-item>
                 </el-col>
               </el-row>
-              <el-form-item label="邮箱">
-                <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
-              </el-form-item>
               
               <el-divider content-position="left">艺术家信息</el-divider>
               <el-row :gutter="20">
@@ -446,9 +451,9 @@
                 <el-statistic title="总评分" :value="currentScoreData.totalScore || 0" />
               </el-col>
               <el-col :span="8">
-                <div class="level-box">
+                  <div class="level-box">
                   <div class="level-label">当前等级</div>
-                  <ScoreLevelTag :level="currentScoreData.level" />
+                  <ScoreLevelTag :level="currentScoreData.level" :certified="!!currentUser?.isArtist" />
                 </div>
               </el-col>
               <el-col :span="8" style="text-align: right;">
@@ -545,7 +550,7 @@
                 <el-image :src="getFullImageUrl(artwork.cover || artwork.coverImage || (artwork.images && artwork.images[0]))" :alt="artwork.title" fit="cover" class="artwork-cover" />
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
-                  <p class="artwork-price">¥{{ formatAmount(artwork.price) }}</p>
+                  <p class="artwork-price">¥{{ formatArtworkAmount(artwork.price) }}</p>
                 </div>
               </div>
             </div>
@@ -680,7 +685,7 @@
         </el-alert>
         <div class="add-form-header">
           <div class="avatar-section">
-            <el-avatar :src="getFullImageUrl(addForm.avatar)" :size="80" fit="cover" />
+            <el-avatar :src="getAvatarUrl(addForm.avatar)" :size="80" fit="cover" />
             <el-upload
               class="avatar-uploader"
               :show-file-list="false"
@@ -695,6 +700,7 @@
               <el-col :span="12">
                 <el-form-item label="手机号" prop="phone">
                   <el-input v-model="addForm.phone" placeholder="请输入用户手机号" />
+                  <div class="form-tip">默认登录密码：身份证后 6 位；没有身份证时为 `123456`</div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -798,7 +804,7 @@
                 <div class="work-info">
                   <p class="work-title">{{ work.title }}</p>
                   <p class="work-author">{{ work.authorName }}</p>
-                  <p class="work-price">¥{{ formatAmount(work.price) }}</p>
+                  <p class="work-price">¥{{ formatArtworkAmount(work.price) }}</p>
                 </div>
                 <div v-if="selectedExistingId === work.id" class="selected-badge">
                   <el-icon><Check /></el-icon>
@@ -918,6 +924,26 @@ const formatAmount = (value) => {
     maximumFractionDigits: 2
   })
 }
+
+const formatArtworkAmount = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+const DEFAULT_AVATAR_URL = '/upload/images/2026/05/11/cbebfaeaf7b241d4917a7eb8f3eaf30b.png'
+const getAvatarUrl = (avatar) => getFullImageUrl(avatar || DEFAULT_AVATAR_URL)
+const getArtistAvatar = (row = {}) => {
+  return row.artistAvatar ||
+    row.artist_avatar ||
+    row.avatarUrl ||
+    row.avatar_url ||
+    row.userAvatar ||
+    row.user_avatar ||
+    row.avatar ||
+    ''
+}
+const getArtistAvatarUrl = (row = {}) => getAvatarUrl(getArtistAvatar(row))
 const loading = ref(false)
 const materialsVisible = ref(false)
 const rejectVisible = ref(false)
@@ -1120,7 +1146,7 @@ const openUserProfile = async (row) => {
     nickname: row.nickname || row.userNickname || '',
     phone: row.phone || row.userPhone || '',
     email: row.email || '',
-    avatar: row.avatar || row.userAvatar || '',
+    avatar: getArtistAvatar(currentUser.value || row),
     homepageCover: row.homepageCover || '',
     identities: row.certified ? ['artist'] : [],
     realName: row.realName || '',
@@ -1667,7 +1693,8 @@ const confirmAdd = async () => {
     const result = await request.post('/user/artist/add', addForm)
     // 显示完整信息包括 UID
     const uidInfo = result.userUid ? `，UID：${result.userUid}` : ''
-    const msg = result.message || (result.isNewUser ? `新用户已创建，用户ID：${result.userId}${uidInfo}` : `用户ID：${result.userId}${uidInfo}`)
+    const passwordInfo = result.defaultPassword ? `，默认密码：${result.defaultPassword}` : ''
+    const msg = result.message || (result.isNewUser ? `新用户已创建，用户ID：${result.userId}${uidInfo}${passwordInfo}` : `用户ID：${result.userId}${uidInfo}`)
     ElMessage.success({ message: '添加成功！' + msg, duration: 8000 })
     addVisible.value = false
     await loadData()
@@ -2347,15 +2374,7 @@ onMounted(async () => {
   
   .profile-info {
     flex: 1;
-    
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
+
     .user-id {
       margin: 0 0 8px 0;
       font-size: 12px;
@@ -2377,6 +2396,14 @@ onMounted(async () => {
       }
     }
   }
+}
+
+.user-profile .profile-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .identity-tags {
@@ -2611,6 +2638,13 @@ onMounted(async () => {
   .el-descriptions {
     margin-bottom: 0;
   }
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 /* 认证材料编辑样式 */

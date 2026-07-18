@@ -448,7 +448,7 @@ import { Plus } from '@element-plus/icons-vue'
 import request, { getFullImageUrl, uploadFile } from '@/api/request'
 import { copyId } from '@/utils/id'
 
-const DEFAULT_AVATAR_URL = '/images/default-avatar.png'
+const DEFAULT_AVATAR_URL = '/upload/images/2026/05/11/cbebfaeaf7b241d4917a7eb8f3eaf30b.png'
 const getAvatarUrl = (avatar) => getFullImageUrl(avatar || DEFAULT_AVATAR_URL)
 
 const loading = ref(false)
@@ -1110,15 +1110,7 @@ onMounted(() => {
   
   .profile-info {
     flex: 1;
-    
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
+
     .user-id {
       margin: 0 0 8px 0;
       font-size: 12px;
@@ -1140,6 +1132,14 @@ onMounted(() => {
       }
     }
   }
+}
+
+.user-profile .profile-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .identity-tags {

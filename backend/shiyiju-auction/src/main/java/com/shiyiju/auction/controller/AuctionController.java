@@ -9,9 +9,9 @@ import com.shiyiju.common.result.Result;
 import com.shiyiju.common.result.ResultCode;
 import com.shiyiju.auction.entity.*;
 import com.shiyiju.auction.mapper.*;
+import com.shiyiju.auction.service.AuctionBidService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +31,7 @@ public class AuctionController {
     private final AuctionLotMapper lotMapper;
     private final AuctionBidMapper bidMapper;
     private final AuctionDepositMapper depositMapper;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final AuctionBidService auctionBidService;
 
     /**
      * 获取拍卖专场列表 (GET /auction/sessions)
@@ -63,6 +63,7 @@ public class AuctionController {
             map.put("name", session.getTitle());
             map.put("coverImage", session.getCoverImage());
             map.put("description", session.getDescription());
+            map.put("rules", session.getRules());
             map.put("startTime", session.getStartTime());
             map.put("endTime", session.getEndTime());
             map.put("status", displayStatus);
@@ -103,6 +104,7 @@ public class AuctionController {
         sessionMap.put("name", session.getTitle());
         sessionMap.put("coverImage", session.getCoverImage());
         sessionMap.put("description", session.getDescription());
+        sessionMap.put("rules", session.getRules());
         sessionMap.put("startTime", session.getStartTime());
         sessionMap.put("endTime", session.getEndTime());
         sessionMap.put("status", resolveSessionStatus(session.getStartTime(), session.getEndTime(), session.getStatus()));
@@ -120,6 +122,9 @@ public class AuctionController {
             map.put("startPrice", lot.getStartPrice());
             map.put("currentPrice", lot.getCurrentPrice());
             map.put("bidCount", lot.getBidCount());
+            map.put("depositAmount", lot.getDepositAmount());
+            map.put("startTime", lot.getStartTime());
+            map.put("endTime", lot.getEndTime());
             map.put("status", lot.getStatus());
             return map;
         }).collect(Collectors.toList());
@@ -167,6 +172,9 @@ public class AuctionController {
             map.put("startPrice", lot.getStartPrice());
             map.put("currentPrice", lot.getCurrentPrice());
             map.put("bidCount", lot.getBidCount());
+            map.put("depositAmount", lot.getDepositAmount());
+            map.put("startTime", lot.getStartTime());
+            map.put("endTime", lot.getEndTime());
             map.put("status", lot.getStatus());
             return map;
         }).collect(Collectors.toList());
@@ -197,8 +205,8 @@ public class AuctionController {
         vo.put("bidCount", lot.getBidCount());
         vo.put("depositAmount", lot.getDepositAmount());
         vo.put("status", lot.getStatus());
-        vo.put("startTime", lot.getStartTime() != null ? lot.getStartTime().toString() : null);
-        vo.put("endTime", lot.getEndTime() != null ? lot.getEndTime().toString() : null);
+        vo.put("startTime", lot.getStartTime());
+        vo.put("endTime", lot.getEndTime());
         
         // 获取出价记录
         List<AuctionBid> bids = bidMapper.selectList(
@@ -215,7 +223,6 @@ public class AuctionController {
     /**
      * 缴纳保证金 (POST /auction/sessions/{sessionId}/deposit)
      */
-    @Transactional
     @PostMapping("/sessions/{sessionId}/deposit")
     public Result<Void> payDeposit(
             @PathVariable Long sessionId,
@@ -225,51 +232,14 @@ public class AuctionController {
             return Result.fail(401, "请先登录");
         }
         
-        // 获取该专场下需要缴纳保证金的拍品
-        List<AuctionLot> lots = lotMapper.selectList(
-                new LambdaQueryWrapper<AuctionLot>()
-                        .eq(AuctionLot::getSessionId, sessionId)
-                        .eq(AuctionLot::getStatus, AuctionConstant.LOT_STATUS_ONGOING)
-        );
-        
-        for (AuctionLot lot : lots) {
-            // 检查是否已缴纳
-            AuctionDeposit existing = depositMapper.selectOne(
-                    new LambdaQueryWrapper<AuctionDeposit>()
-                            .eq(AuctionDeposit::getLotId, lot.getId())
-                            .eq(AuctionDeposit::getUserId, userId)
-            );
-            if (existing != null && existing.getPayStatus() == AuctionConstant.DEPOSIT_PAID) {
-                continue;
-            }
-
-            // TODO: 调用微信支付扣减保证金
-
-            AuctionDeposit deposit = new AuctionDeposit();
-            deposit.setLotId(lot.getId());
-            deposit.setUserId(userId);
-            deposit.setAmount(lot.getDepositAmount());
-            deposit.setPayStatus(AuctionConstant.DEPOSIT_PAID);
-            deposit.setPayTime(LocalDateTime.now());
-            deposit.setCreateTime(LocalDateTime.now());
-            
-            if (existing != null) {
-                deposit.setId(existing.getId());
-                depositMapper.updateById(deposit);
-            } else {
-                depositMapper.insert(deposit);
-            }
-        }
-
-        return Result.success();
+        return Result.fail(410, "接口已升级，请创建保证金支付订单");
     }
 
     /**
      * 出价 (POST /auction/lots/{lotId}/bid)
      */
-    @Transactional
     @PostMapping("/lots/{lotId}/bid")
-    public Result<Void> placeBid(
+    public Result<Map<String, Object>> placeBid(
             @PathVariable Long lotId,
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestBody Map<String, Object> params
@@ -278,71 +248,10 @@ public class AuctionController {
             return Result.fail(401, "请先登录");
         }
         
-        Long bidPrice = Long.valueOf(params.get("bidPrice").toString());
-        
-        // 验证保证金
-        AuctionDeposit deposit = depositMapper.selectOne(
-                new LambdaQueryWrapper<AuctionDeposit>()
-                        .eq(AuctionDeposit::getLotId, lotId)
-                        .eq(AuctionDeposit::getUserId, userId)
-                        .eq(AuctionDeposit::getPayStatus, AuctionConstant.DEPOSIT_PAID)
-        );
-        if (deposit == null) {
-            throw new BusinessException(ResultCode.AUCTION_DEPOSIT_REQUIRED);
-        }
-
-        AuctionLot lot = lotMapper.selectById(lotId);
-        if (lot == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND);
-        }
-        if (lot.getStatus() != AuctionConstant.LOT_STATUS_ONGOING) {
-            throw new BusinessException(ResultCode.AUCTION_ENDED);
-        }
-        
-        // 验证出价
-        long minBid = lot.getCurrentPrice().longValue() + lot.getIncrement().longValue();
-        if (bidPrice < minBid) {
-            throw new BusinessException(ResultCode.AUCTION_BID_TOO_LOW);
-        }
-
-        // 先将之前的最高出价标记为非最高
-        List<AuctionBid> previousBids = bidMapper.selectList(
-                new LambdaQueryWrapper<AuctionBid>()
-                        .eq(AuctionBid::getLotId, lotId)
-                        .eq(AuctionBid::getStatus, 1)
-        );
-        for (AuctionBid prevBid : previousBids) {
-            prevBid.setStatus(0);
-            bidMapper.updateById(prevBid);
-        }
-
-        // 创建新出价
-        AuctionBid bid = new AuctionBid();
-        bid.setLotId(lotId);
-        bid.setUserId(userId);
-        bid.setBidPrice(new java.math.BigDecimal(bidPrice));
-        bid.setBidTime(LocalDateTime.now());
-        bid.setStatus(1);
-        bidMapper.insert(bid);
-
-        // 更新拍品
-        lot.setCurrentPrice(new java.math.BigDecimal(bidPrice));
-        lot.setBidCount(lot.getBidCount() + 1);
-        lot.setBuyerId(userId);
-        lot.setUpdateTime(LocalDateTime.now());
-        lotMapper.updateById(lot);
-
-        // 通过 WebSocket 推送出价消息
-        Map<String, Object> message = new HashMap<>();
-        message.put("type", "bid");
-        message.put("lotId", lotId);
-        message.put("bidPrice", bidPrice);
-        message.put("userId", userId);
-        message.put("bidCount", lot.getBidCount());
-        message.put("timestamp", System.currentTimeMillis());
-        messagingTemplate.convertAndSend("/topic/auction/" + lotId, message);
-
-        return Result.success();
+        if (params.get("bidPrice") == null) return Result.fail(400, "请输入出价金额");
+        String requestId = params.get("requestId") == null ? null : params.get("requestId").toString();
+        return Result.success(auctionBidService.place(lotId, userId,
+                new java.math.BigDecimal(params.get("bidPrice").toString()), requestId));
     }
 
     /**
@@ -384,11 +293,12 @@ public class AuctionController {
                         .eq(AuctionDeposit::getPayStatus, AuctionConstant.DEPOSIT_PAID)
                         .orderByDesc(AuctionDeposit::getCreateTime));
         
-        List<Long> lotIds = deposits.getRecords().stream()
-                .map(AuctionDeposit::getLotId)
+        List<Long> sessionIds = deposits.getRecords().stream()
+                .map(AuctionDeposit::getSessionId).filter(java.util.Objects::nonNull).distinct()
                 .collect(Collectors.toList());
-        
-        List<AuctionLot> lots = lotIds.isEmpty() ? List.of() : lotMapper.selectByIds(lotIds);
+        List<AuctionLot> lots = sessionIds.isEmpty() ? List.of() : lotMapper.selectList(
+                new LambdaQueryWrapper<AuctionLot>().in(AuctionLot::getSessionId, sessionIds)
+                        .orderByDesc(AuctionLot::getEndTime));
         
         Map<String, Object> result = new HashMap<>();
         result.put("list", lots);
@@ -541,9 +451,9 @@ public class AuctionController {
     }
 
     /**
-     * 管理后台 - 更新拍品 (POST /auction/lots/update)
+     * 管理后台 - 更新拍品 (POST /auction/admin/lot/update)
      */
-    @PostMapping("/lots/update")
+    @PostMapping("/admin/lot/update")
     public Result<Void> updateLot(@RequestBody Map<String, Object> params) {
         try {
             Long id = ((Number) params.get("id")).longValue();

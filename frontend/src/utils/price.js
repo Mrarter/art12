@@ -1,6 +1,6 @@
 /**
  * 价格格式化工具
- * 价格以分为单位存储，显示时统一转换为元，保留 2 位小数
+ * 交易/支付金额仍按“分”处理；作品接口金额按“元”处理。
  */
 
 /**
@@ -55,20 +55,49 @@ export function formatYuanNumber(amount) {
 }
 
 /**
- * 作品接口优先展示 currentPrice；入参按“分”处理。
- * @param {Object} item - 作品对象
- * @returns {number} 价格（分）
+ * 格式化作品金额数字。作品接口金额已为元单位，不再除以 100。
+ * @param {number|string} amount - 作品金额（元）
+ * @returns {string} 格式化后的金额数字
  */
-export function getArtworkDisplayPriceFen(item = {}) {
+export function formatArtworkPriceNumber(amount) {
+  return formatYuanNumber(amount)
+}
+
+/**
+ * 格式化作品金额。作品接口金额已为元单位，不再除以 100。
+ * @param {number|string} amount - 作品金额（元）
+ * @param {boolean} withSymbol - 是否带 ¥ 符号，默认 true
+ * @returns {string} 格式化后的金额字符串
+ */
+export function formatArtworkPrice(amount, withSymbol = true) {
+  const formatted = formatArtworkPriceNumber(amount)
+  return withSymbol ? `¥${formatted}` : formatted
+}
+
+/**
+ * 作品接口优先展示 currentPrice；入参按“元”处理。
+ * @param {Object} item - 作品对象
+ * @returns {number} 价格（元）
+ */
+export function getArtworkDisplayPriceYuan(item = {}) {
   const listing = item.activeResaleListing || item.resaleListing
   const resaleStatus = String(listing?.status || '').toLowerCase()
   const resalePrice = Number(listing?.resalePrice || 0)
   if (resalePrice > 0 && (!resaleStatus || resaleStatus === 'pending')) {
-    return Math.round(resalePrice * 100)
+    return resalePrice
   }
   const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
   if (currentPrice > 0) return currentPrice
   return Number(item.price || 0)
+}
+
+/**
+ * 订单创建等老链路仍需要“分”单位，统一在边界处转换。
+ * @param {Object} item - 作品对象
+ * @returns {number} 价格（分）
+ */
+export function getArtworkDisplayPriceFen(item = {}) {
+  return Math.round(getArtworkDisplayPriceYuan(item) * 100)
 }
 
 /**
@@ -90,6 +119,9 @@ export default {
   formatPriceNumber,
   fenToYuan,
   formatYuanNumber,
+  formatArtworkPriceNumber,
+  formatArtworkPrice,
+  getArtworkDisplayPriceYuan,
   getArtworkDisplayPriceFen,
   formatYuanAmount
 }

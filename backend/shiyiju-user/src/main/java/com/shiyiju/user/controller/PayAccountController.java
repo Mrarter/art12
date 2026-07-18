@@ -2,7 +2,9 @@ package com.shiyiju.user.controller;
 
 import com.shiyiju.common.result.Result;
 import com.shiyiju.user.dto.PayAccountAddDTO;
+import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.service.PayAccountService;
+import com.shiyiju.user.service.UserService;
 import com.shiyiju.user.vo.PayAccountVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import java.util.Map;
 public class PayAccountController {
 
     private final PayAccountService payAccountService;
+    private final UserService userService;
 
     /** 添加收款账户 (POST /user/pay-account/add) */
     @PostMapping("/add")
@@ -31,6 +34,26 @@ public class PayAccountController {
         if (userId == null) return Result.fail(401, "请先登录");
         payAccountService.addAccount(userId, dto);
         return Result.success();
+    }
+
+    /** 绑定当前登录账号的微信收款账户 (POST /user/pay-account/bind-wechat) */
+    @PostMapping("/bind-wechat")
+    public Result<PayAccountVO> bindWechat(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody(required = false) Map<String, Object> params) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        Boolean setDefault = params != null && Boolean.TRUE.equals(params.get("setDefault"));
+        return Result.success(payAccountService.bindCurrentWechat(userId, setDefault));
+    }
+
+    /** 微信授权后绑定当前登录账号 (POST /user/pay-account/bind-wechat-code) */
+    @PostMapping("/bind-wechat-code")
+    public Result<PayAccountVO> bindWechatByCode(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody WxLoginDTO dto) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        userService.bindWechatToCurrentUser(userId, dto);
+        return Result.success(payAccountService.bindCurrentWechat(userId, dto.getSetDefault()));
     }
 
     /** 获取账户列表 (GET /user/pay-account/list) */

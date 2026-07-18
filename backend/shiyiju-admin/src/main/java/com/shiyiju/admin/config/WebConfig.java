@@ -1,5 +1,6 @@
 package com.shiyiju.admin.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -11,6 +12,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    @Value("${upload.local.path:/tmp/shiyiju-uploads}")
+    private String uploadLocalPath;
 
     private static final String[] ADMIN_FRONTEND_ROUTES = {
             "/login",
@@ -43,7 +47,7 @@ public class WebConfig implements WebMvcConfigurer {
         // 前端 getFullImageUrl 会将 /upload/ 路径的图片URL转换为相对路径，
         // 需要在此处代理到文件服务或本地目录
         registry.addResourceHandler("/upload/**")
-                .addResourceLocations("file:/Users/master/CodeBuddy/art12/uploads/");
+                .addResourceLocations(toFileResourceLocation(uploadLocalPath));
     }
 
     @Override
@@ -51,5 +55,10 @@ public class WebConfig implements WebMvcConfigurer {
         for (String route : ADMIN_FRONTEND_ROUTES) {
             registry.addViewController(route).setViewName("forward:/index.html");
         }
+    }
+
+    private String toFileResourceLocation(String path) {
+        String normalized = path.endsWith("/") ? path : path + "/";
+        return "file:" + normalized;
     }
 }

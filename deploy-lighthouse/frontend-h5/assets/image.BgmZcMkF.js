@@ -1,1 +1,0 @@
-const t=(t,s="/static/images/placeholder.png")=>{if(!t)return s;const a=String(t).trim();return["/images/default-artwork.png","images/default-artwork.png","/static/icons/artwork-default.png"].includes(a)?s:a.startsWith("http://")||a.startsWith("https://")||a.startsWith("/static/")||a.startsWith("/")?a:"https://shiyiju.online/"+a};export{t as g};

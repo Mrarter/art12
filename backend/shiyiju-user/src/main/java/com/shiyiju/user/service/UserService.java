@@ -4,12 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.shiyiju.common.constant.UserConstant;
 import com.shiyiju.common.service.AlipayService;
 import com.shiyiju.common.exception.BusinessException;
+import com.shiyiju.common.util.AESUtil;
 import com.shiyiju.common.result.ResultCode;
 import com.shiyiju.user.util.UserIdUtil;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.shiyiju.common.util.JwtUtil;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.ArtistIdCardVerifyDTO;
 import com.shiyiju.user.dto.RealnameAlipayStartDTO;
 import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.entity.ArtistCertification;
@@ -22,13 +24,20 @@ import com.shiyiju.user.mapper.ArtistCertificationMapper;
 import com.shiyiju.user.mapper.ArtistProfileMapper;
 import com.shiyiju.user.mapper.PromoterRecordMapper;
 import com.shiyiju.user.mapper.UserMapper;
+import com.shiyiju.user.vo.ArtistIdCardVerifyVO;
 import com.shiyiju.user.vo.LoginVO;
+import com.shiyiju.user.vo.AccountSecurityVO;
 import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.UserInteractionStatsVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
 import com.shiyiju.user.vo.RealnameAlipayStartVO;
 import com.shiyiju.user.util.PinyinUtil;
 import com.shiyiju.common.result.PageResult;
+import com.tencentcloudapi.common.Credential;
+import com.tencentcloudapi.common.exception.TencentCloudSDKException;
+import com.tencentcloudapi.ocr.v20181119.OcrClient;
+import com.tencentcloudapi.ocr.v20181119.models.IDCardOCRRequest;
+import com.tencentcloudapi.ocr.v20181119.models.IDCardOCRResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,6 +46,8 @@ import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +82,12 @@ public class UserService {
     @org.springframework.beans.factory.annotation.Value("${wechat.official-secret:}")
     private String officialWechatSecret;
 
+    @org.springframework.beans.factory.annotation.Value("${wechat.open-appid:}")
+    private String openWechatAppId;
+
+    @org.springframework.beans.factory.annotation.Value("${wechat.open-secret:}")
+    private String openWechatSecret;
+
     @org.springframework.beans.factory.annotation.Value("${sms.code-length:6}")
     private int smsCodeLength;
 
@@ -82,6 +99,18 @@ public class UserService {
 
     @org.springframework.beans.factory.annotation.Value("${sms.test-code:888888}")
     private String smsTestCode;
+
+    @org.springframework.beans.factory.annotation.Value("${user.register.sms-code-required:true}")
+    private boolean registerSmsCodeRequired;
+
+    @org.springframework.beans.factory.annotation.Value("${tencent.ocr.secret-id:${sms.secret-id:}}")
+    private String tencentOcrSecretId;
+
+    @org.springframework.beans.factory.annotation.Value("${tencent.ocr.secret-key:${sms.secret-key:}}")
+    private String tencentOcrSecretKey;
+
+    @org.springframework.beans.factory.annotation.Value("${tencent.ocr.region:ap-beijing}")
+    private String tencentOcrRegion;
 
     /**
      * 启动时从 .env 文件加载微信密钥（IDE 开发环境兜底）
@@ -95,8 +124,11 @@ public class UserService {
                 || "your-wechat-appid".equals(wechatAppId);
         boolean officialSecretMissing = officialWechatSecret == null || officialWechatSecret.isEmpty();
         boolean officialAppIdMissing = officialWechatAppId == null || officialWechatAppId.isEmpty();
+        boolean openSecretMissing = openWechatSecret == null || openWechatSecret.isEmpty();
+        boolean openAppIdMissing = openWechatAppId == null || openWechatAppId.isEmpty();
 
-        if (secretIsPlaceholder || appIdIsPlaceholder || officialSecretMissing || officialAppIdMissing) {
+        if (secretIsPlaceholder || appIdIsPlaceholder || officialSecretMissing || officialAppIdMissing
+                || openSecretMissing || openAppIdMissing) {
             String projectRoot = System.getProperty("user.dir");
             // 向上查找 art12 项目根目录（支持从子模块启动）
             java.io.File dotEnv = findDotEnvFile(new java.io.File(projectRoot));
@@ -146,6 +178,20 @@ public class UserService {
                             log.info("从 .env 加载 wechat.official-secret 成功 (长度={})", officialWechatSecret.length());
                         }
                     }
+                    if (openAppIdMissing && props.containsKey("WECHAT_OPEN_APPID")) {
+                        String fromDotEnv = props.getProperty("WECHAT_OPEN_APPID");
+                        if (fromDotEnv != null && !fromDotEnv.isBlank()) {
+                            openWechatAppId = fromDotEnv;
+                            log.info("从 .env 加载 wechat.open-appid 成功: {}", maskAppId(openWechatAppId));
+                        }
+                    }
+                    if (openSecretMissing && props.containsKey("WECHAT_OPEN_SECRET")) {
+                        String fromDotEnv = props.getProperty("WECHAT_OPEN_SECRET");
+                        if (fromDotEnv != null && !fromDotEnv.isBlank()) {
+                            openWechatSecret = fromDotEnv;
+                            log.info("从 .env 加载 wechat.open-secret 成功 (长度={})", openWechatSecret.length());
+                        }
+                    }
                 } catch (Exception e) {
                     log.warn("读取 .env 文件失败: {}", e.getMessage());
                 }
@@ -175,24 +221,43 @@ public class UserService {
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginVO wxLogin(WxLoginDTO dto) {
-        String openid = getOpenidFromWx(dto.getCode(), dto.getLoginScene());
+        ensureUserOauthTable();
+        WechatAuthResult authResult = getWechatAuthResult(dto.getCode(), dto.getLoginScene());
+        String openid = authResult.openid();
+        String unionid = firstNonBlank(authResult.unionid());
+        String appType = resolveWechatAppType(dto.getLoginScene());
+        String authorizedPhone = resolveMiniProgramPhone(dto);
         
         // 查询用户是否存在
-        User user = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getOpenid, openid)
-        );
+        User user = findUserByOauth("wechat", appType, openid);
+        if (user == null) {
+            user = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>().eq(User::getOpenid, openid)
+            );
+        }
+
+        User phoneUser = hasText(authorizedPhone) ? findUserByPhone(authorizedPhone) : null;
+        if (phoneUser != null) {
+            if (user != null && !Objects.equals(user.getId(), phoneUser.getId())) {
+                log.info("微信登录命中已有手机号账号，自动迁移微信绑定: phone={}, fromUserId={}, toUserId={}",
+                        maskPhone(authorizedPhone), user.getId(), phoneUser.getId());
+                releaseLegacyWechatOpenid(openid, phoneUser.getId());
+            }
+            user = phoneUser;
+        }
 
         boolean isNewUser = false;
         if (user == null) {
             // 创建新用户
             user = new User();
-            user.setUid(UserIdUtil.generateUid()); // 生成用户UID
             user.setOpenid(openid);
-            user.setNickname(dto.getNickname() != null ? dto.getNickname() : "用户" + System.currentTimeMillis() % 10000);
-            user.setAvatar(dto.getAvatar());
-            user.setGender(dto.getGender() != null ? dto.getGender() : 0);
+            user.setUnionid(unionid);
+            user.setNickname(firstNonBlank(authResult.nickname(), dto.getNickname(), "用户" + System.currentTimeMillis() % 10000));
+            user.setAvatar(firstNonBlank(authResult.avatar(), dto.getAvatar()));
+            user.setPhone(authorizedPhone);
+            user.setGender(resolveGender(authResult.gender(), dto.getGender()));
             user.setBirthday(dto.getBirthday());
-            user.setRegion(dto.getRegion());
+            user.setRegion(firstNonBlank(authResult.region(), dto.getRegion()));
             user.setIdentities(UserConstant.IDENTITY_COLLECTOR); // 默认收藏家身份
             user.setStatus(1);
             user.setFollowerCount(0);
@@ -200,6 +265,8 @@ public class UserService {
             user.setRegisterTime(LocalDateTime.now());
             user.setLastLoginTime(LocalDateTime.now());
             userMapper.insert(user);
+            user.setUid(UserIdUtil.generateUid(user.getId()));
+            userMapper.updateById(user);
             isNewUser = true;
 
             // 处理邀请关系
@@ -209,10 +276,19 @@ public class UserService {
         } else {
             // 更新最后登录时间
             user.setLastLoginTime(LocalDateTime.now());
-            user.setNickname(dto.getNickname() != null ? dto.getNickname() : user.getNickname());
-            user.setAvatar(dto.getAvatar() != null ? dto.getAvatar() : user.getAvatar());
+            user.setOpenid(openid);
+            user.setUnionid(firstNonBlank(unionid, user.getUnionid()));
+            user.setNickname(firstNonBlank(resolveWechatNickname(authResult.nickname()), resolveWechatNickname(dto.getNickname()), user.getNickname()));
+            user.setAvatar(firstNonBlank(resolveWechatAvatar(authResult.avatar()), resolveWechatAvatar(dto.getAvatar()), user.getAvatar()));
+            if (hasText(authorizedPhone) && !hasText(user.getPhone())) {
+                user.setPhone(authorizedPhone);
+            }
+            user.setGender(resolveGender(authResult.gender(), dto.getGender(), user.getGender()));
+            user.setRegion(firstNonBlank(authResult.region(), dto.getRegion(), user.getRegion()));
             userMapper.updateById(user);
         }
+
+        upsertUserOauth(user.getId(), "wechat", appType, openid, unionid);
 
         // 生成 Token
         String token = JwtUtil.generateToken(user.getId(), openid);
@@ -228,11 +304,205 @@ public class UserService {
         vo.setPhone(user.getPhone());
         vo.setIdentities(user.getIdentities());
         vo.setOpenId(openid);
+        vo.setUnionId(firstNonBlank(unionid, user.getUnionid()));
 
         // 将 Token 存入 Redis
         redisTemplate.opsForValue().set("token:" + user.getId(), token, 7, TimeUnit.DAYS);
 
         return vo;
+    }
+
+    /**
+     * 将微信授权身份绑定到当前登录账号，不执行登录切换。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String bindWechatToCurrentUser(Long userId, WxLoginDTO dto) {
+        ensureUserOauthTable();
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+
+        WechatAuthResult authResult = getWechatAuthResult(dto.getCode(), dto.getLoginScene());
+        String openid = authResult.openid();
+        String unionid = firstNonBlank(authResult.unionid(), user.getUnionid());
+        String appType = resolveWechatAppType(dto.getLoginScene());
+        User oauthUser = findUserByOauth("wechat", appType, openid);
+        if (oauthUser != null && !Objects.equals(oauthUser.getId(), userId)) {
+            throw new BusinessException(400, "该微信已绑定其他账号，请更换微信或先解绑");
+        }
+
+        User legacyUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getOpenid, openid)
+                        .last("LIMIT 1"));
+        if (legacyUser != null && !Objects.equals(legacyUser.getId(), userId)) {
+            throw new BusinessException(400, "该微信已绑定其他账号，请更换微信或先解绑");
+        }
+
+        user.setOpenid(openid);
+        if (hasText(unionid)) user.setUnionid(unionid);
+        if (hasText(authResult.nickname())) user.setNickname(authResult.nickname());
+        else if (dto.getNickname() != null && !dto.getNickname().isBlank()) user.setNickname(dto.getNickname());
+        if (hasText(authResult.avatar())) user.setAvatar(authResult.avatar());
+        else if (dto.getAvatar() != null && !dto.getAvatar().isBlank()) user.setAvatar(dto.getAvatar());
+        user.setGender(resolveGender(authResult.gender(), dto.getGender(), user.getGender()));
+        if (hasText(authResult.region())) user.setRegion(authResult.region());
+        else if (hasText(dto.getRegion())) user.setRegion(dto.getRegion());
+        userMapper.updateById(user);
+        upsertUserOauth(userId, "wechat", appType, openid, unionid);
+        return openid;
+    }
+
+    private void ensureUserOauthTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS user_oauth_account (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                user_id BIGINT NOT NULL,
+                provider VARCHAR(20) NOT NULL COMMENT 'wechat/alipay',
+                app_type VARCHAR(20) NOT NULL COMMENT 'mini/official/app/h5',
+                openid VARCHAR(128) NOT NULL,
+                unionid VARCHAR(128) DEFAULT NULL,
+                status TINYINT NOT NULL DEFAULT 1,
+                bind_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_login_time DATETIME DEFAULT NULL,
+                create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_provider_app_openid (provider, app_type, openid),
+                KEY idx_user_provider (user_id, provider),
+                KEY idx_unionid (unionid)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户第三方身份绑定表'
+            """);
+    }
+
+    private User findUserByOauth(String provider, String appType, String openid) {
+        try {
+            List<Long> userIds = jdbcTemplate.query(
+                    "SELECT user_id FROM user_oauth_account WHERE provider = ? AND app_type = ? AND openid = ? AND status = 1 ORDER BY id DESC LIMIT 1",
+                    (rs, rowNum) -> rs.getLong("user_id"),
+                    provider, appType, openid);
+            if (userIds.isEmpty()) {
+                return null;
+            }
+            return userMapper.selectById(userIds.get(0));
+        } catch (Exception e) {
+            log.warn("查询第三方身份绑定失败，降级到 users.openid: provider={}, appType={}", provider, appType, e);
+            return null;
+        }
+    }
+
+    private void upsertUserOauth(Long userId, String provider, String appType, String openid, String unionid) {
+        jdbcTemplate.update("""
+            INSERT INTO user_oauth_account
+                (user_id, provider, app_type, openid, unionid, status, bind_time, last_login_time)
+            VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                user_id = VALUES(user_id),
+                unionid = COALESCE(VALUES(unionid), unionid),
+                status = 1,
+                last_login_time = NOW(),
+                update_time = NOW()
+            """, userId, provider, appType, openid, unionid);
+    }
+
+    private void releaseLegacyWechatOpenid(String openid, Long targetUserId) {
+        if (!hasText(openid) || targetUserId == null) {
+            return;
+        }
+        int affected = jdbcTemplate.update(
+                "UPDATE users SET openid = NULL, update_time = NOW() WHERE openid = ? AND id <> ?",
+                openid, targetUserId);
+        if (affected > 0) {
+            log.info("已释放旧账号微信 openid 占用: openid={}, targetUserId={}, affected={}",
+                    maskOpenId(openid), targetUserId, affected);
+        }
+    }
+
+    private String resolveWechatNickname(String nickname) {
+        if (!hasText(nickname)) {
+            return null;
+        }
+        String trimmed = nickname.trim();
+        if ("微信用户".equals(trimmed) || "用户".equals(trimmed)) {
+            return null;
+        }
+        return trimmed;
+    }
+
+    private String resolveWechatAvatar(String avatar) {
+        if (!hasText(avatar)) {
+            return null;
+        }
+        String trimmed = avatar.trim();
+        if (trimmed.contains("default-avatar") || trimmed.contains("placeholder")) {
+            return null;
+        }
+        return trimmed;
+    }
+
+    private String resolveWechatAppType(String loginScene) {
+        if ("mini".equalsIgnoreCase(loginScene) || loginScene == null || loginScene.isBlank()) {
+            return "mini";
+        }
+        if (isOfficialH5Scene(loginScene)) {
+            return "official";
+        }
+        if ("app".equalsIgnoreCase(loginScene)) {
+            return "app";
+        }
+        return loginScene.toLowerCase(Locale.ROOT);
+    }
+
+    private String resolveMiniProgramPhone(WxLoginDTO dto) {
+        if (!"mini".equalsIgnoreCase(resolveWechatAppType(dto.getLoginScene()))) {
+            return null;
+        }
+        if (!hasText(dto.getPhoneCode())) {
+            return null;
+        }
+        return resolvePhoneFromWechatPhoneCode(dto.getPhoneCode());
+    }
+
+    private User findUserByPhone(String phone) {
+        if (!hasText(phone)) {
+            return null;
+        }
+        return userMapper.selectOne(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getPhone, phone)
+                        .last("LIMIT 1"));
+    }
+
+    private void bindMiniProgramPhoneIfPossible(User user, WxLoginDTO dto, boolean isNewUser) {
+        if (!"mini".equalsIgnoreCase(resolveWechatAppType(dto.getLoginScene()))) {
+            return;
+        }
+        if (!hasText(dto.getPhoneCode())) {
+            return;
+        }
+
+        String phone = resolvePhoneFromWechatPhoneCode(dto.getPhoneCode());
+        if (!hasText(phone)) {
+            return;
+        }
+
+        User duplicateUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getPhone, phone)
+                        .ne(User::getId, user.getId())
+                        .last("LIMIT 1"));
+        if (duplicateUser != null) {
+            log.warn("微信手机号自动绑定跳过：手机号已被其他账号占用, phone={}, currentUserId={}, occupiedUserId={}",
+                    maskPhone(phone), user.getId(), duplicateUser.getId());
+            return;
+        }
+
+        if (!Objects.equals(user.getPhone(), phone)) {
+            user.setPhone(phone);
+            userMapper.updateById(user);
+            log.info("微信手机号自动绑定成功, userId={}, phone={}, isNewUser={}",
+                    user.getId(), maskPhone(phone), isNewUser);
+        }
     }
 
     /**
@@ -499,19 +769,24 @@ public class UserService {
      * 调用微信接口获取 openId，含密钥校验和 H5 开发降级
      * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
      */
-    private String getOpenidFromWx(String code, String loginScene) {
+    private WechatAuthResult getWechatAuthResult(String code, String loginScene) {
         if (code == null || code.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "微信授权码不能为空");
         }
 
         // ==== 第一步：H5 开发环境降级（不调用真实微信 API） ====
         if (isDevMockCode(code)) {
-            return getDevMockOpenId(code);
+            return new WechatAuthResult(getDevMockOpenId(code), null, null, null, null, null);
         }
 
         if (isOfficialH5Scene(loginScene)) {
             validateOfficialWechatConfig();
-            return getOpenidFromOfficialWechat(code);
+            return getOfficialWechatAuthResult(code);
+        }
+
+        if ("app".equalsIgnoreCase(loginScene)) {
+            validateOpenWechatConfig();
+            return getOpenPlatformWechatAuthResult(code);
         }
 
         // ==== 第二步：校验微信密钥配置 ====
@@ -532,8 +807,9 @@ public class UserService {
 
             if (json.containsKey("openid")) {
                 String openid = json.getString("openid");
+                String unionid = json.getString("unionid");
                 log.info("微信 code2Session 成功, openid={}", maskOpenId(openid));
-                return openid;
+                return new WechatAuthResult(openid, unionid, null, null, null, null);
             } else {
                 Integer errcode = json.getInteger("errcode");
                 String errmsg = json.getString("errmsg");
@@ -599,7 +875,18 @@ public class UserService {
         }
     }
 
-    private String getOpenidFromOfficialWechat(String code) {
+    private void validateOpenWechatConfig() {
+        boolean appIdMissing = openWechatAppId == null || openWechatAppId.isEmpty()
+                || "your-wechat-appid".equals(openWechatAppId)
+                || !openWechatAppId.startsWith("wx");
+        boolean secretMissing = openWechatSecret == null || openWechatSecret.isEmpty()
+                || "your-wechat-secret".equals(openWechatSecret);
+        if (appIdMissing || secretMissing) {
+            throw new BusinessException(500, "微信开放平台移动应用配置不完整，请补齐 WECHAT_OPEN_APPID / WECHAT_OPEN_SECRET");
+        }
+    }
+
+    private WechatAuthResult getOfficialWechatAuthResult(String code) {
         try {
             String url = String.format(
                     "https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code",
@@ -610,9 +897,12 @@ public class UserService {
             log.debug("微信公众号 OAuth 响应: {}", response);
             com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
             if (json.containsKey("openid")) {
+                String accessToken = json.getString("access_token");
                 String openid = json.getString("openid");
+                String unionid = json.getString("unionid");
                 log.info("微信公众号 OAuth 成功, openid={}", maskOpenId(openid));
-                return openid;
+                WechatProfile profile = fetchWechatUserInfo(accessToken, openid);
+                return new WechatAuthResult(openid, unionid, profile.nickname(), profile.avatar(), profile.gender(), profile.region());
             }
             Integer errcode = json.getInteger("errcode");
             String errmsg = json.getString("errmsg");
@@ -628,9 +918,238 @@ public class UserService {
         }
     }
 
+    private WechatAuthResult getOpenPlatformWechatAuthResult(String code) {
+        try {
+            String url = String.format(
+                    "https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code",
+                    openWechatAppId, openWechatSecret, code
+            );
+            log.info("正在调用微信开放平台 OAuth, appid={}, code长度={}", maskAppId(openWechatAppId), code.length());
+            String response = cn.hutool.http.HttpUtil.get(url, 5000);
+            log.debug("微信开放平台 OAuth 响应: {}", response);
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            if (json.containsKey("openid")) {
+                String accessToken = json.getString("access_token");
+                String openid = json.getString("openid");
+                String unionid = json.getString("unionid");
+                log.info("微信开放平台 OAuth 成功, openid={}", maskOpenId(openid));
+                WechatProfile profile = fetchWechatUserInfo(accessToken, openid);
+                return new WechatAuthResult(openid, unionid, profile.nickname(), profile.avatar(), profile.gender(), profile.region());
+            }
+            Integer errcode = json.getInteger("errcode");
+            String errmsg = json.getString("errmsg");
+            log.error("微信开放平台 OAuth 返回错误: errcode={}, errmsg={}, appid={}",
+                    errcode, errmsg, maskAppId(openWechatAppId));
+            throw new BusinessException(ResultCode.PARAM_ERROR,
+                    "App 微信登录失败(" + errcode + "): " + errmsg);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用微信开放平台 OAuth 异常, appid={}", maskAppId(openWechatAppId), e);
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "App 微信登录服务异常，请稍后重试");
+        }
+    }
+
+    private WechatProfile fetchWechatUserInfo(String accessToken, String openid) {
+        if (!hasText(accessToken) || !hasText(openid)) {
+            return new WechatProfile(null, null, null, null);
+        }
+        try {
+            String url = String.format(
+                    "https://api.weixin.qq.com/sns/userinfo?access_token=%s&openid=%s&lang=zh_CN",
+                    accessToken, openid
+            );
+            String response = cn.hutool.http.HttpUtil.get(url, 5000);
+            log.debug("微信用户信息响应: {}", response);
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            if (json.containsKey("openid")) {
+                String nickname = json.getString("nickname");
+                String avatar = json.getString("headimgurl");
+                Integer gender = json.getInteger("sex");
+                List<String> regionParts = new ArrayList<>();
+                if (hasText(json.getString("country"))) regionParts.add(json.getString("country"));
+                if (hasText(json.getString("province"))) regionParts.add(json.getString("province"));
+                if (hasText(json.getString("city"))) regionParts.add(json.getString("city"));
+                String region = String.join(" ", regionParts);
+                return new WechatProfile(nickname, avatar, gender, region);
+            }
+            Integer errcode = json.getInteger("errcode");
+            String errmsg = json.getString("errmsg");
+            log.warn("拉取微信用户信息失败: errcode={}, errmsg={}, openid={}", errcode, errmsg, maskOpenId(openid));
+            return new WechatProfile(null, null, null, null);
+        } catch (Exception e) {
+            log.warn("拉取微信用户信息异常, openid={}", maskOpenId(openid), e);
+            return new WechatProfile(null, null, null, null);
+        }
+    }
+
+    private String resolvePhoneFromWechatPhoneCode(String phoneCode) {
+        try {
+            String accessToken = getMiniProgramAccessToken();
+            String url = "https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=" + accessToken;
+            com.alibaba.fastjson2.JSONObject body = new com.alibaba.fastjson2.JSONObject();
+            body.put("code", phoneCode);
+            String response = cn.hutool.http.HttpRequest.post(url)
+                    .header("Content-Type", "application/json")
+                    .body(body.toJSONString())
+                    .timeout(5000)
+                    .execute()
+                    .body();
+            log.debug("微信手机号接口响应: {}", response);
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            Integer errcode = json.getInteger("errcode");
+            if (errcode != null && errcode != 0) {
+                log.warn("微信手机号接口返回错误: errcode={}, errmsg={}", errcode, json.getString("errmsg"));
+                return null;
+            }
+            com.alibaba.fastjson2.JSONObject phoneInfo = json.getJSONObject("phone_info");
+            if (phoneInfo == null) {
+                return null;
+            }
+            return firstNonBlank(phoneInfo.getString("purePhoneNumber"), phoneInfo.getString("phoneNumber"));
+        } catch (Exception e) {
+            log.warn("调用微信手机号接口异常", e);
+            return null;
+        }
+    }
+
+    public String generateMiniProgramCodeDataUrl(String page, String scene) {
+        String normalizedPage = normalizeMiniProgramPage(page);
+        String normalizedScene = normalizeMiniProgramScene(scene);
+        try {
+            String accessToken = getMiniProgramAccessToken();
+            String url = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=" + accessToken;
+            com.alibaba.fastjson2.JSONObject body = new com.alibaba.fastjson2.JSONObject();
+            body.put("page", normalizedPage);
+            body.put("scene", normalizedScene);
+            body.put("check_path", false);
+            body.put("env_version", "release");
+            body.put("width", 280);
+            body.put("auto_color", false);
+            com.alibaba.fastjson2.JSONObject lineColor = new com.alibaba.fastjson2.JSONObject();
+            lineColor.put("r", 15);
+            lineColor.put("g", 57);
+            lineColor.put("b", 93);
+            body.put("line_color", lineColor);
+
+            byte[] response = cn.hutool.http.HttpRequest.post(url)
+                    .header("Content-Type", "application/json")
+                    .body(body.toJSONString())
+                    .timeout(8000)
+                    .execute()
+                    .bodyBytes();
+            if (response == null || response.length == 0) {
+                throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "生成小程序码失败，请稍后重试");
+            }
+
+            String responseText = new String(response, StandardCharsets.UTF_8).trim();
+            if (responseText.startsWith("{")) {
+                com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(responseText);
+                Integer errcode = json.getInteger("errcode");
+                if (errcode != null && errcode != 0) {
+                    log.warn("微信小程序码接口返回错误: errcode={}, errmsg={}, page={}, scene={}",
+                            errcode, json.getString("errmsg"), normalizedPage, normalizedScene);
+                    throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE,
+                            "生成小程序码失败(" + errcode + "): " + json.getString("errmsg"));
+                }
+            }
+
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(response);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("生成微信小程序码异常, page={}, scene={}", normalizedPage, normalizedScene, e);
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "生成小程序码失败，请稍后重试");
+        }
+    }
+
+    private String normalizeMiniProgramPage(String page) {
+        String value = hasText(page) ? page.trim() : "pages/gallery/detail";
+        value = value.replaceFirst("^/+", "");
+        int queryIndex = value.indexOf('?');
+        if (queryIndex >= 0) {
+            value = value.substring(0, queryIndex);
+        }
+        if (!value.matches("[A-Za-z0-9_./-]+") || value.length() > 128) {
+            return "pages/gallery/detail";
+        }
+        return value;
+    }
+
+    private String normalizeMiniProgramScene(String scene) {
+        String value = hasText(scene) ? scene.trim() : "";
+        if (value.length() > 32) {
+            value = value.substring(0, 32);
+        }
+        value = value.replaceAll("[^A-Za-z0-9_=-]", "");
+        return hasText(value) ? value : "id=0";
+    }
+
+    private String getMiniProgramAccessToken() {
+        final String cacheKey = "wechat:mini:access_token";
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached instanceof String cachedToken && hasText(cachedToken)) {
+                return cachedToken;
+            }
+        } catch (Exception e) {
+            log.warn("读取微信 access_token 缓存失败", e);
+        }
+
+        try {
+            String url = String.format(
+                    "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s",
+                    wechatAppId, wechatSecret
+            );
+            String response = cn.hutool.http.HttpUtil.get(url, 5000);
+            log.debug("微信 access_token 响应: {}", response);
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            String accessToken = json.getString("access_token");
+            if (!hasText(accessToken)) {
+                Integer errcode = json.getInteger("errcode");
+                String errmsg = json.getString("errmsg");
+                throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE,
+                        "获取微信 access_token 失败(" + errcode + "): " + errmsg);
+            }
+            Integer expiresIn = json.getInteger("expires_in");
+            long ttlSeconds = expiresIn != null && expiresIn > 300 ? expiresIn - 300L : 6600L;
+            try {
+                redisTemplate.opsForValue().set(cacheKey, accessToken, ttlSeconds, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("缓存微信 access_token 失败", e);
+            }
+            return accessToken;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取微信 access_token 异常", e);
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "获取微信手机号授权失败，请稍后重试");
+        }
+    }
+
     private boolean isOfficialH5Scene(String loginScene) {
         return "h5".equalsIgnoreCase(loginScene) || "official".equalsIgnoreCase(loginScene);
     }
+
+    private Integer resolveGender(Integer... candidates) {
+        for (Integer candidate : candidates) {
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+        return 0;
+    }
+
+    private record WechatProfile(String nickname, String avatar, Integer gender, String region) {}
+
+    private record WechatAuthResult(
+            String openid,
+            String unionid,
+            String nickname,
+            String avatar,
+            Integer gender,
+            String region
+    ) {}
 
     /**
      * 判断是否为 H5 开发环境的 mock 授权码
@@ -669,13 +1188,107 @@ public class UserService {
      * 绑定手机号
      */
     public void bindPhone(Long userId, String phone, String verifyCode) {
-        // TODO: 验证短信验证码
+        if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException(400, "手机号格式不正确");
+        }
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
+        validateSmsCode(phone, verifyCode, "bind_phone");
+
+        User existingUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getPhone, phone)
+                        .ne(User::getId, userId)
+                        .last("LIMIT 1")
+        );
+        if (existingUser != null) {
+            throw new BusinessException(400, "该手机号已被其他账号绑定");
+        }
         user.setPhone(phone);
         userMapper.updateById(user);
+    }
+
+    /**
+     * 获取账号安全概览
+     */
+    public AccountSecurityVO getAccountSecurity(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+
+        boolean phoneBound = user.getPhone() != null && !user.getPhone().isBlank();
+        boolean passwordSet = user.getPassword() != null && !user.getPassword().isBlank();
+        boolean wechatBound = user.getOpenid() != null && !user.getOpenid().isBlank();
+
+        int score = 20;
+        List<String> tips = new ArrayList<>();
+        if (phoneBound) {
+            score += 35;
+        } else {
+            tips.add("绑定手机号，用于登录验证和账号找回");
+        }
+        if (passwordSet) {
+            score += 25;
+        } else {
+            tips.add("设置登录密码，保留验证码以外的登录方式");
+        }
+        if (wechatBound) {
+            score += 20;
+        } else {
+            tips.add("绑定微信后可使用微信授权快捷登录");
+        }
+
+        AccountSecurityVO vo = new AccountSecurityVO();
+        vo.setPhoneBound(phoneBound);
+        vo.setPhoneMasked(maskPhone(user.getPhone()));
+        vo.setPasswordSet(passwordSet);
+        vo.setWechatBound(wechatBound);
+        vo.setLastLoginTime(user.getLastLoginTime() == null ? null : user.getLastLoginTime().toString());
+        vo.setRegisterTime(user.getRegisterTime() == null ? null : user.getRegisterTime().toString());
+        vo.setSecurityScore(Math.min(score, 100));
+        vo.setSecurityLevel(score >= 80 ? "高" : score >= 55 ? "中" : "低");
+        vo.setTips(tips);
+        return vo;
+    }
+
+    /**
+     * 设置或修改登录密码。
+     * 已设置密码的账号优先校验原密码；未设置密码或忘记原密码时，可用已绑定手机号验证码完成。
+     */
+    public void updatePassword(Long userId, String currentPassword, String newPassword, String code) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        validatePassword(newPassword);
+
+        boolean hasPassword = user.getPassword() != null && !user.getPassword().isBlank();
+        boolean currentPasswordOk = hasPassword
+                && currentPassword != null
+                && !currentPassword.isBlank()
+                && matchesPassword(currentPassword, user.getPassword());
+
+        if (hasPassword && !currentPasswordOk) {
+            if (user.getPhone() == null || user.getPhone().isBlank()) {
+                throw new BusinessException(400, "请先绑定手机号，或输入当前密码");
+            }
+            validateSmsCode(user.getPhone(), code, "change_password");
+        } else if (!hasPassword) {
+            if (user.getPhone() != null && !user.getPhone().isBlank()) {
+                validateSmsCode(user.getPhone(), code, "change_password");
+            }
+        }
+
+        user.setPassword(hashPassword(newPassword));
+        userMapper.updateById(user);
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) return phone;
+        return phone.replaceAll("(\\d{3})\\d{4}(\\d{4})", "$1****$2");
     }
 
     /**
@@ -700,18 +1313,73 @@ public class UserService {
             throw new BusinessException("您已有认证申请，无需重复提交");
         }
 
+        RealnameCertification realname = realnameCertMapper.selectOne(
+                new LambdaQueryWrapper<RealnameCertification>()
+                        .eq(RealnameCertification::getUserId, userId)
+                        .eq(RealnameCertification::getStatus, 1)
+                        .last("LIMIT 1")
+        );
+        if (realname == null || realname.getFaceVerified() == null || realname.getFaceVerified() != 1) {
+            throw new BusinessException(400, "请先完成支付宝人脸识别认证");
+        }
+        String identityName = firstNonBlank(user.getRealName(), realname.getRealName()).trim();
+        String identityIdCard = decryptUserIdCard(user);
+        if (!hasText(identityName) || !hasText(identityIdCard)) {
+            throw new BusinessException(400, "未找到完整实名认证信息，请先完成实名认证");
+        }
+        String artField = firstNonBlank(dto.getArtField(), "综合艺术").trim();
+        String resume = firstNonBlank(dto.getResume(), "已完成实名认证，申请成为平台认证艺术家。").trim();
+
         // 创建认证申请
         ArtistCertification cert = new ArtistCertification();
         cert.setUserId(userId);
-        cert.setRealName(dto.getRealName());
-        cert.setIdCard(dto.getIdCard());
-        cert.setResume(dto.getResume());
+        cert.setRealName(identityName);
+        cert.setIdCard(maskIdCard(identityIdCard));
+        cert.setResume(resume);
+        cert.setArtField(artField);
+        cert.setIdFrontUrl(firstNonBlank(dto.getIdCardFront(), realname.getIdFrontUrl()));
+        cert.setIdBackUrl(firstNonBlank(dto.getIdCardBack(), realname.getIdBackUrl()));
+        cert.setFaceVerified(Boolean.TRUE.equals(dto.getFaceVerified()) ? 1 : 0);
         cert.setArtworks(dto.getArtworks() != null ? String.join(",", dto.getArtworks()) : null);
         cert.setExhibits(dto.getExhibits() != null ? String.join(",", dto.getExhibits()) : null);
         cert.setStatus(UserConstant.ARTIST_CERT_PENDING);
         cert.setCreateTime(LocalDateTime.now());
         cert.setUpdateTime(LocalDateTime.now());
         artistCertMapper.insert(cert);
+    }
+
+    public ArtistIdCardVerifyVO verifyArtistIdCard(ArtistIdCardVerifyDTO dto) {
+        if (!hasText(tencentOcrSecretId) || !hasText(tencentOcrSecretKey)) {
+            throw new BusinessException(500, "身份证识别服务未配置");
+        }
+
+        String side = "front".equalsIgnoreCase(dto.getCardSide()) ? "FRONT" : "BACK";
+        try {
+            Credential credential = new Credential(tencentOcrSecretId.trim(), tencentOcrSecretKey.trim());
+            OcrClient client = new OcrClient(credential, firstNonBlank(tencentOcrRegion, "ap-beijing"));
+            IDCardOCRRequest request = new IDCardOCRRequest();
+            request.setCardSide(side);
+            request.setImageBase64(stripDataUrlPrefix(dto.getImageBase64()));
+            request.setEnableRecognitionRectify(true);
+
+            IDCardOCRResponse response = client.IDCardOCR(request);
+            if (!isValidIdCardOcrResponse(side, response)) {
+                throw new BusinessException(400, "请上传清晰、完整的身份证" + ("FRONT".equals(side) ? "正面" : "背面") + "照片");
+            }
+
+            ArtistIdCardVerifyVO vo = new ArtistIdCardVerifyVO();
+            vo.setValid(true);
+            vo.setCardSide("FRONT".equals(side) ? "front" : "back");
+            vo.setRealName(firstNonBlank(response.getName()));
+            vo.setIdCard(firstNonBlank(response.getIdNum()));
+            vo.setAuthority(firstNonBlank(response.getAuthority()));
+            vo.setValidDate(firstNonBlank(response.getValidDate()));
+            vo.setMessage("识别通过");
+            return vo;
+        } catch (TencentCloudSDKException e) {
+            log.warn("身份证 OCR 识别失败, side={}, code={}, message={}", side, e.getErrorCode(), e.getMessage());
+            throw new BusinessException(400, resolveOcrErrorMessage(e, side));
+        }
     }
 
     /**
@@ -760,6 +1428,47 @@ public class UserService {
         if (status.equals(UserConstant.ARTIST_CERT_APPROVED)) return "已通过";
         if (status.equals(UserConstant.ARTIST_CERT_REJECTED)) return "已拒绝";
         return "未知";
+    }
+
+    private String stripDataUrlPrefix(String imageBase64) {
+        String value = imageBase64 == null ? "" : imageBase64.trim();
+        int commaIndex = value.indexOf(',');
+        if (value.startsWith("data:") && commaIndex > -1) {
+            return value.substring(commaIndex + 1);
+        }
+        return value;
+    }
+
+    private boolean isValidIdCardOcrResponse(String side, IDCardOCRResponse response) {
+        if (response == null) return false;
+        if ("FRONT".equals(side)) {
+            return hasText(response.getName()) || hasText(response.getIdNum()) || hasText(response.getBirth());
+        }
+        return hasText(response.getAuthority()) || hasText(response.getValidDate());
+    }
+
+    private String resolveOcrErrorMessage(TencentCloudSDKException e, String side) {
+        String fallback = "请上传清晰、完整的身份证" + ("FRONT".equals(side) ? "正面" : "背面") + "照片";
+        String code = firstNonBlank(e.getErrorCode());
+        String message = firstNonBlank(e.getMessage());
+        if ("FailedOperation.UnSupportCardSide".equalsIgnoreCase(code)
+                || "InvalidParameterValue.CardSide".equalsIgnoreCase(code)) {
+            return fallback;
+        }
+        if ("FailedOperation.ImageDecodeFailed".equalsIgnoreCase(code)
+                || "InvalidParameterValue.ImageUrlInvalid".equalsIgnoreCase(code)
+                || "InvalidParameterValue.ImageBase64Invalid".equalsIgnoreCase(code)) {
+            return "图片读取失败，请重新上传清晰的身份证照片";
+        }
+        if ("UnauthorizedOperation.ServiceIsolate".equalsIgnoreCase(code)
+                || "FailedOperation.NoUseRight".equalsIgnoreCase(code)
+                || "AuthFailure.UnauthorizedOperation".equalsIgnoreCase(code)
+                || (hasText(message) && (message.contains("服务未开通")
+                || message.contains("开通相应服务")
+                || message.contains("未授权使用该接口")))) {
+            return "身份证识别服务暂不可用，请稍后重试";
+        }
+        return hasText(message) ? message : fallback;
     }
 
     private Integer resolveArtistStatus(Long userId, List<String> identityList) {
@@ -1082,7 +1791,7 @@ public class UserService {
             item.put("size", row.get("size"));
             item.put("year", row.get("year"));
             item.put("price", row.get("price"));
-            item.put("priceText", row.get("price") == null ? "" : "¥" + formatFen(row.get("price")));
+            item.put("priceText", row.get("price") == null ? "" : "¥" + formatYuan(row.get("price")));
             item.put("favoriteCount", toInt(row.get("favorite_count"), 0));
             int status = toInt(row.get("status"), 0);
             String collectorRegion = loadArtworkCollectorRegion(toLong(row.get("id"), 0), toLong(row.get("holder_id"), 0));
@@ -1232,6 +1941,15 @@ public class UserService {
             || "DENIED".equals(status);
     }
 
+    private boolean isAlipayPassed(String certifyStatus) {
+        String status = stringValue(certifyStatus).toUpperCase(Locale.ROOT);
+        return "SUCCESS".equals(status)
+            || "PASSED".equals(status)
+            || "FINISHED".equals(status)
+            || "COMPLETED".equals(status)
+            || "VALID".equals(status);
+    }
+
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
     }
@@ -1285,9 +2003,9 @@ public class UserService {
         return "COALESCE(" + String.join(", ", existingColumns) + ")";
     }
 
-    private String formatFen(Object value) {
-        long amount = value instanceof Number number ? number.longValue() : 0L;
-        return String.format("%,d", Math.round(amount / 100.0d));
+    private String formatYuan(Object value) {
+        double amount = value instanceof Number number ? number.doubleValue() : 0D;
+        return String.format("%,.2f", amount).replaceAll("\\.00$", "");
     }
 
     private int toInt(Object value, int fallback) {
@@ -2059,7 +2777,6 @@ public class UserService {
         log.info("艺术家不存在，创建新艺术家: name={}", trimmedName);
         User newUser = new User();
         newUser.setNickname(trimmedName);
-        newUser.setUid(UserIdUtil.generateUid()); // 生成标准19位UID
         newUser.setCreateTime(LocalDateTime.now());
         newUser.setUpdateTime(LocalDateTime.now());
         newUser.setStatus(1);
@@ -2069,6 +2786,8 @@ public class UserService {
         newUser.setAvatar("https://picsum.photos/200/200?random=" + System.currentTimeMillis());
 
         userMapper.insert(newUser);
+        newUser.setUid(UserIdUtil.generateUid(newUser.getId()));
+        userMapper.updateById(newUser);
         log.info("创建新用户: id={}, uid={}, nickname={}", newUser.getId(), newUser.getUid(), trimmedName);
 
         // 创建 artist_profile 记录（待审核状态）- 艺术家管理列表查询此表
@@ -2621,9 +3340,12 @@ public class UserService {
             // 已拒绝则允许重新提交 - 更新记录
         }
 
+        String realName = dto.getRealName().trim();
         String idCard = dto.getIdCard().trim().toUpperCase();
         String idCardHash = sha256(idCard);
         String maskedIdCard = maskIdCard(idCard);
+
+        persistUserRealnameIdentity(userId, realName, idCard, false);
 
         // 查重：同一身份证不能被不同用户认证
         RealnameCertification dup = realnameCertMapper.selectOne(
@@ -2636,7 +3358,7 @@ public class UserService {
 
         if (existing != null) {
             // 重新提交：更新已有记录
-            existing.setRealName(dto.getRealName().trim());
+            existing.setRealName(realName);
             existing.setIdCard(maskedIdCard);
             existing.setIdCardHash(idCardHash);
             existing.setIdFrontUrl(dto.getIdFrontUrl());
@@ -2653,7 +3375,7 @@ public class UserService {
         } else {
             RealnameCertification cert = new RealnameCertification();
             cert.setUserId(userId);
-            cert.setRealName(dto.getRealName().trim());
+            cert.setRealName(realName);
             cert.setIdCard(maskedIdCard);
             cert.setIdCardHash(idCardHash);
             cert.setIdFrontUrl(dto.getIdFrontUrl());
@@ -2677,8 +3399,17 @@ public class UserService {
         if (cert == null) {
             // 检查 users 表是否有 real_name_verified 历史标记
             User user = userMapper.selectById(userId);
-            if (user != null) {
-                // 暂不使用 JDBC 读取动态列名，后续兼容
+            if (user != null && Objects.equals(user.getRealNameVerified(), 1)
+                    && hasText(user.getRealName()) && hasText(user.getIdCardEncrypted())) {
+                return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
+                    .status(1)
+                    .verifyMode(alipayService.isRealnameEnabled() ? "alipay" : "manual")
+                    .alipayEnabled(alipayService.isRealnameEnabled())
+                    .realName(user.getRealName())
+                    .idCard(decryptUserIdCard(user))
+                    .maskedRealName(maskRealName(user.getRealName()))
+                    .maskedIdCard(maskIdCard(decryptUserIdCard(user)))
+                    .build();
             }
             return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
                 .status(0)
@@ -2694,7 +3425,10 @@ public class UserService {
             default: displayStatus = 2; break; // 审核中（前端展示码 2）
         }
 
-        String maskedRealName = maskRealName(cert.getRealName());
+        User user = userMapper.selectById(userId);
+        String resolvedRealName = firstNonBlank(user == null ? null : user.getRealName(), cert.getRealName());
+        String resolvedIdCard = user == null ? "" : decryptUserIdCard(user);
+        String maskedRealName = maskRealName(resolvedRealName);
         String maskedIdCard = cert.getIdCard();
 
         return com.shiyiju.user.vo.RealnameCertStatusVO.builder()
@@ -2704,6 +3438,9 @@ public class UserService {
             .certifyId(cert.getCertifyId())
             .maskedRealName(maskedRealName)
             .maskedIdCard(maskedIdCard)
+            .realName(resolvedRealName)
+            .idCard(cert.getStatus() != null && cert.getStatus() == 1 && hasText(resolvedIdCard)
+                    ? resolvedIdCard : null)
             .rejectReason(cert.getRejectReason())
             .submittedAt(cert.getCreateTime())
             .reviewTime(cert.getReviewTime())
@@ -2716,16 +3453,28 @@ public class UserService {
             throw new BusinessException(400, "支付宝实名认证暂未配置，请先使用人工审核模式");
         }
 
+        ResolvedRealnameIdentity identity = resolveRealnameIdentity(userId, dto);
+        String realName = identity.realName();
+        String idCard = identity.idCard();
+        boolean restart = Boolean.TRUE.equals(dto != null ? dto.getRestart() : null);
+
         RealnameCertification existing = realnameCertMapper.selectOne(
             new LambdaQueryWrapper<RealnameCertification>().eq(RealnameCertification::getUserId, userId));
-        if (existing != null && Objects.equals(existing.getStatus(), 1)) {
-            throw new BusinessException(400, "您已通过实名认证");
+        if (existing != null && Objects.equals(existing.getStatus(), 1) && !restart) {
+            if (!Objects.equals(existing.getRealName(), realName)
+                    || !Objects.equals(existing.getIdCardHash(), sha256(idCard))) {
+                throw new BusinessException(400, "当前填写的身份信息与已通过实名认证信息不一致");
+            }
+            return RealnameAlipayStartVO.builder()
+                .certifyId(existing.getCertifyId())
+                .verified(true)
+                .build();
         }
 
-        String realName = dto.getRealName().trim();
-        String idCard = dto.getIdCard().trim().toUpperCase();
         String idCardHash = sha256(idCard);
         String maskedIdCard = maskIdCard(idCard);
+
+        persistUserRealnameIdentity(userId, realName, idCard, false);
 
         RealnameCertification dup = realnameCertMapper.selectOne(
             new LambdaQueryWrapper<RealnameCertification>()
@@ -2736,11 +3485,12 @@ public class UserService {
             throw new BusinessException(400, "该身份证号已被其他账号认证");
         }
 
+        String returnUrl = resolveSafeAlipayReturnUrl(dto.getReturnUrl());
         String outerOrderNo = "RN" + System.currentTimeMillis() + userId;
         Map<String, String> initResult = alipayService.initializeRealnameCert(
-            outerOrderNo, realName, idCard, alipayService.getRealnameReturnUrl());
+            outerOrderNo, realName, idCard, returnUrl);
         String certifyId = initResult.get("certifyId");
-        String redirectUrl = alipayService.buildRealnameCertifyUrl(certifyId, alipayService.getRealnameReturnUrl());
+        String redirectUrl = alipayService.buildRealnameCertifyUrl(certifyId, returnUrl);
 
         if (existing != null) {
             existing.setRealName(realName);
@@ -2775,6 +3525,79 @@ public class UserService {
             .build();
     }
 
+    private String resolveSafeAlipayReturnUrl(String requestedReturnUrl) {
+        String fallback = alipayService.getRealnameReturnUrl();
+        if (!hasText(requestedReturnUrl)) {
+            return fallback;
+        }
+        try {
+            java.net.URI fallbackUri = java.net.URI.create(fallback);
+            java.net.URI requestedUri = java.net.URI.create(requestedReturnUrl.trim());
+            boolean sameOrigin = Objects.equals(fallbackUri.getScheme(), requestedUri.getScheme())
+                    && Objects.equals(fallbackUri.getHost(), requestedUri.getHost())
+                    && fallbackUri.getPort() == requestedUri.getPort();
+            if (sameOrigin) {
+                return requestedUri.toString();
+            }
+        } catch (Exception e) {
+            log.warn("支付宝实名回跳地址不合法，已使用默认地址: {}", requestedReturnUrl);
+        }
+        return fallback;
+    }
+
+    private ResolvedRealnameIdentity resolveRealnameIdentity(Long userId, RealnameAlipayStartDTO dto) {
+        User user = userMapper.selectById(userId);
+        String realName = dto == null ? "" : firstNonBlank(dto.getRealName()).trim();
+        String idCard = dto == null ? "" : firstNonBlank(dto.getIdCard()).trim().toUpperCase(Locale.ROOT);
+
+        if (!hasText(realName) && user != null) {
+            realName = firstNonBlank(user.getRealName()).trim();
+        }
+        if (!hasText(idCard) && user != null && hasText(user.getIdCardEncrypted())) {
+            try {
+                idCard = AESUtil.decrypt(user.getIdCardEncrypted()).trim().toUpperCase(Locale.ROOT);
+            } catch (RuntimeException ex) {
+                log.warn("用户 {} 的加密身份证号解密失败", userId, ex);
+            }
+        }
+
+        if (!hasText(realName) || !hasText(idCard)) {
+            throw new BusinessException(400, "未找到完整实名信息，请先到实名认证页补全后再发起支付宝认证");
+        }
+        if (!idCard.matches("^\\d{17}[\\dX]$")) {
+            throw new BusinessException(400, "身份证号格式不正确");
+        }
+        return new ResolvedRealnameIdentity(realName, idCard);
+    }
+
+    private void persistUserRealnameIdentity(Long userId, String realName, String idCard, boolean verified) {
+        if (userId == null || !hasText(realName) || !hasText(idCard)) {
+            return;
+        }
+        User update = new User();
+        update.setId(userId);
+        update.setRealName(realName.trim());
+        update.setIdCardEncrypted(AESUtil.encrypt(idCard.trim().toUpperCase(Locale.ROOT)));
+        if (verified) {
+            update.setRealNameVerified(1);
+        }
+        userMapper.updateById(update);
+    }
+
+    private String decryptUserIdCard(User user) {
+        if (user == null || !hasText(user.getIdCardEncrypted())) {
+            return "";
+        }
+        try {
+            return firstNonBlank(AESUtil.decrypt(user.getIdCardEncrypted())).trim().toUpperCase(Locale.ROOT);
+        } catch (RuntimeException ex) {
+            log.warn("用户 {} 的加密身份证号解密失败", user.getId(), ex);
+            return "";
+        }
+    }
+
+    private record ResolvedRealnameIdentity(String realName, String idCard) {}
+
     @Transactional(rollbackFor = Exception.class)
     public com.shiyiju.user.vo.RealnameCertStatusVO syncAlipayRealnameStatus(Long userId, String certifyId) {
         if (!alipayService.isRealnameEnabled()) {
@@ -2794,7 +3617,9 @@ public class UserService {
         String certifyStatus = firstNonBlank(queryResult.get("certifyStatus"), "INIT");
         cert.setExternalStatus(certifyStatus);
 
-        if (Boolean.parseBoolean(queryResult.get("passed"))) {
+        boolean alipayPassed = Boolean.parseBoolean(queryResult.get("passed")) || isAlipayPassed(certifyStatus);
+
+        if (alipayPassed) {
             cert.setFaceVerified(1);
             cert.setStatus(1);
             cert.setVerifyChannel("alipay");
@@ -3007,14 +3832,17 @@ public class UserService {
 
     /**
      * 用户注册
-     * 手机号 + 验证码注册
+     * 手机号注册。短信验证码可通过 user.register.sms-code-required 临时开关恢复。
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginVO register(RegisterDTO dto) {
-        // 1. 验证短信验证码
-        validateSmsCode(dto.getPhone(), dto.getCode(), "register");
+        if (dto.getPhone() == null || !dto.getPhone().matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException(400, "手机号格式不正确");
+        }
+        if (registerSmsCodeRequired) {
+            validateSmsCode(dto.getPhone(), dto.getCode(), "register");
+        }
 
-        // 2. 检查手机号是否已注册
         User existingUser = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone())
         );
@@ -3024,7 +3852,6 @@ public class UserService {
 
         // 3. 创建新用户
         User user = new User();
-        user.setUid(UserIdUtil.generateUid());
         user.setPhone(dto.getPhone());
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
             validatePassword(dto.getPassword());
@@ -3041,6 +3868,8 @@ public class UserService {
         user.setRegisterTime(LocalDateTime.now());
         user.setLastLoginTime(LocalDateTime.now());
         userMapper.insert(user);
+        user.setUid(UserIdUtil.generateUid(user.getId()));
+        userMapper.updateById(user);
 
         log.info("用户注册成功: phone={}, userId={}", dto.getPhone(), user.getId());
 
@@ -3075,6 +3904,7 @@ public class UserService {
     /**
      * 手机号登录
      */
+    @Transactional(rollbackFor = Exception.class)
     public LoginVO phoneLogin(RegisterDTO dto) {
         // 1. 验证短信验证码
         validateSmsCode(dto.getPhone(), dto.getCode(), "login");
@@ -3083,13 +3913,33 @@ public class UserService {
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone())
         );
-        if (user == null) {
-            throw new BusinessException(400, "该手机号未注册，请先注册");
-        }
+        boolean isNewUser = false;
+        LocalDateTime now = LocalDateTime.now();
 
-        // 3. 更新最后登录时间
-        user.setLastLoginTime(LocalDateTime.now());
-        userMapper.updateById(user);
+        if (user == null) {
+            user = new User();
+            user.setPhone(dto.getPhone());
+            user.setNickname("用户" + dto.getPhone().substring(7));
+            user.setAvatar("");
+            user.setGender(0);
+            user.setIdentities(UserConstant.IDENTITY_COLLECTOR);
+            user.setStatus(1);
+            user.setFollowerCount(0);
+            user.setFollowingCount(0);
+            user.setRegisterTime(now);
+            user.setLastLoginTime(now);
+            userMapper.insert(user);
+            user.setUid(UserIdUtil.generateUid(user.getId()));
+            userMapper.updateById(user);
+            isNewUser = true;
+            log.info("手机号验证码登录自动注册成功: phone={}, userId={}", dto.getPhone(), user.getId());
+        } else if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new BusinessException(403, "账号已被禁用，请联系客服");
+        } else {
+            // 3. 更新最后登录时间
+            user.setLastLoginTime(now);
+            userMapper.updateById(user);
+        }
 
         // 4. 生成Token
         String token = JwtUtil.generateToken(user.getId(), user.getOpenid());
@@ -3098,7 +3948,7 @@ public class UserService {
         // 5. 构建返回结果
         LoginVO vo = new LoginVO();
         vo.setToken(token);
-        vo.setIsNewUser(false);
+        vo.setIsNewUser(isNewUser);
         vo.setUserId(user.getId());
         vo.setUid(user.getUid());
         vo.setNickname(user.getNickname());
@@ -3173,7 +4023,8 @@ public class UserService {
         if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
             throw new BusinessException(400, "手机号格式不正确");
         }
-        if (!"login".equals(type) && !"register".equals(type)) {
+        if (!"login".equals(type) && !"register".equals(type)
+                && !"bind_phone".equals(type) && !"change_password".equals(type)) {
             throw new BusinessException(400, "验证码类型不正确");
         }
 
@@ -3193,7 +4044,7 @@ public class UserService {
         // 4. 通过腾讯云 SMS 发送验证码（配置不完整时自动降级为日志模拟）
         // 注意：首次使用需在腾讯云短信控制台完成：
         //   a) 创建短信应用 → 获取 SDK App ID
-        //   b) 申请短信签名（如"拾艺局"）
+        //   b) 申请短信签名（如"艺本艺术"）
         //   c) 申请短信模板（如"您的验证码是{1}，{2}分钟内有效，请勿泄露。"）
         //   d) 获取 API 密钥（SecretId / SecretKey）
         //   控制台地址：https://console.cloud.tencent.com/smsv2

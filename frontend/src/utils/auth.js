@@ -11,15 +11,57 @@
  *  4. 明确区分"可刷新"和"不可刷新"的401
  */
 
-import { refreshToken } from '@/api/user'
-
 // ==================== 常量配置 ====================
 
+const PLATFORM = process.env.UNI_PLATFORM || 'h5'
+const IS_MP = PLATFORM === 'mp-weixin'
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+const GATEWAY_ORIGIN = IS_MP
+  ? (import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `http://${DEV_LAN_HOST}:9443`)
+  : ''
+const API_BASE_URL = IS_MP ? `${GATEWAY_ORIGIN}/api` : '/api'
+const REFRESH_TIMEOUT = 30000
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'userInfo'
 const REDIRECT_KEY = 'login_redirect'
 const TOKEN_EXPIRE_BUFFER = 5 * 60 * 1000  // 提前 5 分钟刷新
 const REDIRECT_MAX_AGE = 5 * 60 * 1000    // 重定向URL有效期 5 分钟
+
+function refreshTokenRequest() {
+  return new Promise((resolve, reject) => {
+    const tokenData = getTokenData() || {}
+    const token = tokenData.accessToken || ''
+    const userId = tokenData.userId || ''
+    const header = { 'Content-Type': 'application/json' }
+
+    if (token) header.Authorization = 'Bearer ' + token
+    if (userId) header['X-User-Id'] = String(userId)
+
+    uni.request({
+      url: `${API_BASE_URL}/user/auth/refresh`,
+      method: 'POST',
+      header,
+      timeout: REFRESH_TIMEOUT,
+      success: (res) => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode}`))
+          return
+        }
+
+        const body = res.data
+        if (body?.code === 401) {
+          reject(new Error(body?.message || 'refresh_expired'))
+          return
+        }
+
+        resolve(body?.data)
+      },
+      fail: (err) => {
+        reject(err || new Error('refresh_failed'))
+      }
+    })
+  })
+}
 
 // ==================== Token 存储结构 ====================
 
@@ -269,7 +311,7 @@ export async function executeTokenRefresh() {
 
   try {
     console.log('[Auth] 开始刷新 Token...')
-    const result = await refreshToken()
+    const result = await refreshTokenRequest()
 
     if (result?.token) {
       // 新 token 有效期为 7 天（与后端 JWT 配置一致）

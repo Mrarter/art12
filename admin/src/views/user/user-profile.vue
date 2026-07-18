@@ -1029,7 +1029,7 @@ export default {
   font-weight: 500;
 }
 
-::v-deep .el-card__header {
+:deep(.el-card__header) {
   display: flex;
   justify-content: space-between;
   align-items: center;

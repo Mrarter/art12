@@ -208,8 +208,11 @@ export default {
     },
 
     normalizePrice(price) {
-      const raw = Number(price || 0)
-      return raw >= 1000 ? this.formatYuan(fenToYuan(raw)) : this.formatYuan(raw)
+      if (price === null || price === undefined || price === '') return this.formatYuan(0)
+      const rawText = String(price).trim()
+      const raw = Number(rawText)
+      if (!Number.isFinite(raw)) return this.formatYuan(0)
+      return rawText.includes('.') ? this.formatYuan(raw) : this.formatYuan(fenToYuan(raw))
     },
 
     loadTrackInfo(orderId) {

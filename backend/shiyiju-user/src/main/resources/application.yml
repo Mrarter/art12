@@ -42,6 +42,8 @@ wechat:
   secret: ${WECHAT_SECRET:your-wechat-secret}
   official-appid: ${WECHAT_OFFICIAL_APPID:}
   official-secret: ${WECHAT_OFFICIAL_SECRET:}
+  open-appid: ${WECHAT_OPEN_APPID:}
+  open-secret: ${WECHAT_OPEN_SECRET:}
 
 alipay:
   enabled: ${ALIPAY_ENABLED:false}
@@ -52,7 +54,7 @@ alipay:
   notify-url: ${ALIPAY_NOTIFY_URL:}
   return-url: ${ALIPAY_RETURN_URL:}
   realname-enabled: ${ALIPAY_REALNAME_ENABLED:false}
-  realname-return-url: ${ALIPAY_REALNAME_RETURN_URL:https://shiyiju.online/#/pages/user/realname}
+  realname-return-url: ${ALIPAY_REALNAME_RETURN_URL:https://a.art1.cn/#/pages/user/realname}
   realname-biz-code: ${ALIPAY_REALNAME_BIZ_CODE:FACE}
 
 # 日志配置
@@ -77,7 +79,7 @@ sms:
   # 短信应用ID
   sdk-app-id: ${TENCENT_SMS_SDK_APP_ID:}
   # 短信签名
-  sign-name: ${TENCENT_SMS_SIGN_NAME:拾艺局}
+  sign-name: ${TENCENT_SMS_SIGN_NAME:艺本艺术}
   # 短信模板ID（验证码模板）
   template-id: ${TENCENT_SMS_TEMPLATE_ID:}
   # 是否启用真实短信发送（需配置完整的secret-id/secret-key/sdk-app-id/template-id）
@@ -87,3 +89,7 @@ sms:
   code-expire-minutes: ${SMS_CODE_EXPIRE_MINUTES:5}
   resend-interval-seconds: ${SMS_RESEND_INTERVAL_SECONDS:60}
   test-code: ${SMS_TEST_CODE:888888}
+
+user:
+  register:
+    sms-code-required: ${USER_REGISTER_SMS_CODE_REQUIRED:true}

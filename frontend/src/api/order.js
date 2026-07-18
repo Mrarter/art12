@@ -71,6 +71,10 @@ export const getOrderLogistics = (orderId) => {
   return request({ url: `/order/logistics/order/${orderId}` })
 }
 
+export const getLogisticsByTrackingNo = (trackingNo) => {
+  return request({ url: `/order/logistics/tracking/${trackingNo}` })
+}
+
 export const getLogisticsCompanies = () => {
   return request({ url: '/order/logistics/companies' })
 }
@@ -112,6 +116,14 @@ export const refundApply = (data) => {
   return request({ url: `/order/orders/${data.orderId}/refund`, method: 'POST', data })
 }
 
+export const submitRefundReturnLogistics = (data) => {
+  return request({
+    url: `/order/orders/${data.orderId}/refund-return-logistics`,
+    method: 'POST',
+    data
+  })
+}
+
 export const submitReview = (data) => {
   return request({ url: '/order/review', method: 'POST', data })
 }
@@ -122,22 +134,36 @@ export const submitReview = (data) => {
  * 获取JSAPI支付参数（小程序调起支付）
  * @param {number} orderId - 订单ID
  * @param {string} openId - 用户openId
+ * @param {string} payScene - 支付场景 mini/h5
  */
-export const getJsApiPayParams = (orderId, openId) => {
+export const getJsApiPayParams = (orderId, openId, payScene = 'mini') => {
   return request({
     url: '/order/pay/jsapi-params',
     method: 'POST',
-    data: { orderId, openId }
+    data: { orderId, openId, payScene }
   })
 }
 
 /**
  * 创建支付宝手机网站支付
  * @param {number} orderId - 订单ID
+ * @param {object} options - 支付场景等附加参数
  */
-export const createAlipayWapPay = (orderId) => {
+export const createAlipayWapPay = (orderId, options = {}) => {
   return request({
     url: '/order/pay/alipay/wap',
+    method: 'POST',
+    data: { orderId, ...options }
+  })
+}
+
+/**
+ * 创建支付宝 App 支付
+ * @param {number} orderId - 订单ID
+ */
+export const createAlipayAppPay = (orderId) => {
+  return request({
+    url: '/order/pay/alipay/app',
     method: 'POST',
     data: { orderId }
   })

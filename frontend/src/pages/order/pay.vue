@@ -122,13 +122,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { getOrderDetail, getJsApiPayParams, createAlipayWapPay, mockPaySuccess } from '@/api/order'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { getOrderDetail, createAlipayWapPay, createAlipayAppPay, getJsApiPayParams, mockPaySuccess } from '@/api/order'
+import { getRealnameCertStatus } from '@/api/user'
 import { getProductDetail, normalizeImageUrl } from '@/api/product'
 import { useUserStore } from '@/store/modules/user'
 import { getFullImageUrl } from '@/utils/image'
 import { fenToYuan, formatYuanNumber } from '@/utils/price'
-import { getAccessToken, isGuestUser } from '@/utils/auth'
+import { getAccessToken, getCurrentPagePath, isGuestUser, saveRedirectUrl } from '@/utils/auth'
+import { IS_MP_WEIXIN, getAlipayReturnScene, isAppRuntime } from '@/utils/platform'
+import { hasNativeAlipayPayBridge, requestNativeAlipayPay } from '@/utils/native'
 
 const userStore = useUserStore()
 
@@ -144,17 +147,23 @@ const orderInfo = ref({
   createTime: ''
 })
 
-const payMethods = ref([
-  { id: 'wechat', name: '微信支付', desc: '推荐使用微信支付', mark: '微' },
-  { id: 'alipay', name: '支付宝', desc: '支持支付宝余额与银行卡', mark: '支' }
-])
+const payMethods = computed(() => {
+  const methods = []
+  if (IS_MP_WEIXIN) {
+    methods.push({ id: 'wechat', name: '微信支付', desc: '调起微信支付完成付款', mark: '微', disabled: false })
+  }
+  methods.push({ id: 'alipay', name: '支付宝', desc: isAppRuntime() ? '调起支付宝 App 完成支付' : '支持支付宝余额与银行卡', mark: '支', disabled: false })
+  return methods
+})
 
-const selectedPay = ref('wechat')
+const selectedPay = ref(IS_MP_WEIXIN ? 'wechat' : 'alipay')
 const paying = ref(false)
 const showSuccess = ref(false)
 const orderId = ref(null)
 const payFailed = ref(false)
 const fallbackAmount = ref(0)
+const checkingPayResult = ref(false)
+let shouldCheckPayOnVisible = false
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === '') return 0
@@ -166,34 +175,16 @@ const routeAmountToYuan = (value, fallbackYuan = 0) => {
   if (value === null || value === undefined || value === '') return fallbackYuan
   const raw = String(value).trim()
   if (!raw) return fallbackYuan
-  return raw.includes('.') ? toNumber(raw) : fenToYuan(raw)
+  return toNumber(raw)
 }
 
 const orderAmountToYuan = (value, fallbackYuan = 0) => {
   if (value === null || value === undefined || value === '') return fallbackYuan
-  return fenToYuan(value)
-}
-
-const reconcileYuanAmount = (rawValue, options = {}) => {
-  const amountYuan = orderAmountToYuan(rawValue, 0)
-  const references = [options.fallbackYuan, options.derivedYuan]
-    .map((value) => toNumber(value))
-    .filter((value) => value > 0)
-  for (const reference of references) {
-    if (Math.abs(amountYuan - reference * 100) < 0.01 || Math.abs(amountYuan - reference / 100) < 0.01) {
-      return reference
-    }
-  }
-  return amountYuan
+  return toNumber(value)
 }
 
 const formatMoney = (value) => {
   return formatYuanNumber(value)
-}
-
-const isLocalDev = () => {
-  const host = typeof location !== 'undefined' ? location.hostname : ''
-  return process.env.NODE_ENV !== 'production' || host === 'localhost' || host === '127.0.0.1'
 }
 
 const hasRealLogin = () => {
@@ -203,18 +194,16 @@ const hasRealLogin = () => {
 
 const goodsList = computed(() => orderInfo.value.goodsList || orderInfo.value.items || [])
 const derivedGoodsAmount = computed(() => goodsList.value.reduce((sum, item) => sum + getGoodsLineAmountYuan(item), 0))
-const goodsAmount = computed(() => reconcileYuanAmount(
-  orderInfo.value.goodsAmount || orderInfo.value.totalAmount || orderInfo.value.payAmount,
-  { fallbackYuan: fallbackAmount.value, derivedYuan: derivedGoodsAmount.value }
-))
+const goodsAmount = computed(() => {
+  if (derivedGoodsAmount.value > 0) return derivedGoodsAmount.value
+  return orderAmountToYuan(orderInfo.value.goodsAmount || orderInfo.value.totalAmount || orderInfo.value.payAmount, fallbackAmount.value)
+})
 const freightAmount = computed(() => orderAmountToYuan(orderInfo.value.freight || orderInfo.value.freightAmount, 0))
 const discountAmount = computed(() => orderAmountToYuan(orderInfo.value.discountAmount || orderInfo.value.couponAmount, 0))
 const payAmount = computed(() => {
   const derivedPayAmount = Math.max(goodsAmount.value + freightAmount.value - discountAmount.value, 0)
-  return reconcileYuanAmount(orderInfo.value.payAmount, {
-    fallbackYuan: fallbackAmount.value || derivedPayAmount,
-    derivedYuan: derivedPayAmount
-  })
+  if (derivedPayAmount > 0) return derivedPayAmount
+  return orderAmountToYuan(orderInfo.value.payAmount, fallbackAmount.value)
 })
 const address = computed(() => orderInfo.value.address || {})
 const hasAddress = computed(() => !!(address.value.receiverName || address.value.name || fullAddress.value))
@@ -266,7 +255,7 @@ const getGoodsAuthor = (item = {}) => {
 
 const getGoodsLineAmountYuan = (item = {}) => {
   const amount = item.subtotal ?? item.price ?? 0
-  return orderAmountToYuan(amount, 0)
+  return toNumber(amount)
 }
 
 const firstImage = (images) => {
@@ -294,7 +283,11 @@ const getGoodsImage = (item = {}) => {
 }
 
 const normalizeOrderItems = async (items = []) => {
-  const normalized = items.map(item => ({ ...item }))
+  const normalized = items.map(item => ({
+    ...item,
+    price: fenToYuan(item.price ?? 0),
+    subtotal: fenToYuan(item.subtotal ?? item.price ?? 0)
+  }))
   await Promise.all(normalized.map(async (item) => {
     const artworkId = item.artworkId || item.goodsId
     if (!artworkId) return
@@ -308,12 +301,6 @@ const normalizeOrderItems = async (items = []) => {
       item.artType = item.artType || detail.artType || detail.medium || ''
       item.size = item.size || detail.size || ''
       item.year = item.year || detail.year || detail.creationYear || ''
-      const detailCurrentPriceYuan = orderAmountToYuan(detail.currentPrice || detail.current_price || detail.price || 0, 0)
-      const itemAmountYuan = orderAmountToYuan(item.subtotal ?? item.price ?? 0, 0)
-      if (detailCurrentPriceYuan > 0 && itemAmountYuan > detailCurrentPriceYuan * 10) {
-        item.price = detail.currentPrice || detail.current_price || detail.price || item.price
-        item.subtotal = (detail.currentPrice || detail.current_price || detail.price || item.subtotal) * (item.quantity || item.count || 1)
-      }
     } catch (e) {
       console.warn('补充订单作品信息失败:', artworkId, e)
     }
@@ -328,7 +315,10 @@ const readRouteOptionsFromLocation = () => {
 }
 
 const selectPay = (item) => {
-  selectedPay.value = item.id
+  if (item?.disabled) return
+  if (item?.id === 'alipay' || item?.id === 'wechat') {
+    selectedPay.value = item.id
+  }
 }
 
 const devMockPay = async () => {
@@ -357,8 +347,25 @@ const devMockPay = async () => {
   }
 }
 
-const submitAlipayForm = (payForm) => {
+const openAlipayApp = (payUrl = '') => {
+  if (!payUrl || typeof window === 'undefined') return false
+  const schemeUrl = `alipays://platformapi/startapp?appId=20000067&url=${encodeURIComponent(payUrl)}`
+  shouldCheckPayOnVisible = true
+  window.location.href = schemeUrl
+  setTimeout(() => {
+    if (document.visibilityState !== 'hidden' && shouldCheckPayOnVisible) {
+      uni.showToast({ title: '如未自动打开，请在系统浏览器中打开后重试', icon: 'none' })
+    }
+  }, 2000)
+  return true
+}
+
+const submitAlipayForm = (payForm, payUrl = '') => {
   // #ifdef H5
+  if (payUrl) {
+    if (openAlipayApp(payUrl)) return
+    return
+  }
   const container = document.createElement('div')
   container.style.display = 'none'
   container.innerHTML = payForm
@@ -368,6 +375,9 @@ const submitAlipayForm = (payForm) => {
     document.body.removeChild(container)
     throw new Error('支付宝支付表单异常')
   }
+  form.method = 'POST'
+  form.acceptCharset = 'UTF-8'
+  form.enctype = 'application/x-www-form-urlencoded'
   form.submit()
   // #endif
   // #ifndef H5
@@ -378,12 +388,52 @@ const submitAlipayForm = (payForm) => {
 const doAlipay = async () => {
   paying.value = true
   try {
-    const payParams = await createAlipayWapPay(orderId.value)
-    if (!payParams?.pay_form) {
+    if (isAppRuntime() && hasNativeAlipayPayBridge()) {
+      const payParams = await createAlipayAppPay(orderId.value)
+      const orderInfo = payParams?.order_string || payParams?.orderInfo
+      if (!orderInfo) {
+        throw new Error('支付宝支付参数异常')
+      }
+      await requestNativeAlipayPay(orderInfo)
+      paying.value = false
+      payFailed.value = false
+      shouldCheckPayOnVisible = false
+      await checkPayResult()
+      return
+    }
+
+    // #ifdef APP-PLUS
+    const payParams = await createAlipayAppPay(orderId.value)
+    const orderInfo = payParams?.order_string || payParams?.orderInfo
+    if (!orderInfo) {
+      throw new Error('支付宝支付参数异常')
+    }
+    uni.requestPayment({
+      provider: 'alipay',
+      orderInfo,
+      success: () => {
+        paying.value = false
+        payFailed.value = false
+        showSuccess.value = true
+      },
+      fail: (err) => {
+        paying.value = false
+        if (err.errMsg?.includes('cancel')) {
+          uni.showToast({ title: '支付已取消', icon: 'none' })
+        } else {
+          uni.showToast({ title: '支付失败，请重试', icon: 'none' })
+        }
+      }
+    })
+    return
+    // #endif
+
+    const payParams = await createAlipayWapPay(orderId.value, { returnScene: getAlipayReturnScene() })
+    if (!payParams?.pay_form && !payParams?.pay_url) {
       throw new Error('支付宝支付参数异常')
     }
     payFailed.value = false
-    submitAlipayForm(payParams.pay_form)
+    submitAlipayForm(payParams.pay_form, payParams.pay_url)
   } catch (e) {
     paying.value = false
     const isDev = process.env.NODE_ENV !== 'production' || location.hostname === 'localhost'
@@ -391,6 +441,75 @@ const doAlipay = async () => {
       payFailed.value = true
     }
     uni.showToast({ title: e.message || '支付宝下单失败', icon: 'none' })
+  }
+}
+
+const normalizeWechatPayParams = (payload = {}) => ({
+  timeStamp: String(payload.timeStamp || payload.timestamp || payload.time_stamp || ''),
+  nonceStr: payload.nonceStr || payload.noncestr || payload.nonce_str || '',
+  package: payload.package || payload.packageValue || payload.package_value || '',
+  signType: payload.signType || payload.signtype || payload.sign_type || 'RSA',
+  paySign: payload.paySign || payload.paysign || payload.pay_sign || ''
+})
+
+const doWechatPay = async () => {
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '当前环境暂不支持小程序微信支付', icon: 'none' })
+  return
+  // #endif
+
+  paying.value = true
+  try {
+    const openId = userStore.openId || uni.getStorageSync('openId') || userStore.userInfo?.openId || userStore.userInfo?.openid || ''
+    if (!openId) {
+      throw new Error('未获取到微信支付身份，请重新登录')
+    }
+
+    const rawParams = await getJsApiPayParams(orderId.value, openId, 'mini')
+    const payParams = normalizeWechatPayParams(rawParams)
+    if (!payParams.timeStamp || !payParams.nonceStr || !payParams.package || !payParams.paySign) {
+      throw new Error('微信支付参数异常')
+    }
+
+    await new Promise((resolve, reject) => {
+      uni.requestPayment({
+        ...payParams,
+        success: resolve,
+        fail: reject
+      })
+    })
+
+    paying.value = false
+    payFailed.value = false
+    await loadOrderDetail().catch(() => null)
+    showSuccess.value = true
+  } catch (e) {
+    paying.value = false
+    if (String(e?.errMsg || '').includes('cancel')) {
+      uni.showToast({ title: '支付已取消', icon: 'none' })
+      return
+    }
+    uni.showToast({ title: e.message || '微信支付拉起失败', icon: 'none' })
+  }
+}
+
+const ensureRealnameVerified = async () => {
+  try {
+    const status = await getRealnameCertStatus()
+    if (Number(status?.status) === 1) return true
+    const currentPath = getCurrentPagePath()
+    if (currentPath) {
+      saveRedirectUrl(currentPath)
+    }
+    uni.showToast({ title: '请先完成实名认证', icon: 'none' })
+    setTimeout(() => {
+      const redirect = currentPath ? `?redirect=${encodeURIComponent(currentPath)}` : ''
+      uni.navigateTo({ url: `/pages/user-extra/realname${redirect}` })
+    }, 300)
+    return false
+  } catch (e) {
+    uni.showToast({ title: e.message || '实名认证状态校验失败', icon: 'none' })
+    return false
   }
 }
 
@@ -412,63 +531,18 @@ const doPay = async () => {
     uni.showToast({ title: '请先登录', icon: 'none' })
     return
   }
+  const realnameVerified = await ensureRealnameVerified()
+  if (!realnameVerified) return
+  if (selectedPay.value === 'wechat') {
+    await doWechatPay()
+    return
+  }
   if (selectedPay.value === 'alipay') {
     await doAlipay()
     return
   }
-
-  paying.value = true
-  try {
-    const openId = userStore.openId || uni.getStorageSync('openId') || ''
-    if (!openId) {
-      if (isLocalDev()) {
-        payFailed.value = true
-        uni.showToast({ title: '本地调试可使用模拟支付', icon: 'none' })
-      } else {
-        uni.showToast({ title: '请在微信内完成支付', icon: 'none' })
-      }
-      paying.value = false
-      return
-    }
-
-    let payParams
-    try {
-      payParams = await getJsApiPayParams(orderId.value, openId)
-    } catch (e) {
-      if (isLocalDev()) {
-        payFailed.value = true
-        paying.value = false
-        return
-      }
-      throw e
-    }
-
-    uni.requestPayment({
-      provider: 'wxpay',
-      timeStamp: payParams.timeStamp,
-      nonceStr: payParams.nonceStr,
-      package: payParams.package,
-      signType: payParams.signType || 'MD5',
-      paySign: payParams.paySign,
-      success: () => {
-        paying.value = false
-        showSuccess.value = true
-      },
-      fail: (err) => {
-        paying.value = false
-        if (err.errMsg?.includes('cancel')) {
-          uni.showToast({ title: '支付已取消', icon: 'none' })
-        } else {
-          uni.showToast({ title: '支付失败，请重试', icon: 'none' })
-        }
-      }
-    })
-  } catch (e) {
-    paying.value = false
-    if (!isLocalDev()) {
-      uni.showToast({ title: e.message || '支付下单失败', icon: 'none' })
-    }
-  }
+  selectedPay.value = 'alipay'
+  await doAlipay()
 }
 
 const goOrderDetail = () => {
@@ -479,6 +553,57 @@ const goHome = () => {
   uni.switchTab({ url: '/pages/index/index' })
 }
 
+const loadOrderDetail = async () => {
+  const detail = await getOrderDetail(orderId.value)
+  if (detail) {
+    const items = await normalizeOrderItems(detail.goodsList || detail.items || [])
+    orderInfo.value = {
+      ...detail,
+      orderNo: detail.orderNo || detail.order_no || orderId.value,
+      goodsAmount: fenToYuan(detail.goodsAmount ?? detail.goods_amount ?? detail.totalAmount ?? detail.payAmount ?? 0) || fallbackAmount.value,
+      freight: fenToYuan(detail.freight ?? detail.freightAmount ?? detail.freight_amount ?? 0),
+      discountAmount: fenToYuan(detail.discountAmount ?? detail.discount_amount ?? 0),
+      payAmount: fenToYuan(detail.payAmount ?? detail.pay_amount ?? 0) || fallbackAmount.value,
+      status: detail.status ?? detail.orderStatus ?? detail.paymentStatus ?? '',
+      statusText: detail.statusText || detail.status_text || '',
+      goodsList: items,
+      address: detail.address || null
+    }
+  }
+  return detail
+}
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+const checkPayResult = async () => {
+  if (!orderId.value || checkingPayResult.value) return
+  checkingPayResult.value = true
+  try {
+    for (let i = 0; i < 8; i += 1) {
+      const detail = await loadOrderDetail().catch(() => null)
+      if (isPaidStatus(detail?.paymentStatus || detail?.orderStatus || detail?.status || detail?.statusText)) {
+        paying.value = false
+        payFailed.value = false
+        showSuccess.value = true
+        shouldCheckPayOnVisible = false
+        return
+      }
+      await sleep(i < 2 ? 800 : 1500)
+    }
+    paying.value = false
+    uni.showToast({ title: '未查询到支付成功，可稍后刷新订单', icon: 'none' })
+  } finally {
+    checkingPayResult.value = false
+  }
+}
+
+const handlePayVisibility = () => {
+  if (typeof document === 'undefined') return
+  if (document.visibilityState === 'visible' && shouldCheckPayOnVisible) {
+    setTimeout(() => checkPayResult(), 500)
+  }
+}
+
 onMounted(async () => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
@@ -486,31 +611,33 @@ onMounted(async () => {
 
   if (options.orderId) orderId.value = options.orderId
   if (options.amount) fallbackAmount.value = routeAmountToYuan(options.amount)
-  if (options.paymentMethod) selectedPay.value = options.paymentMethod
+  if (options.paymentMethod) {
+    selectedPay.value = options.paymentMethod === 'wechat' && IS_MP_WEIXIN ? 'wechat' : 'alipay'
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handlePayVisibility)
+    window.addEventListener('focus', handlePayVisibility)
+  }
 
   if (!orderId.value) return
   try {
-    const detail = await getOrderDetail(orderId.value)
-    if (detail) {
-      const items = await normalizeOrderItems(detail.goodsList || detail.items || [])
-      orderInfo.value = {
-        ...detail,
-        orderNo: detail.orderNo || detail.order_no || orderId.value,
-        goodsAmount: detail.goodsAmount ?? detail.goods_amount ?? detail.totalAmount ?? detail.payAmount ?? fallbackAmount.value,
-        freight: detail.freight ?? detail.freightAmount ?? detail.freight_amount ?? 0,
-        discountAmount: detail.discountAmount ?? detail.discount_amount ?? 0,
-        payAmount: detail.payAmount ?? detail.pay_amount ?? fallbackAmount.value,
-        status: detail.status ?? detail.orderStatus ?? detail.paymentStatus ?? '',
-        statusText: detail.statusText || detail.status_text || '',
-        goodsList: items,
-        address: detail.address || null
-      }
+    await loadOrderDetail()
+    if (options.checkPay) {
+      setTimeout(() => checkPayResult(), 500)
     }
   } catch (e) {
     console.warn('获取订单详情失败:', e)
     orderInfo.value.orderNo = orderId.value
     orderInfo.value.goodsAmount = fallbackAmount.value
     orderInfo.value.payAmount = fallbackAmount.value
+  }
+})
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handlePayVisibility)
+    window.removeEventListener('focus', handlePayVisibility)
   }
 })
 </script>
@@ -717,10 +844,6 @@ onMounted(async () => {
   color: #fff;
   font-size: 24rpx;
   font-weight: 800;
-}
-
-.method-icon.wechat {
-  background: #18b55f;
 }
 
 .method-icon.alipay {

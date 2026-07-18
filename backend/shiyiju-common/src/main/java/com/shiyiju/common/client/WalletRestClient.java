@@ -41,6 +41,22 @@ public class WalletRestClient {
     }
 
     /**
+     * 冻结入账
+     */
+    public boolean frozenIncome(Long userId, BigDecimal amount, String billType,
+                                Long relatedId, String relatedType, String remark) {
+        return call("/admin/frozen-income", userId, amount, billType, relatedId, relatedType, remark);
+    }
+
+    /**
+     * 销售款解冻
+     */
+    public boolean releaseFrozenIncome(Long userId, BigDecimal amount, String billType,
+                                       Long relatedId, String relatedType, String remark) {
+        return call("/admin/release-frozen-income", userId, amount, billType, relatedId, relatedType, remark);
+    }
+
+    /**
      * 钱包出账
      */
     public boolean expense(Long userId, BigDecimal amount, String billType,

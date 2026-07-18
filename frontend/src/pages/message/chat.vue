@@ -81,7 +81,12 @@
                 </view>
               </view>
 
-              <view class="message-state" v-if="msg.isMine">
+              <view
+                class="message-state"
+                v-if="msg.isMine"
+                :class="{ failed: msg.status === 'failed' }"
+                @click="retryMessage(msg)"
+              >
                 <text>{{ statusText(msg.status) }}</text>
               </view>
             </view>
@@ -133,75 +138,51 @@
           @confirm="sendTextMessage"
           @focus="onInputFocus"
         />
-        <button class="send-btn" :class="{ active: canSend }" @click="sendTextMessage">发送</button>
+        <button class="send-btn" :class="{ active: canSend }" :disabled="!canSend" @click="sendTextMessage">发送</button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { getProductDetail } from '@/api/product'
 import { getArtistInfo } from '@/api/user'
+import { uploadFile } from '@/api/file'
+import { getChatHistory, markChatRead, sendChatMessage } from '@/api/message'
 import { useUserStore } from '@/store/modules/user'
+import { getCurrentUserIdentity } from '@/utils/auth'
 import { getFullImageUrl } from '@/utils/image'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatYuanNumber } from '@/utils/price'
 
 const userStore = useUserStore()
 const defaultAvatar = '/static/images/avatar.png'
-const formatMoney = (value) => formatYuanNumber(fenToYuan(value))
+const formatMoney = (value) => {
+  const amount = Number(value)
+  return formatYuanNumber(Number.isFinite(amount) ? amount : 0)
+}
 
 const chatUser = ref({
   id: '',
   name: '艺术顾问',
   avatar: defaultAvatar,
-  online: true,
-  roleText: '认证艺术家',
+  online: false,
+  roleText: '平台用户',
   desc: '关于作品、收藏、流通和售后都可以直接沟通。'
 })
 
-const messages = ref([
-  {
-    id: 1,
-    type: 'text',
-    content: '您好，我想了解这件作品的创作背景和当前收藏流程。',
-    isMine: true,
-    createTime: Date.now() - 1000 * 60 * 18,
-    status: 'sent'
-  },
-  {
-    id: 2,
-    type: 'text',
-    content: '可以的。作品支持平台托管交易，付款后会生成收藏证书，后续也可以在流通记录里查看价格变化。',
-    isMine: false,
-    createTime: Date.now() - 1000 * 60 * 16,
-    status: 'sent'
-  },
-  {
-    id: 3,
-    type: 'work',
-    workId: 93,
-    workCover: '/static/images/artwork-fallback.png',
-    workTitle: '艺术家分销发布测试-20260529',
-    workPrice: '299.00',
-    isMine: false,
-    createTime: Date.now() - 1000 * 60 * 13,
-    status: 'sent'
-  },
-  {
-    id: 4,
-    type: 'text',
-    content: '如果已经支付成功，订单状态会同步为已付款，收藏关系也会进入后续流程。',
-    isMine: false,
-    createTime: Date.now() - 1000 * 60 * 8,
-    status: 'sent'
-  }
-])
+const messages = ref([])
 
 const inputText = ref('')
 const showEmoji = ref(false)
 const inputFocus = ref(false)
 const scrollIntoView = ref('')
 const loadingMore = ref(false)
+const currentWork = ref(null)
+const historyPage = ref(1)
+const historyHasMore = ref(true)
+const historyRefreshing = ref(false)
+let refreshTimer = null
 
 const myAvatar = computed(() => getFullImageUrl(userStore.userInfo?.avatar || defaultAvatar, defaultAvatar))
 const canSend = computed(() => inputText.value.trim().length > 0)
@@ -209,6 +190,67 @@ const placeholder = computed(() => `发送给 ${chatUser.value.name}`)
 
 const quickReplies = ['作品还在吗', '可以介绍一下吗', '证书怎么查看', '支付后多久确认']
 const emojiList = ['🙂', '😊', '👍', '🙏', '👏', '🤝', '🎨', '✨', '❤️', '👌', '🙌', '💬']
+
+const decodeText = (value = '') => {
+  try {
+    return decodeURIComponent(value)
+  } catch (e) {
+    return value
+  }
+}
+
+const parseExtraData = (value) => {
+  if (!value) return {}
+  if (typeof value === 'object') return value
+  try {
+    return JSON.parse(value)
+  } catch (e) {
+    return {}
+  }
+}
+
+const parseDateTime = (value) => {
+  if (typeof value === 'number') return value
+  const timestamp = new Date(String(value || '').replace(' ', 'T')).getTime()
+  return Number.isFinite(timestamp) ? timestamp : Date.now()
+}
+
+const normalizeMessage = (message = {}) => {
+  const extra = parseExtraData(message.extraData)
+  const currentUserId = getCurrentUserIdentity().id
+  return {
+  id: message.id || Date.now() + Math.floor(Math.random() * 1000),
+  type: message.messageType || message.type || 'text',
+  content: message.content || '',
+  isMine: message.senderId != null ? String(message.senderId) === String(currentUserId) : !!message.isMine,
+  isSystem: !!message.isSystem,
+  createTime: parseDateTime(message.createTime),
+  status: message.status || 'sent',
+  workId: message.workId || extra.workId,
+  workCover: message.workCover || extra.workCover,
+  workTitle: message.workTitle || extra.workTitle,
+  workPrice: message.workPrice ?? extra.workPrice,
+  orderId: message.orderId || extra.orderId,
+  orderNo: message.orderNo || extra.orderNo,
+  orderStatus: message.orderStatus || extra.orderStatus
+  }
+}
+
+const buildWorkMessageFromOptions = (options = {}) => {
+  const workId = options.workId || options.artworkId || options.productId || ''
+  if (!workId) return null
+  return {
+    id: `work-${workId}`,
+    type: 'work',
+    workId,
+    workCover: decodeText(options.workCover || options.cover || '/static/images/artwork-fallback.png'),
+    workTitle: decodeText(options.workTitle || options.title || '咨询作品'),
+    workPrice: options.workPrice || options.price || 0,
+    isMine: false,
+    createTime: Date.now() - 1000 * 60 * 3,
+    status: 'sent'
+  }
+}
 
 const readRouteOptions = () => {
   const pages = getCurrentPages()
@@ -222,7 +264,7 @@ const readRouteOptions = () => {
 const goBack = () => {
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack()
-  else uni.switchTab({ url: '/pages/message/list' })
+  else uni.redirectTo({ url: '/pages/message/list' })
 }
 
 const goUserHome = () => {
@@ -232,23 +274,12 @@ const goUserHome = () => {
 
 const showUserMenu = () => {
   uni.showActionSheet({
-    itemList: ['查看主页', '清空当前聊天', '举报用户'],
+    itemList: ['查看主页', '举报用户'],
     success: ({ tapIndex }) => {
       if (tapIndex === 0) goUserHome()
-      if (tapIndex === 1) clearChat()
-      if (tapIndex === 2) uni.showToast({ title: '已收到反馈', icon: 'none' })
+      if (tapIndex === 1) uni.showToast({ title: '已收到反馈', icon: 'none' })
     }
   })
-}
-
-const clearChat = () => {
-  messages.value = [{
-    id: Date.now(),
-    isSystem: true,
-    content: '聊天记录已清空',
-    createTime: Date.now()
-  }]
-  scrollToBottom()
 }
 
 const showTimeDivider = (index) => {
@@ -286,19 +317,57 @@ const onInputFocus = () => {
   showEmoji.value = false
 }
 
-const pushMineMessage = (message) => {
-  messages.value.push({
-    id: Date.now(),
+const finishMessageSending = (messageId, status = 'sent', serverMessage = null) => {
+  const msg = messages.value.find(item => item.id === messageId)
+  if (msg) {
+    if (serverMessage?.id) msg.id = serverMessage.id
+    if (serverMessage?.createTime) msg.createTime = parseDateTime(serverMessage.createTime)
+    msg.status = status
+  }
+}
+
+const messageExtraData = (message = {}) => {
+  if (message.type === 'work') {
+    return {
+      workId: message.workId,
+      workCover: message.workCover,
+      workTitle: message.workTitle,
+      workPrice: message.workPrice
+    }
+  }
+  if (message.type === 'order') {
+    return {
+      orderId: message.orderId,
+      orderNo: message.orderNo,
+      orderStatus: message.orderStatus
+    }
+  }
+  return null
+}
+
+const pushMineMessage = async (message, existingId = null) => {
+  const id = existingId || `pending-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+  if (!existingId) messages.value.push({
+    ...message,
+    id,
     isMine: true,
     createTime: Date.now(),
-    status: 'sending',
-    ...message
+    status: 'sending'
   })
   scrollToBottom()
-  setTimeout(() => {
-    const msg = messages.value.find(item => item.id === message.id) || messages.value[messages.value.length - 1]
-    if (msg?.status === 'sending') msg.status = 'sent'
-  }, 450)
+  try {
+    const serverMessage = await sendChatMessage({
+      recipientId: Number(chatUser.value.id),
+      messageType: message.type || 'text',
+      content: message.content || message.workTitle || message.orderNo || '',
+      extraData: messageExtraData(message) ? JSON.stringify(messageExtraData(message)) : null
+    })
+    finishMessageSending(id, 'sent', serverMessage)
+  } catch (e) {
+    finishMessageSending(id, 'failed')
+    uni.showToast({ title: e?.message || '发送失败，请重试', icon: 'none' })
+  }
+  return id
 }
 
 const sendTextMessage = () => {
@@ -317,30 +386,46 @@ const useQuickReply = (text) => {
 const chooseImage = () => {
   uni.chooseImage({
     count: 1,
-    success: ({ tempFilePaths }) => {
+    success: async ({ tempFilePaths }) => {
       if (!tempFilePaths?.[0]) return
-      pushMineMessage({ type: 'image', content: tempFilePaths[0] })
+      try {
+        uni.showLoading({ title: '上传中' })
+        const uploaded = await uploadFile(tempFilePaths[0], 'image')
+        const url = uploaded?.url || uploaded?.fileUrl || uploaded?.path || uploaded
+        if (!url || typeof url !== 'string') throw new Error('图片地址无效')
+        await pushMineMessage({ type: 'image', content: getFullImageUrl(url, url) })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '图片发送失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
     }
   })
 }
 
 const sendWork = () => {
+  const work = currentWork.value
+  if (!work?.workId) {
+    uni.showToast({ title: '请从作品详情进入聊天后发送', icon: 'none' })
+    return
+  }
   pushMineMessage({
     type: 'work',
-    workId: 93,
-    workCover: '/static/images/artwork-fallback.png',
-    workTitle: '艺术家分销发布测试-20260529',
-    workPrice: '299.00'
+    workId: work.workId,
+    workCover: work.workCover,
+    workTitle: work.workTitle,
+    workPrice: work.workPrice
   })
 }
 
 const sendOrderCard = () => {
-  pushMineMessage({
-    type: 'order',
-    orderId: 28,
-    orderNo: 'SYJ202605301550150101',
-    orderStatus: '已付款'
-  })
+  uni.showToast({ title: '请从订单详情发送订单', icon: 'none' })
+}
+
+const retryMessage = (msg) => {
+  if (!msg || msg.status !== 'failed') return
+  msg.status = 'sending'
+  pushMineMessage({ ...msg }, msg.id)
 }
 
 const previewImage = (url) => {
@@ -356,12 +441,43 @@ const goOrderDetail = (orderId) => {
   uni.navigateTo({ url: `/pages/order/detail?id=${orderId}` })
 }
 
-const loadMoreMessages = () => {
-  if (loadingMore.value) return
-  loadingMore.value = true
-  setTimeout(() => {
+const fetchHistory = async (reset = false, silent = false) => {
+  if (!chatUser.value.id || loadingMore.value || historyRefreshing.value) return
+  if (reset) {
+    historyPage.value = 1
+    historyHasMore.value = true
+  }
+  if (silent) historyRefreshing.value = true
+  else loadingMore.value = true
+  try {
+    const result = await getChatHistory(chatUser.value.id, {
+      page: historyPage.value,
+      pageSize: 30
+    })
+    const records = Array.isArray(result?.records) ? result.records.map(normalizeMessage) : []
+    if (reset) {
+      const pending = messages.value.filter(item => String(item.id).startsWith('pending-'))
+      messages.value = [...records, ...pending]
+    } else {
+      messages.value = [
+        ...records.filter(item => !messages.value.some(row => String(row.id) === String(item.id))),
+        ...messages.value
+      ]
+    }
+    historyHasMore.value = historyPage.value < Number(result?.totalPages || 0)
+    if (historyHasMore.value) historyPage.value += 1
+    await markChatRead(chatUser.value.id)
+  } catch (e) {
+    if (!silent) uni.showToast({ title: e?.message || '聊天记录加载失败', icon: 'none' })
+  } finally {
     loadingMore.value = false
-  }, 600)
+    historyRefreshing.value = false
+  }
+}
+
+const loadMoreMessages = () => {
+  if (!historyHasMore.value || loadingMore.value) return
+  fetchHistory(false)
 }
 
 const scrollToBottom = () => {
@@ -381,7 +497,12 @@ const onAvatarError = () => {
 const hydrateChatUser = async (options) => {
   const userId = options.userId || options.id || ''
   chatUser.value.id = userId
-  if (options.name) chatUser.value.name = decodeURIComponent(options.name)
+  if (options.name) chatUser.value.name = decodeText(options.name)
+  if (options.avatar) {
+    const avatar = decodeText(options.avatar)
+    chatUser.value.avatar = getFullImageUrl(avatar, defaultAvatar)
+  }
+  if (options.role) chatUser.value.roleText = decodeText(options.role)
   if (!userId) return
 
   try {
@@ -392,13 +513,62 @@ const hydrateChatUser = async (options) => {
     chatUser.value.roleText = info?.artistTitle || info?.identityTypeLabel || (info?.isArtist ? '认证艺术家' : '平台用户')
     chatUser.value.desc = info?.bio || info?.signature || chatUser.value.desc
   } catch (e) {
-    chatUser.value.name = options.name || `用户 ${userId}`
+    chatUser.value.name = options.name ? decodeText(options.name) : `用户 ${userId}`
   }
 }
 
+const hydrateWorkContext = async (options = {}) => {
+  const workId = options.workId || options.artworkId || options.productId || ''
+  if (!workId) return null
+
+  const existing = buildWorkMessageFromOptions(options)
+  if (existing && existing.workTitle !== '咨询作品') {
+    currentWork.value = existing
+    return existing
+  }
+
+  try {
+    const detail = await getProductDetail(workId)
+    const workMessage = {
+      id: `work-${workId}`,
+      type: 'work',
+      workId,
+      workCover: getFullImageUrl(detail.coverImage || detail.cover || '/static/images/artwork-fallback.png', '/static/images/artwork-fallback.png'),
+      workTitle: detail.title || detail.name || '咨询作品',
+      workPrice: detail.price || detail.currentPrice || detail.publishPrice || 0,
+      isMine: false,
+      createTime: Date.now() - 1000 * 60 * 3,
+      status: 'sent'
+    }
+    currentWork.value = workMessage
+    return workMessage
+  } catch (e) {
+    if (existing) currentWork.value = existing
+    return existing
+  }
+}
+
+const initializeMessages = async (options = {}) => {
+  await hydrateWorkContext(options)
+  await fetchHistory(true)
+}
+
 onMounted(async () => {
-  await hydrateChatUser(readRouteOptions())
+  if (!userStore.isLogin) {
+    uni.showToast({ title: '登录后才能使用私信', icon: 'none' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/login/index' }), 600)
+    return
+  }
+  const options = readRouteOptions()
+  await hydrateChatUser(options)
+  await initializeMessages(options)
   scrollToBottom()
+  refreshTimer = setInterval(() => fetchHistory(true, true), 5000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  refreshTimer = null
 })
 </script>
 
@@ -718,6 +888,47 @@ onMounted(async () => {
   color: rgba(247, 242, 232, 0.34);
   font-size: 18rpx;
   text-align: right;
+}
+
+.message-state.failed {
+  color: #ff8a76;
+}
+
+.typing-bubble {
+  display: inline-flex;
+  gap: 8rpx;
+  padding: 20rpx 24rpx;
+  border-top-left-radius: 6rpx;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.typing-bubble text {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: rgba(247, 242, 232, 0.62);
+  animation: typingPulse 1s infinite ease-in-out;
+}
+
+.typing-bubble text:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-bubble text:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typingPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4rpx);
+  }
 }
 
 .quick-replies {

@@ -21,7 +21,7 @@ upload:
   storage-type: local
   local:
     path: /Users/master/CodeBuddy/art12/uploads
-  cdn-url: ${UPLOAD_CDN_URL:https://shiyiju.online/upload}
+  cdn-url: ${UPLOAD_CDN_URL:https://a.art1.cn/upload}
   max-image-size: 10485760
   max-video-size: 104857600
 tencent:
@@ -30,7 +30,7 @@ tencent:
     secret-key: your-secret-key
     bucket: shiyiju-files
     region: ap-guangzhou
-    cdn: ${TENCENT_COS_CDN:https://shiyiju.online/upload}
+    cdn: ${TENCENT_COS_CDN:https://a.art1.cn/upload}
 logging:
   level:
     com.shiyiju: DEBUG

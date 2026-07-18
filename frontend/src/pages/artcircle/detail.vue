@@ -139,7 +139,7 @@
 
 <script>
 import { getPostDetail, getComments, likePost, unlikePost, commentPost } from '@/api/community'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -311,7 +311,7 @@ export default {
     },
 
     formatPrice(price) {
-      return formatYuanNumber(fenToYuan(price))
+      return formatArtworkPriceNumber(price)
     }
   }
 }

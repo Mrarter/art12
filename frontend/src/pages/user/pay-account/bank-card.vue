@@ -91,9 +91,15 @@ const form = ref({
   phone: ''
 })
 
+const isIdCard = (value) => /^\d{17}[\dXx]$/.test(value)
+const isPhone = (value) => /^1[3-9]\d{9}$/.test(value)
+const normalizeBankCard = (value) => value.replace(/\s/g, '')
+
 const canSubmit = computed(() => {
   return form.value.realName.trim()
-    && form.value.bankCard.trim().length >= 10
+    && isIdCard(form.value.idCard.trim())
+    && normalizeBankCard(form.value.bankCard).length >= 10
+    && isPhone(form.value.phone.trim())
     && bankIndex.value >= 0
 })
 
@@ -101,8 +107,22 @@ const onBankChange = (e) => {
   bankIndex.value = e.detail.value
 }
 
+const showRealnameRequired = (message) => {
+  uni.showModal({
+    title: '需要实名认证',
+    content: message,
+    confirmText: '去认证',
+    success: (res) => {
+      if (res.confirm) uni.navigateTo({ url: '/pages/user-extra/realname' })
+    }
+  })
+}
+
 const handleSubmit = async () => {
-  if (!canSubmit.value) return
+  if (!canSubmit.value) {
+    uni.showToast({ title: '请完整填写正确的银行卡信息', icon: 'none' })
+    return
+  }
   submitting.value = true
   try {
     await addPayAccount({
@@ -111,13 +131,17 @@ const handleSubmit = async () => {
       idCard: form.value.idCard.trim(),
       phone: form.value.phone.trim(),
       bankName: bankList[bankIndex.value],
-      bankCard: form.value.bankCard.replace(/\s/g, ''),
+      bankCard: normalizeBankCard(form.value.bankCard),
       setDefault: true
     })
-    uni.showToast({ title: '添加成功', icon: 'success' })
-    uni.navigateBack()
+    uni.redirectTo({ url: '/pages/user-extra/pay-account/result?type=bank' })
   } catch (e) {
-    uni.showToast({ title: e.message || '添加失败', icon: 'none' })
+    const message = e.message || '添加失败'
+    if (message.includes('实名认证')) {
+      showRealnameRequired(message)
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     submitting.value = false
   }

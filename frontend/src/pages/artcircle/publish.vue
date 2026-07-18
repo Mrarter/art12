@@ -104,7 +104,8 @@
 <script>
 import { createPost, getTopics } from '@/api/community'
 import { uploadFile, openCropper } from '@/api/file'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { guardCommunityPostPublishAccess } from '@/utils/platform.js'
 
 export default {
   data() {
@@ -125,6 +126,7 @@ export default {
   },
 
   onLoad() {
+    if (guardCommunityPostPublishAccess()) return
     this.loadTopics()
   },
 
@@ -251,7 +253,7 @@ export default {
     },
 
     formatPrice(price) {
-      return formatYuanNumber(fenToYuan(price))
+      return formatArtworkPriceNumber(price)
     }
   }
 }

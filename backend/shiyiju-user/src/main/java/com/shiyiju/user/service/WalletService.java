@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 钱包核心服务
@@ -44,6 +45,48 @@ public class WalletService {
                 wallet.getBalance().subtract(amount), wallet.getBalance(),
                 relatedId, relatedType, remark);
         log.info("钱包入账: userId={}, amount={}, type={}, relatedId={}",
+                userId, amount, billType, relatedId);
+        return wallet;
+    }
+
+    /**
+     * 冻结入账：销售款已到账但买家未确认收货时，先进入冻结金额，不增加可用余额。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Wallet frozenIncome(Long userId, BigDecimal amount, String billType,
+                               Long relatedId, String relatedType, String remark) {
+        Wallet wallet = getOrCreateWallet(userId);
+        int rows = walletMapper.addFrozenIncome(userId, amount, wallet.getVersion());
+        if (rows == 0) {
+            throw new BusinessException(500, "冻结入账失败，请重试");
+        }
+        wallet = walletMapper.selectOne(
+                new LambdaQueryWrapper<Wallet>().eq(Wallet::getUserId, userId));
+        recordBill(userId, billType, amount,
+                wallet.getBalance(), wallet.getBalance(),
+                relatedId, relatedType, remark);
+        log.info("钱包冻结入账: userId={}, amount={}, type={}, relatedId={}",
+                userId, amount, billType, relatedId);
+        return wallet;
+    }
+
+    /**
+     * 销售款解冻：确认收货后，将冻结中的销售款释放为可用余额。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Wallet releaseFrozenIncome(Long userId, BigDecimal amount, String billType,
+                                      Long relatedId, String relatedType, String remark) {
+        Wallet wallet = getOrCreateWallet(userId);
+        int rows = walletMapper.releaseFrozenIncome(userId, amount, wallet.getVersion());
+        if (rows == 0) {
+            throw new BusinessException(500, "销售款解冻失败，请重试");
+        }
+        wallet = walletMapper.selectOne(
+                new LambdaQueryWrapper<Wallet>().eq(Wallet::getUserId, userId));
+        recordBill(userId, billType, amount,
+                wallet.getBalance().subtract(amount), wallet.getBalance(),
+                relatedId, relatedType, remark);
+        log.info("钱包销售款解冻: userId={}, amount={}, type={}, relatedId={}",
                 userId, amount, billType, relatedId);
         return wallet;
     }
@@ -167,17 +210,10 @@ public class WalletService {
         Wallet wallet = walletMapper.selectOne(
                 new LambdaQueryWrapper<Wallet>().eq(Wallet::getUserId, userId));
         if (wallet == null) {
-            wallet = new Wallet();
-            wallet.setUserId(userId);
-            wallet.setBalance(BigDecimal.ZERO);
-            wallet.setFreezeAmount(BigDecimal.ZERO);
-            wallet.setPendingAmount(BigDecimal.ZERO);
-            wallet.setDepositAmount(BigDecimal.ZERO);
-            wallet.setTotalIncome(BigDecimal.ZERO);
-            wallet.setTotalWithdraw(BigDecimal.ZERO);
-            wallet.setVersion(0);
-            walletMapper.insert(wallet);
-            log.info("自动创建钱包: userId={}", userId);
+            int created = walletMapper.ensureWallet(userId);
+            wallet = walletMapper.selectOne(
+                    new LambdaQueryWrapper<Wallet>().eq(Wallet::getUserId, userId));
+            if (created > 0) log.info("自动创建钱包: userId={}", userId);
         }
         return wallet;
     }
@@ -197,6 +233,7 @@ public class WalletService {
         bill.setRelatedId(relatedId);
         bill.setRelatedType(relatedType);
         bill.setRemark(remark);
+        bill.setCreatedTime(LocalDateTime.now());
         walletBillMapper.insert(bill);
     }
 }

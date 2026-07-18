@@ -1,20 +1,26 @@
 {
   "name": "shiyiju-uniapp",
   "version": "1.0.0",
-  "description": "拾艺局 UniApp 小程序前端",
+  "description": "艺本艺术 UniApp 小程序前端",
   "main": "index.js",
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
+    "dev:mp-weixin:server": "uni -p mp-weixin --mode server",
     "build:mp-weixin": "uni build -p mp-weixin --mode production",
+    "postbuild:mp-weixin": "node scripts/configure-mp-weixin-package.mjs",
     "build:mp-weixin:dev": "uni build -p mp-weixin --mode development",
+    "build:mp-weixin:server": "uni build -p mp-weixin --mode server",
     "dev:h5": "PORT=5176 HOST=127.0.0.1 uni",
-    "build:h5": "uni build"
+    "dev:h5:server": "VITE_H5_PROXY_TARGET=https://a.art1.cn VITE_H5_UPLOAD_PROXY_TARGET=https://a.art1.cn PORT=5176 HOST=127.0.0.1 uni --mode server",
+    "build:h5": "uni build",
+    "postbuild:h5": "node scripts/copy-h5-root-files.js"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5000720260416001",
     "@dcloudio/uni-components": "3.0.0-alpha-5000720260416001",
     "@dcloudio/uni-h5": "3.0.0-alpha-5000720260416001",
     "@dcloudio/uni-mp-weixin": "3.0.0-alpha-5000720260416001",
+    "@vue/shared": "^3.5.39",
     "pinia": "^2.1.7",
     "qrcode": "^1.5.4",
     "vue": "^3.4.21"

@@ -145,10 +145,10 @@ export default {
       uni.showToast({ title: '已是最新版本', icon: 'success' })
     },
     goToPrivacy() {
-      uni.navigateTo({ url: '/pages/user/agreement?type=privacy' })
+      uni.navigateTo({ url: '/pages/user-extra/agreement?type=privacy' })
     },
     goToTerms() {
-      uni.navigateTo({ url: '/pages/user/agreement?type=terms' })
+      uni.navigateTo({ url: '/pages/user-extra/agreement?type=terms' })
     },
     logout() {
       uni.showModal({

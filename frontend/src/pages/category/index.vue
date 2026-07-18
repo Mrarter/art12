@@ -85,7 +85,7 @@
 </template>
 
 <script>
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -267,7 +267,7 @@ export default {
     },
 
     formatPrice(price) {
-      return formatYuanNumber(fenToYuan(price))
+      return formatArtworkPriceNumber(price)
     }
   }
 }

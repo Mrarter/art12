@@ -6,8 +6,10 @@ import com.shiyiju.common.event.FinanceEventPublisher;
 import com.shiyiju.common.event.FinanceEventType;
 import com.shiyiju.common.service.WxPayService;
 import com.shiyiju.order.entity.Order;
+import com.shiyiju.order.entity.PaymentOrder;
 import com.shiyiju.order.mapper.OrderMapper;
 import com.shiyiju.order.service.OrderService;
+import com.shiyiju.order.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +35,7 @@ public class WxPayCallbackController {
     private final WxPayService wxPayService;
     private final OrderMapper orderMapper;
     private final OrderService orderService;
+    private final PaymentService paymentService;
     private final FinanceEventPublisher financeEventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -47,15 +50,27 @@ public class WxPayCallbackController {
             String sign = params.get("sign");
             if (!wxPayService.verifyCallbackSign(params, sign)) {
                 log.warn("签名验证失败");
+                paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "PAY",
+                        params.get("out_trade_no"), null, params.get("transaction_id"),
+                        params, false, "FAILED", "签名验证失败");
                 return wxPayService.buildFailResponse("签名验证失败");
             }
             if ("SUCCESS".equals(params.get("return_code"))
                     && "SUCCESS".equals(params.get("result_code"))) {
-                String orderNo = params.get("out_trade_no");
-                log.info("支付成功: orderNo={}", orderNo);
+                String outTradeNo = params.get("out_trade_no");
+                PaymentOrder payment = paymentService.markPaySuccess(outTradeNo, PaymentService.CHANNEL_WECHAT,
+                        params.get("transaction_id"), params);
+                String orderNo = payment != null ? payment.getBizNo() : outTradeNo;
+                paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "PAY",
+                        outTradeNo, orderNo, params.get("transaction_id"),
+                        params, true, "SUCCESS", null);
+                log.info("支付成功: outTradeNo={}, orderNo={}", outTradeNo, orderNo);
                 orderService.handlePayCallback(orderNo, params.get("transaction_id"));
                 return wxPayService.buildSuccessResponse();
             }
+            paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "PAY",
+                    params.get("out_trade_no"), null, params.get("transaction_id"),
+                    params, true, "FAILED", params.get("err_code_des"));
             return wxPayService.buildFailResponse(params.get("err_code_des"));
         } catch (Exception e) {
             log.error("处理支付回调异常", e);
@@ -71,10 +86,22 @@ public class WxPayCallbackController {
             if ("SUCCESS".equals(params.get("return_code"))
                     && "SUCCESS".equals(params.get("result_code"))) {
                 String orderNo = params.get("out_trade_no");
+                PaymentOrder payment = paymentService.findByPayNo(orderNo);
+                if (payment != null) {
+                    orderNo = payment.getBizNo();
+                }
                 log.info("退款成功: orderNo={}", orderNo);
+                paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "REFUND",
+                        params.get("out_trade_no"), orderNo, params.get("transaction_id"),
+                        params, true, "SUCCESS", null);
+                paymentService.markRefundSuccessByBizNo(orderNo,
+                        params.getOrDefault("refund_id", params.get("out_refund_no")), params);
                 handleRefundSuccess(orderNo);
                 return wxPayService.buildSuccessResponse();
             }
+            paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "REFUND",
+                    params.get("out_trade_no"), null, params.get("transaction_id"),
+                    params, true, "FAILED", params.get("err_code_des"));
             return wxPayService.buildFailResponse(params.get("err_code_des"));
         } catch (Exception e) {
             log.error("处理退款回调异常", e);
@@ -139,6 +166,7 @@ public class WxPayCallbackController {
             order.setStatus("REFUNDED");
             order.setPaymentStatus("REFUNDED");
             orderMapper.updateById(order);
+            paymentService.markRefundSuccessByBizNo(orderNo, null, Map.of("source", "wechat_refund_callback"));
             log.info("订单 {} 退款完成", orderNo);
 
         } catch (Exception e) {

@@ -45,6 +45,10 @@ public class ArtworkVO implements Serializable {
     private BigDecimal price;
     /** 原始价格（元） */
     private BigDecimal originalPrice;
+    /** 运费（元） */
+    private BigDecimal freight;
+    /** 兼容订单确认页的运费字段 */
+    private BigDecimal postageFee;
     /** 实时计算价格 */
     private BigDecimal currentPrice;
     
@@ -97,6 +101,7 @@ public class ArtworkVO implements Serializable {
     private Integer distributionUsers;
     
     // 价格增长配置
+    private Boolean platformPriceGrowthEnabled;
     private Boolean customPriceGrowthEnabled;
     private BigDecimal customBaseDailyRate;
     private BigDecimal customMatureDailyRate;

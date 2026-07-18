@@ -100,6 +100,7 @@ export default {
       shape: 'square',
       outputSize: 800,
       showCanvas: false,
+      eventKey: '',
     }
   },
 
@@ -162,6 +163,7 @@ export default {
     this.imageSrc = this.decodeRouteValue(options.src || '')
     this.currentRatio = options.ratio || 'auto'
     this.shape = options.shape || 'square'
+    this.eventKey = this.decodeRouteValue(options.eventKey || '')
     if (this.shape === 'circle') this.currentRatio = '1:1'
     this.outputSize = Math.max(200, Math.min(1600, Number(options.outputSize) || 800))
 
@@ -361,7 +363,7 @@ export default {
         if (currentPage && currentPage.$page && currentPage.$page.eventChannel) {
           currentPage.$page.eventChannel.emit('onCrop', result)
         }
-        uni.$emit('cropResult', result)
+        uni.$emit(this.eventKey || 'cropResult', result)
         uni.hideLoading()
         uni.navigateBack()
       } catch (e) {

@@ -35,6 +35,14 @@ export const getUserInfo = () => {
   })
 }
 
+// 生成微信小程序码
+export const getMiniProgramCode = (params) => {
+  return request({
+    url: '/user/share/minicode',
+    data: params
+  })
+}
+
 // 更新用户信息
 export const updateUserInfo = (data) => {
   return request({
@@ -114,6 +122,16 @@ export const submitArtistCert = (data) => {
   })
 }
 
+// 身份证 OCR 识别校验
+export const verifyArtistIdCard = (data) => {
+  return request({
+    url: '/user/artist/cert/id-card/verify',
+    method: 'POST',
+    requireAuth: true,
+    data
+  })
+}
+
 // 查询艺术家入驻/认证状态
 export const getArtistCertStatus = () => {
   return request({
@@ -186,6 +204,34 @@ export const bindPhone = (data) => {
   return request({
     url: '/user/bind-phone',
     method: 'POST',
+    data
+  })
+}
+
+// 账号安全概览
+export const getAccountSecurity = () => {
+  return request({
+    url: '/user/security',
+    requireAuth: true
+  })
+}
+
+// 绑定/换绑手机号
+export const updateSecurityPhone = (data) => {
+  return request({
+    url: '/user/security/phone',
+    method: 'POST',
+    requireAuth: true,
+    data
+  })
+}
+
+// 设置/修改登录密码
+export const updateSecurityPassword = (data) => {
+  return request({
+    url: '/user/security/password',
+    method: 'POST',
+    requireAuth: true,
     data
   })
 }

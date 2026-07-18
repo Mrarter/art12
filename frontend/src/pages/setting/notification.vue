@@ -6,7 +6,7 @@
         <text class="section-title">消息通知</text>
       </view>
       <view class="setting-list">
-        <view class="setting-item">
+        <view class="setting-item" v-if="auctionEnabled">
           <view class="item-info">
             <text class="item-title">订单消息</text>
             <text class="item-desc">订单状态变更、发货提醒等</text>
@@ -155,6 +155,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { AUCTION_ENABLED } from '@/utils/platform'
 
 const notifications = ref({
   order: true,
@@ -177,6 +178,7 @@ const quietMode = ref({
 })
 
 const cacheSize = ref('128 MB')
+const auctionEnabled = AUCTION_ENABLED
 
 const toggleSwitch = (key, value) => {
   notifications.value[key] = value

@@ -7,8 +7,10 @@ import com.shiyiju.common.util.AESUtil;
 import com.shiyiju.user.dto.PayAccountAddDTO;
 import com.shiyiju.user.entity.PayAccount;
 import com.shiyiju.user.entity.RealnameCertification;
+import com.shiyiju.user.entity.User;
 import com.shiyiju.user.mapper.PayAccountMapper;
 import com.shiyiju.user.mapper.RealnameCertificationMapper;
+import com.shiyiju.user.mapper.UserMapper;
 import com.shiyiju.user.vo.PayAccountVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ public class PayAccountService {
 
     private final PayAccountMapper payAccountMapper;
     private final RealnameCertificationMapper realnameCertMapper;
+    private final UserMapper userMapper;
 
     /** 账户类型常量 */
     private static final int TYPE_WECHAT = 1;
@@ -74,6 +77,9 @@ public class PayAccountService {
                 new LambdaQueryWrapper<RealnameCertification>()
                         .eq(RealnameCertification::getUserId, userId)
                         .eq(RealnameCertification::getStatus, 1));
+        if ((dto.getAccountType() == TYPE_ALIPAY || dto.getAccountType() == TYPE_BANK) && realname == null) {
+            throw new BusinessException(400, "请先完成实名认证，再绑定支付宝或银行卡收款账户");
+        }
         Integer verifyStatus = (realname != null) ? 1 : 0;
 
         // 如果已实名，校验姓名一致性
@@ -83,7 +89,9 @@ public class PayAccountService {
 
         // 如果没有默认账户，自动设为默认
         long count = payAccountMapper.selectCount(
-                new LambdaQueryWrapper<PayAccount>().eq(PayAccount::getUserId, userId));
+                new LambdaQueryWrapper<PayAccount>()
+                        .eq(PayAccount::getUserId, userId)
+                        .eq(PayAccount::getStatus, 1));
         boolean autoDefault = (count == 0);
 
         // 构造实体
@@ -104,11 +112,7 @@ public class PayAccountService {
 
         // 如果用户要设为默认，先将其他默认取消
         if (Boolean.TRUE.equals(dto.getSetDefault()) || autoDefault) {
-            payAccountMapper.update(null,
-                    new LambdaUpdateWrapper<PayAccount>()
-                            .eq(PayAccount::getUserId, userId)
-                            .eq(PayAccount::getIsDefault, 1)
-                            .set(PayAccount::getIsDefault, 0));
+            clearDefault(userId);
             account.setIsDefault(1);
         } else {
             account.setIsDefault(0);
@@ -119,6 +123,59 @@ public class PayAccountService {
         payAccountMapper.insert(account);
 
         log.info("用户 {} 添加收款账户: type={}, id={}", userId, dto.getAccountType(), account.getId());
+    }
+
+    /**
+     * 绑定当前登录账号的微信 OpenID 为收款账户。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PayAccountVO bindCurrentWechat(Long userId, Boolean setDefault) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        String openid = user.getOpenid();
+        if (openid == null || openid.isBlank()) {
+            throw new BusinessException(400, "当前账号未完成微信授权，请先使用微信登录或授权后再绑定");
+        }
+
+        PayAccount existing = payAccountMapper.selectOne(
+                new LambdaQueryWrapper<PayAccount>()
+                        .eq(PayAccount::getUserId, userId)
+                        .eq(PayAccount::getAccountType, TYPE_WECHAT)
+                        .eq(PayAccount::getWechatOpenid, openid)
+                        .eq(PayAccount::getStatus, 1)
+                        .last("LIMIT 1"));
+        if (existing != null) {
+            if (Boolean.TRUE.equals(setDefault) && existing.getIsDefault() != 1) {
+                setDefaultAccount(userId, existing.getId());
+                existing = payAccountMapper.selectById(existing.getId());
+            }
+            return toVO(existing);
+        }
+
+        RealnameCertification realname = getVerifiedRealname(userId);
+        long count = payAccountMapper.selectCount(
+                new LambdaQueryWrapper<PayAccount>()
+                        .eq(PayAccount::getUserId, userId)
+                        .eq(PayAccount::getStatus, 1));
+        boolean shouldDefault = Boolean.TRUE.equals(setDefault) || count == 0;
+        if (shouldDefault) {
+            clearDefault(userId);
+        }
+
+        PayAccount account = new PayAccount();
+        account.setUserId(userId);
+        account.setAccountType(TYPE_WECHAT);
+        account.setRealName(resolveWechatRealName(user, realname));
+        account.setWechatOpenid(openid);
+        account.setIsDefault(shouldDefault ? 1 : 0);
+        account.setVerifyStatus(realname != null ? 1 : 0);
+        account.setStatus(1);
+        payAccountMapper.insert(account);
+
+        log.info("用户 {} 绑定微信收款账户: id={}", userId, account.getId());
+        return toVO(account);
     }
 
     /**
@@ -141,11 +198,13 @@ public class PayAccountService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteAccount(Long userId, Long accountId) {
         PayAccount account = payAccountMapper.selectById(accountId);
-        if (account == null || !account.getUserId().equals(userId)) {
+        if (account == null || !account.getUserId().equals(userId) || !Integer.valueOf(1).equals(account.getStatus())) {
             throw new BusinessException(400, "账户不存在");
         }
         boolean wasDefault = (account.getIsDefault() == 1);
-        payAccountMapper.deleteById(accountId);
+        account.setStatus(0);
+        account.setIsDefault(0);
+        payAccountMapper.updateById(account);
         // 如果删除的是默认账户，自动将最新一个设为默认
         if (wasDefault) {
             PayAccount latest = payAccountMapper.selectOne(
@@ -169,15 +228,11 @@ public class PayAccountService {
     @Transactional(rollbackFor = Exception.class)
     public void setDefaultAccount(Long userId, Long accountId) {
         PayAccount account = payAccountMapper.selectById(accountId);
-        if (account == null || !account.getUserId().equals(userId)) {
+        if (account == null || !account.getUserId().equals(userId) || !Integer.valueOf(1).equals(account.getStatus())) {
             throw new BusinessException(400, "账户不存在");
         }
         // 取消所有默认
-        payAccountMapper.update(null,
-                new LambdaUpdateWrapper<PayAccount>()
-                        .eq(PayAccount::getUserId, userId)
-                        .eq(PayAccount::getIsDefault, 1)
-                        .set(PayAccount::getIsDefault, 0));
+        clearDefault(userId);
         // 设置新默认
         account.setIsDefault(1);
         payAccountMapper.updateById(account);
@@ -226,11 +281,15 @@ public class PayAccountService {
         if (type == TYPE_ALIPAY && (dto.getAlipayAccount() == null || dto.getAlipayAccount().trim().isEmpty())) {
             throw new BusinessException(400, "支付宝账号不能为空");
         }
+        if (type == TYPE_WECHAT && (dto.getWechatOpenid() == null || dto.getWechatOpenid().trim().isEmpty())) {
+            throw new BusinessException(400, "微信授权信息不能为空");
+        }
     }
 
     private boolean checkDuplicate(Long userId, PayAccountAddDTO dto) {
         LambdaQueryWrapper<PayAccount> wrapper = new LambdaQueryWrapper<PayAccount>()
-                .eq(PayAccount::getUserId, userId);
+                .eq(PayAccount::getUserId, userId)
+                .eq(PayAccount::getStatus, 1);
         switch (dto.getAccountType()) {
             case TYPE_WECHAT -> wrapper.eq(PayAccount::getWechatOpenid, dto.getWechatOpenid());
             case TYPE_ALIPAY -> wrapper.eq(PayAccount::getAlipayAccount, dto.getAlipayAccount());
@@ -260,6 +319,13 @@ public class PayAccountService {
             maskedAlipay = maskedAlipay.substring(0, 3) + "****";
         }
 
+        String maskedWechatOpenid = account.getWechatOpenid();
+        if (maskedWechatOpenid != null && maskedWechatOpenid.length() > 8) {
+            maskedWechatOpenid = maskedWechatOpenid.substring(0, 4)
+                    + "****"
+                    + maskedWechatOpenid.substring(maskedWechatOpenid.length() - 4);
+        }
+
         return PayAccountVO.builder()
                 .id(account.getId())
                 .accountType(account.getAccountType())
@@ -270,11 +336,37 @@ public class PayAccountService {
                 .bankName(account.getBankName())
                 .bankCard(maskedBankCard)
                 .alipayAccount(maskedAlipay)
-                .wechatOpenid(account.getWechatOpenid())
-                .isDefault(account.getIsDefault() == 1)
+                .wechatOpenid(maskedWechatOpenid)
+                .isDefault(Integer.valueOf(1).equals(account.getIsDefault()))
                 .verifyStatus(account.getVerifyStatus())
                 .createdTime(account.getCreatedTime())
                 .icon(getTypeIcon(account.getAccountType()))
                 .build();
+    }
+
+    private void clearDefault(Long userId) {
+        payAccountMapper.update(null,
+                new LambdaUpdateWrapper<PayAccount>()
+                        .eq(PayAccount::getUserId, userId)
+                        .eq(PayAccount::getIsDefault, 1)
+                        .set(PayAccount::getIsDefault, 0));
+    }
+
+    private RealnameCertification getVerifiedRealname(Long userId) {
+        return realnameCertMapper.selectOne(
+                new LambdaQueryWrapper<RealnameCertification>()
+                        .eq(RealnameCertification::getUserId, userId)
+                        .eq(RealnameCertification::getStatus, 1)
+                        .last("LIMIT 1"));
+    }
+
+    private String resolveWechatRealName(User user, RealnameCertification realname) {
+        if (realname != null && realname.getRealName() != null && !realname.getRealName().isBlank()) {
+            return realname.getRealName().trim();
+        }
+        if (user.getNickname() != null && !user.getNickname().isBlank()) {
+            return user.getNickname().trim();
+        }
+        return "微信用户";
     }
 }

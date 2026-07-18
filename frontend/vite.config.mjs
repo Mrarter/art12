@@ -2,6 +2,9 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import Uni from '@uni-helper/plugin-uni'
 
+const h5ProxyTarget = process.env.VITE_H5_PROXY_TARGET || 'http://127.0.0.1:8080'
+const h5UploadProxyTarget = process.env.VITE_H5_UPLOAD_PROXY_TARGET || process.env.VITE_H5_PROXY_TARGET || 'http://127.0.0.1:8087'
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -17,16 +20,19 @@ export default defineConfig({
     host: '127.0.0.1',
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true
+        target: h5ProxyTarget,
+        changeOrigin: true,
+        secure: false
       },
       '/product': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true
+        target: h5ProxyTarget,
+        changeOrigin: true,
+        secure: false
       },
       '/upload': {
-        target: 'http://127.0.0.1:8087',
-        changeOrigin: true
+        target: h5UploadProxyTarget,
+        changeOrigin: true,
+        secure: false
       }
     }
   },

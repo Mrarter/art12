@@ -16,6 +16,7 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -24,7 +25,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
- * 支付宝手机网站支付服务。
+ * 支付宝支付服务。
  */
 @Slf4j
 @Service
@@ -32,6 +33,8 @@ import java.util.stream.Collectors;
 public class AlipayService {
 
     private static final String WAP_PAY_METHOD = "alipay.trade.wap.pay";
+    private static final String APP_PAY_METHOD = "alipay.trade.app.pay";
+    private static final String REFUND_METHOD = "alipay.trade.refund";
     private static final String CERTIFY_INIT_METHOD = "alipay.user.certify.open.initialize";
     private static final String CERTIFY_QUERY_METHOD = "alipay.user.certify.open.query";
     private static final String CERTIFY_OPEN_METHOD = "alipay.user.certify.open.certify";
@@ -39,9 +42,13 @@ public class AlipayService {
     private final AlipayConfig alipayConfig;
 
     public Map<String, Object> createWapPay(String orderNo, BigDecimal amountYuan, String subject) {
+        return createWapPay(orderNo, amountYuan, subject, normalizeAppUrl(alipayConfig.getReturnUrl()));
+    }
+
+    public Map<String, Object> createWapPay(String orderNo, BigDecimal amountYuan, String subject, String returnUrl) {
         ensureEnabled();
 
-        Map<String, String> bizContent = new TreeMap<>();
+        Map<String, Object> bizContent = new TreeMap<>();
         bizContent.put("out_trade_no", orderNo);
         bizContent.put("total_amount", amountYuan.setScale(2).toPlainString());
         bizContent.put("subject", subject);
@@ -54,20 +61,84 @@ public class AlipayService {
         params.put("sign_type", alipayConfig.getSignType());
         params.put("timestamp", java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         params.put("version", "1.0");
-        params.put("notify_url", alipayConfig.getNotifyUrl());
-        if (hasText(alipayConfig.getReturnUrl())) {
-            params.put("return_url", alipayConfig.getReturnUrl());
+        params.put("notify_url", normalizeAppUrl(alipayConfig.getNotifyUrl()));
+        if (hasText(returnUrl)) {
+            params.put("return_url", normalizeAppUrl(returnUrl));
         }
         params.put("biz_content", JSON.toJSONString(bizContent));
         params.put("sign", sign(params));
 
         String payForm = buildAutoSubmitForm(alipayConfig.getGatewayUrl(), params);
+        String payUrl = buildRedirectUrl(alipayConfig.getGatewayUrl(), params);
         return Map.of(
                 "provider", "alipay",
                 "order_no", orderNo,
                 "pay_amount", amountYuan,
-                "pay_form", payForm
+                "pay_form", payForm,
+                "pay_url", payUrl
         );
+    }
+
+    public Map<String, Object> createAppPay(String orderNo, BigDecimal amountYuan, String subject) {
+        ensureEnabled();
+
+        Map<String, Object> bizContent = new TreeMap<>();
+        bizContent.put("out_trade_no", orderNo);
+        bizContent.put("total_amount", amountYuan.setScale(2).toPlainString());
+        bizContent.put("subject", subject);
+        bizContent.put("product_code", "QUICK_MSECURITY_PAY");
+
+        Map<String, String> params = buildSignedParams(APP_PAY_METHOD, bizContent, null);
+        params.put("notify_url", normalizeAppUrl(alipayConfig.getNotifyUrl()));
+        params.put("sign", sign(params));
+
+        String orderString = params.entrySet().stream()
+                .filter(entry -> hasText(entry.getValue()))
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + encodeQueryValue(entry.getValue()))
+                .collect(Collectors.joining("&"));
+
+        return Map.of(
+                "provider", "alipay",
+                "order_no", orderNo,
+                "pay_amount", amountYuan,
+                "order_string", orderString,
+                "orderInfo", orderString
+        );
+    }
+
+    public Map<String, String> refund(String outTradeNo, String outRequestNo, BigDecimal refundAmountYuan, String reason) {
+        ensureEnabled();
+
+        Map<String, Object> bizContent = new TreeMap<>();
+        bizContent.put("out_trade_no", outTradeNo);
+        bizContent.put("refund_amount", refundAmountYuan.setScale(2).toPlainString());
+        bizContent.put("out_request_no", outRequestNo);
+        if (hasText(reason)) {
+            bizContent.put("refund_reason", reason);
+        }
+
+        JSONObject response = executeOpenApi(REFUND_METHOD, bizContent, null);
+        JSONObject result = response.getJSONObject("alipay_trade_refund_response");
+        if (result == null) {
+            throw new IllegalStateException("支付宝退款失败：响应缺少结果");
+        }
+
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("code", result.getString("code"));
+        data.put("msg", result.getString("msg"));
+        data.put("subCode", result.getString("sub_code"));
+        data.put("subMsg", result.getString("sub_msg"));
+        data.put("tradeNo", result.getString("trade_no"));
+        data.put("outTradeNo", result.getString("out_trade_no"));
+        data.put("buyerLogonId", result.getString("buyer_logon_id"));
+        data.put("fundChange", result.getString("fund_change"));
+        data.put("refundFee", result.getString("refund_fee"));
+
+        if (!"10000".equals(data.get("code"))) {
+            throw new IllegalStateException(firstNonBlank(data.get("subMsg"), data.get("msg"), "支付宝退款失败"));
+        }
+        return data;
     }
 
     public boolean verifyNotify(Map<String, String> notifyParams) {
@@ -92,7 +163,7 @@ public class AlipayService {
     }
 
     public String getRealnameReturnUrl() {
-        return alipayConfig.getRealnameReturnUrl();
+        return normalizeAppUrl(alipayConfig.getRealnameReturnUrl());
     }
 
     public Map<String, String> initializeRealnameCert(String outerOrderNo, String realName, String idCard, String returnUrl) {
@@ -164,7 +235,7 @@ public class AlipayService {
         }
 
         Map<String, String> data = new LinkedHashMap<>();
-        data.put("passed", String.valueOf(Boolean.TRUE.equals(result.getBoolean("passed"))));
+        data.put("passed", String.valueOf(isPassedResult(result.get("passed"))));
         data.put("certifyStatus", firstNonBlank(result.getString("certify_status"), result.getString("status"), ""));
         data.put("failReason", firstNonBlank(result.getString("fail_reason"), result.getString("sub_msg"), ""));
         return data;
@@ -193,6 +264,26 @@ public class AlipayService {
                 || !hasText(alipayConfig.getPrivateKey())
                 || !hasText(alipayConfig.getAlipayPublicKey())) {
             throw new IllegalStateException("支付宝实名认证配置不完整，请检查 APP_ID、应用私钥和支付宝公钥");
+        }
+    }
+
+    private String normalizeAppUrl(String value) {
+        if (!hasText(value)) {
+            return value;
+        }
+        try {
+            URI uri = URI.create(value.trim());
+            String host = uri.getHost();
+            if (host == null || (!"a.art1.cn".equalsIgnoreCase(host)
+                    && !"art1.cn".equalsIgnoreCase(host)
+                    && !"www.art1.cn".equalsIgnoreCase(host))) {
+                return value;
+            }
+            return new URI(uri.getScheme(), uri.getUserInfo(), "a.art1.cn", uri.getPort(),
+                    uri.getPath(), uri.getQuery(), uri.getFragment()).toString();
+        } catch (Exception ex) {
+            log.warn("支付宝回调地址格式不正确，保留原地址: {}", value);
+            return value;
         }
     }
 
@@ -257,8 +348,17 @@ public class AlipayService {
                         + "\" value=\"" + htmlEscape(entry.getValue()) + "\" />")
                 .collect(Collectors.joining("\n"));
         return "<form id=\"alipay_submit\" name=\"alipay_submit\" action=\"" + htmlEscape(gatewayUrl)
-                + "\" method=\"POST\">\n" + inputs + "\n</form>"
+                + "\" method=\"POST\" accept-charset=\"UTF-8\" enctype=\"application/x-www-form-urlencoded\">\n" + inputs + "\n</form>"
                 + "<script>document.forms['alipay_submit'].submit();</script>";
+    }
+
+    private String buildRedirectUrl(String gatewayUrl, Map<String, String> params) {
+        String query = params.entrySet().stream()
+                .filter(entry -> hasText(entry.getValue()))
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + encodeQueryValue(entry.getValue()))
+                .collect(Collectors.joining("&"));
+        return gatewayUrl + "?" + query;
     }
 
     private PrivateKey readPrivateKey(String key) throws Exception {
@@ -303,5 +403,16 @@ public class AlipayService {
             }
         }
         return "";
+    }
+
+    private boolean isPassedResult(Object value) {
+        if (value == null) return false;
+        if (value instanceof Boolean) return (Boolean) value;
+        String text = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(text)
+                || "t".equalsIgnoreCase(text)
+                || "y".equalsIgnoreCase(text)
+                || "yes".equalsIgnoreCase(text)
+                || "success".equalsIgnoreCase(text);
     }
 }

@@ -495,8 +495,11 @@ public class ResaleService {
         if (platformFee.compareTo(BigDecimal.ZERO) > 0 && platformFee.compareTo(minPlatformFee) < 0) {
             platformFee = minPlatformFee;
         }
+        // A minimum fee must never create money beyond the transaction or make seller income negative.
+        BigDecimal maxPlatformFee = record.getResalePrice().subtract(artistIncome).max(BigDecimal.ZERO);
+        platformFee = platformFee.min(maxPlatformFee).setScale(2, RoundingMode.HALF_UP);
         BigDecimal sellerIncome = record.getResalePrice().subtract(artistIncome).subtract(platformFee)
-                .setScale(2, RoundingMode.HALF_UP);
+                .max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         record.setArtistIncome(artistIncome);
         record.setPlatformFee(platformFee);
         record.setSellerIncome(sellerIncome);
@@ -531,18 +534,30 @@ public class ResaleService {
     private Long resolvePlatformWalletUserId() {
         String walletUid = readConfigValue("platform.commission.wallet.uid");
         if (walletUid != null && !walletUid.isBlank()) {
-            try {
-                return jdbcTemplate.queryForObject(
-                        "SELECT id FROM users WHERE uid = ? OR user_uid = ? LIMIT 1",
-                        Long.class,
-                        walletUid.trim(),
-                        walletUid.trim()
-                );
-            } catch (Exception e) {
-                log.warn("平台钱包UID未匹配用户，回退配置文件用户ID: uid={}", walletUid);
+            String trimmed = walletUid.trim();
+            for (String table : List.of("users", "user_account", "sys_user")) {
+                for (String column : List.of("uid", "user_uid")) {
+                    Long userId = queryPlatformWalletUserId(table, column, trimmed);
+                    if (userId != null) {
+                        return userId;
+                    }
+                }
             }
+            log.warn("平台钱包UID未匹配用户，回退配置文件用户ID: uid={}", walletUid);
         }
         return platformWalletUserId;
+    }
+
+    private Long queryPlatformWalletUserId(String table, String column, String walletUid) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT id FROM " + table + " WHERE " + column + " = ? LIMIT 1",
+                    Long.class,
+                    walletUid
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private String readConfigValue(String key) {

@@ -34,6 +34,12 @@ public class RealnameCertStatusVO {
     /** 脱敏身份证号（如：410***********1234） */
     private String maskedIdCard;
 
+    /** 当前用户实名认证真实姓名 */
+    private String realName;
+
+    /** 当前用户实名认证身份证号 */
+    private String idCard;
+
     /** 拒绝原因 */
     private String rejectReason;
 

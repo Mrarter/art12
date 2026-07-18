@@ -100,6 +100,7 @@
           艺术家
         </view>
         <view 
+          v-if="auctionEnabled"
           class="tab-item" 
           :class="{ active: resultTab === 'auction' }"
           @click="switchResultTab('auction')"
@@ -160,7 +161,7 @@
       </view>
 
       <!-- 拍卖结果 -->
-      <view class="result-list" v-if="resultTab === 'all' || resultTab === 'auction'">
+      <view class="result-list" v-if="auctionEnabled && (resultTab === 'all' || resultTab === 'auction')">
         <view class="result-subtitle" v-if="resultTab === 'all'">相关拍卖</view>
         <view class="auction-list">
           <view 
@@ -217,7 +218,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { AUCTION_ENABLED } from '@/utils/platform'
 
 // 状态
 const keyword = ref('')
@@ -226,6 +228,7 @@ const hasSearched = ref(false)
 const loading = ref(false)
 const resultTab = ref('all')
 const totalCount = ref(0)
+const auctionEnabled = AUCTION_ENABLED
 
 // 搜索历史
 const historyList = ref(['张大千', '山水画', '油画', '书法', '当代艺术'])
@@ -321,7 +324,7 @@ const auctionResults = ref([
 
 // 格式化价格
 const formatPrice = (price) => {
-  return formatYuanNumber(fenToYuan(price))
+  return formatArtworkPriceNumber(price)
 }
 
 // 返回
@@ -371,7 +374,7 @@ const search = (kw) => {
   // 模拟搜索
   setTimeout(() => {
     loading.value = false
-    totalCount.value = artworkResults.value.length + artistResults.value.length + auctionResults.value.length
+    totalCount.value = artworkResults.value.length + artistResults.value.length + (auctionEnabled ? auctionResults.value.length : 0)
   }, 500)
 }
 
@@ -423,6 +426,10 @@ const selectSuggestion = (item) => {
 
 // 切换结果标签
 const switchResultTab = (tab) => {
+  if (!auctionEnabled && tab === 'auction') {
+    resultTab.value = 'all'
+    return
+  }
   resultTab.value = tab
 }
 
@@ -443,7 +450,7 @@ const goArtist = (artist) => {
 
 // 跳转拍卖
 const goAuction = (auction) => {
-  uni.navigateTo({ url: `/pages/auction/detail?id=${auction.id}` })
+  uni.navigateTo({ url: `/pages/auction-flow/detail?id=${auction.id}` })
 }
 
 // 切换关注

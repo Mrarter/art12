@@ -103,7 +103,7 @@
 </template>
 
 <script>
-import { getCommissionList, getCommissionConfig } from '@/api/promoter'
+import { getCommissionList, getCommissionConfig, getPromoterStats } from '@/api/promoter'
 import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
@@ -152,22 +152,30 @@ export default {
     async loadData() {
       this.loading = true
       try {
-        const res = await getCommissionList({
-          page: this.page,
-          pageSize: this.pageSize,
-          level: this.filterType === 'all' ? '' : (this.filterType === 'level1' ? 1 : 2)
-        })
+        const [res, stats] = await Promise.all([
+          getCommissionList({
+            page: this.page,
+            pageSize: this.pageSize,
+            level: this.filterType === 'all' ? '' : (this.filterType === 'level1' ? 1 : 2)
+          }),
+          this.page === 1 ? getPromoterStats() : Promise.resolve(null)
+        ])
+        const pageRecords = (res.records || []).map(item => ({
+          ...item,
+          level: Number(item.commissionLevel || item.level || 1),
+          commission: Math.round(Number(item.amount || 0) * 100),
+          orderTitle: Number(item.commissionLevel || item.level || 1) === 2 ? '团队奖励' : '推广佣金',
+          createTime: item.createdTime || item.createTime || ''
+        }))
 
         if (this.page === 1) {
-          this.records = res.records || []
-          if (res.stats) {
-            this.stats = res.stats
-          }
+          this.records = pageRecords
+          if (stats) this.stats = stats
         } else {
-          this.records = [...this.records, ...(res.records || [])]
+          this.records = [...this.records, ...pageRecords]
         }
 
-        this.hasMore = res.records?.length >= this.pageSize
+        this.hasMore = pageRecords.length >= this.pageSize
       } catch (e) {
         console.error('加载分成记录失败', e)
       } finally {

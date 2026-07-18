@@ -120,7 +120,7 @@
 import { getFavorites as getProductFavorites, removeFavorite } from '@/api/product'
 import { getFollowingList, followArtist, unfollowArtist } from '@/api/user'
 import { getAccessToken, isGuestUser } from '@/utils/auth'
-import { fenToYuan, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
 
 const normalizeImage = (url) => {
   if (!url || typeof url !== 'string') return ''
@@ -226,7 +226,7 @@ export default {
     },
 
     formatPrice(price) {
-      return formatYuanNumber(fenToYuan(price))
+      return formatArtworkPriceNumber(price)
     },
 
     switchTab(tab) {

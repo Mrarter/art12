@@ -1,6 +1,6 @@
 <template>
-  <view class="detail-page">
-    <view class="nav-bar" :class="{ 'is-transparent': pageScrolled }">
+  <view class="detail-page" :style="pageStyle">
+    <view class="nav-bar" :class="{ 'is-transparent': pageScrolled }" :style="navStyle">
       <view class="nav-icon" @click="goBack">‹</view>
       <view class="nav-title">作品详情</view>
       <view class="nav-icon share" @click="onShare">
@@ -69,12 +69,13 @@
                 <text>{{ priceNumber }}</text>
               </template>
             </view>
-            <view class="rise-line" v-if="!isSoldArtwork">↗ 预计30天上涨 {{ growthRangeDisplay }}</view>
+            <view class="discount-line" v-if="discountText">{{ discountText }}</view>
+            <view class="rise-line" v-if="!isSoldArtwork">↗ 预估未来一年上涨 {{ growthRangeDisplay }}</view>
             <view class="collect-line">♙ 已被 {{ displayLikeCount }} 位藏家喜欢</view>
           </view>
           <view class="model-panel">
             <view class="model-title">♙ 涨跌趋势</view>
-            <text class="model-sub">预计上涨区间</text>
+            <text class="model-sub">未来一年上涨区间</text>
             <view class="model-body">
               <view class="model-copy">
                 <text class="model-price">{{ growthRangeDisplay }}</text>
@@ -335,18 +336,18 @@
             </view>
             <view class="share-poster-footer">
               <view class="poster-copy">
-                <text class="poster-copy-title">长按识别小程序码</text>
-                <text class="poster-copy-desc">进入艺本艺术查看作品详情与流通记录</text>
+                <text class="poster-copy-title">{{ sharePosterCodeTitle }}</text>
+                <text class="poster-copy-desc">{{ sharePosterCodeDesc }}</text>
               </view>
-              <view class="mini-code-box">
-                <view class="mini-code-mark">
+              <view class="mini-code-box" :class="{ 'is-loading': miniProgramCodeLoading, 'is-error': miniProgramCodeError }">
+                <image v-if="miniProgramCodeImage" class="mini-code-image" :src="miniProgramCodeImage" mode="aspectFit"></image>
+                <view v-else class="mini-code-mark">
                   <view class="mini-code-ring ring-a"></view>
                   <view class="mini-code-ring ring-b"></view>
                   <view class="mini-code-dot dot-a"></view>
                   <view class="mini-code-dot dot-b"></view>
                   <view class="mini-code-dot dot-c"></view>
                 </view>
-                <text>小程序码</text>
               </view>
             </view>
           </view>
@@ -439,23 +440,18 @@
             <text class="contact-icon">讯</text>
             <text>发送消息</text>
           </view>
-          <view class="contact-item" @click="makePhoneCall">
-            <text class="contact-icon">电</text>
-            <text>拨打电话</text>
-          </view>
-        </view>
-        <view class="contact-phone" v-if="detail.authorPhone">
-          <text>顾问电话</text>
-          <text>{{ detail.authorPhone }}</text>
         </view>
       </view>
     </view>
+
+    <canvas canvas-id="sharePosterCanvas" class="hidden-share-canvas"></canvas>
   </view><!-- /.detail-page -->
 </template>
 
 <script>
 import { getProductDetail, addFavorite, removeFavorite } from '@/api/product'
 import * as userApi from '@/api/user'
+import QRCode from 'qrcode'
 import { getArtistScore } from '@/api/artistScore'
 import { useUserStore } from '@/store/modules/user'
 import { getProductCommission } from '@/api/promoter'
@@ -463,7 +459,9 @@ import { triggerCollectIncrease } from '@/api/artworkPrice'
 import { getArtworkTrades, getArtworkResaleStats } from '@/api/resale'
 import { getAccessToken, isGuestUser, saveRedirectUrl, getCurrentPagePath } from '@/utils/auth'
 import { upsertCertificateSignNotice, removeCertificateSignNoticesByArtwork } from '@/utils/certificateNotice'
-import { formatYuanAmount as formatYuanAmountShared, formatYuanNumber } from '@/utils/price'
+import { formatArtworkPrice, formatArtworkPriceNumber, formatYuanAmount as formatYuanAmountShared, formatYuanNumber } from '@/utils/price'
+import { IS_MP_WEIXIN } from '@/utils/platform'
+import { buildH5ShareUrl, setH5ShareMeta } from '@/utils/share'
 
 const FALLBACK_COVER = '/static/images/artwork-fallback.png'
 
@@ -493,6 +491,10 @@ export default {
       showSharePanel: false,
       showSharePoster: false,
       sharePosterChannel: 'wechat',
+      miniProgramCodeImage: '',
+      miniProgramCodeLoading: false,
+      miniProgramCodeError: '',
+      sharePosterSaving: false,
       showContactModal: false,
       isEmpty: false,
       priceGrowth: {
@@ -507,11 +509,41 @@ export default {
       buyLoading: false,
       buyErrorMessage: '',
       favoriteCountOverride: null,
-      authorCertificateSigned: false
+      authorCertificateSigned: false,
+      navMetrics: {
+        statusBarHeight: 24,
+        navBarHeight: 48,
+        menuButtonLeft: 0,
+        menuButtonHeight: 32,
+        menuButtonTop: 28,
+        windowWidth: 375
+      }
     }
   },
 
   computed: {
+    pageStyle() {
+      return this.navStyle
+    },
+
+    navStyle() {
+      const m = this.navMetrics
+      const navTop = Number(m.statusBarHeight || 24)
+      const navHeight = Number(m.navBarHeight || 48)
+      const menuButtonLeft = Number(m.menuButtonLeft || 0)
+      const rightReserve = menuButtonLeft > 0
+        ? Math.max(Number(m.windowWidth || 375) - menuButtonLeft + 8, 72)
+        : 16
+      return {
+        '--status-bar-height': `${navTop}px`,
+        '--nav-content-height': `${navHeight}px`,
+        '--nav-total-height': `${navTop + navHeight}px`,
+        '--nav-right-reserve': `${rightReserve}px`,
+        '--menu-button-top': `${Number(m.menuButtonTop || navTop + 4)}px`,
+        '--menu-button-height': `${Number(m.menuButtonHeight || 32)}px`
+      }
+    },
+
     storyText() {
       return this.detail.description || '这件作品以沉稳的画面关系承载日常物象的温度，厚重笔触与层次色彩形成清晰的视觉节奏，呈现出兼具观赏性与收藏感的当代油画气质。'
     },
@@ -603,13 +635,21 @@ export default {
     },
     sharePosterHint() {
       const map = {
-        friend: '生成带小程序码的好友分享图',
-        wechat: '生成带小程序码的微信分享图',
+        friend: IS_MP_WEIXIN ? '生成带小程序码的好友分享图' : '生成带H5二维码的好友分享图',
+        wechat: IS_MP_WEIXIN ? '生成带小程序码的微信分享图' : '生成带H5二维码的微信分享图',
         timeline: '生成适合朋友圈发布的分享图',
-        mini: '生成小程序入口分享图',
-        qrcode: '生成可保存的小程序码分享图'
+        mini: IS_MP_WEIXIN ? '生成小程序分享图' : '生成H5入口分享图',
+        qrcode: IS_MP_WEIXIN ? '生成可保存的小程序码分享图' : '生成可保存的H5二维码分享图'
       }
-      return map[this.sharePosterChannel] || '生成带小程序码的分享图'
+      return map[this.sharePosterChannel] || (IS_MP_WEIXIN ? '生成带小程序码的分享图' : '生成带H5二维码的分享图')
+    },
+    sharePosterCodeTitle() {
+      return IS_MP_WEIXIN ? '长按识别小程序码' : '长按识别H5二维码'
+    },
+    sharePosterCodeDesc() {
+      return IS_MP_WEIXIN
+        ? '打开艺本艺术小程序查看作品详情与流通记录'
+        : '打开艺本艺术 H5 查看作品详情与流通记录'
     },
     heroCardStyle() {
       return `height: ${this.heroHeight}rpx`
@@ -619,13 +659,28 @@ export default {
     },
     displayPrice() {
       if (this.activeResaleListing?.resalePrice) {
-        return Math.round(Number(this.activeResaleListing.resalePrice) * 100)
+        return Number(this.activeResaleListing.resalePrice)
       }
       return this.resolveCurrentPrice(this.detail)
     },
     priceNumber() {
-      const price = Number(this.displayPrice || 0)
-      return formatYuanNumber(price / 100)
+      return formatArtworkPriceNumber(this.displayPrice || 0)
+    },
+    publishPrice() {
+      return Number(
+        this.detail.publishPrice ||
+        this.detail.publish_price ||
+        this.detail.originalPrice ||
+        this.detail.original_price ||
+        this.detail.price ||
+        0
+      )
+    },
+    discountText() {
+      const currentPrice = Number(this.displayPrice || 0)
+      const publishPrice = Number(this.publishPrice || 0)
+      if (this.isSoldArtwork || currentPrice <= 0 || publishPrice <= 0 || currentPrice >= publishPrice) return ''
+      return `限时优惠${this.formatDiscountAmount(publishPrice - currentPrice)}元`
     },
     hasValidDisplayPrice() {
       return Number(this.displayPrice || 0) > 0
@@ -903,15 +958,15 @@ export default {
       const min = Number(this.detail.tomorrowIncreaseMin || 0)
       const max = Number(this.detail.tomorrowIncreaseMax || 0)
       if (min > 0 || max > 0) {
-        const low = Math.min(min || max, max || min)
-        const high = Math.max(min, max)
+        const low = Math.min(min || max, max || min) * 365
+        const high = Math.max(min, max) * 365
         return low === high ? this.formatPriceDelta(low) : `${this.formatPriceDelta(low)} - ${this.formatPriceDelta(high)}`
       }
       const baseRate = Number(this.detail.customBaseDailyRate || this.detail.baseDailyRate || 0)
       const matureRate = Number(this.detail.customMatureDailyRate || this.detail.matureDailyRate || baseRate)
       if (!baseRate && !matureRate) return ''
-      const low = Math.round(price * Math.min(baseRate || matureRate, matureRate || baseRate))
-      const high = Math.round(price * Math.max(baseRate, matureRate))
+      const low = Math.round(price * Math.min(baseRate || matureRate, matureRate || baseRate) * 365)
+      const high = Math.round(price * Math.max(baseRate, matureRate) * 365)
       return low === high ? this.formatPriceDelta(low) : `${this.formatPriceDelta(low)} - ${this.formatPriceDelta(high)}`
     },
     infoRows() {
@@ -965,6 +1020,7 @@ export default {
   },
 
   onLoad(options = {}) {
+    this.initNavMetrics()
     this.fetchDetail(options)
   },
 
@@ -976,15 +1032,71 @@ export default {
     this.pageScrolled = Number(e?.scrollTop || 0) > 12
   },
 
+  onShareAppMessage() {
+    return this.buildMiniProgramSharePayload()
+  },
+
+  onShareTimeline() {
+    const payload = this.buildMiniProgramSharePayload()
+    const id = encodeURIComponent(this.detail?.id || '')
+    return {
+      title: payload.title,
+      query: id ? `id=${id}&from=timeline` : '',
+      imageUrl: payload.imageUrl
+    }
+  },
+
   methods: {
+    initNavMetrics() {
+      try {
+        const systemInfo = uni.getSystemInfoSync ? uni.getSystemInfoSync() : {}
+        let menuButton = null
+        // #ifdef MP-WEIXIN
+        if (uni.getMenuButtonBoundingClientRect) {
+          menuButton = uni.getMenuButtonBoundingClientRect()
+        }
+        // #endif
+
+        const statusBarHeight = Number(systemInfo.statusBarHeight || 24)
+        const windowWidth = Number(systemInfo.windowWidth || 375)
+        const menuButtonTop = Number(menuButton?.top || statusBarHeight + 4)
+        const menuButtonHeight = Number(menuButton?.height || 32)
+        const navBarHeight = menuButton
+          ? Math.max((menuButtonTop - statusBarHeight) * 2 + menuButtonHeight, 44)
+          : 48
+
+        this.navMetrics = {
+          statusBarHeight,
+          navBarHeight,
+          menuButtonLeft: Number(menuButton?.left || 0),
+          menuButtonHeight,
+          menuButtonTop,
+          windowWidth
+        }
+      } catch (error) {
+        this.navMetrics = {
+          statusBarHeight: 24,
+          navBarHeight: 48,
+          menuButtonLeft: 0,
+          menuButtonHeight: 32,
+          menuButtonTop: 28,
+          windowWidth: 375
+        }
+      }
+    },
+
     async fetchDetail(routeOptions = {}) {
       const pages = getCurrentPages()
       const currentPage = pages[pages.length - 1]
-      const id = routeOptions.id || currentPage.options?.id || this.readRouteIdFromLocation()
+      const id = this.resolveRouteArtworkId(routeOptions, currentPage?.options)
 
       if (!id) {
         this.isEmpty = true
         return
+      }
+      if (String(this.detail.id || '') !== String(id)) {
+        this.miniProgramCodeImage = ''
+        this.miniProgramCodeError = ''
       }
 
       try {
@@ -1008,6 +1120,7 @@ export default {
           this.refreshAuthorCertificateState()
           this.syncAuthorCertificateNotice()
           this.saveBrowseHistory(data)
+          this.updateShareMeta()
         } else {
           this.isEmpty = true
           this.loadCommission(id)
@@ -1107,12 +1220,13 @@ export default {
 
     saveBrowseHistory(item) {
       if (!item || !item.id) return
+      const artworkImage = this.extractImageList(item.images)[0] || ''
       const record = {
         id: item.id,
         name: this.decodeDisplayText(item.title || item.name || '未命名作品'),
         author: this.decodeDisplayText(item.authorName || item.artistName || '未知艺术家'),
         price: this.resolveCurrentPrice(item),
-        image: item.coverImage || item.cover || (Array.isArray(item.images) ? item.images[0] : ''),
+        image: artworkImage || item.coverImage || item.cover || '',
         time: Date.now()
       }
       const history = uni.getStorageSync('browseHistoryWorks') || []
@@ -1138,6 +1252,24 @@ export default {
       if (typeof window === 'undefined') return ''
       const match = window.location.href.match(/[?&]id=([^&#]+)/)
       return match ? decodeURIComponent(match[1]) : ''
+    },
+
+    resolveRouteArtworkId(...optionSources) {
+      for (const options of optionSources) {
+        const directId = options?.id || options?.artworkId
+        if (directId) return directId
+        const sceneId = this.readArtworkIdFromScene(options?.scene)
+        if (sceneId) return sceneId
+      }
+      return this.readRouteIdFromLocation()
+    },
+
+    readArtworkIdFromScene(scene) {
+      if (!scene) return ''
+      const text = decodeURIComponent(String(scene))
+      if (/^\d+$/.test(text)) return text
+      const params = new URLSearchParams(text)
+      return params.get('id') || params.get('artworkId') || ''
     },
 
     formatRecordDate(baseDate, offsetDays = 0) {
@@ -1191,12 +1323,12 @@ export default {
       try {
         const res = await getProductCommission(productId)
         const rate = res.commissionRate || res.rate || this.detail.commissionRate || 5
-        const priceYuan = (this.displayPrice || 0) / 100
+        const priceYuan = Number(this.displayPrice || 0)
         this.commission = Math.floor(priceYuan * rate) / 100
         this.commissionLevels = this.buildCommissionLevels(res, rate)
       } catch (e) {
         const rate = this.detail.commissionRate || 5
-        const priceYuan = (this.displayPrice || 0) / 100
+        const priceYuan = Number(this.displayPrice || 0)
         this.commission = Math.floor(priceYuan * rate) / 100
         this.commissionLevels = this.buildCommissionLevels(null, rate)
       }
@@ -1360,6 +1492,16 @@ export default {
       this.showSharePoster = false
     },
 
+    buildMiniProgramSharePayload() {
+      const artworkId = this.detail?.id || ''
+      const titleParts = [this.workName, this.authorName].filter(Boolean)
+      return {
+        title: titleParts.length ? `${titleParts.join(' - ')}｜艺本艺术` : '艺本艺术｜作品详情',
+        path: artworkId ? `/pages/gallery/detail?id=${encodeURIComponent(artworkId)}&from=share` : '/pages/gallery/index',
+        imageUrl: this.images[0] || this.detail?.coverImage || this.detail?.cover || ''
+      }
+    },
+
     shareToFriend() {
       this.openSharePoster('wechat')
     },
@@ -1383,6 +1525,7 @@ export default {
     openSharePoster(channel = 'wechat') {
       this.sharePosterChannel = channel
       this.showSharePoster = true
+      this.loadMiniProgramCode()
     },
 
     closeSharePanel() {
@@ -1391,12 +1534,79 @@ export default {
     },
 
     buildShareLink() {
-      const app = getApp()
-      const path = `/pages/gallery/detail?id=${this.detail.id}&from=share`
-      if (typeof window !== 'undefined' && window.location?.origin) {
-        return `${window.location.origin}/#${path}`
+      if (!this.detail.id) return buildH5ShareUrl('/pages/gallery/index?from=share')
+      return buildH5ShareUrl(`/pages/gallery/detail?id=${encodeURIComponent(this.detail.id)}&from=share`)
+    },
+
+    updateShareMeta() {
+      if (!this.detail.id) return
+      setH5ShareMeta({
+        title: this.buildMiniProgramSharePayload().title,
+        description: `${this.authorName}的作品《${this.workName}》，查看作品详情与流通记录`,
+        imageUrl: this.images[0] || this.detail.coverImage || this.detail.cover,
+        url: this.buildShareLink()
+      })
+    },
+
+    async loadMiniProgramCode() {
+      if (!this.detail.id || this.miniProgramCodeImage || this.miniProgramCodeLoading) return
+      this.miniProgramCodeLoading = true
+      this.miniProgramCodeError = ''
+      try {
+        if (IS_MP_WEIXIN) {
+          const miniCode = await userApi.getMiniProgramCode({
+            page: 'pages/gallery/detail',
+            scene: `id=${this.detail.id}`,
+            width: 280
+          })
+          this.miniProgramCodeImage = this.resolveMiniProgramCodeUrl(miniCode)
+        } else {
+          this.miniProgramCodeImage = await QRCode.toDataURL(this.buildShareLink(), {
+            errorCorrectionLevel: 'M',
+            margin: 1,
+            width: 280,
+            color: {
+              dark: '#0f395d',
+              light: '#ffffff'
+            }
+          })
+        }
+        if (!this.miniProgramCodeImage) {
+          throw new Error(IS_MP_WEIXIN ? '小程序码为空' : 'H5二维码为空')
+        }
+      } catch (e) {
+        console.warn(IS_MP_WEIXIN ? '生成小程序码失败' : '生成H5二维码失败', e)
+        this.miniProgramCodeError = e?.message || '生成失败'
+      } finally {
+        this.miniProgramCodeLoading = false
       }
-      return `${app?.globalData?.domain || ''}${path}`
+    },
+
+    resolveMiniProgramCodeUrl(payload) {
+      const candidates = [
+        payload?.miniCodeUrl,
+        payload?.minicodeUrl,
+        payload?.qrCodeUrl,
+        payload?.codeUrl,
+        payload?.url,
+        payload?.imageUrl,
+        payload?.data?.miniCodeUrl,
+        payload?.data?.minicodeUrl,
+        payload?.data?.qrCodeUrl,
+        payload?.data?.codeUrl,
+        payload?.data?.url,
+        payload?.data?.imageUrl,
+        payload?.base64,
+        payload?.data?.base64
+      ].filter(Boolean)
+
+      const raw = candidates[0] || ''
+      if (!raw) return ''
+      if (String(raw).startsWith('data:image')) return raw
+      if (/^[A-Za-z0-9+/=]+$/.test(String(raw)) && String(raw).length > 120) {
+        return `data:image/png;base64,${raw}`
+      }
+      return String(raw)
     },
 
     openMiniProgram() {
@@ -1421,8 +1631,190 @@ export default {
       this.openSharePoster('qrcode')
     },
 
-    saveSharePoster() {
-      uni.showToast({ title: '分享图已生成，请长按保存', icon: 'none' })
+    async saveSharePoster() {
+      // #ifdef MP-WEIXIN
+      await this.saveSharePosterToAlbum()
+      return
+      // #endif
+      uni.showToast({ title: '当前环境请长按图片保存', icon: 'none' })
+    },
+
+    async saveSharePosterToAlbum() {
+      if (this.sharePosterSaving) return
+      if (!this.posterArtworkImage) {
+        uni.showToast({ title: '图片未加载完成', icon: 'none' })
+        return
+      }
+
+      this.sharePosterSaving = true
+      uni.showLoading({ title: '保存中...' })
+
+      try {
+        if (!this.miniProgramCodeImage) {
+          await this.loadMiniProgramCode()
+        }
+
+        const [artImage, qrImage] = await Promise.all([
+          this.getPosterImageInfo(this.posterArtworkImage),
+          this.getPosterImageInfo(this.miniProgramCodeImage)
+        ])
+
+        await this.drawSharePosterCanvas(artImage.path || artImage.tempFilePath, qrImage.path || qrImage.tempFilePath)
+        const tempFilePath = await this.exportSharePosterCanvas()
+        await this.saveImageWithPermission(tempFilePath)
+        uni.showToast({ title: '分享图已保存', icon: 'success' })
+      } catch (error) {
+        console.warn('保存分享图失败', error)
+        uni.showToast({ title: error?.message || '保存失败', icon: 'none' })
+      } finally {
+        this.sharePosterSaving = false
+        uni.hideLoading()
+      }
+    },
+
+    getPosterImageInfo(src) {
+      return new Promise((resolve, reject) => {
+        if (!src) {
+          reject(new Error('分享图片未准备好'))
+          return
+        }
+        uni.getImageInfo({
+          src,
+          success: resolve,
+          fail: (err) => reject(err || new Error('图片读取失败'))
+        })
+      })
+    },
+
+    drawSharePosterCanvas(artworkPath, qrPath) {
+      return new Promise((resolve) => {
+        const ctx = uni.createCanvasContext('sharePosterCanvas', this)
+        const width = 750
+        const height = 1334
+
+        ctx.setFillStyle('#0c0c0f')
+        ctx.fillRect(0, 0, width, height)
+
+        ctx.setFillStyle('#17171d')
+        ctx.fillRect(36, 48, 678, 1238)
+
+        ctx.drawImage(artworkPath, 66, 96, 618, 640)
+
+        ctx.setFillStyle('rgba(0,0,0,0.22)')
+        ctx.fillRect(66, 626, 618, 110)
+
+        ctx.setFillStyle('#D8B253')
+        ctx.setFontSize(46)
+        ctx.fillText('艺本艺术', 90, 156)
+
+        ctx.setFillStyle('#ffffff')
+        ctx.setFontSize(28)
+        ctx.fillText(this.certificateCode || '', 90, 690)
+
+        ctx.setFillStyle('#111111')
+        ctx.fillRect(66, 736, 618, 430)
+
+        ctx.setFillStyle('#ffffff')
+        ctx.setFontSize(54)
+        ctx.fillText(this.clipCanvasText(this.workName, 12), 90, 828)
+
+        ctx.setFillStyle('#8f8f96')
+        ctx.setFontSize(28)
+        ctx.fillText(this.clipCanvasText(`${this.authorName} · ${this.artworkMaterial} · ${this.artworkSize} · ${this.artworkYear}`, 34), 90, 884)
+
+        ctx.setFillStyle('#888888')
+        ctx.setFontSize(24)
+        ctx.fillText(this.activeResaleListing ? '转售价格' : '当前收藏价', 90, 964)
+
+        ctx.setFillStyle('#F4C74F')
+        ctx.setFontSize(66)
+        ctx.fillText(`¥${this.priceNumber}`, 90, 1036)
+
+        ctx.setFillStyle('#3b321a')
+        this.fillRoundRect(ctx, 518, 930, 140, 116, 16)
+        ctx.setFillStyle('#F4C74F')
+        ctx.setFontSize(44)
+        ctx.fillText(this.totalGainDisplay || '+0%', 548, 992)
+        ctx.setFontSize(22)
+        ctx.fillText('累计上涨', 564, 1032)
+
+        ctx.setFillStyle('#17171d')
+        ctx.fillRect(66, 1066, 618, 188)
+
+        ctx.setFillStyle('#ffffff')
+        ctx.setFontSize(38)
+        ctx.fillText(this.sharePosterCodeTitle, 90, 1142)
+
+        ctx.setFillStyle('#8f8f96')
+        ctx.setFontSize(24)
+        ctx.fillText(this.clipCanvasText(this.sharePosterCodeDesc, 26), 90, 1188)
+
+        ctx.setFillStyle('#ffffff')
+        ctx.fillRect(530, 1096, 116, 116)
+        ctx.drawImage(qrPath, 538, 1104, 100, 100)
+
+        ctx.draw(false, () => {
+          setTimeout(resolve, 160)
+        })
+      })
+    },
+
+    exportSharePosterCanvas() {
+      return new Promise((resolve, reject) => {
+        uni.canvasToTempFilePath({
+          canvasId: 'sharePosterCanvas',
+          quality: 1,
+          success: (res) => resolve(res.tempFilePath),
+          fail: (err) => reject(err || new Error('分享图导出失败'))
+        }, this)
+      })
+    },
+
+    saveImageWithPermission(filePath) {
+      return new Promise((resolve, reject) => {
+        uni.saveImageToPhotosAlbum({
+          filePath,
+          success: resolve,
+          fail: (err) => {
+            const errMsg = String(err?.errMsg || '')
+            if (errMsg.includes('auth deny') || errMsg.includes('authorize no response')) {
+              uni.showModal({
+                title: '需要相册权限',
+                content: '请允许保存图片到相册，以便保存分享图。',
+                success: (modalRes) => {
+                  if (modalRes.confirm) {
+                    uni.openSetting({})
+                  }
+                }
+              })
+              reject(new Error('请先开启相册权限'))
+              return
+            }
+            reject(err || new Error('保存到相册失败'))
+          }
+        })
+      })
+    },
+
+    fillRoundRect(ctx, x, y, width, height, radius) {
+      const r = Math.max(0, Math.min(radius, width / 2, height / 2))
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + width - r, y)
+      ctx.arcTo(x + width, y, x + width, y + r, r)
+      ctx.lineTo(x + width, y + height - r)
+      ctx.arcTo(x + width, y + height, x + width - r, y + height, r)
+      ctx.lineTo(x + r, y + height)
+      ctx.arcTo(x, y + height, x, y + height - r, r)
+      ctx.lineTo(x, y + r)
+      ctx.arcTo(x, y, x + r, y, r)
+      ctx.closePath()
+      ctx.fill()
+    },
+
+    clipCanvasText(text, maxLength = 24) {
+      const raw = String(text || '')
+      return raw.length > maxLength ? `${raw.slice(0, maxLength)}...` : raw
     },
 
     reportArtwork() {
@@ -1453,19 +1845,16 @@ export default {
 
     sendMessage() {
       this.showContactModal = false
+      const query = [
+        `userId=${encodeURIComponent(this.detail.authorId || '')}`,
+        `workId=${encodeURIComponent(this.detail.id || this.detail.artworkId || '')}`,
+        `workTitle=${encodeURIComponent(this.workName || '')}`,
+        `workCover=${encodeURIComponent(this.detail.coverImage || this.detail.cover || '')}`,
+        `workPrice=${encodeURIComponent(this.priceNumber || '')}`
+      ].filter(item => !item.endsWith('='))
       uni.navigateTo({
-        url: `/pages/message/chat?userId=${this.detail.authorId || ''}`
+        url: `/pages/message/chat?${query.join('&')}`
       })
-    },
-
-    makePhoneCall() {
-      if (this.detail.authorPhone) {
-        uni.makePhoneCall({
-          phoneNumber: this.detail.authorPhone
-        })
-      } else {
-        uni.showToast({ title: '暂无电话号码', icon: 'none' })
-      }
     },
 
     goArtistHome() {
@@ -1639,7 +2028,7 @@ export default {
     },
 
     buildCommissionLevels(res, rate) {
-      const priceYuan = (this.displayPrice || 0) / 100
+      const priceYuan = Number(this.displayPrice || 0)
       const levels = Array.isArray(res?.levels) && res.levels.length
         ? res.levels
         : [
@@ -1661,14 +2050,12 @@ export default {
 
     formatPrice(price) {
       if (!price) return '¥0'
-      const yuan = Number(price) / 100
-      return `¥${formatYuanNumber(yuan)}`
+      return formatArtworkPrice(price)
     },
 
     formatCirculationPrice(price) {
-      const yuan = Number(price || 0) / 100
-      if (yuan <= 0) return '¥0'
-      return `¥${formatYuanNumber(yuan)}`
+      if (Number(price || 0) <= 0) return '¥0'
+      return formatArtworkPrice(price)
     },
 
     formatPriceSmall(price) {
@@ -1707,8 +2094,15 @@ export default {
     formatPriceDelta(price) {
       const value = Number(price || 0)
       if (value <= 0) return '¥0'
-      const yuan = value / 100
-      return `¥${formatYuanNumber(yuan)}`
+      return formatArtworkPrice(value)
+    },
+
+    formatDiscountAmount(amount) {
+      const value = Number(amount || 0)
+      if (value <= 0) return '0'
+      return Number.isInteger(value)
+        ? value.toLocaleString('zh-CN')
+        : value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     },
 
     resolveCurrentPrice(item = {}) {
@@ -1737,7 +2131,7 @@ $gold-bright: #f0c83a;
 
 .detail-page {
   min-height: 100vh;
-  padding: 118rpx 28rpx 164rpx;
+  padding: calc(var(--nav-total-height, 72px) + 14rpx) 28rpx calc(164rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   background:
     radial-gradient(circle at 18% 8%, rgba(213, 169, 28, 0.12), transparent 28%),
@@ -1751,8 +2145,8 @@ $gold-bright: #f0c83a;
   left: 0;
   right: 0;
   z-index: 50;
-  height: 108rpx;
-  padding: 22rpx 28rpx 0;
+  height: var(--nav-total-height, 72px);
+  padding: var(--status-bar-height, 24px) var(--nav-right-reserve, 28rpx) 0 28rpx;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -2237,7 +2631,7 @@ $gold-bright: #f0c83a;
   display: grid;
   grid-template-columns: 1fr 1.08fr;
   gap: 16rpx;
-  padding: 18rpx 28rpx 24rpx;
+  padding: 18rpx 28rpx calc(24rpx + env(safe-area-inset-bottom));
   background: rgba(18, 18, 18, 0.95);
   border-top: 1rpx solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(18rpx);
@@ -2508,8 +2902,7 @@ $gold-bright: #f0c83a;
 .poster-price,
 .poster-rise text,
 .poster-copy-title,
-.poster-copy-desc,
-.mini-code-box text {
+.poster-copy-desc {
   display: block;
 }
 
@@ -2573,24 +2966,34 @@ $gold-bright: #f0c83a;
 .mini-code-box {
   flex: 0 0 auto;
   width: 144rpx;
-  padding: 12rpx 10rpx 10rpx;
+  height: 144rpx;
+  padding: 8rpx;
   border-radius: 18rpx;
   background: #fff;
   text-align: center;
   box-sizing: border-box;
 }
 
-.mini-code-box text {
-  margin-top: 8rpx;
-  color: rgba(0, 0, 0, 0.52);
-  font-size: 17rpx;
-  font-weight: 700;
+.mini-code-box.is-loading,
+.mini-code-box.is-error {
+  background: #eef5ff;
+}
+
+.mini-code-box.is-error {
+  border: 2rpx solid rgba(214, 63, 63, 0.28);
+}
+
+.mini-code-image {
+  display: block;
+  width: 128rpx;
+  height: 128rpx;
+  margin: 0 auto;
 }
 
 .mini-code-mark {
   position: relative;
-  width: 104rpx;
-  height: 104rpx;
+  width: 128rpx;
+  height: 128rpx;
   margin: 0 auto;
   border-radius: 50%;
   background:
@@ -2745,6 +3148,16 @@ $gold-bright: #f0c83a;
   font-weight: 800;
 }
 
+.hidden-share-canvas {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 750px;
+  height: 1334px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .contact-header {
   position: relative;
 }
@@ -2784,7 +3197,7 @@ $gold-bright: #f0c83a;
 
 .contact-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16rpx;
 }
 
@@ -2812,17 +3225,9 @@ $gold-bright: #f0c83a;
   font-size: 20rpx;
 }
 
-.contact-phone {
-  margin-top: 18rpx;
-  display: flex;
-  justify-content: space-between;
-  color: $text-sub;
-  font-size: 24rpx;
-}
-
 .detail-page {
   min-height: 100vh;
-  padding: 104rpx 0 168rpx;
+  padding: calc(var(--nav-total-height, 72px) + 12rpx) 0 calc(168rpx + env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at 50% -14%, rgba(224, 181, 67, 0.1), transparent 28%),
     linear-gradient(180deg, #090909 0%, #111 42%, #0a0a0a 100%);
@@ -2838,8 +3243,8 @@ $gold-bright: #f0c83a;
 }
 
 .nav-bar {
-  height: 104rpx;
-  padding: 20rpx 34rpx 0;
+  height: var(--nav-total-height, 72px);
+  padding: var(--status-bar-height, 24px) var(--nav-right-reserve, 34rpx) 0 34rpx;
   background: transparent;
   backdrop-filter: none;
   border-bottom: 0;
@@ -3178,6 +3583,18 @@ $gold-bright: #f0c83a;
   font-size: 34rpx;
 }
 
+.discount-line {
+  align-self: flex-start;
+  margin-top: 14rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 6rpx;
+  background: rgba(231, 76, 60, 0.14);
+  color: #ff7a68;
+  font-size: 22rpx;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
 .collector-name {
   color: rgba(255, 255, 255, 0.66);
   font-size: 22rpx;
@@ -3225,7 +3642,7 @@ $gold-bright: #f0c83a;
 
 .model-body {
   display: grid;
-  grid-template-columns: 1fr 94rpx;
+  grid-template-columns: minmax(0, 1fr) 94rpx;
   gap: 12rpx;
   margin-top: 8rpx;
   align-items: center;
@@ -3234,13 +3651,16 @@ $gold-bright: #f0c83a;
 .model-copy {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .model-price {
   color: #f0c65d;
-  font-size: 28rpx;
+  font-size: 26rpx;
   line-height: 1.2;
   font-weight: 800;
+  white-space: nowrap;
+  letter-spacing: -0.5rpx;
 }
 
 .confidence,
@@ -3273,7 +3693,7 @@ $gold-bright: #f0c83a;
   border-radius: 50%;
   background: conic-gradient(#f0c65d 0 78%, rgba(255, 255, 255, 0.09) 78% 100%);
   box-sizing: border-box;
-  margin-top: -125rpx;
+  justify-self: end;
 }
 
 .ring-inner {
@@ -3744,7 +4164,7 @@ $gold-bright: #f0c83a;
 }
 
 .bottom-bar {
-  bottom: 60rpx;
+  bottom: 0;
   grid-template-columns: 104rpx 104rpx minmax(0, 1fr);
   gap: 18rpx;
   padding: 16rpx 30rpx calc(16rpx + env(safe-area-inset-bottom));
@@ -3869,7 +4289,7 @@ $gold-bright: #f0c83a;
   }
 
   .model-body {
-    grid-template-columns: 1fr 82rpx;
+    grid-template-columns: minmax(0, 1fr) 82rpx;
   }
 
   .confidence-ring {

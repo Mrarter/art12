@@ -8,6 +8,7 @@ import com.shiyiju.common.constant.ProductConstant;
 import com.shiyiju.common.client.CommissionRestClient;
 import com.shiyiju.common.client.ResaleRestClient;
 import com.shiyiju.common.client.WalletRestClient;
+import com.shiyiju.common.config.WxPayConfig;
 import com.shiyiju.common.event.FinanceEvent;
 import com.shiyiju.common.event.FinanceEventPublisher;
 import com.shiyiju.common.event.FinanceEventType;
@@ -32,8 +33,10 @@ import com.shiyiju.common.entity.User;
 import com.shiyiju.common.mapper.ArtworkMapper;
 import com.shiyiju.common.mapper.UserMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -65,12 +68,14 @@ public class OrderService {
     private final ArtworkMapper artworkMapper;
     private final UserMapper userMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final WxPayConfig wxPayConfig;
     private final WxPayService wxPayService;
     private final AlipayService alipayService;
     private final ResaleRestClient resaleRestClient;
     private final WalletRestClient walletClient;
     private final CommissionRestClient commissionRestClient;
     private final FinanceEventPublisher financeEventPublisher;
+    private final PaymentService paymentService;
     private final OrderFailRecorder orderFailRecorder;
     private final LogisticsMapper logisticsMapper;
     private final LogisticsService logisticsService;
@@ -79,10 +84,114 @@ public class OrderService {
     private final JdbcTemplate jdbcTemplate;
     private final RestTemplate productRestTemplate = new RestTemplate();
 
+    @Value("${resale.platform-wallet-user-id:1}")
+    private Long platformWalletUserId;
+
+    @Value("${shiyiju.services.product-url:http://shiyiju-product:8082}")
+    private String productServiceUrl;
+
+    @PostConstruct
+    public void initArtworkFreightColumn() {
+        try {
+            addColumnIfMissing("artwork", "freight", "DECIMAL(10,2) DEFAULT 0 COMMENT '运费（元）'");
+            addColumnIfMissing("trade_order", "seller_user_id", "BIGINT DEFAULT NULL COMMENT '卖家用户ID'");
+            backfillHistoricalSellerUserIds();
+        } catch (Exception e) {
+            log.warn("初始化订单卖家字段失败，后续下单时将重试", e);
+        }
+    }
+
     private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     
     // 佣金比例
     private static final BigDecimal DIRECT_COMMISSION_RATE = new BigDecimal("0.05"); // 一级佣金 5%
+    private static final String PLATFORM_COMMISSION_ENABLED_KEY = "platform.commission.enabled";
+    private static final String PLATFORM_COMMISSION_PRIMARY_RATE_KEY = "platform.commission.primary.sale.rate";
+    private static final String PLATFORM_COMMISSION_MIN_FEE_KEY = "platform.commission.min.fee";
+    private static final String PLATFORM_COMMISSION_WALLET_UID_KEY = "platform.commission.wallet.uid";
+
+    private void addColumnIfMissing(String tableName, String columnName, String definition) {
+        if (!columnExists(tableName, columnName)) {
+            jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
+        }
+    }
+
+    private boolean columnExists(String tableName, String columnName) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = ?
+                  AND column_name = ?
+                """, Integer.class, tableName, columnName);
+        return count != null && count > 0;
+    }
+
+    private void ensureSellerUserIdReady() {
+        addColumnIfMissing("trade_order", "seller_user_id", "BIGINT DEFAULT NULL COMMENT '卖家用户ID'");
+        backfillHistoricalSellerUserIds();
+    }
+
+    private void backfillHistoricalSellerUserIds() {
+        if (!columnExists("trade_order", "seller_user_id")) {
+            return;
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT id, order_type, remark
+                FROM trade_order
+                WHERE deleted = 0
+                  AND seller_user_id IS NULL
+                ORDER BY id DESC
+                LIMIT 500
+                """);
+        for (Map<String, Object> row : rows) {
+            Long orderId = toLong(row.get("id"));
+            if (orderId == null) {
+                continue;
+            }
+            Long sellerUserId = resolveHistoricalSellerUserId(
+                    orderId,
+                    stringValue(row.get("order_type")),
+                    stringValue(row.get("remark"))
+            );
+            if (sellerUserId == null || sellerUserId <= 0) {
+                continue;
+            }
+            try {
+                jdbcTemplate.update("UPDATE trade_order SET seller_user_id = ? WHERE id = ? AND seller_user_id IS NULL",
+                        sellerUserId, orderId);
+            } catch (Exception e) {
+                log.warn("回填订单卖家ID失败: orderId={}, sellerUserId={}", orderId, sellerUserId, e);
+            }
+        }
+    }
+
+    private Long resolveHistoricalSellerUserId(Long orderId, String orderSource, String remark) {
+        if (OrderConstant.SOURCE_RESALE.equals(orderSource)) {
+            Long resaleId = parseResaleId(remark);
+            if (resaleId != null) {
+                Map<String, Object> resale = resaleRestClient.getDetail(resaleId);
+                Long resaleSellerUserId = toLong(resale != null ? resale.get("sellerUserId") : null);
+                if (resaleSellerUserId != null && resaleSellerUserId > 0) {
+                    return resaleSellerUserId;
+                }
+            }
+        }
+        OrderItem firstItem = orderItemMapper.selectOne(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, orderId)
+                        .orderByAsc(OrderItem::getId)
+                        .last("LIMIT 1")
+        );
+        return firstItem != null ? firstItem.getArtistId() : null;
+    }
+
+    private Long parseResaleId(String remark) {
+        if (remark == null || !remark.startsWith("resale:")) {
+            return null;
+        }
+        return toLong(remark.substring("resale:".length()));
+    }
 
     private void ensureCartTable() {
         jdbcTemplate.execute("""
@@ -356,11 +465,13 @@ public class OrderService {
      * 外部调用请使用 createDirectOrder / createOrderFromCart
      */
     public Order createOrderInternal(Long userId, CreateOrderDTO dto) {
+        addColumnIfMissing("artwork", "freight", "DECIMAL(10,2) DEFAULT 0 COMMENT '运费（元）'");
         // 获取地址：优先使用传入的地址；-1 或无匹配时使用默认地址
         Address address = resolveUserAddress(userId, dto.getAddressId());
 
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal freightAmount = BigDecimal.ZERO;
 
         // 从购物车创建
         if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
@@ -381,6 +492,7 @@ public class OrderService {
                 OrderItem item = createOrderItem(artwork, cart.getQuantity(), null);
                 orderItems.add(item);
                 totalAmount = totalAmount.add(safePrice(artwork).multiply(BigDecimal.valueOf(cart.getQuantity())));
+                freightAmount = freightAmount.add(safeFreight(artwork).multiply(BigDecimal.valueOf(cart.getQuantity())));
             }
 
             // 清空购物车
@@ -405,6 +517,7 @@ public class OrderService {
             OrderItem item = createOrderItem(artwork, qty, dto.getPromoterId());
             orderItems.add(item);
             totalAmount = totalAmount.add(safePrice(artwork).multiply(BigDecimal.valueOf(qty)));
+            freightAmount = freightAmount.add(safeFreight(artwork).multiply(BigDecimal.valueOf(qty)));
         }
 
         if (orderItems.isEmpty()) {
@@ -421,7 +534,8 @@ public class OrderService {
         order.setUserId(userId);
         order.setTotalAmount(totalAmount);
         order.setDiscountAmount(BigDecimal.ZERO);
-        order.setPayAmount(totalAmount);
+        order.setFreightAmount(freightAmount);
+        order.setPayAmount(totalAmount.add(freightAmount));
         order.setCommissionAmount(BigDecimal.ZERO);
         order.setAddressId(address.getId());
         order.setReceiverName(address.getReceiverName());
@@ -436,6 +550,7 @@ public class OrderService {
         if (!orderItems.isEmpty()) {
             OrderItem firstItem = orderItems.get(0);
             if (firstItem.getArtistId() != null) {
+                order.setSellerUserId(firstItem.getArtistId());
                 User seller = userMapper.selectById(firstItem.getArtistId());
                 if (seller != null) {
                     order.setSellerName(seller.getNickname());
@@ -550,7 +665,7 @@ public class OrderService {
         BigDecimal price = safePrice(artwork);
         OrderItem item = new OrderItem();
         item.setArtworkId(artwork.getId());
-        item.setArtistId(artwork.getAuthorId());  // 使用 authorId
+        item.setArtistId(resolveArtworkSellerUserId(artwork));
         item.setItemType("ARTWORK");
         item.setTitle(artwork.getTitle());
         item.setCoverImage(artwork.getCoverImage());
@@ -559,6 +674,16 @@ public class OrderService {
         item.setSubtotal(price.multiply(BigDecimal.valueOf(quantity)));
         item.setPromoterId(promoterId);
         return item;
+    }
+
+    private Long resolveArtworkSellerUserId(Artwork artwork) {
+        if (artwork == null) {
+            return null;
+        }
+        if (artwork.getHolderId() != null && artwork.getHolderId() > 0) {
+            return artwork.getHolderId();
+        }
+        return artwork.getAuthorId();
     }
 
     /**
@@ -600,13 +725,20 @@ public class OrderService {
                 .setScale(0, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal safeFreight(Artwork artwork) {
+        if (artwork == null || artwork.getFreight() == null || artwork.getFreight().compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO;
+        }
+        return artwork.getFreight().setScale(2, RoundingMode.HALF_UP);
+    }
+
     private BigDecimal resolveProductCurrentPrice(Artwork artwork) {
         if (artwork == null || artwork.getId() == null) {
             return null;
         }
         try {
             Map<?, ?> response = productRestTemplate.getForObject(
-                    "http://127.0.0.1:8082/product/" + artwork.getId(),
+                    productServiceUrl.replaceAll("/+$", "") + "/product/" + artwork.getId(),
                     Map.class
             );
             if (response == null || response.get("data") == null) {
@@ -742,7 +874,7 @@ public class OrderService {
         // 创建订单项
         OrderItem item = new OrderItem();
         item.setArtworkId(artwork.getId());
-        item.setArtistId(artwork.getAuthorId());
+        item.setArtistId(sellerUserId != null ? sellerUserId : resolveArtworkSellerUserId(artwork));
         item.setItemType("ARTWORK");
         item.setTitle(artwork.getTitle());
         item.setCoverImage(artwork.getCoverImage());
@@ -774,6 +906,7 @@ public class OrderService {
 
         // 设置卖家信息
         if (sellerUserId != null) {
+            order.setSellerUserId(sellerUserId);
             User seller = userMapper.selectById(sellerUserId);
             if (seller != null) {
                 order.setSellerName(seller.getNickname());
@@ -836,29 +969,20 @@ public class OrderService {
 
     /** 获取艺术家/卖家视角的已卖出订单 */
     public PageResult<OrderVO> getSellerOrderList(Long sellerUserId, String status, Integer page, Integer pageSize) {
-        List<OrderItem> sellerItems = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>()
-                        .eq(OrderItem::getArtistId, sellerUserId)
-                        .orderByDesc(OrderItem::getCreateTime)
-        );
-        List<Long> orderIds = sellerItems.stream()
-                .map(OrderItem::getOrderId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-        if (orderIds.isEmpty()) {
-            return PageResult.of(0L, page, pageSize, Collections.emptyList());
-        }
+        ensureSellerUserIdReady();
 
         LambdaQueryWrapper<Order> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.in(Order::getId, orderIds);
+        countWrapper.eq(Order::getSellerUserId, sellerUserId);
         if (status != null && !"all".equals(status)) {
             countWrapper.eq(Order::getStatus, status);
         }
         Long total = orderMapper.selectCount(countWrapper);
+        if (total == null || total <= 0) {
+            return PageResult.of(0L, page, pageSize, Collections.emptyList());
+        }
 
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(Order::getId, orderIds);
+        wrapper.eq(Order::getSellerUserId, sellerUserId);
         if (status != null && !"all".equals(status)) {
             wrapper.eq(Order::getStatus, status);
         }
@@ -875,10 +999,11 @@ public class OrderService {
     /** 获取订单详情 */
     public OrderVO getOrderDetail(Long orderId, Long userId) {
         normalizeZeroAmountPendingOrders(userId);
+        ensureSellerUserIdReady();
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
-                        .eq(Order::getUserId, userId)
+                        .and(wrapper -> wrapper.eq(Order::getUserId, userId).or().eq(Order::getSellerUserId, userId))
         );
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
@@ -889,10 +1014,11 @@ public class OrderService {
     /** 根据ID查询订单 */
     public Order getOrderById(Long orderId, Long userId) {
         normalizeZeroAmountPendingOrders(userId);
+        ensureSellerUserIdReady();
         return orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
-                        .eq(Order::getUserId, userId)
+                        .and(wrapper -> wrapper.eq(Order::getUserId, userId).or().eq(Order::getSellerUserId, userId))
         );
     }
 
@@ -935,11 +1061,12 @@ public class OrderService {
         order.setReceiveTime(LocalDateTime.now());
         orderMapper.updateById(order);
         logisticsService.confirmReceive(orderId, userId);
+        releaseFrozenOrderSale(order);
     }
 
     /** 申请售后 */
     @Transactional
-    public void applyRefund(Long orderId, Long userId, String reason) {
+    public void applyRefund(Long orderId, Long userId, Map<String, Object> params) {
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
@@ -948,15 +1075,378 @@ public class OrderService {
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
-        if (!OrderConstant.STATUS_COMPLETED.equals(order.getStatus()) && 
+
+        ensureRefundRecordTable();
+        Integer existing = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM refund_record WHERE order_id = ? AND status = 0",
+                Integer.class,
+                orderId);
+        if (existing != null && existing > 0) {
+            log.info("退款申请幂等返回: orderId={}, userId={}, status={}", orderId, userId, order.getStatus());
+            return;
+        }
+
+        if (!OrderConstant.STATUS_PAID.equals(order.getStatus()) &&
+            !OrderConstant.STATUS_COMPLETED.equals(order.getStatus()) &&
             !OrderConstant.STATUS_SHIPPED.equals(order.getStatus())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不允许申请售后");
+        }
+
+        String reason = stringParam(params, "reason", "用户申请退款");
+        String images = stringParam(params, "images", null);
+        Integer refundType = "return".equalsIgnoreCase(stringParam(params, "type", "refund")) ? 2 : 1;
+        BigDecimal refundAmount = order.getPayAmount();
+        if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "退款金额必须大于0");
         }
 
         order.setStatus(OrderConstant.STATUS_REFUNDING);
         order.setPaymentStatus(OrderConstant.STATUS_REFUNDING);
         order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
+
+        jdbcTemplate.update("""
+            INSERT INTO refund_record
+                (order_id, order_no, user_id, refund_amount, refund_type, reason, images, status, apply_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())
+            """,
+                order.getId(), order.getOrderNo(), order.getUserId(), refundAmount, refundType, reason, images);
+        notifySellersRefundPending(order, refundAmount, reason);
+        paymentService.createOrderRefund(order, refundAmount, reason);
+    }
+
+    /** 提交退货回寄运单 */
+    @Transactional
+    public void submitRefundReturnLogistics(Long orderId, Long userId, Map<String, Object> params) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getId, orderId)
+                        .eq(Order::getUserId, userId)
+        );
+        if (order == null) {
+            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
+        }
+        ensureRefundRecordTable();
+
+        List<Map<String, Object>> records = jdbcTemplate.queryForList("""
+            SELECT id, refund_type, status, return_tracking_no
+            FROM refund_record
+            WHERE order_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """, orderId);
+        if (records.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "未找到退款申请记录");
+        }
+
+        Map<String, Object> record = records.get(0);
+        int refundType = toInt(record.get("refund_type"));
+        int refundStatus = toInt(record.get("status"));
+        String existingTrackingNo = stringValue(record.get("return_tracking_no"));
+        if (refundType != 2) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前售后类型无需提交退货运单");
+        }
+        if (!OrderConstant.STATUS_REFUNDING.equals(order.getStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前订单状态不允许提交退货运单");
+        }
+        if (refundStatus == 2) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "退款申请已拒绝");
+        }
+        if (existingTrackingNo != null && !existingTrackingNo.isBlank()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "退货运单已提交");
+        }
+
+        String companyCode = stringParam(params, "companyCode", "");
+        String companyName = stringParam(params, "companyName", "");
+        String trackingNo = stringParam(params, "trackingNo", "");
+        if (companyName == null || companyName.isBlank()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择物流公司");
+        }
+        if (trackingNo == null || !trackingNo.matches("^[A-Za-z0-9-]{6,32}$")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请输入正确的运单号");
+        }
+
+        Long refundRecordId = ((Number) record.get("id")).longValue();
+        jdbcTemplate.update("""
+            UPDATE refund_record
+            SET return_company_code = ?, return_company_name = ?, return_tracking_no = ?, return_status = 1, return_ship_time = NOW()
+            WHERE id = ?
+            """, companyCode, companyName, trackingNo, refundRecordId);
+        notifySellersReturnShipment(order, companyName, trackingNo);
+    }
+
+    private void notifySellersRefundPending(Order order, BigDecimal refundAmount, String reason) {
+        ensureMessagesTable();
+        List<OrderItem> orderItems = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, order.getId())
+        );
+        if (orderItems.isEmpty()) {
+            return;
+        }
+
+        String goodsTitle = orderItems.stream()
+                .map(OrderItem::getTitle)
+                .filter(Objects::nonNull)
+                .filter(title -> !title.isBlank())
+                .findFirst()
+                .orElse("订单商品");
+        String amountText = refundAmount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        String safeReason = (reason == null || reason.isBlank()) ? "用户申请退款" : reason.trim();
+
+        Map<Long, String> sellerPayloadMap = new LinkedHashMap<>();
+        for (OrderItem item : orderItems) {
+            Long sellerUserId = item.getArtistId();
+            if (sellerUserId == null || sellerUserId.equals(order.getUserId()) || sellerPayloadMap.containsKey(sellerUserId)) {
+                continue;
+            }
+
+            Map<String, Object> extra = new LinkedHashMap<>();
+            extra.put("orderId", order.getId());
+            extra.put("orderNo", order.getOrderNo());
+            extra.put("action", "refund_pending");
+            extra.put("link", "/pages/order/list?type=sold&status=refund");
+            sellerPayloadMap.put(sellerUserId, writeJsonSafely(extra));
+        }
+
+        for (Map.Entry<Long, String> entry : sellerPayloadMap.entrySet()) {
+            jdbcTemplate.update("""
+                INSERT INTO messages (user_id, type, title, content, data, is_read, create_time)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+                """,
+                    entry.getKey(),
+                    "order",
+                    "收到新的退款申请",
+                    String.format("订单%s中的“%s”提交了退款申请，退款金额¥%s，原因：%s。",
+                            order.getOrderNo(), goodsTitle, amountText, safeReason),
+                    entry.getValue());
+        }
+    }
+
+    private void ensureRefundRecordTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS refund_record (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                order_id BIGINT NOT NULL,
+                order_no VARCHAR(64) DEFAULT NULL,
+                user_id BIGINT NOT NULL,
+                refund_amount DECIMAL(12,2) NOT NULL,
+                refund_type TINYINT DEFAULT 1 COMMENT '1-仅退款 2-退货退款',
+                reason VARCHAR(500) NOT NULL,
+                images TEXT DEFAULT NULL,
+                status TINYINT DEFAULT 0 COMMENT '0-待处理 1-同意 2-拒绝',
+                handle_remark VARCHAR(255) DEFAULT NULL,
+                return_company_code VARCHAR(32) DEFAULT NULL,
+                return_company_name VARCHAR(64) DEFAULT NULL,
+                return_tracking_no VARCHAR(64) DEFAULT NULL,
+                return_status TINYINT DEFAULT NULL COMMENT '1-已寄回 2-运输中 3-派送中 4-已签收 5-拒收 6-退件',
+                return_ship_time DATETIME DEFAULT NULL,
+                return_receive_time DATETIME DEFAULT NULL,
+                apply_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                handle_time DATETIME DEFAULT NULL,
+                complete_time DATETIME DEFAULT NULL,
+                KEY idx_order_id (order_id),
+                KEY idx_user_id (user_id),
+                KEY idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款记录表'
+            """);
+        addColumnIfMissing("refund_record", "return_company_code", "VARCHAR(32) DEFAULT NULL COMMENT '退货回寄物流公司编码'");
+        addColumnIfMissing("refund_record", "return_company_name", "VARCHAR(64) DEFAULT NULL COMMENT '退货回寄物流公司'");
+        addColumnIfMissing("refund_record", "return_tracking_no", "VARCHAR(64) DEFAULT NULL COMMENT '退货回寄运单号'");
+        addColumnIfMissing("refund_record", "return_status", "TINYINT DEFAULT NULL COMMENT '1-已寄回 2-运输中 3-派送中 4-已签收 5-拒收 6-退件'");
+        addColumnIfMissing("refund_record", "return_ship_time", "DATETIME DEFAULT NULL COMMENT '退货回寄时间'");
+        addColumnIfMissing("refund_record", "return_receive_time", "DATETIME DEFAULT NULL COMMENT '退货签收时间'");
+    }
+
+    private void ensureMessagesTable() {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                user_id BIGINT NOT NULL,
+                type VARCHAR(32) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                content VARCHAR(1000) NOT NULL,
+                data TEXT DEFAULT NULL,
+                is_read TINYINT DEFAULT 0,
+                read_time DATETIME DEFAULT NULL,
+                create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_user_type (user_id, type),
+                KEY idx_user_read (user_id, is_read)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表'
+            """);
+    }
+
+    private void notifySellersReturnShipment(Order order, String companyName, String trackingNo) {
+        ensureMessagesTable();
+        List<OrderItem> orderItems = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, order.getId())
+        );
+        if (orderItems.isEmpty()) {
+            return;
+        }
+
+        String goodsTitle = orderItems.stream()
+                .map(OrderItem::getTitle)
+                .filter(Objects::nonNull)
+                .filter(title -> !title.isBlank())
+                .findFirst()
+                .orElse("订单商品");
+
+        Map<Long, String> sellerPayloadMap = new LinkedHashMap<>();
+        for (OrderItem item : orderItems) {
+            Long sellerUserId = item.getArtistId();
+            if (sellerUserId == null || sellerUserId.equals(order.getUserId()) || sellerPayloadMap.containsKey(sellerUserId)) {
+                continue;
+            }
+
+            Map<String, Object> extra = new LinkedHashMap<>();
+            extra.put("orderId", order.getId());
+            extra.put("orderNo", order.getOrderNo());
+            extra.put("action", "refund_return_tracking_submitted");
+            extra.put("link", "/pages/order/list?type=sold&status=refund");
+            sellerPayloadMap.put(sellerUserId, writeJsonSafely(extra));
+        }
+
+        for (Map.Entry<Long, String> entry : sellerPayloadMap.entrySet()) {
+            jdbcTemplate.update("""
+                INSERT INTO messages (user_id, type, title, content, data, is_read, create_time)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+                """,
+                    entry.getKey(),
+                    "order",
+                    "买家已提交退货运单",
+                    String.format("订单%s中的“%s”已提交退货回寄运单，物流公司：%s，运单号：%s。",
+                            order.getOrderNo(), goodsTitle, companyName, trackingNo),
+                    entry.getValue());
+        }
+    }
+
+    private boolean shouldAutoFinalizeSignedReturnRefund(Map<String, Object> refundRecord) {
+        return toInt(refundRecord.get("refund_type")) == 2
+            && toInt(refundRecord.get("status")) == 0
+            && toInt(refundRecord.get("return_status")) == 4;
+    }
+
+    private void autoFinalizeSignedReturnRefund(Order order, Map<String, Object> refundRecord) {
+        if (order == null || refundRecord == null) {
+            return;
+        }
+
+        Long refundRecordId = toLong(refundRecord.get("id"));
+        if (refundRecordId == null) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String reason = firstNonBlank(
+            stringValue(refundRecord.get("reason")),
+            "退货回寄已签收，系统自动退款"
+        );
+        BigDecimal refundAmount = decimalValue(refundRecord.get("refund_amount"));
+
+        try {
+            paymentService.ensurePaymentTables();
+            RefundOrder refundOrder = paymentService.createOrderRefund(order, refundAmount, reason);
+            String channel = stringValue(refundOrder.getChannel());
+            String payNo = stringValue(refundOrder.getPayNo());
+            String refundNo = stringValue(refundOrder.getRefundNo());
+
+            if (payNo == null || payNo.isBlank()) {
+                throw new IllegalStateException("缺少支付单号，无法发起自动退款");
+            }
+
+            jdbcTemplate.update(
+                "UPDATE refund_order SET status = ?, request_payload = ?, update_time = ? WHERE refund_no = ?",
+                PaymentService.STATUS_REFUNDING,
+                "auto_signed_return_refund",
+                now,
+                refundNo
+            );
+
+            Map<String, ?> refundResult;
+            if (PaymentService.CHANNEL_WECHAT.equalsIgnoreCase(channel)) {
+                refundResult = wxPayService.refundWithResult(
+                    payNo,
+                    refundNo,
+                    String.valueOf(toPaymentFen(refundOrder.getTotalAmount())),
+                    String.valueOf(toPaymentFen(refundOrder.getRefundAmount())),
+                    reason
+                );
+                if (!"SUCCESS".equals(refundResult.get("return_code")) || !"SUCCESS".equals(refundResult.get("result_code"))) {
+                    throw new IllegalStateException(firstNonBlank(
+                        stringValue(refundResult.get("err_code_des")),
+                        firstNonBlank(stringValue(refundResult.get("return_msg")), "微信退款失败")
+                    ));
+                }
+            } else if (PaymentService.CHANNEL_ALIPAY.equalsIgnoreCase(channel)) {
+                refundResult = alipayService.refund(
+                    payNo,
+                    refundNo,
+                    normalizeMoneyYuan(refundOrder.getRefundAmount()),
+                    reason
+                );
+            } else {
+                refundResult = Map.of("manual", "true", "message", "无渠道支付单，按自动退款完成");
+            }
+
+            Object channelRefundNo = refundResult.containsKey("refund_id")
+                ? refundResult.get("refund_id")
+                : (refundResult.containsKey("tradeNo") ? refundResult.get("tradeNo") : refundNo);
+
+            paymentService.markRefundSuccessByBizNo(order.getOrderNo(), stringValue(channelRefundNo), refundResult);
+            jdbcTemplate.update(
+                """
+                UPDATE refund_record
+                SET status = 1,
+                    handle_remark = ?,
+                    handle_time = ?,
+                    complete_time = ?,
+                    return_receive_time = COALESCE(return_receive_time, ?)
+                WHERE id = ? AND status = 0
+                """,
+                "退货回寄已签收，系统自动退款",
+                now,
+                now,
+                now,
+                refundRecordId
+            );
+
+            order.setStatus(OrderConstant.STATUS_REFUNDED);
+            order.setPaymentStatus(OrderConstant.STATUS_REFUNDED);
+            order.setUpdateTime(now);
+            orderMapper.updateById(order);
+        } catch (Exception e) {
+            log.warn("订单{}退货签收后自动退款失败: {}", order.getId(), e.getMessage());
+        }
+    }
+
+    private String writeJsonSafely(Map<String, Object> value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            log.warn("序列化站内消息附加数据失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private String stringParam(Map<String, Object> params, String key, String defaultValue) {
+        if (params == null || params.get(key) == null) {
+            return defaultValue;
+        }
+        String value = String.valueOf(params.get(key)).trim();
+        return value.isEmpty() ? defaultValue : value;
+    }
+
+    private BigDecimal decimalParam(Map<String, Object> params, String key, BigDecimal defaultValue) {
+        if (params == null || params.get(key) == null) {
+            return defaultValue;
+        }
+        try {
+            return new BigDecimal(String.valueOf(params.get(key)));
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 
     /** 微信支付统一下单 */
@@ -966,6 +1456,11 @@ public class OrderService {
 
     /** 微信支付统一下单 (支持支付方式) */
     public String unifiedOrder(Long orderId, Long userId, String openId) {
+        return unifiedOrder(orderId, userId, openId, "mini");
+    }
+
+    public String unifiedOrder(Long orderId, Long userId, String openId, String payScene) {
+        validateWechatPayRequest(openId, payScene);
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
@@ -978,8 +1473,7 @@ public class OrderService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
         }
 
-        // 订单金额沿用商品链路的“分”单位，微信支付也要求传分，不能再次放大 100 倍
-        long totalAmount = order.getPayAmount().longValue();
+        long totalAmount = toPaymentFen(order.getPayAmount());
         
         // 商品描述
         List<OrderItem> items = orderItemMapper.selectList(
@@ -991,31 +1485,36 @@ public class OrderService {
         }
 
         try {
+            String tradeType = (openId != null && !openId.isEmpty()) ? "WECHAT_JSAPI" : "WECHAT_NATIVE";
+            PaymentOrder payment = paymentService.createOrderPayment(order, PaymentService.CHANNEL_WECHAT, tradeType, description);
             String codeUrl;
             
             if (openId != null && !openId.isEmpty()) {
                 // JSAPI支付 (小程序/公众号)
                 Map<String, String> jsApiResult = wxPayService.unifiedOrderJsApi(
-                        order.getOrderNo(), 
+                        payment.getPayNo(),
                         String.valueOf(totalAmount), 
                         openId, 
-                        description
+                        description,
+                        payScene
                 );
                 codeUrl = jsApiResult.get("prepay_id");
+                paymentService.markPaying(payment.getPayNo(), jsApiResult);
             } else {
                 // Native支付 (二维码支付)
                 codeUrl = wxPayService.unifiedOrderNative(
-                        order.getOrderNo(), 
+                        payment.getPayNo(),
                         String.valueOf(totalAmount), 
                         description
                 );
+                paymentService.markPaying(payment.getPayNo(), Map.of("code_url", codeUrl));
             }
             
             // 存入Redis，设置支付过期时间（30分钟）
-            redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set("pay:order:" + orderId, payment.getPayNo(), 30, TimeUnit.MINUTES);
             
-            log.info("微信支付下单成功 - 订单ID: {}, OrderNo: {}, codeUrl: {}", 
-                    orderId, order.getOrderNo(), codeUrl);
+            log.info("微信支付下单成功 - 订单ID: {}, OrderNo: {}, PayNo: {}, codeUrl: {}",
+                    orderId, order.getOrderNo(), payment.getPayNo(), codeUrl);
             
             return codeUrl;
             
@@ -1027,6 +1526,11 @@ public class OrderService {
 
     /** 微信支付统一下单 - 返回完整支付参数 */
     public Map<String, Object> unifiedOrderWithParams(Long orderId, Long userId, String openId) {
+        return unifiedOrderWithParams(orderId, userId, openId, "mini");
+    }
+
+    public Map<String, Object> unifiedOrderWithParams(Long orderId, Long userId, String openId, String payScene) {
+        validateWechatPayRequest(openId, payScene);
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getId, orderId)
@@ -1039,7 +1543,7 @@ public class OrderService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
         }
 
-        long totalAmount = order.getPayAmount().longValue();
+        long totalAmount = toPaymentFen(order.getPayAmount());
         
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId)
@@ -1047,18 +1551,32 @@ public class OrderService {
         String description = items.isEmpty() ? "艺术品购买" : items.get(0).getTitle();
 
         try {
-            Map<String, String> jsApiResult = wxPayService.unifiedOrderJsApi(
-                    order.getOrderNo(), 
-                    String.valueOf(totalAmount), 
-                    openId, 
-                    description
-            );
+            boolean appScene = "app".equalsIgnoreCase(payScene);
+            PaymentOrder payment = paymentService.createOrderPayment(
+                    order,
+                    PaymentService.CHANNEL_WECHAT,
+                    appScene ? "WECHAT_APP" : "WECHAT_JSAPI",
+                    description);
+            Map<String, String> payResult = appScene
+                    ? wxPayService.unifiedOrderApp(
+                            payment.getPayNo(),
+                            String.valueOf(totalAmount),
+                            description
+                    )
+                    : wxPayService.unifiedOrderJsApi(
+                            payment.getPayNo(),
+                            String.valueOf(totalAmount),
+                            openId,
+                            description,
+                            payScene
+                    );
             
-            redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
+            paymentService.markPaying(payment.getPayNo(), payResult);
+            redisTemplate.opsForValue().set("pay:order:" + orderId, payment.getPayNo(), 30, TimeUnit.MINUTES);
             
-            // 直接返回微信支付所需的完整参数（含 appId, timeStamp, nonceStr, package, signType, paySign）
-            Map<String, Object> payParams = new HashMap<>(jsApiResult);
+            Map<String, Object> payParams = new HashMap<>(payResult);
             payParams.put("order_no", order.getOrderNo());
+            payParams.put("pay_no", payment.getPayNo());
             payParams.put("pay_amount", order.getPayAmount());
             payParams.put("description", description);
             
@@ -1070,16 +1588,58 @@ public class OrderService {
         }
     }
 
+    private void validateWechatPayRequest(String openId, String payScene) {
+        boolean appScene = "app".equalsIgnoreCase(payScene);
+        if (!appScene && (openId == null || openId.isBlank())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "缺少微信身份信息，请重新登录后再试");
+        }
+        if (!appScene && openId.startsWith("mock_openid_")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前H5登录态不支持微信支付，请使用支付宝或微信小程序");
+        }
+        String sceneAppId;
+        if (appScene) {
+            sceneAppId = wxPayConfig.getAppId();
+        } else if ("h5".equalsIgnoreCase(payScene) || "official".equalsIgnoreCase(payScene)) {
+            sceneAppId = firstNonBlank(wxPayConfig.getOfficialAppId(), wxPayConfig.getAppId());
+        } else {
+            sceneAppId = firstNonBlank(wxPayConfig.getMiniAppId(), wxPayConfig.getAppId());
+        }
+        if (isPlaceholder(sceneAppId) || isPlaceholder(wxPayConfig.getMchId())
+                || isPlaceholder(wxPayConfig.getApiKey()) || isPlaceholder(wxPayConfig.getMchKey())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "微信支付商户配置未完成，请联系管理员");
+        }
+    }
+
+    private String firstNonBlank(String first, String fallback) {
+        return (first != null && !first.isBlank()) ? first : fallback;
+    }
+
+    private boolean isPlaceholder(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("your_app_id")
+                || normalized.contains("your_mch_id")
+                || normalized.contains("your_mch_key")
+                || normalized.contains("your_api_key")
+                || normalized.contains("placeholder");
+    }
+
     /** 查询支付状态 */
     public Map<String, String> queryPayStatus(String orderNo) {
         try {
-            Map<String, String> result = wxPayService.queryOrder(orderNo);
+            PaymentOrder payment = paymentService.findLatestByBizNo(orderNo);
+            String outTradeNo = payment != null ? payment.getPayNo() : orderNo;
+            Map<String, String> result = wxPayService.queryOrder(outTradeNo);
             
             Map<String, String> response = new HashMap<>();
             response.put("trade_state", result.get("trade_state"));
             response.put("trade_state_desc", result.get("trade_state_desc"));
             response.put("transaction_id", result.get("transaction_id"));
             response.put("total_fee", result.get("total_fee"));
+            response.put("pay_no", outTradeNo);
+            response.put("order_no", orderNo);
             
             return response;
         } catch (Exception e) {
@@ -1093,24 +1653,83 @@ public class OrderService {
 
     /** 支付宝手机网站支付下单。 */
     public Map<String, Object> createAlipayWapPay(Long orderId, Long userId) {
+        return createAlipayWapPay(orderId, userId, null);
+    }
+
+    /** 支付宝手机网站支付下单。 */
+    public Map<String, Object> createAlipayWapPay(Long orderId, Long userId, String returnScene) {
         Order order = getPayableOrder(orderId, userId);
-        BigDecimal amountYuan = order.getPayAmount().divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal amountYuan = normalizeMoneyYuan(order.getPayAmount());
         String description = getOrderDescription(orderId);
 
         try {
+            PaymentOrder payment = paymentService.createOrderPayment(order, PaymentService.CHANNEL_ALIPAY, "ALIPAY_WAP", description);
             Map<String, Object> payParams = new HashMap<>(alipayService.createWapPay(
-                    order.getOrderNo(),
+                    payment.getPayNo(),
                     amountYuan,
-                    description
+                    description,
+                    buildAlipayReturnUrl(orderId, returnScene)
             ));
+            paymentService.markPaying(payment.getPayNo(), payParams);
             payParams.put("description", description);
-            redisTemplate.opsForValue().set("pay:order:" + orderId, order.getOrderNo(), 30, TimeUnit.MINUTES);
-            log.info("支付宝下单成功 - 订单ID: {}, OrderNo: {}", orderId, order.getOrderNo());
+            payParams.put("biz_order_no", order.getOrderNo());
+            payParams.put("pay_no", payment.getPayNo());
+            redisTemplate.opsForValue().set("pay:order:" + orderId, payment.getPayNo(), 30, TimeUnit.MINUTES);
+            log.info("支付宝下单成功 - 订单ID: {}, OrderNo: {}, PayNo: {}", orderId, order.getOrderNo(), payment.getPayNo());
             return payParams;
         } catch (Exception e) {
             log.error("支付宝下单失败", e);
             throw new BusinessException(ResultCode.PARAM_ERROR, "支付宝下单失败: " + e.getMessage());
         }
+    }
+
+    /** 支付宝 App 支付下单。 */
+    public Map<String, Object> createAlipayAppPay(Long orderId, Long userId) {
+        Order order = getPayableOrder(orderId, userId);
+        BigDecimal amountYuan = normalizeMoneyYuan(order.getPayAmount());
+        String description = getOrderDescription(orderId);
+
+        try {
+            PaymentOrder payment = paymentService.createOrderPayment(order, PaymentService.CHANNEL_ALIPAY, "ALIPAY_APP", description);
+            Map<String, Object> payParams = new HashMap<>(alipayService.createAppPay(
+                    payment.getPayNo(),
+                    amountYuan,
+                    description
+            ));
+            paymentService.markPaying(payment.getPayNo(), payParams);
+            payParams.put("description", description);
+            payParams.put("biz_order_no", order.getOrderNo());
+            payParams.put("pay_no", payment.getPayNo());
+            redisTemplate.opsForValue().set("pay:order:" + orderId, payment.getPayNo(), 30, TimeUnit.MINUTES);
+            log.info("支付宝App下单成功 - 订单ID: {}, OrderNo: {}, PayNo: {}", orderId, order.getOrderNo(), payment.getPayNo());
+            return payParams;
+        } catch (Exception e) {
+            log.error("支付宝App下单失败", e);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "支付宝App下单失败: " + e.getMessage());
+        }
+    }
+
+    private String buildAlipayReturnUrl(Long orderId, String returnScene) {
+        if ("ios-app".equalsIgnoreCase(String.valueOf(returnScene))) {
+            return "https://a.art1.cn/app/pay-result?orderId=" + orderId
+                    + "&paymentMethod=alipay&checkPay=1";
+        }
+        return "https://a.art1.cn/#/pages/order/pay?orderId=" + orderId
+                + "&paymentMethod=alipay&checkPay=1";
+    }
+
+    private BigDecimal normalizeMoneyYuan(BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return amount.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private long toPaymentFen(BigDecimal amountYuan) {
+        return normalizeMoneyYuan(amountYuan)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValue();
     }
 
     private Order getPayableOrder(Long orderId, Long userId) {
@@ -1146,7 +1765,8 @@ public class OrderService {
         if (order == null) {
             throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
         }
-        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())
+                && !isPaidLikeStatus(order.getStatus())) {
             return;
         }
         handlePayCallback(order.getOrderNo(), "MOCK-" + order.getOrderNo());
@@ -1162,6 +1782,11 @@ public class OrderService {
 
         // 幂等
         if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
+            if (isPaidLikeStatus(order.getStatus()) && !OrderConstant.SOURCE_RESALE.equals(order.getSource())
+                    && !hasAnyOrderSaleBill(order.getId())) {
+                log.warn("订单 {} 已支付但缺少作品销售入账流水，执行补偿结算", orderNo);
+                processPaidOrder(order);
+            }
             log.info("订单 {} 已处理，幂等返回，当前状态: {}", orderNo, order.getStatus());
             return;
         }
@@ -1171,6 +1796,12 @@ public class OrderService {
         order.setPayTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
+
+        processPaidOrder(order);
+    }
+
+    private void processPaidOrder(Order order) {
+        String orderNo = order.getOrderNo();
 
         // === 转售订单：发布事件标记已支付（异步处理，不阻塞本地事务） ===
         if (OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
@@ -1193,25 +1824,58 @@ public class OrderService {
             return;
         }
 
-        // === 普通订单：为每个订单项发布艺术家收益事件 ===
+        // === 普通订单：全平台作品按系统配置扣除平台抽佣，再给艺术家结算收益 ===
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
         markOrderArtworksSold(order, items);
+        BigDecimal platformCommissionAmount = calculatePrimarySalePlatformFee(order);
+        BigDecimal totalItemAmount = items.stream()
+                .map(this::orderItemSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Long platformWalletUserId = resolvePlatformWalletUserId();
+        if (platformCommissionAmount.compareTo(BigDecimal.ZERO) > 0 && platformWalletUserId != null) {
+            if (!hasWalletBill(platformWalletUserId, "platform_fee", order.getId(), "order", platformCommissionAmount)) {
+                financeEventPublisher.publish(FinanceEvent.builder()
+                        .type(FinanceEventType.PLATFORM_FEE)
+                        .platformWalletUserId(platformWalletUserId)
+                        .amount(platformCommissionAmount)
+                        .relatedId(order.getId())
+                        .relatedType("order")
+                        .orderNo(orderNo)
+                        .remark("普通订单平台抽佣 " + orderNo)
+                        .build());
+                boolean settled = walletClient.income(platformWalletUserId, platformCommissionAmount, "platform_fee",
+                        order.getId(), "order", "普通订单平台抽佣 " + orderNo);
+                if (!settled) {
+                    log.error("普通订单平台抽佣入账失败: orderId={}, userId={}, amount={}",
+                            order.getId(), platformWalletUserId, platformCommissionAmount);
+                }
+            }
+        }
         for (OrderItem item : items) {
             Artwork artwork = artworkMapper.selectById(item.getArtworkId());
-            if (artwork != null && artwork.getAuthorId() != null && item.getPrice() != null
-                    && item.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal itemSubtotal = orderItemSubtotal(item);
+            if (artwork != null && artwork.getAuthorId() != null && itemSubtotal.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal itemPlatformFee = allocatePlatformFee(platformCommissionAmount, itemSubtotal, totalItemAmount);
+                BigDecimal artistIncome = itemSubtotal.subtract(itemPlatformFee).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+                if (hasWalletBill(artwork.getAuthorId(), "order_sale", order.getId(), "order", artistIncome)) {
+                    continue;
+                }
                 financeEventPublisher.publish(FinanceEvent.builder()
                         .type(FinanceEventType.ARTIST_INCOME)
                         .userId(artwork.getAuthorId())
-                        .amount(item.getPrice())
+                        .amount(artistIncome)
                         .relatedId(order.getId())
                         .relatedType("order")
                         .remark("作品销售: " + artwork.getTitle() + " " + orderNo)
                         .build());
-                walletClient.income(artwork.getAuthorId(), item.getPrice(), "order_sale",
+                boolean settled = walletClient.frozenIncome(artwork.getAuthorId(), artistIncome, "order_sale",
                         order.getId(), "order",
                         "作品销售: " + artwork.getTitle() + " " + orderNo);
+                if (!settled) {
+                    log.error("作品销售冻结入账失败: orderId={}, artworkId={}, userId={}, amount={}",
+                            order.getId(), item.getArtworkId(), artwork.getAuthorId(), artistIncome);
+                }
             }
         }
 
@@ -1235,6 +1899,194 @@ public class OrderService {
         }
     }
 
+    private BigDecimal calculatePrimarySalePlatformFee(Order order) {
+        if (order == null || !isPlatformCommissionEnabled()) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal payAmount = order.getPayAmount() != null ? order.getPayAmount() : BigDecimal.ZERO;
+        if (payAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal rate = resolveRate(PLATFORM_COMMISSION_PRIMARY_RATE_KEY, BigDecimal.ZERO);
+        BigDecimal fee = payAmount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal minFee = resolveAmount(PLATFORM_COMMISSION_MIN_FEE_KEY, BigDecimal.ZERO);
+        if (fee.compareTo(BigDecimal.ZERO) > 0 && fee.compareTo(minFee) < 0) {
+            fee = minFee;
+        }
+        if (fee.compareTo(payAmount) > 0) {
+            fee = payAmount;
+        }
+        return fee;
+    }
+
+    private BigDecimal orderItemSubtotal(OrderItem item) {
+        if (item == null || item.getPrice() == null) {
+            return BigDecimal.ZERO;
+        }
+        int quantity = Math.max(item.getQuantity() == null ? 1 : item.getQuantity(), 1);
+        return item.getPrice().multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isPaidLikeStatus(String status) {
+        return OrderConstant.STATUS_PAID.equals(status)
+                || OrderConstant.STATUS_SHIPPED.equals(status)
+                || OrderConstant.STATUS_COMPLETED.equals(status);
+    }
+
+    private boolean hasAnyOrderSaleBill(Long orderId) {
+        if (orderId == null) {
+            return false;
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM wallet_bill WHERE related_id = ? AND related_type = 'order' AND bill_type = 'order_sale'",
+                    Integer.class,
+                    orderId
+            );
+            return count != null && count > 0;
+        } catch (Exception e) {
+            log.warn("检查订单销售入账流水失败: orderId={}, error={}", orderId, e.getMessage());
+            return false;
+        }
+    }
+
+    private void releaseFrozenOrderSale(Order order) {
+        if (order == null || order.getId() == null || OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+            return;
+        }
+        List<OrderItem> items = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+        BigDecimal platformCommissionAmount = calculatePrimarySalePlatformFee(order);
+        BigDecimal totalItemAmount = items.stream()
+                .map(this::orderItemSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        for (OrderItem item : items) {
+            Artwork artwork = artworkMapper.selectById(item.getArtworkId());
+            BigDecimal itemSubtotal = orderItemSubtotal(item);
+            if (artwork == null || artwork.getAuthorId() == null || itemSubtotal.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal itemPlatformFee = allocatePlatformFee(platformCommissionAmount, itemSubtotal, totalItemAmount);
+            BigDecimal artistIncome = itemSubtotal.subtract(itemPlatformFee).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+            if (artistIncome.compareTo(BigDecimal.ZERO) <= 0
+                    || hasWalletBill(artwork.getAuthorId(), "order_sale_release", order.getId(), "order", artistIncome)) {
+                continue;
+            }
+            boolean released = walletClient.releaseFrozenIncome(artwork.getAuthorId(), artistIncome,
+                    "order_sale_release", order.getId(), "order",
+                    "作品销售确认收货: " + artwork.getTitle() + " " + order.getOrderNo());
+            if (!released) {
+                log.error("作品销售解冻失败: orderId={}, artworkId={}, userId={}, amount={}",
+                        order.getId(), item.getArtworkId(), artwork.getAuthorId(), artistIncome);
+            }
+        }
+    }
+
+    private boolean hasWalletBill(Long userId, String billType, Long relatedId, String relatedType, BigDecimal amount) {
+        if (userId == null || billType == null || relatedId == null || amount == null) {
+            return false;
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                    FROM wallet_bill
+                    WHERE user_id = ?
+                      AND bill_type = ?
+                      AND related_id = ?
+                      AND related_type = ?
+                      AND amount = ?
+                    """,
+                    Integer.class,
+                    userId, billType, relatedId, relatedType, amount
+            );
+            return count != null && count > 0;
+        } catch (Exception e) {
+            log.warn("检查钱包流水失败: userId={}, billType={}, relatedId={}, error={}",
+                    userId, billType, relatedId, e.getMessage());
+            return false;
+        }
+    }
+
+    private BigDecimal allocatePlatformFee(BigDecimal totalPlatformFee, BigDecimal itemSubtotal, BigDecimal totalItemAmount) {
+        if (totalPlatformFee == null || itemSubtotal == null || totalItemAmount == null
+                || totalPlatformFee.compareTo(BigDecimal.ZERO) <= 0
+                || itemSubtotal.compareTo(BigDecimal.ZERO) <= 0
+                || totalItemAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return totalPlatformFee.multiply(itemSubtotal)
+                .divide(totalItemAmount, 2, RoundingMode.HALF_UP)
+                .min(itemSubtotal);
+    }
+
+    private boolean isPlatformCommissionEnabled() {
+        String raw = readConfigValue(PLATFORM_COMMISSION_ENABLED_KEY);
+        return raw == null || raw.isBlank() || Boolean.parseBoolean(raw.trim());
+    }
+
+    private BigDecimal resolveRate(String key, BigDecimal fallbackRate) {
+        BigDecimal percent = resolveAmount(key, null);
+        if (percent != null) {
+            return percent.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
+        }
+        return fallbackRate != null ? fallbackRate : BigDecimal.ZERO;
+    }
+
+    private BigDecimal resolveAmount(String key, BigDecimal fallback) {
+        String raw = readConfigValue(key);
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return new BigDecimal(raw.trim());
+        } catch (Exception e) {
+            log.warn("平台抽佣配置解析失败: key={}, value={}", key, raw);
+            return fallback;
+        }
+    }
+
+    private Long resolvePlatformWalletUserId() {
+        String walletUid = readConfigValue(PLATFORM_COMMISSION_WALLET_UID_KEY);
+        if (walletUid == null || walletUid.isBlank()) {
+            return platformWalletUserId;
+        }
+        String trimmed = walletUid.trim();
+        for (String table : List.of("users", "user_account", "sys_user")) {
+            for (String column : List.of("uid", "user_uid")) {
+                Long userId = queryPlatformWalletUserId(table, column, trimmed);
+                if (userId != null) {
+                    return userId;
+                }
+            }
+        }
+        log.warn("平台钱包UID未匹配用户，回退配置文件用户ID: uid={}", trimmed);
+        return platformWalletUserId;
+    }
+
+    private Long queryPlatformWalletUserId(String table, String column, String walletUid) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT id FROM " + table + " WHERE " + column + " = ? LIMIT 1",
+                    Long.class,
+                    walletUid
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String readConfigValue(String key) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM system_config WHERE config_key = ? LIMIT 1",
+                    String.class,
+                    key
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     /** 支付成功后才确认作品归属和已收藏状态。 */
     private void markOrderArtworksSold(Order order, List<OrderItem> items) {
         if (items == null || items.isEmpty()) {
@@ -1243,6 +2095,10 @@ public class OrderService {
         for (OrderItem item : items) {
             Artwork artwork = artworkMapper.selectById(item.getArtworkId());
             if (artwork == null) {
+                continue;
+            }
+            if (ProductConstant.STATUS_SOLD_OUT.equals(artwork.getStatus())
+                    && Objects.equals(artwork.getHolderId(), order.getUserId())) {
                 continue;
             }
             int quantity = Math.max(item.getQuantity() == null ? 1 : item.getQuantity(), 1);
@@ -1302,6 +2158,7 @@ public class OrderService {
         order.setPayTime(now);
         order.setUpdateTime(now);
         orderMapper.updateById(order);
+        processPaidOrder(order);
     }
 
     private void normalizeZeroAmountPendingOrders(Long userId) {
@@ -1519,6 +2376,53 @@ public class OrderService {
             vo.setExpressName(order.getExpressName());
         }
 
+        ensureRefundRecordTable();
+        List<Map<String, Object>> refundRecords = jdbcTemplate.queryForList("""
+            SELECT id, refund_amount, refund_type, reason, images, status,
+                   return_company_code, return_company_name, return_tracking_no, return_status,
+                   return_ship_time, return_receive_time
+            FROM refund_record
+            WHERE order_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """, order.getId());
+        if (!refundRecords.isEmpty()) {
+            Map<String, Object> refund = refundRecords.get(0);
+            if (shouldAutoFinalizeSignedReturnRefund(refund)) {
+                autoFinalizeSignedReturnRefund(order, refund);
+                order = orderMapper.selectById(order.getId());
+                refundRecords = jdbcTemplate.queryForList("""
+                    SELECT id, refund_amount, refund_type, reason, images, status,
+                           return_company_code, return_company_name, return_tracking_no, return_status,
+                           return_ship_time, return_receive_time
+                    FROM refund_record
+                    WHERE order_id = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """, order.getId());
+                if (!refundRecords.isEmpty()) {
+                    refund = refundRecords.get(0);
+                }
+            }
+            vo.setRefundType(toIntObject(refund.get("refund_type")));
+            vo.setRefundStatus(toIntObject(refund.get("status")));
+            vo.setRefundReason(stringValue(refund.get("reason")));
+            vo.setRefundImages(stringValue(refund.get("images")));
+            vo.setRefundAmount(decimalValue(refund.get("refund_amount")));
+            vo.setReturnCompanyCode(stringValue(refund.get("return_company_code")));
+            vo.setReturnCompanyName(stringValue(refund.get("return_company_name")));
+            vo.setReturnTrackingNo(stringValue(refund.get("return_tracking_no")));
+            vo.setReturnStatus(toIntObject(refund.get("return_status")));
+            Object returnShipTime = refund.get("return_ship_time");
+            vo.setReturnShipTime(returnShipTime != null ? String.valueOf(returnShipTime) : null);
+            Object returnReceiveTime = refund.get("return_receive_time");
+            vo.setReturnReceiveTime(returnReceiveTime != null ? String.valueOf(returnReceiveTime) : null);
+        }
+
+        vo.setStatus(order.getStatus());
+        vo.setPayTime(order.getPayTime() != null ? order.getPayTime().toString() : null);
+        vo.setShipTime(order.getShipTime() != null ? order.getShipTime().toString() : null);
+        vo.setReceiveTime(order.getReceiveTime() != null ? order.getReceiveTime().toString() : null);
         vo.setSourceText(getSourceText(order.getSource()));
         vo.setStatusText(getStatusText(order.getStatus()));
         vo.setBuyerUserId(order.getUserId());
@@ -1535,18 +2439,23 @@ public class OrderService {
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId())
         );
         
-        // 如果订单没有卖家信息，尝试从订单项获取
-        if ((order.getSellerName() == null || order.getSellerName().isEmpty()) && !items.isEmpty()) {
-            OrderItem firstItem = items.get(0);
-            if (firstItem.getArtistId() != null) {
-                User seller = userMapper.selectById(firstItem.getArtistId());
+        // 如果订单没有卖家信息，优先使用订单上的卖家ID回填
+        if ((order.getSellerName() == null || order.getSellerName().isEmpty())) {
+            Long sellerUserId = order.getSellerUserId();
+            if (sellerUserId == null && !items.isEmpty()) {
+                sellerUserId = items.get(0).getArtistId();
+            }
+            if (sellerUserId != null) {
+                User seller = userMapper.selectById(sellerUserId);
                 if (seller != null) {
+                    order.setSellerUserId(sellerUserId);
                     order.setSellerName(seller.getNickname());
                     order.setSellerAvatar(seller.getAvatar());
                 }
             }
         }
         
+        final String orderSource = order.getSource();
         List<OrderItemVO> itemVOs = items.stream().map(item -> {
             OrderItemVO itemVO = new OrderItemVO();
             itemVO.setId(item.getId());
@@ -1557,7 +2466,7 @@ public class OrderService {
             itemVO.setArtistName(item.getAuthorName());
             Artwork artwork = item.getArtworkId() != null ? artworkMapper.selectById(item.getArtworkId()) : null;
             BigDecimal resolvedPrice = item.getPrice();
-            if (!OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+            if (!OrderConstant.SOURCE_RESALE.equals(orderSource)) {
                 BigDecimal basePrice = getArtworkBasePrice(artwork);
                 resolvedPrice = normalizeArtworkAmountScale(resolvedPrice, basePrice, 1, true);
             }
@@ -1570,7 +2479,7 @@ public class OrderService {
                         item.getQuantity() == null || item.getQuantity() <= 0 ? 1 : item.getQuantity()
                 ));
             }
-            if (!OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+            if (!OrderConstant.SOURCE_RESALE.equals(orderSource)) {
                 BigDecimal basePrice = getArtworkBasePrice(artwork);
                 resolvedSubtotal = normalizeArtworkAmountScale(
                         resolvedSubtotal,
@@ -1634,7 +2543,76 @@ public class OrderService {
         vo.setSellerName(order.getSellerName());
         vo.setSellerAvatar(order.getSellerAvatar());
 
+        applyFrontendFenAmounts(vo);
         return vo;
+    }
+
+    /**
+     * 兼容已发布 APP/H5 订单页面：订单接口金额字段仍按“分”返回。
+     * 数据库和支付通道内部继续按“元”处理，避免影响真实支付金额。
+     */
+    private void applyFrontendFenAmounts(OrderVO vo) {
+        if (vo == null) {
+            return;
+        }
+        vo.setTotalAmount(toFrontendFen(vo.getTotalAmount()));
+        vo.setPayAmount(toFrontendFen(vo.getPayAmount()));
+        vo.setDiscountAmount(toFrontendFen(vo.getDiscountAmount()));
+        vo.setFreight(toFrontendFen(vo.getFreight()));
+        vo.setRefundAmount(toFrontendFen(vo.getRefundAmount()));
+        if (vo.getItems() == null) {
+            return;
+        }
+        for (OrderItemVO item : vo.getItems()) {
+            item.setPrice(toFrontendFen(item.getPrice()));
+            item.setSubtotal(toFrontendFen(item.getSubtotal()));
+        }
+    }
+
+    private BigDecimal toFrontendFen(BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+        return amount.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private Integer toIntObject(Object value) {
+        return value == null ? null : toInt(value);
+    }
+
+    private int toInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private BigDecimal decimalValue(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue()).setScale(2, RoundingMode.HALF_UP);
+        }
+        try {
+            return new BigDecimal(String.valueOf(value).trim()).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception ignored) {
+            return BigDecimal.ZERO;
+        }
     }
 
     private String buildArtworkSpec(Artwork artwork) {

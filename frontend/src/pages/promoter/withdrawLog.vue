@@ -192,6 +192,8 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getWithdrawList } from '@/api/promoter'
 import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 // 状态
@@ -201,15 +203,15 @@ const hasMore = ref(true)
 const page = ref(1)
 const showDetailModal = ref(false)
 const currentItem = ref(null)
+const pageSize = 20
 
 // 统计数据
 const stats = ref({
-  totalAmount: 5680000,
-  pendingAmount: 288800,
-  completedAmount: 5212000
+  totalAmount: 0,
+  pendingAmount: 0,
+  completedAmount: 0
 })
 
-// 提现记录列表（待对接真实 API）
 const allList = ref([])
 
 // 筛选后的列表
@@ -241,14 +243,15 @@ const changeStatus = (status) => {
 }
 
 // 加载更多
-const loadMore = () => {
+const loadMore = async () => {
   if (loading.value || !hasMore.value) return
   loading.value = true
-  setTimeout(() => {
+  try {
     page.value++
+    await loadRecords(true)
+  } finally {
     loading.value = false
-    hasMore.value = false // TODO: 对接真实分页 API，替换 setTimeout 模拟
-  }, 1000)
+  }
 }
 
 // 查看详情
@@ -281,8 +284,85 @@ const goWithdraw = () => {
   uni.navigateBack()
 }
 
-onLoad(() => {
-  // 加载提现记录
+const normalizeStatus = (status) => {
+  const map = {
+    0: 'pending',
+    1: 'processing',
+    2: 'rejected',
+    3: 'completed',
+    pending: 'pending',
+    processing: 'processing',
+    rejected: 'rejected',
+    completed: 'completed'
+  }
+  return map[status] || 'pending'
+}
+
+const parsePage = (data) => {
+  const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.items || [])
+  const total = data?.total ?? data?.totalCount ?? records.length
+  return { records, total }
+}
+
+const formatTime = (value) => {
+  if (!value) return ''
+  return String(value).replace('T', ' ').slice(0, 16)
+}
+
+const normalizeRecord = (item) => {
+  const status = normalizeStatus(item.status)
+  return {
+    id: item.id,
+    amount: Number(item.amount || 0),
+    fee: Number(item.feeAmount || item.fee || 0),
+    actualAmount: Number(item.actualAmount || 0),
+    status,
+    paymentMethod: item.accountType === 'bank' ? '银行卡' : (item.accountType || '提现账户'),
+    account: item.accountInfo || '',
+    accountName: item.accountName || '',
+    createTime: formatTime(item.createTime || item.createdTime),
+    completedTime: formatTime(item.transferTime || item.processTime),
+    reason: item.rejectReason || '',
+    traces: [
+      { title: '提交提现申请', time: formatTime(item.createTime || item.createdTime) },
+      ...(status === 'completed' ? [{ title: '平台已打款', time: formatTime(item.transferTime || item.processTime) }] : []),
+      ...(status === 'rejected' ? [{ title: '申请已拒绝', time: formatTime(item.processTime) }] : [])
+    ].filter(trace => trace.time)
+  }
+}
+
+const updateStats = () => {
+  const list = allList.value
+  stats.value = {
+    totalAmount: list.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    pendingAmount: list
+      .filter(item => item.status === 'pending' || item.status === 'processing')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    completedAmount: list
+      .filter(item => item.status === 'completed')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  }
+}
+
+const loadRecords = async (append = false) => {
+  loading.value = true
+  try {
+    const data = await getWithdrawList({ page: page.value, pageSize })
+    const { records, total } = parsePage(data)
+    const next = records.map(normalizeRecord)
+    allList.value = append ? allList.value.concat(next) : next
+    hasMore.value = allList.value.length < total
+    updateStats()
+  } catch (e) {
+    uni.showToast({ title: e.message || '提现记录加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
+}
+
+onShow(() => {
+  page.value = 1
+  loadRecords(false)
 })
 </script>
 

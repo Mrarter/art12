@@ -16,18 +16,36 @@
         <text class="progress-text">身份信息</text>
       </view>
       <view class="progress-line"></view>
-      <view class="progress-item" :class="{ active: form.realName && validIdCard, done: useAlipayRealname ? form.faceVerified : hasIdImages }">
+      <view class="progress-item" :class="{ active: form.realName && validIdCard, done: useAlipayRealname ? form.faceVerified : form.status === 2 || form.status === 1 }">
         <text class="progress-dot">2</text>
-        <text class="progress-text">{{ useAlipayRealname ? '支付宝实名' : '证件上传' }}</text>
-      </view>
-      <view class="progress-line" v-if="!useAlipayRealname"></view>
-      <view v-if="!useAlipayRealname" class="progress-item" :class="{ active: hasIdImages, done: form.faceVerified }">
-        <text class="progress-dot">3</text>
-        <text class="progress-text">人脸核验</text>
+        <text class="progress-text">{{ useAlipayRealname ? '支付宝实名' : '人工审核' }}</text>
       </view>
     </view>
 
     <view class="form-section">
+      <view class="section-title">选择认证方式</view>
+      <text class="section-desc">推荐使用支付宝快速认证；如果没有支付宝，可以选择平台人工认证。</text>
+      <view class="auth-mode-list">
+        <view class="auth-mode-card primary" :class="{ active: useAlipayRealname, disabled: !form.alipayEnabled }" @click="selectAuthMode('alipay')">
+          <view class="auth-mode-badge alipay">支</view>
+          <view class="auth-mode-copy">
+            <text class="auth-mode-title">支付宝认证</text>
+            <text class="auth-mode-desc">{{ form.alipayEnabled ? '优先推荐，完成后自动同步认证结果。' : '当前暂未开通，开通后可直接使用。' }}</text>
+          </view>
+          <text class="auth-mode-tag">{{ useAlipayRealname ? '已选择' : '推荐' }}</text>
+        </view>
+        <view class="auth-mode-card" :class="{ active: useManualAudit }" @click="selectAuthMode('manual')">
+          <view class="auth-mode-badge manual">审</view>
+          <view class="auth-mode-copy">
+            <text class="auth-mode-title">没有支付宝，人工认证</text>
+            <text class="auth-mode-desc">提交姓名和身份证号，由平台后台人工审核。</text>
+          </view>
+          <text class="auth-mode-tag">{{ useManualAudit ? '已选择' : '切换' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view id="identity-section" class="form-section">
       <view class="section-title">身份信息</view>
       <view class="form-item">
         <text class="label">真实姓名</text>
@@ -37,6 +55,8 @@
           placeholder="请输入与证件一致的姓名"
           placeholder-class="placeholder"
           :disabled="isReadonly"
+          :focus="focusRealName"
+          @blur="focusRealName = false"
         />
       </view>
       <view class="form-item">
@@ -48,57 +68,30 @@
           placeholder="请输入18位身份证号"
           placeholder-class="placeholder"
           :disabled="isReadonly"
+          :focus="focusIdCard"
           @input="onIdCardInput"
-          @blur="validateIdCardField"
+          @blur="onIdCardBlur"
         />
         <text v-if="idCardError" class="error-text">{{ idCardError }}</text>
       </view>
     </view>
 
-    <view v-if="!useAlipayRealname" class="form-section">
-      <view class="section-title">证件照片</view>
-      <text class="section-desc">请上传清晰、完整、无反光的身份证正反面照片。</text>
-      <view class="upload-grid">
-        <view class="upload-card" @click="chooseImage('front')">
-          <image v-if="form.idFront" class="upload-image" :src="form.idFront" mode="aspectFill" />
-          <view v-else class="upload-placeholder">
-            <text class="upload-icon">+</text>
-            <text class="upload-title">身份证正面</text>
-            <text class="upload-subtitle">国徽面</text>
-          </view>
-          <view v-if="uploading === 'front'" class="upload-mask">
-            <text class="upload-mask-text">上传中...</text>
-          </view>
-        </view>
-        <view class="upload-card" @click="chooseImage('back')">
-          <image v-if="form.idBack" class="upload-image" :src="form.idBack" mode="aspectFill" />
-          <view v-else class="upload-placeholder">
-            <text class="upload-icon">+</text>
-            <text class="upload-title">身份证背面</text>
-            <text class="upload-subtitle">人像面</text>
-          </view>
-          <view v-if="uploading === 'back'" class="upload-mask">
-            <text class="upload-mask-text">上传中...</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view v-if="!useAlipayRealname" class="form-section">
-      <view class="section-title">人脸识别</view>
-      <view class="face-card" :class="{ verified: form.faceVerified }" @click="startFaceVerify">
-        <view class="face-icon">{{ form.faceVerified ? '✓' : '脸' }}</view>
+    <view v-if="useManualAudit" class="form-section">
+      <view class="section-title">平台人工审核</view>
+      <text class="section-desc">提交真实姓名和身份证号后，平台会在后台进行人工审核。</text>
+      <view class="face-card verified">
+        <view class="face-icon">审</view>
         <view class="face-copy">
-          <text class="face-title">{{ form.faceVerified ? '已完成真人核验' : '开始人脸识别认证' }}</text>
-          <text class="face-desc">{{ form.faceVerified ? '核验结果将与实名资料一并提交。' : '请由证件本人操作，确保光线充足并正对屏幕。' }}</text>
+          <text class="face-title">无需跳转第三方认证</text>
+          <text class="face-desc">请确认姓名和身份证号填写无误，提交后等待平台审核通过。</text>
         </view>
-        <text class="face-action">{{ form.faceVerified ? '已认证' : '去认证' }}</text>
+        <text class="face-action">人工审核</text>
       </view>
     </view>
 
     <view v-else class="form-section">
       <view class="section-title">支付宝实名认证</view>
-      <text class="section-desc">提交真实姓名和身份证号后，将跳转支付宝完成实名校验。认证通过后会自动回到当前页面。</text>
+      <text class="section-desc">{{ form.alipayEnabled ? '提交真实姓名和身份证号后，将跳转支付宝完成实名校验。认证通过后会自动回到当前页面。' : '支付宝实名认证能力暂未开通。你也可以切换到“没有支付宝，人工认证”。' }}</text>
       <view class="alipay-card">
         <view class="alipay-badge">支</view>
         <view class="alipay-copy">
@@ -115,8 +108,13 @@
       <text class="notice-line">{{ useAlipayRealname ? '若已配置支付宝实名能力，认证结果会自动同步；未配置时仍走人工审核。' : '审核通常需 1-3 个工作日，请耐心等待。' }}</text>
     </view>
 
+    <view v-if="form.status === 1" class="success-actions">
+      <button v-if="redirect" class="success-action-btn" @click="safeNavigateBack">继续下单</button>
+      <button v-else class="success-action-btn secondary" @click="goUserCenter">返回个人中心</button>
+    </view>
+
     <view class="bottom-bar">
-      <button class="submit-btn" :class="{ disabled: !canSubmit || isReadonly || submitting }" :disabled="!canSubmit || isReadonly || submitting" @click="submitForm">
+      <button class="submit-btn" :class="{ disabled: !canSubmit || isSubmitLocked }" :disabled="isSubmitLocked" @click="handleSubmitClick">
         {{ submitting ? '提交中...' : submitText }}
       </button>
     </view>
@@ -125,10 +123,21 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { submitRealnameCert, getRealnameCertStatus, startAlipayRealname, syncAlipayRealname } from '@/api/user.js'
 import { uploadFile } from '@/api/file.js'
+import { AUCTION_ENABLED } from '@/utils/platform.js'
 
 const ALIPAY_REALNAME_DRAFT_KEY = 'alipay_realname_draft'
+const TAB_BAR_PAGES = new Set([
+  '/pages/index/index',
+  '/pages/gallery/index',
+  '/pages/cart/index',
+  '/pages/user/index'
+])
+if (AUCTION_ENABLED) {
+  TAB_BAR_PAGES.add('/pages/auction/index')
+}
 
 const form = ref({
   realName: '',
@@ -139,6 +148,7 @@ const form = ref({
   idCardValid: false,
   status: 0,
   verifyMode: 'manual',
+  alipayEnabled: true,
   certifyId: '',
   rejectReason: '',
   submittedAt: ''
@@ -147,25 +157,53 @@ const form = ref({
 const idCardError = ref('')
 const uploading = ref(null)
 const submitting = ref(false)
+const redirect = ref('')
+const authMode = ref('alipay')
+const focusRealName = ref(false)
+const focusIdCard = ref(false)
+const restartMode = ref(false)
+const autoStartAlipay = ref(false)
 
-const useAlipayRealname = computed(() => form.value.verifyMode === 'alipay')
-const isReadonly = computed(() => form.value.status === 1 || (form.value.status === 2 && !useAlipayRealname.value))
+const useAlipayRealname = computed(() => authMode.value === 'alipay')
+const useManualAudit = computed(() => !useAlipayRealname.value)
+const isReadonly = computed(() => {
+  if (restartMode.value) return false
+  return form.value.status === 1 || (form.value.status === 2 && !useAlipayRealname.value)
+})
 const validIdCard = computed(() => form.value.idCardValid || validateIdCard(form.value.idCard))
 const hasIdImages = computed(() => Boolean(form.value.idFront && form.value.idBack))
 const rejectReason = computed(() => form.value.rejectReason)
+const isSubmitLocked = computed(() => {
+  if (submitting.value) return true
+  if (form.value.status === 1 && !restartMode.value) return true
+  return form.value.status === 2 && !useAlipayRealname.value
+})
 
 const isMaskedValue = (value) => String(value || '').includes('*')
 
 const canSubmit = computed(() => {
-  if (form.value.status === 1) return false
+  if (form.value.status === 1 && !restartMode.value) return false
   if (useAlipayRealname.value) {
     if (form.value.status === 2 && form.value.certifyId) return !submitting.value
     return Boolean(form.value.realName.trim() && validIdCard.value && !submitting.value)
   }
-  return Boolean(form.value.realName.trim() && validIdCard.value && hasIdImages.value && form.value.faceVerified)
+  return Boolean(form.value.realName.trim() && validIdCard.value && !submitting.value)
 })
 
+const selectAuthMode = (mode) => {
+  if ((form.value.status === 1 && !restartMode.value) || submitting.value) return
+  if (form.value.status === 2 && mode !== authMode.value) {
+    uni.showToast({ title: '当前认证已提交，暂不能切换方式', icon: 'none' })
+    return
+  }
+  authMode.value = mode
+  form.value.verifyMode = mode
+}
+
 const statusMeta = computed(() => {
+  if (restartMode.value) {
+    return { text: '重新认证', desc: '请重新填写完整身份证号，并跳转支付宝完成一次新的真人实名校验。', icon: '支', className: 'pending' }
+  }
   if (form.value.status === 1) {
     return { text: '已认证', desc: '您的实名认证已完成，可用于提现、发票和身份校验。', icon: '✓', className: 'success' }
   }
@@ -182,19 +220,20 @@ const statusMeta = computed(() => {
   }
   return {
     text: '未认证',
-    desc: useAlipayRealname.value ? '填写真实姓名和身份证号后，将跳转支付宝完成实名校验。' : '完成身份信息、证件上传和人脸识别后提交审核。',
+    desc: useAlipayRealname.value ? '填写真实姓名和身份证号后，将跳转支付宝完成实名校验。' : '填写真实姓名和身份证号后，提交平台人工审核。',
     icon: '认',
     className: 'idle'
   }
 })
 
 const submitText = computed(() => {
+  if (restartMode.value) return submitting.value ? '提交中...' : '重新发起支付宝认证'
   if (form.value.status === 1) return '已完成认证'
   if (form.value.status === 2) return useAlipayRealname.value ? '同步认证结果' : '认证审核中'
   if (submitting.value) return '提交中...'
   if (useAlipayRealname.value) return '去支付宝认证'
-  if (form.value.status === 3) return '重新提交认证'
-  return '提交实名认证'
+  if (form.value.status === 3) return '重新提交人工审核'
+  return '提交人工审核'
 })
 
 const saveAlipayDraft = () => {
@@ -207,8 +246,13 @@ const saveAlipayDraft = () => {
   })
 }
 
-const restoreAlipayDraft = (fallbackCertifyId = '') => {
+const getAlipayDraft = () => {
   const draft = uni.getStorageSync(ALIPAY_REALNAME_DRAFT_KEY)
+  return draft && typeof draft === 'object' ? draft : null
+}
+
+const restoreAlipayDraft = (fallbackCertifyId = '') => {
+  const draft = getAlipayDraft()
   if (!draft || typeof draft !== 'object') return false
   if (draft.certifyId && fallbackCertifyId && draft.certifyId !== fallbackCertifyId) return false
   if (draft.realName) form.value.realName = draft.realName
@@ -223,11 +267,83 @@ const clearAlipayDraft = () => {
   uni.removeStorageSync(ALIPAY_REALNAME_DRAFT_KEY)
 }
 
+const resetAlipayRetryState = () => {
+  form.value.status = 0
+  form.value.certifyId = ''
+  form.value.rejectReason = ''
+  form.value.faceVerified = false
+  clearAlipayDraft()
+}
+
+const hasEditedPendingAlipayIdentity = () => {
+  if (!useAlipayRealname.value || form.value.status !== 2 || !form.value.certifyId) return false
+  const draft = getAlipayDraft()
+  if (!draft) return Boolean(form.value.realName.trim() || form.value.idCard.trim())
+  const currentRealName = form.value.realName.trim()
+  const currentIdCard = form.value.idCard.trim().toUpperCase()
+  const draftRealName = String(draft.realName || '').trim()
+  const draftIdCard = String(draft.idCard || '').trim().toUpperCase()
+  return currentRealName !== draftRealName || currentIdCard !== draftIdCard
+}
+
+const decodeRedirect = (value = '') => {
+  let text = value || ''
+  for (let i = 0; i < 2; i++) {
+    try {
+      const decoded = decodeURIComponent(text)
+      if (decoded === text) break
+      text = decoded
+    } catch (e) {
+      break
+    }
+  }
+  return text
+}
+
+const safeNavigateBack = () => {
+  if (!redirect.value) return
+  const purePath = redirect.value.split('?')[0]
+  if (TAB_BAR_PAGES.has(purePath)) {
+    uni.switchTab({ url: purePath })
+    return
+  }
+  uni.redirectTo({ url: redirect.value })
+}
+
+const goUserCenter = () => {
+  uni.switchTab({ url: '/pages/user/index' })
+}
+
+const buildCurrentReturnUrl = () => {
+  if (typeof window === 'undefined') {
+    const query = []
+    if (restartMode.value) query.push('restart=1')
+    if (redirect.value) query.push(`redirect=${encodeURIComponent(redirect.value)}`)
+    const suffix = query.length ? `?${query.join('&')}` : ''
+    return `https://a.art1.cn/#/pages/user-extra/realname${suffix}`
+  }
+  return window.location.href
+}
+
 const launchAlipayRealname = async () => {
+  if (!form.value.alipayEnabled) {
+    uni.showModal({
+      title: '支付宝认证暂未开通',
+      content: '当前平台暂未开通支付宝实名认证。没有支付宝或暂时无法使用时，请选择“人工认证”。',
+      confirmText: '切换人工',
+      cancelText: '知道了',
+      success: (res) => {
+        if (res.confirm) selectAuthMode('manual')
+      }
+    })
+    return
+  }
   saveAlipayDraft()
   const result = await startAlipayRealname({
     realName: form.value.realName.trim(),
-    idCard: form.value.idCard.toUpperCase()
+    idCard: form.value.idCard.toUpperCase(),
+    returnUrl: buildCurrentReturnUrl(),
+    restart: restartMode.value
   })
   form.value.status = 2
   form.value.certifyId = result?.certifyId || ''
@@ -245,6 +361,20 @@ const launchAlipayRealname = async () => {
   } else {
     uni.showToast({ title: '未获取到支付宝认证地址', icon: 'none' })
   }
+}
+
+const enableRestartMode = () => {
+  restartMode.value = true
+  authMode.value = 'alipay'
+  form.value.verifyMode = 'alipay'
+  form.value.status = 0
+  form.value.certifyId = ''
+  form.value.faceVerified = false
+  form.value.rejectReason = ''
+  form.value.idCard = ''
+  form.value.idCardValid = false
+  idCardError.value = ''
+  clearAlipayDraft()
 }
 
 const validateIdCard = (value) => {
@@ -276,6 +406,11 @@ const onIdCardInput = (e) => {
   if (idCardError.value && validateIdCard(form.value.idCard)) idCardError.value = ''
 }
 
+const onIdCardBlur = () => {
+  focusIdCard.value = false
+  validateIdCardField()
+}
+
 const validateIdCardField = () => {
   if (!form.value.idCard) {
     idCardError.value = ''
@@ -288,6 +423,40 @@ const validateIdCardField = () => {
   const valid = validateIdCard(form.value.idCard)
   idCardError.value = valid ? '' : '身份证号格式不正确，请检查号码、出生日期和校验位'
   return valid
+}
+
+const scrollToIdentityForm = (field = 'realName') => {
+  uni.pageScrollTo({
+    selector: '#identity-section',
+    duration: 260
+  })
+  setTimeout(() => {
+    focusRealName.value = field === 'realName'
+    focusIdCard.value = field === 'idCard'
+  }, 320)
+}
+
+const getIdentityMissingField = () => {
+  if (!form.value.realName.trim()) return 'realName'
+  if (!form.value.idCard.trim() || !validateIdCardField()) return 'idCard'
+  return ''
+}
+
+const handleSubmitClick = () => {
+  if (isSubmitLocked.value) return
+  const canSyncAlipay = useAlipayRealname.value && form.value.status === 2 && form.value.certifyId
+  if (!canSyncAlipay) {
+    const missingField = getIdentityMissingField()
+    if (missingField) {
+      uni.showToast({
+        title: missingField === 'realName' ? '请先填写真实姓名' : '请先填写正确的身份证号',
+        icon: 'none'
+      })
+      scrollToIdentityForm(missingField)
+      return
+    }
+  }
+  submitForm()
 }
 
 const chooseImage = async (type) => {
@@ -344,6 +513,11 @@ const submitForm = async () => {
   if (useAlipayRealname.value) {
     submitting.value = true
     try {
+      if (hasEditedPendingAlipayIdentity()) {
+        resetAlipayRetryState()
+        await launchAlipayRealname()
+        return
+      }
       if (form.value.status === 2 && form.value.certifyId) {
         const status = await syncAlipayRealname({ certifyId: form.value.certifyId })
         form.value.status = status?.status ?? form.value.status
@@ -363,7 +537,11 @@ const submitForm = async () => {
               : '本次支付宝认证尚未完成。若要重新发起，请重新填写姓名和身份证号。',
             confirmText: restored ? '重新发起' : '知道了',
             success: async (res) => {
-              if (!res.confirm || !restored) return
+              if (!res.confirm) return
+              if (!restored) {
+                resetAlipayRetryState()
+                return
+              }
               try {
                 submitting.value = true
                 await launchAlipayRealname()
@@ -394,15 +572,6 @@ const submitForm = async () => {
     uni.showToast({ title: '身份证号格式不正确', icon: 'none' })
     return
   }
-  if (!hasIdImages.value) {
-    uni.showToast({ title: '请上传身份证正反面', icon: 'none' })
-    return
-  }
-  if (!form.value.faceVerified) {
-    uni.showToast({ title: '请先完成人脸识别认证', icon: 'none' })
-    return
-  }
-
   submitting.value = true
   try {
     await submitRealnameCert({
@@ -410,7 +579,7 @@ const submitForm = async () => {
       idCard: form.value.idCard.toUpperCase(),
       idFrontUrl: form.value.idFront,
       idBackUrl: form.value.idBack,
-      faceVerified: form.value.faceVerified
+      faceVerified: form.value.faceVerified || useManualAudit.value
     })
     form.value.status = 2
     form.value.submittedAt = new Date().toISOString()
@@ -433,13 +602,25 @@ onMounted(async () => {
         || new URLSearchParams(hashQuery).get('certifyId')
         || ''
     }
-    if (certifyId) {
-      await syncAlipayRealname({ certifyId })
+    const draft = getAlipayDraft()
+    let syncCertifyId = certifyId || draft?.certifyId || ''
+    if (syncCertifyId) {
+      await syncAlipayRealname({ certifyId: syncCertifyId })
     }
-    const data = await getRealnameCertStatus()
+    let data = await getRealnameCertStatus()
+    if (!syncCertifyId && data?.status === 2 && data?.verifyMode === 'alipay' && data?.certifyId) {
+      syncCertifyId = data.certifyId
+      await syncAlipayRealname({ certifyId: syncCertifyId })
+      data = await getRealnameCertStatus()
+    }
+    const isHistoricalAlipayPending = data?.status === 2 && data?.verifyMode === 'alipay' && !syncCertifyId && !data?.certifyId
+    form.value.alipayEnabled = data?.alipayEnabled !== false
+    authMode.value = data?.status === 2 && data?.verifyMode === 'manual' ? 'manual' : 'alipay'
+    form.value.verifyMode = authMode.value
+
     if (data && data.status > 0) {
-      form.value.status = data.status
-      const restored = data?.verifyMode === 'alipay' && data.status !== 1 && restoreAlipayDraft(data?.certifyId || certifyId)
+      form.value.status = isHistoricalAlipayPending ? 0 : data.status
+      const restored = data?.verifyMode === 'alipay' && data.status !== 1 && restoreAlipayDraft(data?.certifyId || syncCertifyId)
       if (data.maskedRealName && !restored && !useAlipayRealname.value) {
         form.value.realName = data.maskedRealName
       }
@@ -447,18 +628,47 @@ onMounted(async () => {
         form.value.idCard = data.maskedIdCard
         form.value.idCardValid = true
       }
-      form.value.rejectReason = data.rejectReason || ''
+      form.value.rejectReason = isHistoricalAlipayPending ? '' : (data.rejectReason || '')
       form.value.submittedAt = data.submittedAt || ''
     }
-    form.value.verifyMode = data?.verifyMode || 'manual'
-    form.value.certifyId = data?.certifyId || certifyId || ''
+    const shouldResetDisabledAlipay = !form.value.alipayEnabled && data?.verifyMode === 'alipay' && form.value.status !== 1
+    if (shouldResetDisabledAlipay) {
+      form.value.status = 0
+      authMode.value = 'alipay'
+      form.value.verifyMode = 'alipay'
+      form.value.certifyId = ''
+      form.value.rejectReason = ''
+      clearAlipayDraft()
+    }
+    form.value.certifyId = shouldResetDisabledAlipay || isHistoricalAlipayPending ? '' : (syncCertifyId || data?.certifyId || '')
     if (useAlipayRealname.value && form.value.status === 1) {
       form.value.faceVerified = true
       clearAlipayDraft()
     }
+    if (restartMode.value) {
+      enableRestartMode()
+    }
+    if (autoStartAlipay.value && restartMode.value && useAlipayRealname.value) {
+      const missingField = getIdentityMissingField()
+      if (missingField) {
+        scrollToIdentityForm(missingField)
+        uni.showToast({
+          title: missingField === 'realName' ? '请先填写真实姓名' : '请先填写正确的身份证号',
+          icon: 'none'
+        })
+        return
+      }
+      await submitForm()
+    }
   } catch (err) {
     console.warn('获取认证状态失败:', err.message)
   }
+})
+
+onLoad((options = {}) => {
+  redirect.value = decodeRedirect(options.redirect || '')
+  restartMode.value = String(options.restart || '') === '1'
+  autoStartAlipay.value = String(options.autoStart || '') === '1'
 })
 </script>
 
@@ -664,6 +874,89 @@ onMounted(async () => {
   line-height: 32rpx;
 }
 
+.auth-mode-list {
+  margin-top: 22rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.auth-mode-card {
+  padding: 24rpx;
+  border-radius: 18rpx;
+  background: #202024;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.auth-mode-card.primary {
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.12), rgba(32, 32, 36, 0.98));
+  border-color: rgba(22, 119, 255, 0.22);
+}
+
+.auth-mode-card.active {
+  border-color: rgba(201, 162, 39, 0.72);
+  box-shadow: 0 0 0 2rpx rgba(201, 162, 39, 0.16);
+}
+
+.auth-mode-card.disabled {
+  opacity: 0.72;
+}
+
+.auth-mode-badge {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.auth-mode-badge.alipay {
+  background: rgba(22, 119, 255, 0.2);
+  color: #63a7ff;
+}
+
+.auth-mode-badge.manual {
+  background: rgba(201, 162, 39, 0.16);
+  color: #f2c85b;
+}
+
+.auth-mode-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-mode-title {
+  display: block;
+  color: #f6f2e8;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.auth-mode-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #9b958a;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.auth-mode-tag {
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(201, 162, 39, 0.14);
+  color: #f2c85b;
+  font-size: 22rpx;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
 .upload-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -840,6 +1133,30 @@ onMounted(async () => {
   font-size: 24rpx;
   line-height: 36rpx;
   margin-top: 8rpx;
+}
+
+.success-actions {
+  margin-top: 24rpx;
+}
+
+.success-action-btn {
+  height: 88rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #e7c14c, #c89c1d);
+  color: #16130b;
+  font-size: 30rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  width: 100%;
+}
+
+.success-action-btn.secondary {
+  background: #1f1f23;
+  color: #f6f2e8;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
 }
 
 .bottom-bar {

@@ -98,6 +98,7 @@
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getAuctionSessions } from '@/api/auction'
 import { formatYuanNumber } from '@/utils/price'
+import { guardAuctionAccess } from '@/utils/platform.js'
 
 export default {
   components: {
@@ -116,10 +117,12 @@ export default {
   },
 
   onLoad() {
+    if (guardAuctionAccess()) return
     this.loadSessions()
   },
 
   onShow() {
+    if (guardAuctionAccess()) return
     this.refresh()
   },
 
@@ -136,7 +139,8 @@ export default {
       try {
         const res = await getAuctionSessions({
           page: this.page,
-          pageSize: this.pageSize
+          pageSize: this.pageSize,
+          status: this.currentTab + 1
         })
 
         let list = []
@@ -244,7 +248,7 @@ export default {
     },
 
     goSessionDetail(id) {
-      uni.navigateTo({ url: `/pages/auction/session?id=${id}` })
+      uni.navigateTo({ url: `/pages/auction-flow/session?id=${id}` })
     },
 
     getStatusClass(status) {

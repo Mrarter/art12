@@ -89,7 +89,7 @@
         </view>
       </view>
 
-      <view class="empty-state" v-if="chatList.length === 0 && !loading">
+      <view class="empty-state" v-if="chatList.length === 0 && !chatLoading">
         <view class="empty-icon">私</view>
         <text class="empty-text">暂无私信</text>
       </view>
@@ -100,16 +100,24 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { getChatConversations, getMessageList, markMessageRead } from '@/api/message'
+import { useUserStore } from '@/store/modules/user'
+import { getFullImageUrl } from '@/utils/image'
 import {
   getUnreadCertificateSignNoticeCount,
   getUserCertificateSignNotices,
   markCertificateSignNoticeRead
 } from '@/utils/certificateNotice'
+import { AUCTION_ENABLED } from '@/utils/platform'
 
 const currentTab = ref('system')
+const userStore = useUserStore()
 const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
+const chatLoading = ref(false)
+const chatPage = ref(1)
+const chatHasMore = ref(true)
 
 const tabs = [
   { value: 'system', label: '系统' },
@@ -119,8 +127,8 @@ const tabs = [
 
 const unreadCount = ref({
   system: 0,
-  order: 3,
-  chat: 2
+  order: 0,
+  chat: 0
 })
 
 const baseMessages = ref([
@@ -160,48 +168,20 @@ const baseMessages = ref([
 ])
 
 const systemMessages = ref([])
+const orderMessages = ref([])
+const orderMessagesLoaded = ref(false)
 
 const messageList = computed(() => {
-  const merged = [...systemMessages.value, ...baseMessages.value]
-    .sort((a, b) => Number(b.createTime || 0) - Number(a.createTime || 0))
   if (currentTab.value === 'order') {
-    return merged.filter(item => item.type === 'order')
+    return orderMessages.value
   }
-  return merged.filter(item => item.type !== 'order')
+  const merged = [...systemMessages.value, ...baseMessages.value.filter(item => item.type !== 'order')]
+    .filter(item => AUCTION_ENABLED || item.type !== 'auction')
+    .sort((a, b) => Number(b.createTime || 0) - Number(a.createTime || 0))
+  return merged
 })
 
-const chatList = ref([
-  {
-    id: 1,
-    name: '李明（艺术家）',
-    avatar: 'https://pic.imgdb.cn/item/1.jpg',
-    lastMessage: '好的，我这边的作品已经准备好了...',
-    lastTime: Date.now() - 600000,
-    unread: 2,
-    online: true,
-    userId: 1001
-  },
-  {
-    id: 2,
-    name: '张伟（收藏家）',
-    avatar: 'https://pic.imgdb.cn/item/2.jpg',
-    lastMessage: '这幅画很有意思，想了解更多...',
-    lastTime: Date.now() - 3600000,
-    unread: 0,
-    online: false,
-    userId: 1002
-  },
-  {
-    id: 3,
-    name: '王芳',
-    avatar: 'https://pic.imgdb.cn/item/3.jpg',
-    lastMessage: '请问这幅作品还在吗？',
-    lastTime: Date.now() - 86400000,
-    unread: 1,
-    online: true,
-    userId: 1003
-  }
-])
+const chatList = ref([])
 
 const getIconName = (type) => {
   const icons = {
@@ -238,6 +218,12 @@ const switchTab = (tab) => {
   currentTab.value = tab
   page.value = 1
   hasMore.value = true
+  if (tab === 'order' && !orderMessagesLoaded.value) {
+    fetchOrderMessages(true)
+  }
+  if (tab === 'chat') {
+    fetchChatConversations(true)
+  }
 }
 
 const refreshCertificateMessages = () => {
@@ -249,27 +235,146 @@ const refreshCertificateMessages = () => {
   unreadCount.value.system = getUnreadCertificateSignNoticeCount()
 }
 
-const loadMore = () => {
-  if (!hasMore.value || loading.value) return
+const normalizeMessageItem = (item = {}) => {
+  let extra = {}
+  try {
+    extra = item.data ? JSON.parse(item.data) : {}
+  } catch (e) {
+    extra = {}
+  }
+
+  return {
+    ...item,
+    type: item.type || 'system',
+    tags: Array.isArray(extra.tags) ? extra.tags : (item.type === 'order' ? ['订单'] : []),
+    link: extra.link || (extra.orderId ? `/pages/order/detail?id=${encodeURIComponent(extra.orderId)}` : '')
+  }
+}
+
+const refreshOrderUnreadCount = () => {
+  unreadCount.value.order = orderMessages.value.filter(item => Number(item.isRead || 0) === 0).length
+}
+
+const fetchOrderMessages = async (reset = false) => {
+  if (loading.value) return
+  if (reset) {
+    page.value = 1
+    hasMore.value = true
+  }
   loading.value = true
-  setTimeout(() => {
+  try {
+    const result = await getMessageList({
+      type: 'order',
+      page: page.value,
+      pageSize: 20
+    })
+    const records = Array.isArray(result?.records) ? result.records : []
+    const normalized = records.map(normalizeMessageItem)
+    orderMessages.value = reset
+      ? normalized
+      : [...orderMessages.value, ...normalized.filter(item => !orderMessages.value.some(row => String(row.id) === String(item.id)))]
+    orderMessagesLoaded.value = true
+    hasMore.value = records.length >= 20
+    if (hasMore.value) {
+      page.value += 1
+    }
+    refreshOrderUnreadCount()
+  } catch (e) {
+    if (reset) {
+      orderMessages.value = []
+    }
+  } finally {
     loading.value = false
-    // hasMore.value = false // 模拟没有更多数据
-  }, 1000)
+  }
+}
+
+const parseDateTime = (value) => {
+  if (typeof value === 'number') return value
+  const timestamp = new Date(String(value || '').replace(' ', 'T')).getTime()
+  return Number.isFinite(timestamp) ? timestamp : Date.now()
+}
+
+const conversationPreview = (item = {}) => {
+  if (item.lastMessageType === 'image') return '[图片]'
+  if (item.lastMessageType === 'work') return '[作品]'
+  if (item.lastMessageType === 'order') return '[订单]'
+  return item.lastContent || '暂无消息'
+}
+
+const conversationRole = (identities) => {
+  const value = String(identities || '').toLowerCase()
+  if (value.includes('artist')) return '认证艺术家'
+  if (value.includes('collector')) return '收藏家'
+  return '平台用户'
+}
+
+const normalizeConversation = (item = {}) => ({
+  id: item.peerId,
+  userId: item.peerId,
+  name: item.peerName || `用户 ${item.peerId}`,
+  avatar: getFullImageUrl(item.peerAvatar || '/static/images/avatar.png', '/static/images/avatar.png'),
+  lastMessage: conversationPreview(item),
+  lastTime: parseDateTime(item.lastTime),
+  unread: Number(item.unreadCount || 0),
+  online: false,
+  role: conversationRole(item.peerIdentities)
+})
+
+const refreshChatUnreadCount = () => {
+  unreadCount.value.chat = chatList.value.reduce((total, item) => total + Number(item.unread || 0), 0)
+}
+
+const fetchChatConversations = async (reset = false) => {
+  if (!userStore.isLogin || chatLoading.value) {
+    if (!userStore.isLogin) {
+      chatList.value = []
+      unreadCount.value.chat = 0
+    }
+    return
+  }
+  if (reset) {
+    chatPage.value = 1
+    chatHasMore.value = true
+  }
+  chatLoading.value = true
+  try {
+    const result = await getChatConversations({ page: chatPage.value, pageSize: 20 })
+    const records = Array.isArray(result?.records) ? result.records.map(normalizeConversation) : []
+    chatList.value = reset
+      ? records
+      : [...chatList.value, ...records.filter(item => !chatList.value.some(row => String(row.userId) === String(item.userId)))]
+    chatHasMore.value = chatList.value.length < Number(result?.total || 0)
+    if (chatHasMore.value) chatPage.value += 1
+    refreshChatUnreadCount()
+  } catch (e) {
+    if (reset) chatList.value = []
+  } finally {
+    chatLoading.value = false
+  }
+}
+
+const loadMore = () => {
+  if (currentTab.value !== 'order') return
+  if (!hasMore.value || loading.value) return
+  fetchOrderMessages(false)
 }
 
 const loadMoreChat = () => {
-  if (!hasMore.value || loading.value) return
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-  }, 1000)
+  if (!chatHasMore.value || chatLoading.value) return
+  fetchChatConversations(false)
 }
 
-const goMessageDetail = (item) => {
+const goMessageDetail = async (item) => {
   if (item.noticeType === 'certificate_sign') {
     markCertificateSignNoticeRead(item.id)
     refreshCertificateMessages()
+  }
+  if (currentTab.value === 'order' && item.id && Number(item.isRead || 0) === 0) {
+    try {
+      await markMessageRead(item.id)
+      item.isRead = 1
+      refreshOrderUnreadCount()
+    } catch (e) {}
   }
   if (item.link) {
     uni.navigateTo({ url: item.link })
@@ -277,7 +382,13 @@ const goMessageDetail = (item) => {
 }
 
 const goChat = (item) => {
-  uni.navigateTo({ url: `/pages/message/chat?userId=${item.userId}&name=${item.name}` })
+  if (item.unread > 0) {
+    item.unread = 0
+    refreshChatUnreadCount()
+  }
+  uni.navigateTo({
+    url: `/pages/message/chat?userId=${encodeURIComponent(item.userId || '')}&name=${encodeURIComponent(item.name || '')}&avatar=${encodeURIComponent(item.avatar || '')}&role=${encodeURIComponent(item.role || '')}`
+  })
 }
 
 const goMessageSettings = () => {
@@ -286,10 +397,14 @@ const goMessageSettings = () => {
 
 onMounted(() => {
   refreshCertificateMessages()
+  fetchChatConversations(true)
+  fetchOrderMessages(true)
 })
 
 onShow(() => {
   refreshCertificateMessages()
+  fetchChatConversations(true)
+  fetchOrderMessages(true)
 })
 </script>
 

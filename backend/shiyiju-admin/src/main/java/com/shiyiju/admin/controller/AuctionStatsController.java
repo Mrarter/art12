@@ -24,9 +24,10 @@ public class AuctionStatsController {
     @GetMapping("/stats")
     public Result<Map<String, Object>> getStats(
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long sessionId) {
 
-        Map<String, Object> stats = auctionService.getStats(startDate, endDate);
+        Map<String, Object> stats = auctionService.getStats(startDate, endDate, sessionId);
         return Result.success(stats);
     }
 
@@ -36,9 +37,10 @@ public class AuctionStatsController {
     @GetMapping("/session-rank")
     public Result<List<Map<String, Object>>> getSessionRank(
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long sessionId) {
 
-        List<Map<String, Object>> list = auctionService.getSessionRank(startDate, endDate);
+        List<Map<String, Object>> list = auctionService.getSessionRank(startDate, endDate, sessionId);
         return Result.success(list);
     }
 
@@ -48,9 +50,10 @@ public class AuctionStatsController {
     @GetMapping("/artist-rank")
     public Result<List<Map<String, Object>>> getArtistRank(
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long sessionId) {
 
-        List<Map<String, Object>> list = auctionService.getArtistRank(startDate, endDate);
+        List<Map<String, Object>> list = auctionService.getArtistRank(startDate, endDate, sessionId);
         return Result.success(list);
     }
 
@@ -61,10 +64,11 @@ public class AuctionStatsController {
     public Result<PageResult<Map<String, Object>>> getDeals(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long sessionId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        PageResult<Map<String, Object>> result = auctionService.getDeals(page, size, startDate, endDate);
+        PageResult<Map<String, Object>> result = auctionService.getDeals(page, size, startDate, endDate, sessionId);
         return Result.success(result);
     }
 
@@ -73,9 +77,10 @@ public class AuctionStatsController {
      */
     @GetMapping("/trend")
     public Result<List<Map<String, Object>>> getTrend(
-            @RequestParam(defaultValue = "7") int days) {
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(required = false) Long sessionId) {
 
-        List<Map<String, Object>> list = auctionService.getTrend(days);
+        List<Map<String, Object>> list = auctionService.getTrend(days, sessionId);
         return Result.success(list);
     }
 }

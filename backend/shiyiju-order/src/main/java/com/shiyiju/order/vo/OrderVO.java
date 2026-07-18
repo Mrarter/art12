@@ -69,4 +69,37 @@ public class OrderVO implements Serializable {
     
     /** 物流公司 */
     private String expressName;
+
+    /** 退款类型：1-仅退款 2-退货退款 */
+    private Integer refundType;
+
+    /** 退款记录状态：0-待处理 1-同意 2-拒绝 */
+    private Integer refundStatus;
+
+    /** 退款原因 */
+    private String refundReason;
+
+    /** 退款金额 */
+    private BigDecimal refundAmount;
+
+    /** 退款凭证 */
+    private String refundImages;
+
+    /** 退货回寄物流公司编码 */
+    private String returnCompanyCode;
+
+    /** 退货回寄物流公司 */
+    private String returnCompanyName;
+
+    /** 退货回寄运单号 */
+    private String returnTrackingNo;
+
+    /** 退货回寄物流状态：1-已寄回 2-运输中 3-派送中 4-已签收 5-拒收 6-退件 */
+    private Integer returnStatus;
+
+    /** 退货回寄时间 */
+    private String returnShipTime;
+
+    /** 退货签收时间 */
+    private String returnReceiveTime;
 }

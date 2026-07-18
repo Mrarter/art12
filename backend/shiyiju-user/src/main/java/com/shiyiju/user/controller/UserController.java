@@ -2,12 +2,16 @@ package com.shiyiju.user.controller;
 
 import com.shiyiju.common.result.Result;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.ArtistIdCardVerifyDTO;
+import com.shiyiju.user.dto.AccountSecurityDTO;
 import com.shiyiju.user.dto.RealnameAlipayStartDTO;
 import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.user.service.UserService;
 import com.shiyiju.user.vo.LoginVO;
+import com.shiyiju.user.vo.AccountSecurityVO;
+import com.shiyiju.user.vo.ArtistIdCardVerifyVO;
 import com.shiyiju.user.vo.RealnameAlipayStartVO;
 import com.shiyiju.user.vo.UserInfoVO;
 import com.shiyiju.user.vo.UserInteractionStatsVO;
@@ -146,6 +150,61 @@ public class UserController {
     }
 
     /**
+     * 账号安全概览 (GET /user/security)
+     */
+    @GetMapping("/security")
+    public Result<AccountSecurityVO> getAccountSecurity(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.getAccountSecurity(userId));
+    }
+
+    /**
+     * 生成微信小程序码 (GET /user/share/minicode)
+     */
+    @GetMapping("/share/minicode")
+    public Result<Map<String, String>> getMiniProgramCode(
+            @RequestParam(defaultValue = "pages/gallery/detail") String page,
+            @RequestParam(defaultValue = "id=0") String scene
+    ) {
+        String image = userService.generateMiniProgramCodeDataUrl(page, scene);
+        return Result.success(Map.of("image", image, "page", page, "scene", scene));
+    }
+
+    /**
+     * 绑定/换绑手机号 (POST /user/security/phone)
+     */
+    @PostMapping("/security/phone")
+    public Result<Void> updateSecurityPhone(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody AccountSecurityDTO dto
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        userService.bindPhone(userId, dto.getPhone(), dto.getCode());
+        return Result.success();
+    }
+
+    /**
+     * 设置/修改登录密码 (POST /user/security/password)
+     */
+    @PostMapping("/security/password")
+    public Result<Void> updateSecurityPassword(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody AccountSecurityDTO dto
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        userService.updatePassword(userId, dto.getCurrentPassword(), dto.getNewPassword(), dto.getCode());
+        return Result.success();
+    }
+
+    /**
      * 艺术家认证申请 (POST /user/artist/cert)
      */
     @PostMapping("/user/artist/cert")
@@ -158,6 +217,20 @@ public class UserController {
         }
         userService.applyArtistCert(userId, dto);
         return Result.success();
+    }
+
+    /**
+     * 身份证 OCR 识别校验 (POST /user/artist/cert/id-card/verify)
+     */
+    @PostMapping("/artist/cert/id-card/verify")
+    public Result<ArtistIdCardVerifyVO> verifyArtistIdCard(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Valid @RequestBody ArtistIdCardVerifyDTO dto
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.verifyArtistIdCard(dto));
     }
 
     /**

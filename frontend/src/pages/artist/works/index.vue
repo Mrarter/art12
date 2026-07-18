@@ -74,7 +74,8 @@
 <script>
 import { getProductList } from '@/api/product'
 import { getArtistInfo } from '@/api/user'
-import { formatPriceNumber } from '@/utils/price'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { getFullImageUrl } from '@/utils/image'
 
 export default {
   data() {
@@ -140,10 +141,10 @@ export default {
       const metaParts = [item.material, item.size, item.year].filter(Boolean)
       return {
         ...item,
-        cover: item.coverImage || item.cover,
+        cover: getFullImageUrl(item.coverImage || item.cover || '', '/static/images/artwork-fallback.png'),
         statusLabel: label,
         metaText: metaParts.join(' / '),
-        priceText: item.price ? `¥${formatPriceNumber(item.price)}` : '待估值'
+        priceText: item.price ? `¥${formatArtworkPriceNumber(item.price)}` : '待估值'
       }
     },
     matchTab(work, tab) {
