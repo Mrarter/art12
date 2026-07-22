@@ -13,8 +13,8 @@ import java.util.List;
 public interface PrivateMessageMapper extends BaseMapper<PrivateMessage> {
 
     @Select("""
-            SELECT peer.id AS peer_id,
-                   COALESCE(NULLIF(peer.nickname, ''), CONCAT('用户 ', peer.id)) AS peer_name,
+            SELECT conversation.peer_id AS peer_id,
+                   COALESCE(NULLIF(peer.nickname, ''), CONCAT('用户 ', conversation.peer_id)) AS peer_name,
                    peer.avatar AS peer_avatar,
                    peer.identities AS peer_identities,
                    last_message.id AS last_message_id,
@@ -25,7 +25,7 @@ public interface PrivateMessageMapper extends BaseMapper<PrivateMessage> {
                    last_message.create_time AS last_time,
                    (SELECT COUNT(*)
                       FROM private_messages unread
-                     WHERE unread.sender_id = peer.id
+                     WHERE unread.sender_id = conversation.peer_id
                        AND unread.recipient_id = #{userId}
                        AND unread.is_read = 0) AS unread_count
               FROM (
@@ -36,7 +36,7 @@ public interface PrivateMessageMapper extends BaseMapper<PrivateMessage> {
                      GROUP BY CASE WHEN sender_id = #{userId} THEN recipient_id ELSE sender_id END
                    ) conversation
               JOIN private_messages last_message ON last_message.id = conversation.last_message_id
-              JOIN users peer ON peer.id = conversation.peer_id AND peer.deleted = 0
+              LEFT JOIN users peer ON peer.id = conversation.peer_id AND peer.deleted = 0
              ORDER BY last_message.id DESC
              LIMIT #{offset}, #{pageSize}
             """)
