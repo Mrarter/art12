@@ -138,7 +138,7 @@ export default {
       uni.navigateTo({ url: '/pages/user/feedback' })
     },
     checkProgress() {
-      uni.navigateTo({ url: '/pages/message/index' })
+      uni.navigateTo({ url: '/pages/message/list' })
     },
     viewAgreement() {
       uni.navigateTo({ url: '/pages/user-extra/agreement' })

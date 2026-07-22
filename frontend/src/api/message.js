@@ -14,6 +14,20 @@ export const markMessageRead = (messageId) => {
   })
 }
 
+export const getSystemMessageList = (params = {}) => {
+  return request({
+    url: '/message/list',
+    data: params
+  })
+}
+
+export const markSystemMessageRead = (messageId) => {
+  return request({
+    url: `/message/read/${messageId}`,
+    method: 'PUT'
+  })
+}
+
 export const getChatConversations = (params = {}) => {
   return request({
     url: '/message/chat/conversations',

@@ -100,7 +100,13 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getChatConversations, getMessageList, markMessageRead } from '@/api/message'
+import {
+  getChatConversations,
+  getMessageList,
+  getSystemMessageList,
+  markMessageRead,
+  markSystemMessageRead
+} from '@/api/message'
 import { useUserStore } from '@/store/modules/user'
 import { getFullImageUrl } from '@/utils/image'
 import {
@@ -112,9 +118,12 @@ import { AUCTION_ENABLED } from '@/utils/platform'
 
 const currentTab = ref('system')
 const userStore = useUserStore()
-const loading = ref(false)
+const orderLoading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
+const systemLoading = ref(false)
+const systemPage = ref(1)
+const systemHasMore = ref(true)
 const chatLoading = ref(false)
 const chatPage = ref(1)
 const chatHasMore = ref(true)
@@ -131,51 +140,19 @@ const unreadCount = ref({
   chat: 0
 })
 
-const baseMessages = ref([
-  {
-    id: 1,
-    type: 'order',
-    title: '订单已发货',
-    content: '您的订单 #ORDER20240101001 已发货，快递单号：SF1234567890',
-    createTime: Date.now() - 3600000,
-    tags: ['订单'],
-    link: '/pages/order/detail?id=1'
-  },
-  {
-    id: 2,
-    type: 'promotion',
-    title: '恭喜获得优惠券',
-    content: '您已获得一张满500减50的优惠券，有效期至2024-01-31',
-    createTime: Date.now() - 86400000,
-    tags: ['优惠券']
-  },
-  {
-    id: 3,
-    type: 'auction',
-    title: '拍卖提醒',
-    content: '您关注的「江南春晓」拍卖即将开始，1月15日 20:00 开拍',
-    createTime: Date.now() - 172800000,
-    tags: ['拍卖']
-  },
-  {
-    id: 4,
-    type: 'system',
-    title: '账户安全提醒',
-    content: '您的账户在新设备登录，如非本人操作请及时修改密码',
-    createTime: Date.now() - 259200000,
-    tags: ['安全']
-  }
-])
-
 const systemMessages = ref([])
+const certificateMessages = ref([])
+const systemServiceUnreadCount = ref(0)
 const orderMessages = ref([])
 const orderMessagesLoaded = ref(false)
+
+const loading = computed(() => currentTab.value === 'system' ? systemLoading.value : orderLoading.value)
 
 const messageList = computed(() => {
   if (currentTab.value === 'order') {
     return orderMessages.value
   }
-  const merged = [...systemMessages.value, ...baseMessages.value.filter(item => item.type !== 'order')]
+  const merged = [...certificateMessages.value, ...systemMessages.value]
     .filter(item => AUCTION_ENABLED || item.type !== 'auction')
     .sort((a, b) => Number(b.createTime || 0) - Number(a.createTime || 0))
   return merged
@@ -221,6 +198,9 @@ const switchTab = (tab) => {
   if (tab === 'order' && !orderMessagesLoaded.value) {
     fetchOrderMessages(true)
   }
+  if (tab === 'system' && systemMessages.value.length === 0) {
+    fetchSystemMessages(true)
+  }
   if (tab === 'chat') {
     fetchChatConversations(true)
   }
@@ -231,8 +211,12 @@ const refreshCertificateMessages = () => {
     ...item,
     type: 'certificate'
   }))
-  systemMessages.value = notices
-  unreadCount.value.system = getUnreadCertificateSignNoticeCount()
+  certificateMessages.value = notices
+  refreshSystemUnreadCount()
+}
+
+const refreshSystemUnreadCount = () => {
+  unreadCount.value.system = getUnreadCertificateSignNoticeCount() + systemServiceUnreadCount.value
 }
 
 const normalizeMessageItem = (item = {}) => {
@@ -246,8 +230,42 @@ const normalizeMessageItem = (item = {}) => {
   return {
     ...item,
     type: item.type || 'system',
+    createTime: parseDateTime(item.createTime),
     tags: Array.isArray(extra.tags) ? extra.tags : (item.type === 'order' ? ['订单'] : []),
     link: extra.link || (extra.orderId ? `/pages/order/detail?id=${encodeURIComponent(extra.orderId)}` : '')
+  }
+}
+
+const fetchSystemMessages = async (reset = false) => {
+  if (!userStore.isLogin || systemLoading.value) {
+    if (!userStore.isLogin) {
+      systemMessages.value = []
+      systemServiceUnreadCount.value = 0
+      refreshSystemUnreadCount()
+    }
+    return
+  }
+  if (reset) {
+    systemPage.value = 1
+    systemHasMore.value = true
+  }
+  systemLoading.value = true
+  try {
+    const result = await getSystemMessageList({ page: systemPage.value, pageSize: 20 })
+    const records = Array.isArray(result?.records)
+      ? result.records.filter(item => item.type !== 'order').map(normalizeMessageItem)
+      : []
+    systemMessages.value = reset
+      ? records
+      : [...systemMessages.value, ...records.filter(item => !systemMessages.value.some(row => String(row.id) === String(item.id)))]
+    systemServiceUnreadCount.value = systemMessages.value.filter(item => Number(item.isRead || 0) === 0).length
+    systemHasMore.value = Number(result?.page || systemPage.value) * Number(result?.pageSize || 20) < Number(result?.total || 0)
+    if (systemHasMore.value) systemPage.value += 1
+    refreshSystemUnreadCount()
+  } catch (e) {
+    if (reset) systemMessages.value = []
+  } finally {
+    systemLoading.value = false
   }
 }
 
@@ -256,12 +274,12 @@ const refreshOrderUnreadCount = () => {
 }
 
 const fetchOrderMessages = async (reset = false) => {
-  if (loading.value) return
+  if (orderLoading.value) return
   if (reset) {
     page.value = 1
     hasMore.value = true
   }
-  loading.value = true
+  orderLoading.value = true
   try {
     const result = await getMessageList({
       type: 'order',
@@ -284,7 +302,7 @@ const fetchOrderMessages = async (reset = false) => {
       orderMessages.value = []
     }
   } finally {
-    loading.value = false
+    orderLoading.value = false
   }
 }
 
@@ -354,9 +372,12 @@ const fetchChatConversations = async (reset = false) => {
 }
 
 const loadMore = () => {
-  if (currentTab.value !== 'order') return
-  if (!hasMore.value || loading.value) return
-  fetchOrderMessages(false)
+  if (currentTab.value === 'system' && systemHasMore.value && !systemLoading.value) {
+    fetchSystemMessages(false)
+  }
+  if (currentTab.value === 'order' && hasMore.value && !orderLoading.value) {
+    fetchOrderMessages(false)
+  }
 }
 
 const loadMoreChat = () => {
@@ -368,6 +389,14 @@ const goMessageDetail = async (item) => {
   if (item.noticeType === 'certificate_sign') {
     markCertificateSignNoticeRead(item.id)
     refreshCertificateMessages()
+  }
+  if (currentTab.value === 'system' && item.id && !item.noticeType && Number(item.isRead || 0) === 0) {
+    try {
+      await markSystemMessageRead(item.id)
+      item.isRead = 1
+      systemServiceUnreadCount.value = Math.max(0, systemServiceUnreadCount.value - 1)
+      refreshSystemUnreadCount()
+    } catch (e) {}
   }
   if (currentTab.value === 'order' && item.id && Number(item.isRead || 0) === 0) {
     try {
@@ -397,12 +426,14 @@ const goMessageSettings = () => {
 
 onMounted(() => {
   refreshCertificateMessages()
+  fetchSystemMessages(true)
   fetchChatConversations(true)
   fetchOrderMessages(true)
 })
 
 onShow(() => {
   refreshCertificateMessages()
+  fetchSystemMessages(true)
   fetchChatConversations(true)
   fetchOrderMessages(true)
 })

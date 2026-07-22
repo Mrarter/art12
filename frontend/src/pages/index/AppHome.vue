@@ -440,7 +440,7 @@ const goSearch = () => {
 
 // 跳转消息
 const goMessage = () => {
-  uni.navigateTo({ url: '/pages/message/index' })
+  uni.navigateTo({ url: '/pages/message/list' })
 }
 
 // 金刚区导航
