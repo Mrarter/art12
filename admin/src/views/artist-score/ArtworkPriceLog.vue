@@ -27,8 +27,12 @@
       <el-table :data="list" border style="width: 100%; margin-top: 16px">
         <el-table-column prop="artworkId" label="作品ID" width="100" />
         <el-table-column prop="artistId" label="艺术家ID" width="110" />
-        <el-table-column prop="oldPrice" label="原价格" width="120" />
-        <el-table-column prop="newPrice" label="新价格" width="120" />
+        <el-table-column label="原价格" width="120">
+          <template #default="{ row }">{{ formatFen(row.oldPrice) }}</template>
+        </el-table-column>
+        <el-table-column label="新价格" width="120">
+          <template #default="{ row }">{{ formatFen(row.newPrice) }}</template>
+        </el-table-column>
         <el-table-column prop="changeRate" label="涨跌幅" width="120" />
         <el-table-column prop="changeReason" label="原因" width="120" />
         <el-table-column prop="remark" label="备注" min-width="220" />
@@ -51,6 +55,11 @@ const list = ref([])
 async function loadData() {
   const res = await getArtworkPriceLogs(query.value)
   list.value = res.records || res || []
+}
+
+function formatFen(value) {
+  const amount = Number(value || 0) / 100
+  return `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 onMounted(loadData)

@@ -11,8 +11,8 @@
     </view>
 
     <view class="growth-row">
-      <text class="row-label">收藏热度</text>
-      <text class="row-value">{{ collectCount || 0 }} 人收藏</text>
+      <text class="row-label">喜欢热度</text>
+      <text class="row-value">{{ collectCount || 0 }} 人喜欢</text>
     </view>
 
     <view class="next-condition">
@@ -22,22 +22,19 @@
 </template>
 
 <script>
+import { formatArtworkPriceNumber } from '@/utils/price'
+
 export default {
   name: 'PriceGrowthCard',
   props: {
     price: { type: Number, default: 0 },
     growthRate: { type: String, default: '+0%' },
     collectCount: { type: Number, default: 0 },
-    nextCondition: { type: String, default: '收藏人数增加后可能涨价' }
+    nextCondition: { type: String, default: '喜欢人数增加后可能涨价' }
   },
   methods: {
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = price / 100
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
-      return yuan.toLocaleString()
+      return formatArtworkPriceNumber(price)
     }
   }
 }

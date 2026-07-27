@@ -7,8 +7,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,13 +34,23 @@ public class ProductAdminPersistenceService {
     public List<Map<String, Object>> listCategories() {
         String categoryTable = categoryTable();
         String weightColumn = categoryWeightColumn();
+        String artworkCountExpr;
+        if (schemaInspector.hasColumn("artwork", "category_id")) {
+            artworkCountExpr = "COALESCE((SELECT COUNT(*) FROM artwork a WHERE a.category_id = c.id), 0)";
+        } else if (schemaInspector.hasColumn("artwork", "category_name")) {
+            artworkCountExpr = "COALESCE((SELECT COUNT(*) FROM artwork a WHERE a.category_name = c.name), 0)";
+        } else if (schemaInspector.hasColumn(categoryTable, "artwork_count")) {
+            artworkCountExpr = "COALESCE(c.artwork_count, 0)";
+        } else {
+            artworkCountExpr = "0";
+        }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
             SELECT c.id, c.name, %s AS weight_value, %s AS icon_value, c.status, c.create_time,
-                   COALESCE((SELECT COUNT(*) FROM artwork a WHERE a.category_id = c.id), 0) AS artwork_count
+                   %s AS artwork_count
             FROM %s c
             ORDER BY %s DESC, c.id DESC
-            """.formatted(weightColumn, categoryIconColumn(), categoryTable, weightColumn)
+            """.formatted(weightColumn, categoryIconColumn(), artworkCountExpr, categoryTable, weightColumn)
         );
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> row : rows) {
@@ -95,7 +107,18 @@ public class ProductAdminPersistenceService {
     @Transactional
     public void deleteCategory(Long id) {
         String categoryTable = categoryTable();
-        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artwork WHERE category_id = ?", Integer.class, id);
+        Integer count;
+        if (schemaInspector.hasColumn("artwork", "category_id")) {
+            count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM artwork WHERE category_id = ?", Integer.class, id);
+        } else if (schemaInspector.hasColumn("artwork", "category_name")) {
+            count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM artwork WHERE category_name = (SELECT name FROM " + categoryTable + " WHERE id = ?)",
+                Integer.class,
+                id
+            );
+        } else {
+            count = 0;
+        }
         if (count != null && count > 0) {
             throw new IllegalArgumentException("该分类下仍有关联作品，无法删除");
         }
@@ -153,10 +176,11 @@ public class ProductAdminPersistenceService {
         appendTextUpdate(assignments, args, params, "size", "size");
         appendTextUpdate(assignments, args, params, "artType", "art_type");
         appendNumericUpdate(assignments, args, params, "categoryId", "category_id");
-        appendBigDecimalUpdate(assignments, args, params, "price", "price");
+        appendArtworkPriceUpdate(assignments, args, params);
         appendBigDecimalUpdate(assignments, args, params, "originalPrice", "original_price");
         appendNumericUpdate(assignments, args, params, "ownershipType", "ownership_type");
         appendNumericUpdate(assignments, args, params, "status", "status");
+        appendNumericUpdate(assignments, args, params, "favoriteCount", "favorite_count");
         appendNumericUpdate(assignments, args, params, "dailyViewCount", "daily_view_count");
         appendNumericUpdate(assignments, args, params, "dailyLikeCount", "daily_like_count");
         appendNumericUpdate(assignments, args, params, "weight", "weight");
@@ -331,6 +355,20 @@ public class ProductAdminPersistenceService {
         }
     }
 
+    private double toDouble(Object value) {
+        if (value == null) {
+            return 0.0;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (NumberFormatException ex) {
+            return 0.0;
+        }
+    }
+
     private void appendTextUpdate(List<String> assignments, List<Object> args, Map<String, Object> params, String paramKey, String column) {
         if (!params.containsKey(paramKey) || !schemaInspector.hasColumn("artwork", column)) {
             return;
@@ -353,6 +391,31 @@ public class ProductAdminPersistenceService {
         }
         assignments.add(column + " = ?");
         args.add(toBigDecimal(params.get(paramKey)));
+    }
+
+    private void appendArtworkPriceUpdate(List<String> assignments, List<Object> args, Map<String, Object> params) {
+        if (!params.containsKey("price") || !schemaInspector.hasColumn("artwork", "price")) {
+            return;
+        }
+        BigDecimal price = toBigDecimal(params.get("price"));
+        assignments.add("price = ?");
+        args.add(price);
+
+        if (!params.containsKey("priceRise") && schemaInspector.hasColumn("artwork", "price_rise")) {
+            assignments.add("price_rise = ?");
+            args.add(calculatePriceRiseFromCurrentPrice(price, toBigDecimal(params.get("originalPrice"))));
+        }
+    }
+
+    private BigDecimal calculatePriceRiseFromCurrentPrice(BigDecimal currentPrice, BigDecimal originalPrice) {
+        if (currentPrice == null || originalPrice == null || originalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return currentPrice
+            .divide(originalPrice, 6, RoundingMode.HALF_UP)
+            .subtract(BigDecimal.ONE)
+            .max(BigDecimal.ZERO)
+            .setScale(4, RoundingMode.HALF_UP);
     }
 
     private void appendYearUpdate(List<String> assignments, List<Object> args, Map<String, Object> params) {
@@ -530,6 +593,12 @@ public class ProductAdminPersistenceService {
             args.add(Math.max(toInt(params.get("dailyLikeCount"), 0), 0));
         }
 
+        if (schemaInspector.hasColumn("artwork", "favorite_count")) {
+            sql.append(", favorite_count");
+            values.append(", ?");
+            args.add(Math.max(toInt(params.get("favoriteCount"), 0), 0));
+        }
+
         if (schemaInspector.hasColumn("artwork", "price")) {
             sql.append(", price");
             values.append(", ?");
@@ -628,10 +697,11 @@ public class ProductAdminPersistenceService {
 
         // 2. 再通过用户昵称精确查找，找到后补齐艺术家列表
         String userTable = authorLookupUserTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (schemaInspector.hasColumn(userTable, "nickname")) {
             try {
                 Long userId = jdbcTemplate.queryForObject(
-                    "SELECT id FROM " + userTable + " WHERE BINARY nickname = BINARY ? ORDER BY id DESC LIMIT 1",
+                    "SELECT " + userIdColumn + " FROM " + userTable + " WHERE BINARY nickname = BINARY ? ORDER BY " + userIdColumn + " DESC LIMIT 1",
                     Long.class,
                     artistName
                 );
@@ -653,8 +723,10 @@ public class ProductAdminPersistenceService {
         if (userId == null || userId <= 0) {
             return false;
         }
+        String userTable = authorLookupUserTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         Integer count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + authorLookupUserTable() + " WHERE id = ?",
+            "SELECT COUNT(*) FROM " + userTable + " WHERE " + userIdColumn + " = ?",
             Integer.class,
             userId
         );
@@ -668,13 +740,18 @@ public class ProductAdminPersistenceService {
         try {
             String artistTable = schemaInspector.resolveTable("product_artist_profile", "artist_profile", "artist_certifications");
             String userTable = authorLookupUserTable();
+            String userIdColumn = userPrimaryKeyColumn(userTable);
+            String userUidColumn = userUidColumn();
             String nameExpr = schemaInspector.hasColumn(artistTable, "real_name") && schemaInspector.hasColumn(artistTable, "artist_name")
                 ? "COALESCE(ap.real_name, ap.artist_name)"
                 : (schemaInspector.hasColumn(artistTable, "real_name") ? "ap.real_name" : "ap.artist_name");
+            String userJoinCondition = schemaInspector.hasColumn(artistTable, "user_uid") && userUidColumn != null
+                ? "((ap.user_uid IS NOT NULL AND ap.user_uid = u." + userUidColumn + ") OR (ap.user_uid IS NULL AND ap.user_id = u." + userIdColumn + "))"
+                : "ap.user_id = u." + userIdColumn;
             String sql =
-                "SELECT ap.user_id FROM " + artistTable + " ap " +
-                "LEFT JOIN " + userTable + " u ON ap.user_id = u.id " +
-                "WHERE BINARY " + nameExpr + " = BINARY ? OR BINARY u.nickname = BINARY ? " +
+                "SELECT u." + userIdColumn + " FROM " + artistTable + " ap " +
+                "INNER JOIN " + userTable + " u ON " + userJoinCondition + " " +
+                "WHERE (BINARY " + nameExpr + " = BINARY ? OR BINARY u.nickname = BINARY ?) " +
                 "ORDER BY ap.id DESC LIMIT 1";
             return jdbcTemplate.queryForObject(sql, Long.class, artistName, artistName);
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
@@ -692,13 +769,14 @@ public class ProductAdminPersistenceService {
     private void ensureUserHasArtistIdentity(Long userId) {
         String userTable = authorLookupUserTable();
         String identityColumn = identityColumn(userTable);
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         if (!schemaInspector.hasColumn(userTable, identityColumn)) {
             return;
         }
 
         // 获取当前身份
         String currentIdentity = jdbcTemplate.queryForObject(
-            "SELECT " + identityColumn + " FROM " + userTable + " WHERE id = ?",
+            "SELECT " + identityColumn + " FROM " + userTable + " WHERE " + userIdColumn + " = ?",
             String.class, userId
         );
 
@@ -708,10 +786,18 @@ public class ProductAdminPersistenceService {
                 ? "artist"
                 : currentIdentity + ",artist";
 
-            jdbcTemplate.update(
-                "UPDATE " + userTable + " SET " + identityColumn + " = ?, update_time = ? WHERE id = ?",
-                newIdentity, LocalDateTime.now(), userId
-            );
+            String updateTimeColumn = firstAvailableColumn(userTable, "updated_at", "update_time");
+            StringBuilder sql = new StringBuilder("UPDATE ").append(userTable)
+                .append(" SET ").append(identityColumn).append(" = ?");
+            List<Object> args = new ArrayList<>();
+            args.add(newIdentity);
+            if (updateTimeColumn != null) {
+                sql.append(", ").append(updateTimeColumn).append(" = ?");
+                args.add(LocalDateTime.now());
+            }
+            sql.append(" WHERE ").append(userIdColumn).append(" = ?");
+            args.add(userId);
+            jdbcTemplate.update(sql.toString(), args.toArray());
         }
     }
 
@@ -721,7 +807,9 @@ public class ProductAdminPersistenceService {
     private Long createNewArtist(String artistName) {
         String userTable = authorLookupUserTable();
         LocalDateTime now = LocalDateTime.now();
-        String userUid = generateInlineUserUid();
+        String tempOpenid = schemaInspector.hasColumn(userTable, "openid")
+            ? "auto_artist_" + System.currentTimeMillis()
+            : null;
 
         String nicknameCol = schemaInspector.firstExistingColumn(userTable, "nickname", "name");
         String createTimeCol = schemaInspector.firstExistingColumn(userTable, "created_at", "create_time");
@@ -735,7 +823,12 @@ public class ProductAdminPersistenceService {
         if (schemaInspector.hasColumn(userTable, "status")) {
             sql.append(", status");
             values.append(", ?");
-            args.add("user_account".equals(userTable) ? "ENABLED" : 1);
+            args.add(1);   // status 统一为整数类型
+        }
+        if (tempOpenid != null) {
+            sql.append(", openid");
+            values.append(", ?");
+            args.add(tempOpenid);
         }
         if (schemaInspector.hasColumn(userTable, "register_source")) {
             sql.append(", register_source");
@@ -746,16 +839,6 @@ public class ProductAdminPersistenceService {
             sql.append(", user_no");
             values.append(", ?");
             args.add("U" + System.currentTimeMillis());
-        }
-        if (schemaInspector.hasColumn(userTable, "uid")) {
-            sql.append(", uid");
-            values.append(", ?");
-            args.add(userUid);
-        }
-        if (schemaInspector.hasColumn(userTable, "user_uid")) {
-            sql.append(", user_uid");
-            values.append(", ?");
-            args.add(userUid);
         }
         if (schemaInspector.hasColumn(userTable, "identity")) {
             sql.append(", identity");
@@ -781,13 +864,70 @@ public class ProductAdminPersistenceService {
         sql.append(") ").append(values).append(")");
         jdbcTemplate.update(sql.toString(), args.toArray());
 
-        Long userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        Long userId = findUserIdByOpenid(userTable, tempOpenid);
+        if (userId == null) {
+            userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        }
+        String userUid = generateInlineUserUid(userId);
+        updateUserUid(userTable, userId, userUid);
         ensureArtistProfile(userId, artistName, now);
 
         org.slf4j.LoggerFactory.getLogger(getClass()).info("自动创建艺术家成功: userId={}, artistName={}",
             userId, artistName);
 
         return userId;
+    }
+
+    private Long findUserIdByOpenid(String userTable, String openid) {
+        if (openid == null || openid.isBlank() || !schemaInspector.hasColumn(userTable, "openid")) {
+            return null;
+        }
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT " + userIdColumn + " FROM " + userTable + " WHERE openid = ? ORDER BY " + userIdColumn + " DESC LIMIT 1",
+                Long.class,
+                openid
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private void updateUserUid(String userTable, Long userId, String userUid) {
+        if (userId == null || userUid == null || userUid.isBlank()) {
+            return;
+        }
+        String userUidColumn = userUidColumn();
+        if (userUidColumn == null || !schemaInspector.hasColumn(userTable, userUidColumn)) {
+            return;
+        }
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        jdbcTemplate.update(
+            "UPDATE " + userTable + " SET " + userUidColumn + " = ? WHERE " + userIdColumn + " = ?",
+            userUid,
+            userId
+        );
+    }
+
+    private Long findUserIdByUid(String userTable, String userUid) {
+        if (userUid == null || userUid.isBlank()) {
+            return null;
+        }
+        String userUidColumn = userUidColumn();
+        if (userUidColumn == null || !schemaInspector.hasColumn(userTable, userUidColumn)) {
+            return null;
+        }
+        String userIdColumn = userPrimaryKeyColumn(userTable);
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT " + userIdColumn + " FROM " + userTable + " WHERE " + userUidColumn + " = ? ORDER BY " + userIdColumn + " DESC LIMIT 1",
+                Long.class,
+                userUid
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     /**
@@ -842,7 +982,7 @@ public class ProductAdminPersistenceService {
         if (schemaInspector.hasColumn(artistTable, "status")) {
             sql.append(", status");
             values.append(", ?");
-            args.add("artist_profile".equals(artistTable) ? "ACTIVE" : 1);
+            args.add(1);   // status 为整数类型，统一插入 1（正常/激活）
         }
         if (schemaInspector.hasColumn(artistTable, "cert_status")) {
             sql.append(", cert_status");
@@ -868,9 +1008,9 @@ public class ProductAdminPersistenceService {
 
     /**
      * 生成用户UID（内联版本）
-     * 格式: USR + yyyyMMdd + 4位序列号 + 4位随机码 = 19位
+     * 格式: USR + yyyyMMdd + 4位序列号 + 4位用户ID = 19位
      */
-    private String generateInlineUserUid() {
+    private String generateInlineUserUid(Long userId) {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         // 获取今日注册数量作为序列号基础
         Long todayCount = jdbcTemplate.queryForObject(
@@ -879,8 +1019,14 @@ public class ProductAdminPersistenceService {
             Long.class
         );
         int seq = (int)((todayCount != null ? todayCount : 0) % 10000);
-        String random = String.format("%04d", (int)(Math.random() * 10000));
-        return "USR" + date + String.format("%04d", seq + 1) + random;
+        return "USR" + date + String.format("%04d", seq + 1) + userIdSuffix(userId);
+    }
+
+    private String userIdSuffix(Long userId) {
+        if (userId == null || userId < 0) {
+            return "0000";
+        }
+        return String.format("%04d", userId % 10000);
     }
 
     /**
@@ -921,6 +1067,7 @@ public class ProductAdminPersistenceService {
 
     private String findAuthorUidByUserId(Long userId) {
         String userTable = authorLookupUserTable();
+        String userIdColumn = userPrimaryKeyColumn(userTable);
         List<String> uidColumns = new ArrayList<>();
         for (String candidate : List.of("user_uid", "uid", "user_no")) {
             if (schemaInspector.hasColumn(userTable, candidate)) {
@@ -933,13 +1080,18 @@ public class ProductAdminPersistenceService {
         String uidExpression = uidColumns.size() == 1 ? uidColumns.get(0) : "COALESCE(" + String.join(", ", uidColumns) + ")";
         try {
             return jdbcTemplate.queryForObject(
-                "SELECT " + uidExpression + " FROM " + userTable + " WHERE id = ? LIMIT 1",
+                "SELECT " + uidExpression + " FROM " + userTable + " WHERE " + userIdColumn + " = ? LIMIT 1",
                 String.class,
                 userId
             );
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return null;
         }
+    }
+
+    private String userPrimaryKeyColumn(String userTable) {
+        String column = firstAvailableColumn(userTable, "id", "user_id");
+        return column == null ? "id" : column;
     }
 
     /**
@@ -950,7 +1102,7 @@ public class ProductAdminPersistenceService {
     }
 
     private String authorLookupUserTable() {
-        return schemaInspector.resolveTable("author_lookup_user", "user_account", "sys_user");
+        return schemaInspector.resolveTable("author_lookup_user", "user_account", "sys_user", "users");
     }
 
     private String userUidColumn() {
@@ -977,6 +1129,8 @@ public class ProductAdminPersistenceService {
         Long categoryId,
         String artType,
         String status,
+        String sortField,
+        String sortOrder,
         int page,
         int size
     ) {
@@ -1019,8 +1173,13 @@ public class ProductAdminPersistenceService {
         }
         
         if (categoryId != null) {
-            where.append(" AND a.category_id = ?");
-            args.add(categoryId);
+            if (schemaInspector.hasColumn("artwork", "category_id")) {
+                where.append(" AND a.category_id = ?");
+                args.add(categoryId);
+            } else if (!schemaInspector.getColumns(categoryTable()).isEmpty()) {
+                where.append(" AND c.id = ?");
+                args.add(categoryId);
+            }
         }
 
         if (artType != null && !artType.isBlank()) {
@@ -1041,13 +1200,23 @@ public class ProductAdminPersistenceService {
         String artistProfileUidSelect = hasArtistProfileUid ? "ap.user_uid" : "NULL";
         String authorUserTable = authorLookupUserTable();
         boolean hasAuthorUserTable = !schemaInspector.getColumns(authorUserTable).isEmpty();
+        String authorUserIdColumn = hasAuthorUserTable
+            ? firstAvailableColumn(authorUserTable, "id", "user_id")
+            : null;
         String authorUserUidColumn = hasAuthorUserTable
             ? firstAvailableColumn(authorUserTable, "user_uid", "uid", "user_no")
             : null;
         String authorUserJoin = hasAuthorUserTable
-            ? " LEFT JOIN " + authorUserTable + " au ON au.id = a.author_id"
+            ? " LEFT JOIN " + authorUserTable + " au ON au." + authorUserIdColumn + " = a.author_id"
             : "";
         String authorUserUidSelect = authorUserUidColumn != null ? "au." + authorUserUidColumn : "NULL";
+        String holderUserJoin = hasAuthorUserTable && authorUserIdColumn != null
+            ? " LEFT JOIN " + authorUserTable + " hu ON hu." + authorUserIdColumn + " = a.holder_id"
+            : "";
+        String holderUserUidSelect = authorUserUidColumn != null ? "hu." + authorUserUidColumn : "NULL";
+        String holderUserNicknameSelect = hasAuthorUserTable && schemaInspector.hasColumn(authorUserTable, "nickname")
+            ? "hu.nickname"
+            : "NULL";
         boolean hasArtistCertifications = !schemaInspector.getColumns("artist_certifications").isEmpty();
         String artistCertificationJoin = hasArtistCertifications
             ? " LEFT JOIN artist_certifications ac ON ac.user_id = a.author_id"
@@ -1055,7 +1224,15 @@ public class ProductAdminPersistenceService {
         String artistCodeSelect = hasArtistCertifications && schemaInspector.hasColumn("artist_certifications", "artist_code")
             ? "ac.artist_code"
             : "NULL";
-        String authorJoins = artistProfileJoin + authorUserJoin + artistCertificationJoin;
+        String categoryJoin = "";
+        if (!schemaInspector.getColumns(categoryTable()).isEmpty()) {
+            if (schemaInspector.hasColumn("artwork", "category_id")) {
+                categoryJoin = " LEFT JOIN " + categoryTable() + " c ON a.category_id = c.id";
+            } else if (schemaInspector.hasColumn("artwork", "category_name")) {
+                categoryJoin = " LEFT JOIN " + categoryTable() + " c ON a.category_name = c.name";
+            }
+        }
+        String authorJoins = artistProfileJoin + authorUserJoin + holderUserJoin + artistCertificationJoin + categoryJoin;
 
         Long total = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM artwork a" + authorJoins + where,
@@ -1077,13 +1254,34 @@ public class ProductAdminPersistenceService {
             : "COALESCE(" + authorUserUidSelect + ", " + artistProfileUidSelect + ", " + artistCodeSelect + ", LPAD(a.author_id, 4, '0'))";
         String yearSelect = schemaInspector.hasColumn("artwork", "year") ? "a.year" :
             (schemaInspector.hasColumn("artwork", "create_year") ? "a.create_year" : "NULL");
+        String holderIdSelect = schemaInspector.hasColumn("artwork", "holder_id") ? "a.holder_id" : "NULL";
+        String holderArtworkUidSelect = schemaInspector.hasColumn("artwork", "holder_uid")
+            ? "CASE WHEN a.holder_uid REGEXP '^[A-Z]{3}[0-9]{8}' THEN a.holder_uid ELSE NULL END"
+            : "NULL";
+        String holderUidSelect = schemaInspector.hasColumn("artwork", "holder_uid")
+            ? "COALESCE(" + holderArtworkUidSelect + ", " + holderUserUidSelect + ")"
+            : holderUserUidSelect;
         String favoriteCountSelect = schemaInspector.hasColumn("artwork", "favorite_count") ? "a.favorite_count" : "0";
         String viewCountSelect = schemaInspector.hasColumn("artwork", "view_count") ? "a.view_count" : "0";
         String descriptionSelect = schemaInspector.hasColumn("artwork", "description") ? "a.description" : "NULL";
         String dailyViewCountSelect = schemaInspector.hasColumn("artwork", "daily_view_count") ? "a.daily_view_count" : "0";
         String dailyLikeCountSelect = schemaInspector.hasColumn("artwork", "daily_like_count") ? "a.daily_like_count" : "0";
+        boolean hasOriginalPrice = schemaInspector.hasColumn("artwork", "original_price");
+        boolean hasPriceRise = schemaInspector.hasColumn("artwork", "price_rise");
+        String originalPriceSelect = hasOriginalPrice ? "a.original_price" : "NULL";
+        String priceRiseSelect = hasPriceRise ? "a.price_rise" : "NULL";
+        boolean hasCoverImageColumn = schemaInspector.hasColumn("artwork", "cover_image");
+        boolean hasCoverColumn = schemaInspector.hasColumn("artwork", "cover");
+        String coverImageSelect = hasCoverImageColumn && hasCoverColumn
+            ? "COALESCE(NULLIF(a.cover_image, ''), NULLIF(a.cover, ''))"
+            : (hasCoverImageColumn ? "a.cover_image" : (hasCoverColumn ? "a.cover" : "NULL"));
+        String categoryNameSelect = schemaInspector.hasColumn("artwork", "category_name") ? "a.category_name" :
+            (!schemaInspector.getColumns(categoryTable()).isEmpty() ? "c.name" : "NULL");
         boolean hasWeightColumn = schemaInspector.hasColumn("artwork", "weight");
         String weightSelect = hasWeightColumn ? "a.weight" : "0";
+        String heatOrderExpression = "(COALESCE(" + viewCountSelect + ", 0) + COALESCE(" + dailyViewCountSelect + ", 0) + " +
+            "COALESCE(" + favoriteCountSelect + ", 0) + COALESCE(" + dailyLikeCountSelect + ", 0))";
+        String orderBy = buildProductOrderBy(sortField, sortOrder, hasWeightColumn, heatOrderExpression);
         String ownershipTypeSelect = schemaInspector.hasColumn("artwork", "ownership_type") ? "a.ownership_type" : "1";
         String distributionSelect = schemaInspector.hasColumn("artwork", "distribution_enabled") ? "a.distribution_enabled" :
             (schemaInspector.hasColumn("artwork", "distributable") ? "a.distributable" : "0");
@@ -1091,18 +1289,23 @@ public class ProductAdminPersistenceService {
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             """
-            SELECT a.id, a.title, a.author_name, a.cover_image, a.price, a.status,
-                   a.author_id, %s AS artwork_code, %s AS author_uid, a.size, %s AS artwork_year,
+            SELECT a.id, a.title, a.author_name, %s AS cover_image, a.price, a.status,
+                   a.author_id, %s AS artwork_code, %s AS author_uid, %s AS holder_id,
+                   %s AS holder_uid, %s AS holder_nickname, a.size, %s AS artwork_year,
                    a.art_type, %s AS favorite_count, %s AS weight_value, %s AS ownership_type,
                    %s AS distribution_enabled, %s AS commission_rate, %s AS view_count,
                    %s AS description, %s AS daily_view_count, %s AS daily_like_count,
-                   a.create_time, c.name AS category_name
+                   %s AS original_price, %s AS price_rise,
+                   a.create_time, %s AS category_name
             FROM artwork a
             %s
-            LEFT JOIN %s c ON a.category_id = c.id
             """.formatted(
+                coverImageSelect,
                 artworkCodeSelect,
                 authorUidSelect,
+                holderIdSelect,
+                holderUidSelect,
+                holderUserNicknameSelect,
                 yearSelect,
                 favoriteCountSelect,
                 weightSelect,
@@ -1113,39 +1316,113 @@ public class ProductAdminPersistenceService {
                 descriptionSelect,
                 dailyViewCountSelect,
                 dailyLikeCountSelect,
-                authorJoins,
-                categoryTable()
-            ) + where + " ORDER BY " + (hasWeightColumn ? "a.weight DESC, " : "") + "a.create_time DESC, a.id DESC LIMIT ?, ?",
+                originalPriceSelect,
+                priceRiseSelect,
+                categoryNameSelect,
+                authorJoins
+            ) + where + orderBy + " LIMIT ?, ?",
             queryArgs.toArray()
         );
         
         List<Map<String, Object>> list = new ArrayList<>();
         for (Map<String, Object> row : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
+            // 基准价：优先使用 original_price，与 PriceGrowthService.resolveBasePrice() 一致
+            BigDecimal rawBasePrice = toBigDecimal(row.get("price"));
+            BigDecimal basePrice;
+            if (hasOriginalPrice) {
+                BigDecimal origPrice = toBigDecimal(row.get("original_price"));
+                if (origPrice != null && origPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    basePrice = origPrice;
+                } else {
+                    basePrice = rawBasePrice;
+                }
+            } else {
+                basePrice = rawBasePrice;
+            }
+            int realFavoriteCount = toInt(row.get("favorite_count"), 0);
+            int configuredFavoriteCount = toInt(row.get("daily_like_count"), 0);
+            int displayViewCount = toInt(row.get("view_count"), 0) + toInt(row.get("daily_view_count"), 0);
+            int displayLikeCount = realFavoriteCount + configuredFavoriteCount;
+            // 优先使用数据库中已存储的 price_rise（由 PriceGrowthService 定时任务计算）。
+            // 0 也是有效值，不能因为为 0 就在后台列表临时重算，否则新发布作品会显示虚高。
+            BigDecimal priceRise;
+            if (hasPriceRise) {
+                BigDecimal storedRise = toBigDecimal(row.get("price_rise"));
+                if (storedRise != null) {
+                    priceRise = storedRise;
+                } else {
+                    priceRise = calculateAdminPriceRise(row, displayViewCount, displayLikeCount);
+                }
+            } else {
+                priceRise = calculateAdminPriceRise(row, displayViewCount, displayLikeCount);
+            }
+            BigDecimal currentPrice = calculateAdminCurrentPrice(basePrice, priceRise);
+            Long artworkId = toLong(row.get("id"));
+            Long authorId = toLong(row.get("author_id"));
+            Long holderId = toLong(row.get("holder_id"));
+            String authorUid = Objects.toString(row.get("author_uid"), "").trim();
+            String holderUid = Objects.toString(row.get("holder_uid"), "").trim();
+            String holderNickname = Objects.toString(row.get("holder_nickname"), "").trim();
+            Map<String, Object> resaleListing = findActiveResaleListing(artworkId);
+            if ((holderUid.isBlank() || holderNickname.isBlank()) && resaleListing != null) {
+                if (holderUid.isBlank()) {
+                    holderUid = Objects.toString(resaleListing.get("sellerUid"), "").trim();
+                }
+                if (holderNickname.isBlank()) {
+                    holderNickname = Objects.toString(resaleListing.get("sellerNickname"), "").trim();
+                }
+                if (holderUid.isBlank() || holderNickname.isBlank()) {
+                    Map<String, Object> resaleHolder = findUserSummaryAcrossTables(toLong(resaleListing.get("sellerUserId")));
+                    if (resaleHolder != null) {
+                        if (holderUid.isBlank()) {
+                            holderUid = Objects.toString(resaleHolder.get("uid"), "").trim();
+                        }
+                        if (holderNickname.isBlank()) {
+                            holderNickname = Objects.toString(resaleHolder.get("nickname"), "").trim();
+                        }
+                    }
+                }
+            }
+            boolean transferredByUid = !authorUid.isBlank() && !holderUid.isBlank() && !authorUid.equals(holderUid);
+            boolean transferredById = authorId != null && holderId != null && !authorId.equals(holderId);
+            boolean isResaleArtwork = resaleListing != null || transferredByUid || transferredById;
+
             item.put("id", row.get("id"));
-            item.put("artworkId", row.get("id"));
+            item.put("artworkId", artworkId);
             item.put("displayArtworkId", String.format("%04d", toInt(row.get("id"), 0)));
             item.put("artworkCode", row.get("artwork_code"));
             item.put("artworkUid", row.get("artwork_code"));
-            item.put("authorId", row.get("author_id"));
+            item.put("authorId", authorId);
             item.put("displayAuthorId", row.get("author_uid"));
-            item.put("authorUid", row.get("author_uid"));
+            item.put("authorUid", authorUid.isBlank() ? null : authorUid);
+            item.put("holderId", holderId);
+            item.put("holderUid", holderUid.isBlank() ? null : holderUid);
+            item.put("holderNickname", holderNickname.isBlank() ? null : holderNickname);
+            item.put("isResaleArtwork", isResaleArtwork);
             item.put("title", row.get("title"));
             item.put("artistName", row.get("author_name"));
             item.put("authorName", row.get("author_name"));
             item.put("cover", row.get("cover_image"));
-            item.put("price", row.get("price"));
+            // 当前 artwork.price / original_price 已按“元”存储，后台列表直接返回元值。
+            item.put("price", toDouble(row.get("price")));
+            item.put("originalPrice", toDouble(row.get("original_price")));
+            item.put("currentPrice", currentPrice.doubleValue());
+            item.put("priceRise", priceRise);
+            item.put("resaleListing", resaleListing);
             item.put("categoryName", row.get("category_name"));
             item.put("artType", row.get("art_type"));
             item.put("size", row.get("size"));
             item.put("year", row.get("artwork_year"));
-            item.put("favoriteCount", toInt(row.get("favorite_count"), 0));
+            item.put("favoriteCount", realFavoriteCount);
+            item.put("realFavoriteCount", realFavoriteCount);
+            item.put("configuredFavoriteCount", configuredFavoriteCount);
             item.put("viewCount", toInt(row.get("view_count"), 0));
             item.put("description", row.get("description"));
             item.put("dailyViewCount", toInt(row.get("daily_view_count"), 0));
-            item.put("dailyLikeCount", toInt(row.get("daily_like_count"), 0));
-            item.put("displayViewCount", toInt(row.get("view_count"), 0) + toInt(row.get("daily_view_count"), 0));
-            item.put("displayLikeCount", toInt(row.get("favorite_count"), 0) + toInt(row.get("daily_like_count"), 0));
+            item.put("dailyLikeCount", configuredFavoriteCount);
+            item.put("displayViewCount", displayViewCount);
+            item.put("displayLikeCount", displayLikeCount);
             item.put("weight", toInt(row.get("weight_value"), 0));
             item.put("ownershipType", toInt(row.get("ownership_type"), 1));
             item.put("status", toInt(row.get("status"), 0));
@@ -1161,6 +1438,151 @@ public class ProductAdminPersistenceService {
         result.put("page", page);
         result.put("size", size);
         return result;
+    }
+
+    private String buildProductOrderBy(String sortField, String sortOrder, boolean hasWeightColumn, String heatOrderExpression) {
+        String direction = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
+        String fallback = "a.create_time DESC, a.id DESC";
+        String field = Objects.toString(sortField, "").trim();
+
+        String orderExpression = switch (field) {
+            case "heat" -> heatOrderExpression;
+            case "weight" -> hasWeightColumn ? "COALESCE(a.weight, 0)" : null;
+            case "publishTime", "createTime" -> "a.create_time";
+            case "price" -> "COALESCE(a.price, 0)";
+            default -> null;
+        };
+
+        if (orderExpression == null) {
+            return " ORDER BY " + fallback;
+        }
+        return " ORDER BY " + orderExpression + " " + direction + ", " + fallback;
+    }
+
+    private Map<String, Object> findActiveResaleListing(Long artworkId) {
+        if (artworkId == null || schemaInspector.getColumns("resale_record").isEmpty()) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT rr.id, rr.artwork_id AS artworkId, rr.seller_user_id AS sellerUserId,
+                       rr.buyer_user_id AS buyerUserId, rr.resale_price AS resalePrice,
+                       rr.status, rr.created_time AS createdTime, rr.updated_time AS updatedTime
+                FROM resale_record rr
+                WHERE rr.artwork_id = ? AND rr.status = 'pending'
+                ORDER BY rr.updated_time DESC, rr.id DESC
+                LIMIT 1
+                """,
+                artworkId
+            );
+            Map<String, Object> row = rows.isEmpty() ? null : rows.get(0);
+            if (row == null) {
+                return null;
+            }
+            Map<String, Object> listing = new LinkedHashMap<>(row);
+            Map<String, Object> seller = findUserSummaryAcrossTables(toLong(row.get("sellerUserId")));
+            if (seller != null) {
+                listing.put("sellerUid", seller.get("uid"));
+                listing.put("sellerNickname", seller.get("nickname"));
+            }
+            listing.put("resalePrice", toDouble(row.get("resalePrice")));
+            listing.put("createdTime", formatDateTime(row.get("createdTime")));
+            listing.put("updatedTime", formatDateTime(row.get("updatedTime")));
+            return listing;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> findUserSummaryAcrossTables(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        for (String tableName : List.of("user_account", "users", "sys_user")) {
+            Map<String, Object> user = findUserSummaryByTable(tableName, userId);
+            if (user != null) {
+                String uid = Objects.toString(user.get("uid"), "").trim();
+                String nickname = Objects.toString(user.get("nickname"), "").trim();
+                if (!uid.isBlank() || !nickname.isBlank()) {
+                    return user;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> findUserSummaryByTable(String tableName, Long userId) {
+        if (tableName == null || userId == null || schemaInspector.getColumns(tableName).isEmpty()) {
+            return null;
+        }
+        String userIdColumn = firstAvailableColumn(tableName, "id", "user_id");
+        String uidColumn = firstAvailableColumn(tableName, "uid", "user_uid", "user_no");
+        String nicknameColumn = firstAvailableColumn(tableName, "nickname", "name", "real_name");
+        if (userIdColumn == null || (uidColumn == null && nicknameColumn == null)) {
+            return null;
+        }
+        String uidSelect = uidColumn != null ? uidColumn : "NULL";
+        String nicknameSelect = nicknameColumn != null ? nicknameColumn : "NULL";
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT %s AS uid, %s AS nickname
+                FROM %s
+                WHERE %s = ?
+                LIMIT 1
+                """.formatted(uidSelect, nicknameSelect, tableName, userIdColumn),
+                userId
+            );
+            return rows.isEmpty() ? null : rows.get(0);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private BigDecimal calculateAdminPriceRise(Map<String, Object> row, int displayViewCount, int displayLikeCount) {
+        BigDecimal basePrice = toBigDecimal(row.get("price"));
+        if (basePrice == null || basePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal multiplier = BigDecimal.ONE;
+        int onlineDays = getInclusiveOnlineDays(row.get("create_time"));
+        multiplier = multiplier.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(0.0002).multiply(BigDecimal.valueOf(onlineDays))));
+        if (displayViewCount >= 100) {
+            multiplier = multiplier.multiply(BigDecimal.valueOf(1.1));
+        }
+        if (displayLikeCount >= 5) {
+            multiplier = multiplier.multiply(BigDecimal.valueOf(1.1));
+        }
+        return multiplier.subtract(BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateAdminCurrentPrice(BigDecimal basePrice, BigDecimal priceRise) {
+        if (basePrice == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal multiplier = BigDecimal.ONE.add(priceRise != null ? priceRise : BigDecimal.ZERO);
+        return basePrice.multiply(multiplier).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private int getInclusiveOnlineDays(Object createTime) {
+        LocalDate date = null;
+        if (createTime instanceof LocalDateTime dateTime) {
+            date = dateTime.toLocalDate();
+        } else if (createTime instanceof java.sql.Timestamp timestamp) {
+            date = timestamp.toLocalDateTime().toLocalDate();
+        } else if (createTime != null) {
+            try {
+                date = LocalDateTime.parse(createTime.toString().replace(" ", "T")).toLocalDate();
+            } catch (Exception ignored) {
+                date = null;
+            }
+        }
+        if (date == null) {
+            return 1;
+        }
+        long days = ChronoUnit.DAYS.between(date, LocalDate.now()) + 1;
+        return (int) Math.max(days, 1);
     }
     
     private int mapProductStatus(String status) {

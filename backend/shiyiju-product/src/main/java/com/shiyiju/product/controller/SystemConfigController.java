@@ -45,7 +45,7 @@ public class SystemConfigController {
         promotion.put("directCommission", 5);
         promotion.put("teamCommission", 2);
         promotion.put("settlementType", "after_pay");
-        promotion.put("minWithdraw", 100);
+        promotion.put("minWithdraw", 0);
         promotion.put("withdrawFee", 0);
         promotion.put("withdrawDays", 3);
         promotion.put("promoterCondition", "free");
@@ -90,6 +90,11 @@ public class SystemConfigController {
         priceGrowth.put("masterBadgeRate", priceGrowthConfig.getMasterBadgeRate());
         priceGrowth.put("viewThreshold", priceGrowthConfig.getViewThreshold());
         priceGrowth.put("viewRate", priceGrowthConfig.getViewRate());
+        priceGrowth.put("viewAutoGrowthEnabled", priceGrowthConfig.getViewAutoGrowthEnabled());
+        priceGrowth.put("viewGrowthRandomRate", priceGrowthConfig.getViewGrowthRandomRate());
+        priceGrowth.put("dailyViewGrowth", priceGrowthConfig.getDailyViewGrowth());
+        priceGrowth.put("weeklyViewGrowth", priceGrowthConfig.getWeeklyViewGrowth());
+        priceGrowth.put("monthlyViewGrowth", priceGrowthConfig.getMonthlyViewGrowth());
         priceGrowth.put("favoriteThreshold", priceGrowthConfig.getFavoriteThreshold());
         priceGrowth.put("favoriteRate", priceGrowthConfig.getFavoriteRate());
         priceGrowth.put("saleRate", priceGrowthConfig.getSaleRate());
@@ -160,6 +165,11 @@ public class SystemConfigController {
         result.put("masterBadgeRate", priceGrowthConfig.getMasterBadgeRate());
         result.put("viewThreshold", priceGrowthConfig.getViewThreshold());
         result.put("viewRate", priceGrowthConfig.getViewRate());
+        result.put("viewAutoGrowthEnabled", priceGrowthConfig.getViewAutoGrowthEnabled());
+        result.put("viewGrowthRandomRate", priceGrowthConfig.getViewGrowthRandomRate());
+        result.put("dailyViewGrowth", priceGrowthConfig.getDailyViewGrowth());
+        result.put("weeklyViewGrowth", priceGrowthConfig.getWeeklyViewGrowth());
+        result.put("monthlyViewGrowth", priceGrowthConfig.getMonthlyViewGrowth());
         result.put("favoriteThreshold", priceGrowthConfig.getFavoriteThreshold());
         result.put("favoriteRate", priceGrowthConfig.getFavoriteRate());
         result.put("saleRate", priceGrowthConfig.getSaleRate());
@@ -205,6 +215,21 @@ public class SystemConfigController {
             if (config.containsKey("viewRate")) {
                 priceGrowthConfig.setViewRate(new java.math.BigDecimal(String.valueOf(config.get("viewRate"))));
             }
+            if (config.containsKey("viewAutoGrowthEnabled")) {
+                priceGrowthConfig.setViewAutoGrowthEnabled(Boolean.parseBoolean(String.valueOf(config.get("viewAutoGrowthEnabled"))));
+            }
+            if (config.containsKey("viewGrowthRandomRate")) {
+                priceGrowthConfig.setViewGrowthRandomRate(clampRate(config.get("viewGrowthRandomRate")));
+            }
+            if (config.containsKey("dailyViewGrowth")) {
+                priceGrowthConfig.setDailyViewGrowth(Math.max(((Number) config.get("dailyViewGrowth")).intValue(), 0));
+            }
+            if (config.containsKey("weeklyViewGrowth")) {
+                priceGrowthConfig.setWeeklyViewGrowth(Math.max(((Number) config.get("weeklyViewGrowth")).intValue(), 0));
+            }
+            if (config.containsKey("monthlyViewGrowth")) {
+                priceGrowthConfig.setMonthlyViewGrowth(Math.max(((Number) config.get("monthlyViewGrowth")).intValue(), 0));
+            }
             if (config.containsKey("favoriteThreshold")) {
                 priceGrowthConfig.setFavoriteThreshold(((Number) config.get("favoriteThreshold")).intValue());
             }
@@ -225,6 +250,17 @@ public class SystemConfigController {
             log.error("更新价格增长配置失败", e);
             return Result.fail("更新配置失败");
         }
+    }
+
+    private java.math.BigDecimal clampRate(Object value) {
+        java.math.BigDecimal rate = new java.math.BigDecimal(String.valueOf(value));
+        if (rate.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            return java.math.BigDecimal.ZERO;
+        }
+        if (rate.compareTo(java.math.BigDecimal.ONE) > 0) {
+            return java.math.BigDecimal.ONE;
+        }
+        return rate;
     }
 
     /**

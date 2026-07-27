@@ -38,8 +38,12 @@
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">{{ formatPrice(item.price) }}</text>
-                  <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                  <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
+                  <template v-else>
+                    <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
+                    <text class="original-price" v-if="showPublishPrice(item)">{{ formatPrice(getPublishPrice(item)) }}</text>
+                    <text class="discount-badge" v-if="getDiscountText(item)">{{ getDiscountText(item) }}</text>
+                  </template>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   
@@ -69,8 +73,12 @@
               </view>
               <view class="product-footer">
                 <view class="price-info">
-                  <text class="current-price">{{ formatPrice(item.price) }}</text>
-                  <text class="original-price" v-if="item.originalPrice">{{ formatPrice(item.originalPrice) }}</text>
+                  <text class="sold-label" v-if="isSoldArtwork(item)">已收藏</text>
+                  <template v-else>
+                    <text class="current-price">{{ formatPrice(getCurrentPrice(item)) }}</text>
+                    <text class="original-price" v-if="showPublishPrice(item)">{{ formatPrice(getPublishPrice(item)) }}</text>
+                    <text class="discount-badge" v-if="getDiscountText(item)">{{ getDiscountText(item) }}</text>
+                  </template>
                 </view>
                 <view class="price-change" v-if="item.priceChange > 0">
                   
@@ -110,6 +118,7 @@
 <script>
 import CustomTabBar from '@/components/custom-tab-bar/index.vue'
 import { getGalleryList, getCategories, getRecommend } from '@/api/product.js'
+import { formatArtworkPriceNumber } from '@/utils/price'
 
 export default {
   components: {
@@ -354,12 +363,7 @@ export default {
     },
     
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
-      return yuan.toLocaleString()
+      return formatArtworkPriceNumber(price)
     },
 
     getCardTitle(item) {
@@ -382,14 +386,57 @@ export default {
       return holder
     },
 
+    isSoldArtwork(item) {
+      return Number(item.status) === 2
+    },
+
+    // 获取实时价格：待售转售优先，其余与详情页 resolveCurrentPrice 保持一致。
+    getCurrentPrice(item) {
+      const resaleListing = item.activeResaleListing || item.resaleListing
+      const resaleStatus = String(resaleListing?.status || '').toLowerCase()
+      const resalePrice = Number(resaleListing?.resalePrice || 0)
+      if (resalePrice > 0 && (!resaleStatus || resaleStatus === 'pending')) {
+        return resalePrice
+      }
+      const currentPrice = Number(item.currentPrice || item.current_price || item.displayPrice || 0)
+      if (currentPrice > 0) return currentPrice
+      return Number(item.price || 0)
+    },
+
+    getPublishPrice(item) {
+      return Number(item.publishPrice || item.publish_price || item.originalPrice || item.original_price || item.price || 0)
+    },
+
+    showPublishPrice(item) {
+      const publishPrice = this.getPublishPrice(item)
+      const currentPrice = Number(this.getCurrentPrice(item) || 0)
+      return publishPrice > 0 && currentPrice > 0 && currentPrice < publishPrice
+    },
+
+    getDiscountText(item) {
+      if (!this.showPublishPrice(item)) return ''
+      const amount = this.getPublishPrice(item) - Number(this.getCurrentPrice(item) || 0)
+      return `限时优惠${this.formatDiscountAmount(amount)}元`
+    },
+
+    formatDiscountAmount(amount) {
+      const value = Number(amount || 0)
+      if (value <= 0) return '0'
+      return Number.isInteger(value)
+        ? value.toLocaleString('zh-CN')
+        : value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    },
+
     showRiseTip(item) {
-      return item.customPriceGrowthEnabled || item.priceGrowthEnabled || Number(item.customBaseDailyRate || 0) > 0
+      return !this.isSoldArtwork(item)
+        && item.platformPriceGrowthEnabled !== false
+        && !!this.getRiseTipText(item)
     },
 
     getRiseTipText(item) {
       if (!item.tomorrowIncreaseMin && !item.tomorrowIncreaseMax) return ''
-      const min = (item.tomorrowIncreaseMin || 0) / 100
-      const max = (item.tomorrowIncreaseMax || 0) / 100
+      const min = Number(item.tomorrowIncreaseMin || 0)
+      const max = Number(item.tomorrowIncreaseMax || 0)
       const fmt = (v) => Number.isInteger(v) ? v.toString() : v.toFixed(1)
       return `预估上涨￥${fmt(min)}--￥${fmt(max)}`
     },
@@ -790,6 +837,12 @@ $accent-gold-light: #e6c65c;
   }
 }
 
+.sold-label {
+  color: $accent-gold;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
 .original-price {
   font-size: 20rpx;
   color: $text-muted;
@@ -800,6 +853,17 @@ $accent-gold-light: #e6c65c;
     content: '¥';
     font-size: 16rpx;
   }
+}
+
+.discount-badge {
+  margin-left: 8rpx;
+  padding: 3rpx 8rpx;
+  border-radius: 4rpx;
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  font-size: 18rpx;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .price-change {

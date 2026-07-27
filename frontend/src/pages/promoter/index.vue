@@ -3,21 +3,21 @@
     <!-- 头部收益信息 -->
     <view class="earnings-header">
       <view class="total-earnings">
-        <text class="label">累计佣金 (元)</text>
-        <text class="value">{{ stats.totalCommission || 0 }}</text>
+        <text class="label">累计分成 (元)</text>
+        <text class="value">{{ formatMoney(stats.totalCommission) }}</text>
       </view>
       <view class="earnings-detail">
         <view class="detail-item">
           <text class="item-label">已提现</text>
-          <text class="item-value">{{ stats.withdrawn || 0 }}</text>
+          <text class="item-value">{{ formatMoney(stats.withdrawn) }}</text>
         </view>
         <view class="detail-item">
           <text class="item-label">可提现</text>
-          <text class="item-value highlight">{{ stats.withdrawable || 0 }}</text>
+          <text class="item-value highlight">{{ formatMoney(stats.withdrawable) }}</text>
         </view>
         <view class="detail-item">
-          <text class="item-label">预估佣金</text>
-          <text class="item-value">{{ stats.estimateCommission || 0 }}</text>
+          <text class="item-label">预估分成</text>
+          <text class="item-value">{{ formatMoney(stats.estimateCommission) }}</text>
         </view>
       </view>
       <button class="withdraw-btn" @click="goWithdraw">立即提现</button>
@@ -76,7 +76,7 @@
       <view class="chart-legend">
         <view class="legend-item">
           <view class="legend-color" style="background: #667eea;"></view>
-          <text>订单佣金</text>
+          <text>订单分成</text>
         </view>
       </view>
     </view>
@@ -98,8 +98,8 @@
             <text class="team-level">{{ item.level === 1 ? '一级成员' : '二级成员' }}</text>
           </view>
           <view class="team-earnings">
-            <text class="earnings-text">贡献佣金</text>
-            <text class="earnings-value">¥{{ item.commission || 0 }}</text>
+            <text class="earnings-text">贡献分成</text>
+            <text class="earnings-value">¥{{ formatMoney(item.commission) }}</text>
           </view>
         </view>
         <view class="team-empty" v-if="teamList.length === 0">
@@ -131,7 +131,7 @@
     <view class="menu-section card">
       <view class="menu-item" @click="goEarningsList('order')">
         <text>📋</text>
-        <text>订单佣金明细</text>
+        <text>订单分成明细</text>
         
       </view>
       <view class="menu-item" @click="goWithdrawList">
@@ -141,7 +141,7 @@
       </view>
       <view class="menu-item" @click="showInviteGuide">
         
-        <text>如何成为艺荐官</text>
+        <text>如何成为经纪人</text>
         
       </view>
     </view>
@@ -151,6 +151,7 @@
 <script>
 import { getPromoterCenter, getPromoterStats, getEarningsTrend, getTeamList, getMyCode } from '@/api/promoter.js'
 import { useUserStore } from '@/store/modules/user.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -193,6 +194,9 @@ export default {
   },
 
   methods: {
+    formatMoney(value) {
+      return formatYuanNumber(fenToYuan(value))
+    },
     async loadData() {
       if (!this.userStore.isAuthenticated) {
         uni.navigateTo({ url: '/pages/login/index' })
@@ -221,7 +225,8 @@ export default {
         const res = await getEarningsTrend(this.selectedPeriod)
         if (res && res.length > 0) {
           this.trendData = res
-          this.maxTrendValue = Math.max(...res.map(item => item.amount))
+          this.trendData = res.map(item => ({ ...item, amount: Number(item.amount ?? item.value ?? 0) }))
+          this.maxTrendValue = Math.max(...this.trendData.map(item => item.amount), 1)
         }
       } catch (e) {
         console.error('加载收益趋势失败', e)
@@ -291,8 +296,8 @@ export default {
 
     showInviteGuide() {
       uni.showModal({
-        title: '如何成为艺荐官',
-        content: '1. 累计推广订单满10单\n2. 或累计佣金满1000元\n满足任一条件即可申请成为艺荐官，享受更多佣金福利！',
+        title: '如何成为经纪人',
+        content: '1. 累计推广订单满10单\n2. 或累计分成满1000元\n满足任一条件即可申请成为经纪人，享受更多分成福利！',
         showCancel: false
       })
     }
@@ -636,6 +641,173 @@ export default {
       font-size: 28rpx;
       color: #333;
       margin-left: 20rpx;
+    }
+  }
+}
+
+/* 身份入口二级页：暗色重构覆盖层 */
+.promoter-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+  padding: 24rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.earnings-header {
+  border-radius: 18rpx;
+  padding: 34rpx 30rpx;
+  background:
+    linear-gradient(135deg, rgba(95, 143, 199, 0.22), rgba(201, 162, 39, 0.18)),
+    #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  color: #f6f2e8;
+}
+
+.total-earnings {
+  .label {
+    color: #9b958a;
+    opacity: 1;
+  }
+
+  .value {
+    color: #f6f2e8;
+    font-weight: 800;
+  }
+}
+
+.earnings-detail {
+  gap: 28rpx;
+
+  .detail-item {
+    flex: 1;
+    min-height: 92rpx;
+    border-radius: 12rpx;
+    background: rgba(255, 255, 255, 0.045);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .item-label {
+      color: #9b958a;
+      opacity: 1;
+    }
+
+    .item-value {
+      color: #f6f2e8;
+    }
+
+    .item-value.highlight {
+      color: #c9a227;
+    }
+  }
+}
+
+.withdraw-btn {
+  background: #c9a227;
+  color: #16130b;
+  border-radius: 12rpx;
+}
+
+.stats-cards {
+  padding: 0;
+  margin-top: 16rpx;
+}
+
+.stat-card,
+.card {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.stat-card {
+  .card-value {
+    color: #f6f2e8;
+  }
+
+  .card-label {
+    color: #9b958a;
+  }
+}
+
+.card {
+  margin: 20rpx 0 0;
+}
+
+.card-title {
+  color: #f6f2e8;
+}
+
+.more-link,
+.chart-empty,
+.legend-item,
+.bar-item .bar-label,
+.team-list .team-info .team-level,
+.team-list .team-earnings .earnings-text,
+.invite-content .invite-code .code-label {
+  color: #9b958a;
+}
+
+.period-tab {
+  color: #9b958a;
+  background: #202024;
+
+  &.active {
+    background: #c9a227;
+    color: #16130b;
+  }
+}
+
+.bar-item .bar {
+  background: linear-gradient(180deg, #c9a227, rgba(201, 162, 39, 0.24));
+}
+
+.team-list {
+  .team-item {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .team-info .team-name {
+    color: #f6f2e8;
+  }
+
+  .team-earnings .earnings-value {
+    color: #c9a227;
+  }
+
+  .team-empty {
+    color: #68645c;
+  }
+}
+
+.invite-content {
+  .invite-code .code-box {
+    background: #202024;
+
+    .code-value {
+      color: #c9a227;
+    }
+
+    .copy-btn {
+      background: rgba(201, 162, 39, 0.14);
+      color: #c9a227;
+    }
+  }
+
+  .invite-btn {
+    background: #c9a227;
+    color: #16130b;
+    border-radius: 12rpx;
+  }
+}
+
+.menu-section {
+  .menu-item {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+
+    text {
+      color: #f6f2e8;
     }
   }
 }

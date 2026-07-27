@@ -16,8 +16,18 @@ import java.util.Map;
 @Slf4j
 public class JwtUtil {
 
-    /** 秘钥（生产环境应从配置中心获取） */
-    private static final String SECRET = "shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing";
+    /** 秘钥（生产环境应从配置中心获取，默认值在 JwtConfig 中定义） */
+    private static String SECRET = "shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing";
+
+    /**
+     * 动态设置 JWT 密钥（由 Spring 启动时通过 JwtConfig 注入）
+     */
+    public static void setSecret(String secret) {
+        if (secret != null && !secret.isEmpty() && !secret.equals(SECRET)) {
+            SECRET = secret;
+            log.info("JWT 密钥已通过配置注入");
+        }
+    }
 
     /** 签发者 */
     private static final String ISSUER = "shiyiju";

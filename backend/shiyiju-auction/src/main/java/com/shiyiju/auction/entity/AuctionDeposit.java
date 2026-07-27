@@ -12,12 +12,18 @@ public class AuctionDeposit implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long lotId;
+    private Long sessionId;
     private Long userId;
     private BigDecimal amount;
     private Integer payStatus;
     private LocalDateTime payTime;
     private LocalDateTime refundTime;
     private String transactionId;
+    private String payNo;
+    private String payChannel;
+    private String refundNo;
+    private LocalDateTime expireTime;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }

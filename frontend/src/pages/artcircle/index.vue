@@ -121,12 +121,12 @@
       <!-- 空状态 -->
       <view class="empty-state" v-if="!loading && postList.length === 0">
         <image class="empty-icon" src="/static/icons/post-empty.png" mode="aspectFit"></image>
-        <text class="empty-text">暂无动态，快来发布第一条吧</text>
+        <text class="empty-text">{{ communityPostPublishEnabled ? '暂无动态，快来发布第一条吧' : '暂无动态，敬请期待更多内容' }}</text>
       </view>
     </scroll-view>
 
     <!-- 发布按钮 -->
-    <view class="publish-btn" @click="goPublish">
+    <view v-if="communityPostPublishEnabled" class="publish-btn" @click="goPublish">
       
     </view>
   </view>
@@ -134,10 +134,13 @@
 
 <script>
 import { getPosts, getTopics, likePost, unlikePost } from '@/api/community'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { COMMUNITY_POST_PUBLISH_ENABLED, showCommunityPostDisabledToast } from '@/utils/platform.js'
 
 export default {
   data() {
     return {
+      communityPostPublishEnabled: COMMUNITY_POST_PUBLISH_ENABLED,
       currentTopicId: null,
       topics: [],
       postList: [],
@@ -242,7 +245,7 @@ export default {
         artist: '艺术家',
         gallery: '画廊',
         dealer: '画商',
-        promoter: '艺荐官',
+        promoter: '经纪人',
         collector: '收藏家'
       }
       return labels[type] || ''
@@ -268,12 +271,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
-      return yuan.toLocaleString()
+      return formatArtworkPriceNumber(price)
     },
 
     previewImages(images, index) {
@@ -315,6 +313,10 @@ export default {
     },
 
     goPublish() {
+      if (!this.communityPostPublishEnabled) {
+        showCommunityPostDisabledToast()
+        return
+      }
       uni.navigateTo({ url: '/pages/artcircle/publish' })
     }
   }

@@ -1,0 +1,1 @@
+import{e as t}from"./index-3263987f.js";function o(r){return t({url:"/artwork/price/list",method:"get",params:r})}function u(r){return t({url:"/artwork/price/manual-adjust",method:"post",data:r})}function a(r){return t({url:"/artwork/price/logs",method:"get",params:r})}export{o as a,a as g,u as m};

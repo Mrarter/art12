@@ -36,6 +36,8 @@
 </template>
 
 <script>
+import { AUCTION_ENABLED } from '@/utils/platform.js'
+
 export default {
   data() {
     return {
@@ -46,6 +48,9 @@ export default {
   },
   onLoad(options) {
     this.categoryType = options.type || 'account'
+    if (!AUCTION_ENABLED && this.categoryType === 'auction') {
+      this.categoryType = 'transaction'
+    }
     this.initCategory()
   },
   methods: {
@@ -54,7 +59,7 @@ export default {
         account: {
           title: '账号问题',
           questions: [
-            { question: '如何注册拾艺局账号？', answer: '您可以通过微信一键登录或手机号注册。打开APP后，点击"登录"，选择微信登录或输入手机号进行注册。' },
+            { question: '如何注册艺本艺术账号？', answer: '您可以通过微信一键登录或手机号注册。打开APP后，点击"登录"，选择微信登录或输入手机号进行注册。' },
             { question: '如何修改登录密码？', answer: '进入"设置"页面，点击"账号安全"，选择"修改密码"，输入原密码和新密码即可完成修改。' },
             { question: '手机号换号了怎么办？', answer: '进入"设置"页面，点击"账号安全"，选择"更换手机号"，验证新手机号后即可完成更换。' },
             { question: '如何注销账号？', answer: '注销账号需要联系客服处理。请确保账户无未完成的订单、拍卖等情况下再申请注销。' },

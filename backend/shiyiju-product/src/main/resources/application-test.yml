@@ -1,0 +1,27 @@
+# 测试环境配置 - Product 服务
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+  datasource:
+    url: jdbc:mysql://shiyiju-mysql:3306/shiyiju_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: test_password_2026
+  data:
+    redis:
+      host: shiyiju-redis
+      port: 6379
+      database: 0
+
+upload:
+  local:
+    path: /data/uploads
+  cdn-url: http://110.42.211.199:80/files
+
+price:
+  growth:
+    enabled: true
+    base-daily-rate: 0.0002
+    mature-daily-rate: 0.0003
+    mature-days: 30

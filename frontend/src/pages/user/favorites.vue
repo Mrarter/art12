@@ -23,13 +23,13 @@
     <!-- 作品收藏列表 -->
     <view class="works-list" v-if="currentTab === 'works'">
       <view class="list-header">
-        <text class="list-count">共 {{ worksList.length }} 件收藏</text>
+        <text class="list-count">共 {{ worksList.length }} 件喜欢</text>
         <view class="batch-actions" v-if="worksList.length > 0">
           <text @click="toggleEditMode">{{ isEditMode ? '完成' : '管理' }}</text>
         </view>
       </view>
 
-      <view class="works-grid" v-if="worksList.length > 0">
+      <view class="works-grid" v-if="worksList.length > 0 && !loadingWorks">
         <view class="work-item" v-for="item in worksList" :key="item.id">
           <view class="edit-check" v-if="isEditMode" @click="toggleSelect(item.id)">
             
@@ -39,7 +39,7 @@
             <view class="work-title" @click="goDetail(item.id)">{{ item.title }}</view>
             <view class="work-meta">
               <text class="artist">{{ item.artistName }}</text>
-              <text class="price">¥{{ item.price }}</text>
+              <text class="price" v-if="item.price">¥{{ formatPrice(item.price) }}</text>
             </view>
           </view>
           <view class="work-actions" v-if="!isEditMode">
@@ -53,10 +53,15 @@
         </view>
       </view>
 
+      <!-- 加载中 -->
+      <view class="loading-state" v-if="loadingWorks">
+        <text>加载中...</text>
+      </view>
+
       <!-- 空状态 -->
-      <view class="empty-state" v-else>
+      <view class="empty-state" v-else-if="worksList.length === 0 && !loadingWorks">
         <image class="empty-icon" src="/static/icons/heart-empty.png" mode="aspectFit"></image>
-        <text class="empty-text">还没有收藏任何作品</text>
+        <text class="empty-text">还没有喜欢任何作品</text>
         <view class="empty-btn" @click="goGallery">去逛逛</view>
       </view>
     </view>
@@ -67,7 +72,7 @@
         <text class="list-count">共 {{ artistsList.length }} 位关注</text>
       </view>
 
-      <view class="artists-grid" v-if="artistsList.length > 0">
+      <view class="artists-grid" v-if="artistsList.length > 0 && !loadingArtists">
         <view class="artist-item" v-for="item in artistsList" :key="item.id">
           <view class="artist-avatar" @click="goArtistHome(item.id)">
             <image :src="item.avatar" mode="aspectFill"></image>
@@ -86,8 +91,13 @@
         </view>
       </view>
 
+      <!-- 加载中 -->
+      <view class="loading-state" v-if="loadingArtists">
+        <text>加载中...</text>
+      </view>
+
       <!-- 空状态 -->
-      <view class="empty-state" v-else>
+      <view class="empty-state" v-else-if="artistsList.length === 0 && !loadingArtists">
         <image class="empty-icon" src="/static/icons/user-empty.png" mode="aspectFit"></image>
         <text class="empty-text">还没有关注任何艺术家</text>
         <view class="empty-btn" @click="goGallery">去发现</view>
@@ -100,171 +110,216 @@
         <text>已选择 {{ selectedList.length }} 件</text>
       </view>
       <view class="batch-actions">
-        <view class="batch-btn cancel" @click="cancelBatch">取消收藏</view>
+        <view class="batch-btn cancel" @click="cancelBatch">取消喜欢</view>
       </view>
     </view>
   </view>
 </template>
 
 <script>
+import { getFavorites as getProductFavorites, removeFavorite } from '@/api/product'
+import { getFollowingList, followArtist, unfollowArtist } from '@/api/user'
+import { getAccessToken, isGuestUser } from '@/utils/auth'
+import { formatArtworkPriceNumber } from '@/utils/price'
+
+const normalizeImage = (url) => {
+  if (!url || typeof url !== 'string') return ''
+  const t = url.trim()
+  if (!t || t === '[]' || t === '{}') return ''
+  if (t.startsWith('http://') || t.startsWith('https://')) return t
+  if (t.startsWith('/')) {
+    const app = getApp()
+    const domain = app?.globalData?.fileDomain || app?.globalData?.domain || ''
+    return domain ? domain + t : t
+  }
+  return t
+}
+
 export default {
   data() {
     return {
       currentTab: 'works',
       isEditMode: false,
       selectedList: [],
-      worksList: [
-        {
-          id: 1,
-          cover: 'https://picsum.photos/400/400?random=1',
-          title: '山水之间',
-          artistName: '李明',
-          price: '8888'
-        },
-        {
-          id: 2,
-          cover: 'https://picsum.photos/400/400?random=2',
-          title: '春意盎然',
-          artistName: '王芳',
-          price: '12800'
-        },
-        {
-          id: 3,
-          cover: 'https://picsum.photos/400/400?random=3',
-          title: '都市夜景',
-          artistName: '张伟',
-          price: '15600'
-        },
-        {
-          id: 4,
-          cover: 'https://picsum.photos/400/400?random=4',
-          title: '静物写生',
-          artistName: '刘涛',
-          price: '6800'
-        }
-      ],
-      artistsList: [
-        {
-          id: 1,
-          avatar: 'https://picsum.photos/200/200?random=10',
-          name: '李明',
-          worksCount: 28,
-          fansCount: 1256,
-          isFollowing: true
-        },
-        {
-          id: 2,
-          avatar: 'https://picsum.photos/200/200?random=11',
-          name: '王芳',
-          worksCount: 45,
-          fansCount: 2389,
-          isFollowing: true
-        },
-        {
-          id: 3,
-          avatar: 'https://picsum.photos/200/200?random=12',
-          name: '张伟',
-          worksCount: 36,
-          fansCount: 1876,
-          isFollowing: false
-        }
-      ]
+      worksList: [],
+      artistsList: [],
+      loadingWorks: false,
+      loadingArtists: false,
+      worksPage: 1,
+      artistsPage: 1,
+      hasMoreWorks: true,
+      hasMoreArtists: true
+    }
+  },
+
+  onLoad() {
+    this.checkLoginAndLoad()
+  },
+
+  onShow() {
+    if (this.currentTab === 'works') {
+      this.loadWorks()
+    } else {
+      this.loadArtists()
     }
   },
 
   methods: {
+    checkLoginAndLoad() {
+      if (!getAccessToken() || isGuestUser()) {
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+      this.loadWorks()
+    },
+
+    async loadWorks(append = false) {
+      if (this.loadingWorks) return
+      this.loadingWorks = true
+      try {
+        const page = append ? this.worksPage : 1
+        const data = await getProductFavorites({ page, pageSize: 20 })
+        const list = Array.isArray(data) ? data : (data.records || [])
+        const normalized = list.map(item => ({
+          id: item.id || item.artworkId,
+          title: item.title || item.name || '未命名',
+          cover: normalizeImage(item.coverImage || item.cover),
+          artistName: item.artistName || item.authorName || '未知',
+          artistId: item.artistId || item.authorId,
+          price: item.price || item.currentPrice || 0
+        }))
+        this.worksList = append ? this.worksList.concat(normalized) : normalized
+        this.worksPage = page + 1
+        this.hasMoreWorks = list.length >= 20
+      } catch (e) {
+        console.warn('[喜欢列表] 加载失败:', e)
+        if (!append) this.worksList = []
+      } finally {
+        this.loadingWorks = false
+      }
+    },
+
+    async loadArtists(append = false) {
+      if (this.loadingArtists) return
+      this.loadingArtists = true
+      try {
+        const page = append ? this.artistsPage : 1
+        const data = await getFollowingList({ page, pageSize: 20 })
+        const list = Array.isArray(data) ? data : (data.records || [])
+        const normalized = list.map(item => ({
+          id: item.id || item.userId,
+          avatar: normalizeImage(item.avatar || item.headimgurl),
+          name: item.name || item.nickname || item.realName || '未知',
+          worksCount: item.workCount || item.artworkCount || 0,
+          fansCount: item.fansCount || item.followerCount || 0,
+          isFollowing: true
+        }))
+        this.artistsList = append ? this.artistsList.concat(normalized) : normalized
+        this.artistsPage = page + 1
+        this.hasMoreArtists = list.length >= 20
+      } catch (e) {
+        console.warn('[关注列表] 加载失败:', e)
+        if (!append) this.artistsList = []
+      } finally {
+        this.loadingArtists = false
+      }
+    },
+
+    formatPrice(price) {
+      return formatArtworkPriceNumber(price)
+    },
+
     switchTab(tab) {
       this.currentTab = tab
       this.isEditMode = false
       this.selectedList = []
+      if (tab === 'works' && !this.worksList.length) {
+        this.loadWorks()
+      } else if (tab === 'artists' && !this.artistsList.length) {
+        this.loadArtists()
+      }
     },
 
     toggleEditMode() {
       this.isEditMode = !this.isEditMode
-      if (!this.isEditMode) {
-        this.selectedList = []
-      }
+      if (!this.isEditMode) this.selectedList = []
     },
 
     toggleSelect(id) {
-      const index = this.selectedList.indexOf(id)
-      if (index > -1) {
-        this.selectedList.splice(index, 1)
-      } else {
-        this.selectedList.push(id)
-      }
-    },
-
-    isSelected(id) {
-      return this.selectedList.includes(id)
+      const i = this.selectedList.indexOf(id)
+      if (i > -1) this.selectedList.splice(i, 1)
+      else this.selectedList.push(id)
     },
 
     goDetail(id) {
       if (!this.isEditMode) {
-        uni.navigateTo({
-          url: `/pages/gallery/detail?id=${id}`
-        })
+        uni.navigateTo({ url: `/pages/gallery/detail?id=${id}` })
       }
     },
 
     goArtistHome(id) {
       if (!this.isEditMode) {
-        uni.navigateTo({
-          url: `/pages/artist/home?id=${id}`
-        })
+        uni.navigateTo({ url: `/pages/artist/home?id=${id}` })
       }
     },
 
-    shareWork(item) {
-      uni.showShareMenu({
-        withShareTicket: true
-      })
+    shareWork() {
+      uni.showShareMenu({ withShareTicket: true })
     },
 
-    cancelFavorite(item) {
-      uni.showModal({
-        title: '提示',
-        content: '确定取消收藏该作品？',
-        success: (res) => {
-          if (res.confirm) {
-            const index = this.worksList.findIndex(w => w.id === item.id)
-            if (index > -1) {
-              this.worksList.splice(index, 1)
-              uni.showToast({ title: '已取消收藏', icon: 'success' })
-            }
-          }
-        }
-      })
+    async cancelFavorite(item) {
+      try {
+        await removeFavorite(item.id)
+        const i = this.worksList.findIndex(w => w.id === item.id)
+        if (i > -1) this.worksList.splice(i, 1)
+        uni.showToast({ title: '已取消喜欢', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: '操作失败', icon: 'none' })
+      }
     },
 
     cancelBatch() {
       uni.showModal({
         title: '提示',
-        content: `确定取消收藏选中的 ${this.selectedList.length} 件作品？`,
-        success: (res) => {
-          if (res.confirm) {
-            this.worksList = this.worksList.filter(item => !this.selectedList.includes(item.id))
-            this.selectedList = []
-            this.isEditMode = false
-            uni.showToast({ title: '已取消收藏', icon: 'success' })
-          }
+        content: `确定取消喜欢选中的 ${this.selectedList.length} 件作品？`,
+        success: async (res) => {
+          if (!res.confirm) return
+          await Promise.all(
+            this.selectedList.map(id =>
+              removeFavorite(id).catch(e =>
+                console.warn('[批量取消] 失败 id=' + id, e)
+              )
+            )
+          )
+          this.worksList = this.worksList.filter(w => !this.selectedList.includes(w.id))
+          this.selectedList = []
+          this.isEditMode = false
+          uni.showToast({ title: '已取消喜欢', icon: 'success' })
         }
       })
     },
 
-    toggleFollow(item) {
-      item.isFollowing = !item.isFollowing
-      if (item.isFollowing) {
-        uni.showToast({ title: '关注成功', icon: 'success' })
-      } else {
-        uni.showToast({ title: '已取消关注', icon: 'success' })
+    async toggleFollow(item) {
+      const prev = item.isFollowing
+      try {
+        if (item.isFollowing) {
+          await unfollowArtist(item.id)
+          const i = this.artistsList.findIndex(a => a.id === item.id)
+          if (i > -1) this.artistsList.splice(i, 1)
+          uni.showToast({ title: '已取消关注', icon: 'success' })
+        } else {
+          await followArtist(item.id)
+          item.isFollowing = true
+          uni.showToast({ title: '关注成功', icon: 'success' })
+        }
+      } catch (e) {
+        item.isFollowing = prev
+        uni.showToast({ title: '操作失败', icon: 'none' })
       }
     },
 
     goGallery() {
-      uni.switchTab({
-        url: '/pages/gallery/index'
-      })
+      uni.switchTab({ url: '/pages/gallery/index' })
     }
   }
 }
@@ -459,6 +514,15 @@ export default {
       }
     }
   }
+}
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 120rpx 0;
+  font-size: 28rpx;
+  color: #999;
 }
 
 .empty-state {

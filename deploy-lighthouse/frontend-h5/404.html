@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>艺本艺术 | 临时赏析页</title>
+    <style>
+      :root {
+        --gold: #d8b25a;
+        --gold-soft: #f0e0b6;
+        --text: #f8f2e7;
+        --muted: rgba(248, 242, 231, 0.72);
+        --line: rgba(216, 178, 90, 0.2);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 8%, rgba(216, 178, 90, 0.14), transparent 22%),
+          radial-gradient(circle at 86% 18%, rgba(216, 178, 90, 0.1), transparent 18%),
+          linear-gradient(180deg, #0c0a08 0%, #090807 46%, #050505 100%);
+      }
+
+      .page {
+        width: min(100%, 760px);
+        margin: 0 auto;
+        padding: 28px 18px 36px;
+      }
+
+      .hero {
+        margin-bottom: 22px;
+      }
+
+      .kicker {
+        display: inline-block;
+        margin-bottom: 14px;
+        padding: 7px 14px;
+        border: 1px solid rgba(216, 178, 90, 0.28);
+        border-radius: 999px;
+        color: rgba(240, 224, 182, 0.92);
+        font-size: 12px;
+        letter-spacing: 0.28em;
+      }
+
+      h1 {
+        margin: 0 0 14px;
+        font-size: clamp(30px, 6vw, 46px);
+        line-height: 1.18;
+      }
+
+      .desc {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.9;
+      }
+
+      .note {
+        color: rgba(240, 224, 182, 0.76);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .gallery {
+        display: grid;
+        gap: 16px;
+      }
+
+      .card {
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+          linear-gradient(145deg, rgba(23, 19, 15, 0.96), rgba(9, 8, 7, 0.98));
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+      }
+
+      .art {
+        width: 100%;
+        height: 240px;
+        display: block;
+        object-fit: cover;
+      }
+
+      .meta {
+        padding: 18px;
+      }
+
+      .title {
+        margin: 0 0 6px;
+        font-size: 22px;
+        font-weight: 600;
+      }
+
+      .subtitle {
+        margin: 0 0 10px;
+        color: rgba(240, 224, 182, 0.8);
+        font-size: 13px;
+      }
+
+      .review {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.85;
+      }
+
+      .actions {
+        margin-top: 22px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .btn {
+        height: 50px;
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .btn-primary {
+        color: #201708;
+        background: linear-gradient(135deg, #f0e0b6 0%, #d8b25a 54%, #b8862d 100%);
+        box-shadow: 0 14px 28px rgba(184, 134, 45, 0.24);
+      }
+
+      .btn-secondary {
+        color: var(--text);
+        border: 1px solid rgba(216, 178, 90, 0.2);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .path {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(216, 178, 90, 0.12);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .path-label {
+        margin-bottom: 6px;
+        color: rgba(240, 224, 182, 0.72);
+        font-size: 12px;
+      }
+
+      .path-value {
+        color: rgba(248, 242, 231, 0.62);
+        font-size: 12px;
+        line-height: 1.7;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="kicker">ART SALON</div>
+        <h1>今夜不如先看几幅油画</h1>
+        <p class="desc">页面暂时失联，但审美不必中断。我们挑了三幅偏安静的作品，陪您把这几秒钟过得值得一点。</p>
+        <div class="note">当前服务器有点 404，稍后回来</div>
+      </section>
+
+      <section class="gallery">
+        <article class="card">
+          <img class="art" src="/404-gallery/boat.png" alt="湖舟微光" />
+          <div class="meta">
+            <h2 class="title">湖舟微光</h2>
+            <p class="subtitle">光线从深水里慢慢浮上来</p>
+            <p class="review">这一幅最动人的不是船，而是压低后的天空和水面反光。画面很静，却留住了临近傍晚时那种呼吸感。</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <img class="art" src="/404-gallery/girl.png" alt="侧影与花束" />
+          <div class="meta">
+            <h2 class="title">侧影与花束</h2>
+            <p class="subtitle">人物被柔光轻轻托住</p>
+            <p class="review">颜色控制得很克制，皮肤、裙摆和背景之间没有硬碰硬的对比，所以人物显得温柔，也更有停留感。</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <img class="art" src="/404-gallery/still.png" alt="桌上静物" />
+          <div class="meta">
+            <h2 class="title">桌上静物</h2>
+            <p class="subtitle">把日常摆成了耐看的秩序</p>
+            <p class="review">静物画最难的是稳。这张的器物关系不吵闹，明暗层次慢慢铺开，看久了会觉得空间很松弛。</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="actions">
+        <button class="btn btn-primary" id="goHome">回到首页</button>
+        <button class="btn btn-secondary" id="openInApp">在应用内打开</button>
+      </section>
+
+      <section class="path">
+        <div class="path-label">您刚刚访问的是</div>
+        <div class="path-value" id="pathValue"></div>
+      </section>
+    </main>
+    <script>
+      (function () {
+        var from = window.location.pathname + window.location.search + window.location.hash
+        document.getElementById('pathValue').textContent = from
+
+        document.getElementById('goHome').addEventListener('click', function () {
+          window.location.href = '/'
+        })
+
+        document.getElementById('openInApp').addEventListener('click', function () {
+          window.location.href = '/#/pages/common/not-found?from=' + encodeURIComponent(from)
+        })
+      })()
+    </script>
+  </body>
+</html>

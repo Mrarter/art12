@@ -112,6 +112,8 @@
 </template>
 
 <script>
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
+
 export default {
   data() {
     return {
@@ -194,9 +196,25 @@ export default {
     if (options.orderId) {
       this.loadTrackInfo(options.orderId)
     }
+    this.productList = this.productList.map(item => ({
+      ...item,
+      price: this.normalizePrice(item.price)
+    }))
   },
 
   methods: {
+    formatYuan(amount) {
+      return formatYuanNumber(amount)
+    },
+
+    normalizePrice(price) {
+      if (price === null || price === undefined || price === '') return this.formatYuan(0)
+      const rawText = String(price).trim()
+      const raw = Number(rawText)
+      if (!Number.isFinite(raw)) return this.formatYuan(0)
+      return rawText.includes('.') ? this.formatYuan(raw) : this.formatYuan(fenToYuan(raw))
+    },
+
     loadTrackInfo(orderId) {
       // 模拟加载物流信息
       console.log('加载订单物流信息:', orderId)

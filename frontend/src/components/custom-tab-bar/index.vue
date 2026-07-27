@@ -1,16 +1,16 @@
 <template>
   <view class="custom-tab-bar">
     <view
-      v-for="(item, index) in tabList"
-      :key="index"
+      v-for="item in visibleTabList"
+      :key="item.pagePath"
       class="tab-item"
-      :class="{ active: currentIndex === index }"
-      @click="switchTab(item, index)"
+      :class="{ active: currentIndex === item.index }"
+      @click="switchTab(item)"
     >
       <view class="tab-icon-wrap">
         <image
           class="tab-icon"
-          :src="currentIndex === index ? item.selectedIcon : item.icon"
+          :src="currentIndex === item.index ? item.selectedIcon : item.icon"
           mode="aspectFit"
         ></image>
         <view class="tab-badge" v-if="item.badge > 0">
@@ -23,6 +23,10 @@
 </template>
 
 <script>
+import { useUserStore } from '@/store/modules/user.js'
+import { AUCTION_ENABLED, isAuctionPath, showAuctionDisabledToast } from '@/utils/platform.js'
+import { checkTokenValid, saveRedirectUrl } from '@/utils/auth.js'
+
 export default {
   name: 'CustomTabBar',
   props: {
@@ -37,21 +41,75 @@ export default {
       selectedColor: '#D4AF37',
       tabList: [
         { pagePath: '/pages/index/index', text: '首页', icon: '/static/tabbar/home-luxury.png', selectedIcon: '/static/tabbar/home-luxury-active.png', badge: 0 },
-        { pagePath: '/pages/auction/index', text: '拍卖', icon: '/static/tabbar/auction-luxury.png', selectedIcon: '/static/tabbar/auction-luxury-active.png', badge: 0 },
+        AUCTION_ENABLED
+          ? { pagePath: '/pages/auction/index', text: '拍卖', icon: '/static/tabbar/auction-luxury.png', selectedIcon: '/static/tabbar/auction-luxury-active.png', badge: 0 }
+          : { pagePath: '/pages/gallery/index', text: '画廊', icon: '/static/tabbar/gallery-luxury.png', selectedIcon: '/static/tabbar/gallery-luxury-active.png', badge: 0 },
         { pagePath: '/pages/artist/publish', text: '发布', icon: '/static/tabbar/gallery-luxury.png', selectedIcon: '/static/tabbar/gallery-luxury-active.png', badge: 0, navigateType: 'navigateTo' },
         { pagePath: '/pages/cart/index', text: '购物车', icon: '/static/tabbar/cart-luxury.png', selectedIcon: '/static/tabbar/cart-luxury-active.png', badge: 0 },
         { pagePath: '/pages/user/index', text: '我的', icon: '/static/tabbar/user-luxury.png', selectedIcon: '/static/tabbar/user-luxury-active.png', badge: 0 }
       ]
     }
   },
+  computed: {
+    userStore() {
+      return useUserStore()
+    },
+    isLoggedIn() {
+      const check = checkTokenValid()
+      return this.userStore.isLogin && check.valid && !check.isGuest
+    },
+    identities() {
+      const raw = this.userStore.identities || this.userStore.userInfo?.identities || this.userStore.userInfo?.identity || this.userStore.userInfo?.currentIdentity
+      if (Array.isArray(raw)) return raw.length ? raw : ['collector']
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw)
+          return Array.isArray(parsed) ? parsed : raw.split(',').filter(Boolean)
+        } catch (e) {
+          return raw.split(',').filter(Boolean)
+        }
+      }
+      return ['collector']
+    },
+    canShowPublish() {
+      const userInfo = this.userStore.userInfo || {}
+      const artistStatus = userInfo.artistStatus ?? userInfo.certStatus ?? this.userStore.centerData?.artistStatus
+      if (artistStatus !== null && artistStatus !== undefined && artistStatus !== '') {
+        return Number(artistStatus) === 1
+      }
+      const artistFlags = [
+        userInfo.isArtist,
+        userInfo.certifiedArtist,
+        userInfo.artistCertified,
+        this.userStore.isArtist
+      ]
+      return artistFlags.some(Boolean)
+    },
+    visibleTabList() {
+      return this.tabList
+        .map((item, index) => ({ ...item, index }))
+        .filter(item => (item.text !== '发布' || this.canShowPublish) && (AUCTION_ENABLED || !isAuctionPath(item.pagePath)))
+    }
+  },
   methods: {
-    switchTab(item, index) {
+    switchTab(item) {
+      if (!AUCTION_ENABLED && isAuctionPath(item.pagePath)) {
+        showAuctionDisabledToast()
+        return
+      }
+
+      if (item.pagePath === '/pages/user/index' && !this.isLoggedIn) {
+        saveRedirectUrl(item.pagePath)
+        uni.navigateTo({ url: '/pages/login/index' })
+        return
+      }
+
       if (item.navigateType === 'navigateTo') {
         uni.navigateTo({ url: item.pagePath })
         return
       }
 
-      if (this.currentIndex !== index) {
+      if (this.currentIndex !== item.index) {
         uni.switchTab({ url: item.pagePath })
       }
     }

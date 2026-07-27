@@ -3,6 +3,7 @@ package com.shiyiju.order.vo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 @Data
 public class CartVO implements Serializable {
@@ -20,13 +21,16 @@ public class CartVO implements Serializable {
     private String authorName;
     
     private String size;
-    private Long price;
-    private Long originalPrice;
+    /** 价格（元） */
+    private BigDecimal price;
+    /** 原始价格（元） */
+    private BigDecimal originalPrice;
     
     @JsonProperty("num")
     private Integer quantity;
     
-    private Long subtotal;
+    /** 小计（元） */
+    private BigDecimal subtotal;
     private Integer stock;
     private Boolean selected;
     
@@ -35,28 +39,12 @@ public class CartVO implements Serializable {
     
     /** 卖家ID */
     private Long sellerId;
-    
-    /** 卖家名称 */
     private String sellerName;
-    
-    /** 卖家头像 */
     private String sellerAvatar;
-    
-    /** 所属发布者ID */
     private Long publisherId;
-    
-    /** 发布者名称 */
     private String publisherName;
-    
-    /** 发布者头像 */
     private String publisherAvatar;
-    
-    /** 艺荐官ID */
     private Long promoterId;
-    
-    /** 艺荐官名称 */
     private String promoterName;
-    
-    /** 艺荐官头像 */
     private String promoterAvatar;
 }

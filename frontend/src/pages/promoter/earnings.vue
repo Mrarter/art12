@@ -47,7 +47,7 @@ export default {
     return {
       selectedType: 'order',
       typeOptions: [
-        { label: '订单佣金', value: 'order' },
+        { label: '订单分成', value: 'order' },
         { label: '邀请奖励', value: 'invite' },
         { label: '团队奖励', value: 'team' }
       ],

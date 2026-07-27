@@ -9,14 +9,24 @@ import com.shiyiju.promotion.entity.CommissionLog;
 import com.shiyiju.promotion.entity.WithdrawRecord;
 import com.shiyiju.promotion.mapper.CommissionLogMapper;
 import com.shiyiju.promotion.mapper.WithdrawRecordMapper;
+import com.shiyiju.promotion.service.CommissionService;
 import com.shiyiju.promotion.vo.EarningsDetailVO;
 import com.shiyiju.promotion.vo.EarningsTrendVO;
 import com.shiyiju.promotion.vo.RankingVO;
 import com.shiyiju.user.entity.PromoterRecord;
+import com.shiyiju.user.entity.ArtistCertification;
+import com.shiyiju.user.entity.RealnameCertification;
+import com.shiyiju.user.entity.CommissionRecord;
 import com.shiyiju.user.entity.User;
+import com.shiyiju.user.mapper.ArtistCertificationMapper;
+import com.shiyiju.user.mapper.CommissionRecordMapper;
 import com.shiyiju.user.mapper.PromoterRecordMapper;
+import com.shiyiju.user.mapper.RealnameCertificationMapper;
 import com.shiyiju.user.mapper.UserMapper;
+import com.shiyiju.user.service.WalletService;
 import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -35,8 +45,13 @@ public class PromotionController {
 
     private final PromoterRecordMapper promoterRecordMapper;
     private final CommissionLogMapper commissionLogMapper;
+    private final CommissionRecordMapper commissionRecordMapper;
+    private final ArtistCertificationMapper artistCertificationMapper;
+    private final RealnameCertificationMapper realnameCertMapper;
     private final WithdrawRecordMapper withdrawRecordMapper;
     private final UserMapper userMapper;
+    private final WalletService walletService;
+    private final CommissionService commissionService;
 
     /**
      * 获取推广中心数据 (GET /promoter/center)
@@ -129,18 +144,17 @@ public class PromotionController {
 
             Map<String, Object> data = new HashMap<>();
             
-            // 获取最近佣金额
+            // 获取最近佣金额（统一佣金记录表）
             LocalDateTime startTime = LocalDateTime.now().minusDays(days);
-            List<CommissionLog> recentLogs = commissionLogMapper.selectList(
-                    new LambdaQueryWrapper<CommissionLog>()
-                            .eq(CommissionLog::getPromoterId, promoter.getId())
-                            .ge(CommissionLog::getCreateTime, startTime)
-            );
-            
-            long recentCommission = recentLogs.stream()
-                    .filter(log -> log.getCommissionAmount() != null && log.getStatus() == PromoterConstant.COMMISSION_SETTLED)
-                    .mapToLong(CommissionLog::getCommissionAmount)
-                    .sum();
+            List<CommissionRecord> recentLogs = commissionRecordMapper.selectList(
+                    new LambdaQueryWrapper<CommissionRecord>()
+                            .eq(CommissionRecord::getUserId, userId)
+                            .eq(CommissionRecord::getStatus, "settled")
+                            .ge(CommissionRecord::getCreatedTime, startTime));
+
+            long recentCommission = toFen(recentLogs.stream()
+                    .map(item -> item.getAmount() == null ? BigDecimal.ZERO : item.getAmount())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
             
             int recentOrderCount = recentLogs.size();
             
@@ -168,11 +182,12 @@ public class PromotionController {
     /**
      * 获取佣金明细 (GET /promoter/commission-log)
      */
-    @GetMapping("/commission-log")
-    public Result<PageResult<CommissionLog>> getCommissionLogs(
+    @GetMapping({"/commission-log", "/commission/list"})
+    public Result<PageResult<CommissionRecord>> getCommissionLogs(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer pageSize
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) Integer level
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
@@ -189,21 +204,118 @@ public class PromotionController {
                 return Result.success(PageResult.of(0L, page, pageSize, List.of()));
             }
 
-            LambdaQueryWrapper<CommissionLog> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(CommissionLog::getPromoterId, promoter.getId())
-                   .orderByDesc(CommissionLog::getCreateTime);
+            LambdaQueryWrapper<CommissionRecord> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CommissionRecord::getUserId, userId);
+            if (level != null && (level == 1 || level == 2)) {
+                wrapper.eq(CommissionRecord::getCommissionLevel, level);
+            }
+            wrapper.orderByDesc(CommissionRecord::getCreatedTime);
             
             // 使用分页查询
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> pageResult = 
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> pageResult = 
                     new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> result = 
-                    commissionLogMapper.selectPage(pageResult, wrapper);
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> result =
+                    commissionRecordMapper.selectPage(pageResult, wrapper);
 
             return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
         } catch (Exception e) {
             log.warn("获取佣金明细异常: userId={}, error={}", userId, e.getMessage());
             return Result.success(PageResult.of(0L, page, pageSize, List.of()));
         }
+    }
+
+    @GetMapping("/config")
+    public Result<Map<String, Object>> getCommissionConfig() {
+        return Result.success(Map.of("level1Rate", 5, "level2Rate", 2));
+    }
+
+    @GetMapping("/code")
+    public Result<String> getInviteCode(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        PromoterRecord promoter = findActivePromoter(userId);
+        if (promoter == null) return Result.fail(1103, "尚未开通经纪人");
+        return Result.success(promoter.getInviteCode());
+    }
+
+    @PostMapping("/bind")
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> bindPromoter(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        String code = Objects.toString(params.get("code"), "").trim();
+        if (code.isEmpty()) return Result.fail(400, "请输入推荐码");
+        PromoterRecord current = findActivePromoter(userId);
+        if (current == null) return Result.fail(1103, "请先开通经纪人身份");
+        if (current.getParentId() != null) return Result.fail(400, "已绑定上级，不可重复绑定");
+        PromoterRecord parent = promoterRecordMapper.selectOne(new LambdaQueryWrapper<PromoterRecord>()
+                .eq(PromoterRecord::getInviteCode, code)
+                .eq(PromoterRecord::getStatus, 1)
+                .last("LIMIT 1"));
+        if (parent == null) return Result.fail(400, "推荐码无效");
+        if (userId.equals(parent.getUserId()) || userId.equals(parent.getParentId())) {
+            return Result.fail(400, "不能绑定自己或形成循环关系");
+        }
+        current.setParentId(parent.getUserId());
+        promoterRecordMapper.updateById(current);
+        parent.setTeamSize((parent.getTeamSize() == null ? 0 : parent.getTeamSize()) + 1);
+        promoterRecordMapper.updateById(parent);
+        return Result.success();
+    }
+
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getPromoterStats(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) return Result.fail(401, "请先登录");
+        PromoterRecord promoter = findActivePromoter(userId);
+        if (promoter == null) return Result.success(emptyStats());
+
+        List<CommissionRecord> records = commissionRecordMapper.selectList(
+                new LambdaQueryWrapper<CommissionRecord>().eq(CommissionRecord::getUserId, userId));
+        BigDecimal total = sumCommission(records, null, null);
+        BigDecimal level1 = sumCommission(records, 1, null);
+        BigDecimal level2 = sumCommission(records, 2, null);
+        BigDecimal pending = sumCommission(records, null, "pending");
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalCommission", toFen(total));
+        stats.put("level1Commission", toFen(level1));
+        stats.put("level2Commission", toFen(level2));
+        stats.put("withdrawn", 0L);
+        stats.put("withdrawable", toFen(walletService.getBalance(userId)));
+        stats.put("estimateCommission", toFen(pending));
+        stats.put("teamCount", promoter.getTeamSize() == null ? 0 : promoter.getTeamSize());
+        stats.put("orderCount", promoter.getTotalOrders() == null ? 0 : promoter.getTotalOrders());
+        stats.put("inviteCount", promoter.getTeamSize() == null ? 0 : promoter.getTeamSize());
+        return Result.success(stats);
+    }
+
+    private PromoterRecord findActivePromoter(Long userId) {
+        return promoterRecordMapper.selectOne(new LambdaQueryWrapper<PromoterRecord>()
+                .eq(PromoterRecord::getUserId, userId)
+                .eq(PromoterRecord::getStatus, 1)
+                .last("LIMIT 1"));
+    }
+
+    private BigDecimal sumCommission(List<CommissionRecord> records, Integer level, String status) {
+        return records.stream()
+                .filter(item -> level == null || level.equals(item.getCommissionLevel()))
+                .filter(item -> status == null || status.equals(item.getStatus()))
+                .map(item -> item.getAmount() == null ? BigDecimal.ZERO : item.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private long toFen(BigDecimal amount) {
+        return amount == null ? 0L : amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValue();
+    }
+
+    private Map<String, Object> emptyStats() {
+        Map<String, Object> stats = new HashMap<>();
+        for (String key : List.of("totalCommission", "level1Commission", "level2Commission",
+                "withdrawn", "withdrawable", "estimateCommission", "teamCount", "orderCount", "inviteCount")) {
+            stats.put(key, 0);
+        }
+        return stats;
     }
 
     /**
@@ -273,21 +385,60 @@ public class PromotionController {
                         .eq(PromoterRecord::getUserId, userId)
                         .eq(PromoterRecord::getStatus, 1)
         );
-        if (promoter == null) {
-            return Result.fail(1103, "未开通艺荐官");
+        boolean isCertifiedArtist = isCertifiedArtist(userId);
+        if (promoter == null && !isCertifiedArtist) {
+            return Result.fail(1103, "仅已开通艺荐官或已认证艺术家可提现");
         }
+        Long withdrawOwnerId = resolveWithdrawOwnerId(userId, promoter, isCertifiedArtist);
 
-        Long amount = Long.valueOf(params.get("amount").toString());
-        if (amount <= 0) {
+        // ==== 校验：提现金额 ====
+        Object rawAmount = params.get("amount");
+        if (rawAmount == null) {
+            return Result.fail(400, "请输入提现金额");
+        }
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(rawAmount.toString()).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            return Result.fail(400, "提现金额格式不正确");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return Result.fail(400, "提现金额必须大于0");
         }
+        // ==== 校验：实名认证 ====
+        RealnameCertification realname = realnameCertMapper.selectOne(
+                new LambdaQueryWrapper<RealnameCertification>()
+                        .eq(RealnameCertification::getUserId, userId)
+                        .eq(RealnameCertification::getStatus, 1));
+        if (realname == null) {
+            return Result.fail(400, "请先完成实名认证再提现");
+        }
+
+        // ==== 校验：每日提现次数 ====
+        LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+        Long todayCount = withdrawRecordMapper.selectCount(
+                new LambdaQueryWrapper<WithdrawRecord>()
+                        .eq(WithdrawRecord::getPromoterId, withdrawOwnerId)
+                        .ge(WithdrawRecord::getCreateTime, todayStart));
+        if (todayCount >= 3) {
+            return Result.fail(400, "每日提现次数已达上限（3次）");
+        }
+
+        // 冻结钱包余额
+        walletService.freeze(userId, amount,
+                null, "withdraw", "提现申请冻结");
 
         // 创建提现记录
+        BigDecimal feeAmount = amount.multiply(new BigDecimal("0.0006")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal actualAmount = amount.subtract(feeAmount).setScale(2, RoundingMode.HALF_UP);
+        Long amountFen = amount.movePointRight(2).longValue();
+        Long feeAmountFen = feeAmount.movePointRight(2).longValue();
+        Long actualAmountFen = actualAmount.movePointRight(2).longValue();
         WithdrawRecord record = new WithdrawRecord();
-        record.setPromoterId(promoter.getId());
-        record.setAmount(amount);
-        record.setFeeAmount(0L); // TODO: 计算手续费
-        record.setActualAmount(amount);
+        record.setPromoterId(withdrawOwnerId);
+        record.setAmount(amountFen);
+        record.setFeeAmount(feeAmountFen);
+        record.setActualAmount(actualAmountFen);
         record.setAccountType(params.get("accountType") != null ? params.get("accountType").toString() : "wechat");
         record.setAccountInfo(params.get("accountInfo") != null ? params.get("accountInfo").toString() : null);
         record.setAccountName(params.get("accountName") != null ? params.get("accountName").toString() : null);
@@ -315,7 +466,9 @@ public class PromotionController {
                 new LambdaQueryWrapper<PromoterRecord>()
                         .eq(PromoterRecord::getUserId, userId)
         );
-        if (promoter == null) {
+        boolean isCertifiedArtist = isCertifiedArtist(userId);
+        List<Long> withdrawOwnerIds = resolveWithdrawOwnerIds(userId, promoter, isCertifiedArtist);
+        if (withdrawOwnerIds.isEmpty()) {
             return Result.success(PageResult.of(0L, page, pageSize, List.of()));
         }
 
@@ -324,10 +477,40 @@ public class PromotionController {
         com.baomidou.mybatisplus.extension.plugins.pagination.Page<WithdrawRecord> result = 
                 withdrawRecordMapper.selectPage(pageResult,
                         new LambdaQueryWrapper<WithdrawRecord>()
-                                .eq(WithdrawRecord::getPromoterId, promoter.getId())
+                                .in(WithdrawRecord::getPromoterId, withdrawOwnerIds)
                                 .orderByDesc(WithdrawRecord::getCreateTime));
 
         return Result.success(PageResult.of(result.getTotal(), page, pageSize, result.getRecords()));
+    }
+
+    private boolean isCertifiedArtist(Long userId) {
+        ArtistCertification certification = artistCertificationMapper.selectOne(
+                new LambdaQueryWrapper<ArtistCertification>()
+                        .eq(ArtistCertification::getUserId, userId)
+                        .eq(ArtistCertification::getStatus, 1)
+                        .last("LIMIT 1"));
+        return certification != null;
+    }
+
+    private Long resolveWithdrawOwnerId(Long userId, PromoterRecord promoter, boolean isCertifiedArtist) {
+        if (promoter != null) {
+            return promoter.getId();
+        }
+        if (isCertifiedArtist) {
+            return -userId;
+        }
+        return null;
+    }
+
+    private List<Long> resolveWithdrawOwnerIds(Long userId, PromoterRecord promoter, boolean isCertifiedArtist) {
+        List<Long> ownerIds = new ArrayList<>();
+        if (promoter != null && promoter.getId() != null) {
+            ownerIds.add(promoter.getId());
+        }
+        if (isCertifiedArtist) {
+            ownerIds.add(-userId);
+        }
+        return ownerIds;
     }
 
     /**
@@ -344,7 +527,7 @@ public class PromotionController {
         );
         
         List<Map<String, String>> texts = List.of(
-                Map.of("id", "3", "title", "分销文案模板1", "content", "【拾艺局】高端艺术品平台，专注艺术品交易与推广..."),
+                Map.of("id", "3", "title", "分销文案模板1", "content", "【艺本艺术】高端艺术品平台，专注艺术品交易与推广..."),
                 Map.of("id", "4", "title", "分销文案模板2", "content", "发现艺术之美，投资价值之选...")
         );
         
@@ -394,17 +577,7 @@ public class PromotionController {
                     // 计算当天收益
                     LocalDateTime dayStart = day.toLocalDate().atStartOfDay();
                     LocalDateTime dayEnd = dayStart.plusDays(1);
-                    long dayAmount = 0;
-                    if (promoter != null) {
-                        List<CommissionLog> logs = commissionLogMapper.selectList(
-                                new LambdaQueryWrapper<CommissionLog>()
-                                        .eq(CommissionLog::getPromoterId, promoter.getId())
-                                        .ge(CommissionLog::getCreateTime, dayStart)
-                                        .lt(CommissionLog::getCreateTime, dayEnd)
-                                        .eq(CommissionLog::getStatus, PromoterConstant.COMMISSION_SETTLED)
-                        );
-                        dayAmount = logs.stream().mapToLong(log -> log.getCommissionAmount() != null ? log.getCommissionAmount() : 0L).sum();
-                    }
+                    long dayAmount = promoter == null ? 0 : sumSettledCommissionFen(userId, dayStart, dayEnd);
                     EarningsTrendVO vo = new EarningsTrendVO();
                     vo.setLabel(getDayLabel(day.getDayOfWeek()));
                     vo.setValue(dayAmount);
@@ -415,17 +588,7 @@ public class PromotionController {
                 for (int i = 3; i >= 0; i--) {
                     LocalDateTime weekStart = now.minusWeeks(i).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
                     LocalDateTime weekEnd = weekStart.plusWeeks(1);
-                    long weekAmount = 0;
-                    if (promoter != null) {
-                        List<CommissionLog> logs = commissionLogMapper.selectList(
-                                new LambdaQueryWrapper<CommissionLog>()
-                                        .eq(CommissionLog::getPromoterId, promoter.getId())
-                                        .ge(CommissionLog::getCreateTime, weekStart)
-                                        .lt(CommissionLog::getCreateTime, weekEnd)
-                                        .eq(CommissionLog::getStatus, PromoterConstant.COMMISSION_SETTLED)
-                        );
-                        weekAmount = logs.stream().mapToLong(log -> log.getCommissionAmount() != null ? log.getCommissionAmount() : 0L).sum();
-                    }
+                    long weekAmount = promoter == null ? 0 : sumSettledCommissionFen(userId, weekStart, weekEnd);
                     EarningsTrendVO vo = new EarningsTrendVO();
                     vo.setLabel("第" + (4 - i) + "周");
                     vo.setValue(weekAmount);
@@ -436,17 +599,7 @@ public class PromotionController {
                 for (int i = 2; i >= 0; i--) {
                     LocalDateTime month = now.minusMonths(i).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
                     LocalDateTime monthEnd = month.plusMonths(1);
-                    long monthAmount = 0;
-                    if (promoter != null) {
-                        List<CommissionLog> logs = commissionLogMapper.selectList(
-                                new LambdaQueryWrapper<CommissionLog>()
-                                        .eq(CommissionLog::getPromoterId, promoter.getId())
-                                        .ge(CommissionLog::getCreateTime, month)
-                                        .lt(CommissionLog::getCreateTime, monthEnd)
-                                        .eq(CommissionLog::getStatus, PromoterConstant.COMMISSION_SETTLED)
-                        );
-                        monthAmount = logs.stream().mapToLong(log -> log.getCommissionAmount() != null ? log.getCommissionAmount() : 0L).sum();
-                    }
+                    long monthAmount = promoter == null ? 0 : sumSettledCommissionFen(userId, month, monthEnd);
                     EarningsTrendVO vo = new EarningsTrendVO();
                     vo.setLabel((month.getMonthValue()) + "月");
                     vo.setValue(monthAmount);
@@ -473,6 +626,19 @@ public class PromotionController {
         };
     }
 
+    private long sumSettledCommissionFen(Long userId, LocalDateTime start, LocalDateTime end) {
+        List<CommissionRecord> records = commissionRecordMapper.selectList(
+                new LambdaQueryWrapper<CommissionRecord>()
+                        .eq(CommissionRecord::getUserId, userId)
+                        .eq(CommissionRecord::getStatus, "settled")
+                        .ge(CommissionRecord::getCreatedTime, start)
+                        .lt(CommissionRecord::getCreatedTime, end));
+        BigDecimal amount = records.stream()
+                .map(item -> item.getAmount() == null ? BigDecimal.ZERO : item.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return toFen(amount);
+    }
+
     /**
      * 获取收益明细 (GET /promoter/earnings)
      */
@@ -497,32 +663,33 @@ public class PromotionController {
                 return Result.success(PageResult.of(0L, page, pageSize, List.of()));
             }
 
-            LambdaQueryWrapper<CommissionLog> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(CommissionLog::getPromoterId, promoter.getId());
+            LambdaQueryWrapper<CommissionRecord> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CommissionRecord::getUserId, userId);
             if (type != null && !type.isEmpty()) {
                 if ("level1".equals(type)) {
-                    wrapper.eq(CommissionLog::getLevel, 1);
+                    wrapper.eq(CommissionRecord::getCommissionLevel, 1);
                 } else if ("level2".equals(type)) {
-                    wrapper.eq(CommissionLog::getLevel, 2);
+                    wrapper.eq(CommissionRecord::getCommissionLevel, 2);
                 }
             }
-            wrapper.orderByDesc(CommissionLog::getCreateTime);
+            wrapper.orderByDesc(CommissionRecord::getCreatedTime);
             
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> pageResult = 
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> pageResult =
                     new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize);
-            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionLog> result = 
-                    commissionLogMapper.selectPage(pageResult, wrapper);
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<CommissionRecord> result =
+                    commissionRecordMapper.selectPage(pageResult, wrapper);
 
-            List<EarningsDetailVO> voList = result.getRecords().stream().map(log -> {
+            List<EarningsDetailVO> voList = result.getRecords().stream().map(record -> {
                 EarningsDetailVO vo = new EarningsDetailVO();
-                vo.setId(log.getId());
-                vo.setTitle("订单收益");
-                vo.setAmount(log.getCommissionAmount());
-                vo.setStatus(getCommissionStatusText(log.getStatus()));
-                vo.setCreateTime(log.getCreateTime() != null ? log.getCreateTime().toString() : null);
-                vo.setOrderId(log.getOrderId());
-                vo.setLevel(log.getLevel());
-                vo.setType("order");
+                vo.setId(record.getId());
+                vo.setTitle(record.getCommissionLevel() != null && record.getCommissionLevel() == 2
+                        ? "团队奖励" : "推广佣金");
+                vo.setAmount(record.getAmount() == null ? 0L : record.getAmount().movePointRight(2).longValue());
+                vo.setStatus(record.getStatus() == null ? "pending" : record.getStatus());
+                vo.setCreateTime(record.getCreatedTime() != null ? record.getCreatedTime().toString() : null);
+                vo.setOrderId(record.getOrderId());
+                vo.setLevel(record.getCommissionLevel());
+                vo.setType(record.getCommissionType());
                 return vo;
             }).collect(Collectors.toList());
 
@@ -607,6 +774,27 @@ public class PromotionController {
             defaultInfo.put("commission", 0);
             defaultInfo.put("estimatedEarning", 0);
             return Result.success(defaultInfo);
+        }
+    }
+
+    /**
+     * 佣金结算（服务间调用） (POST /promoter/commission/settle)
+     * 由订单系统在支付成功后调用
+     */
+    @PostMapping("/commission/settle")
+    public Result<Void> settleCommission(@RequestBody Map<String, Object> params) {
+        try {
+            Long orderId = ((Number) params.get("orderId")).longValue();
+            String orderNo = (String) params.get("orderNo");
+            java.math.BigDecimal orderAmount = new java.math.BigDecimal(params.get("amount").toString());
+            Long buyerId = params.get("buyerId") != null ? ((Number) params.get("buyerId")).longValue() : null;
+            Long promoterId = params.get("promoterId") != null ? ((Number) params.get("promoterId")).longValue() : null;
+            Long artworkId = params.get("artworkId") != null ? ((Number) params.get("artworkId")).longValue() : null;
+            commissionService.calculateAndSettleCommission(orderId, orderNo, orderAmount, buyerId, promoterId, artworkId);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("佣金结算失败", e);
+            return Result.fail(500, e.getMessage());
         }
     }
 }

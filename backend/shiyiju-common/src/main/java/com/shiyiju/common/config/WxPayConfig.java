@@ -14,6 +14,9 @@ public class WxPayConfig {
     
     /** 微信公众号AppID */
     private String appId;
+
+    /** 公众号 AppID（H5/公众号 JSAPI 支付） */
+    private String officialAppId;
     
     /** 商户号 */
     private String mchId;

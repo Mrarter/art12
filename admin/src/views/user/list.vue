@@ -15,8 +15,8 @@
     </div>
 
     <!-- 筛选表单 -->
-    <div class="search-form">
-      <el-form :inline="true" :model="searchForm">
+    <div class="search-form" @keydown.enter.prevent="handleSearch">
+      <el-form :inline="true" :model="searchForm" @submit.prevent="handleSearch">
         <el-form-item label="用户ID">
           <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
         </el-form-item>
@@ -30,7 +30,7 @@
           <el-select v-model="searchForm.identity" placeholder="全部" clearable>
             <el-option label="普通用户" value="user" />
             <el-option label="艺术家" value="artist" />
-            <el-option label="艺荐官" value="promoter" />
+            <el-option label="经纪人" value="promoter" />
           </el-select>
         </el-form-item>
         <el-form-item label="注册时间">
@@ -44,8 +44,8 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
-          <el-button @click="resetSearch">重置</el-button>
+          <el-button type="primary" native-type="submit">搜索</el-button>
+          <el-button native-type="button" @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -61,7 +61,7 @@
         <span class="stat-value">{{ stats.artist }}</span>
       </div>
       <div class="stat-item">
-        <span class="stat-label">艺荐官</span>
+        <span class="stat-label">经纪人</span>
         <span class="stat-value">{{ stats.promoter }}</span>
       </div>
       <div class="stat-item">
@@ -103,7 +103,7 @@
       <el-table-column label="用户信息" min-width="288">
         <template #default="{ row }">
           <div class="user-info">
-            <el-avatar :src="getFullImageUrl(row.avatar)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
+            <el-avatar :src="getUserAvatarUrl(row)" :size="50" fit="cover" class="clickable-avatar" @click="openUserProfile(row)" />
             <div class="user-detail">
               <p class="nickname">
                 {{ row.nickname }}
@@ -129,20 +129,20 @@
         <template #default="{ row }">
           <div class="identity-tags">
             <el-tag v-if="row.isArtist" type="success" size="small">艺术家</el-tag>
-            <el-tag v-if="row.isPromoter" type="warning" size="small">艺荐官</el-tag>
+            <el-tag v-if="row.isPromoter" type="warning" size="small">经纪人</el-tag>
             <el-tag v-if="!row.isArtist && !row.isPromoter" type="info" size="small">普通用户</el-tag>
           </div>
         </template>
       </el-table-column>
       <el-table-column label="资产" width="140">
         <template #default="{ row }">
-          <p class="balance">¥{{ row.balance || 0 }}</p>
+          <p class="balance">¥{{ formatAmount(row.balance) }}</p>
           <p class="coupon" v-if="row.couponCount">优惠券 {{ row.couponCount }} 张</p>
         </template>
       </el-table-column>
       <el-table-column label="消费" width="120">
         <template #default="{ row }">
-          <p class="consume">¥{{ row.totalConsume || 0 }}</p>
+          <p class="consume">¥{{ formatAmount(row.totalConsume) }}</p>
           <p class="order-count">{{ row.orderCount || 0 }} 笔订单</p>
         </template>
       </el-table-column>
@@ -189,7 +189,7 @@
         <!-- 用户基本信息 -->
         <div class="profile-header">
           <div class="avatar-wrapper">
-            <el-avatar :src="getFullImageUrl(profileForm.avatar)" :size="80" fit="cover" />
+            <el-avatar :src="getAvatarUrl(profileForm.avatar)" :size="80" fit="cover" />
             <el-upload
               class="avatar-uploader"
               :show-file-list="false"
@@ -210,7 +210,7 @@
             </div>
             <div class="identity-tags">
               <el-tag v-if="currentUser.isArtist" type="success" size="small">艺术家</el-tag>
-              <el-tag v-if="currentUser.isPromoter" type="warning" size="small">艺荐官</el-tag>
+              <el-tag v-if="currentUser.isPromoter" type="warning" size="small">经纪人</el-tag>
               <el-tag v-if="!currentUser.isArtist && !currentUser.isPromoter" type="info" size="small">普通用户</el-tag>
             </div>
           </div>
@@ -239,7 +239,7 @@
           <el-form-item label="身份">
             <el-checkbox-group v-model="profileForm.identities">
               <el-checkbox label="artist">艺术家</el-checkbox>
-              <el-checkbox label="promoter">艺荐官</el-checkbox>
+              <el-checkbox label="promoter">经纪人</el-checkbox>
             </el-checkbox-group>
           </el-form-item>
           <el-form-item label="备注">
@@ -251,13 +251,13 @@
             <el-col :span="8">
               <div class="info-item">
                 <span class="label">账户余额</span>
-                <span class="value">¥{{ currentUser.balance || 0 }}</span>
+                <span class="value">¥{{ formatAmount(currentUser.balance) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
               <div class="info-item">
                 <span class="label">累计消费</span>
-                <span class="value">¥{{ currentUser.totalConsume || 0 }}</span>
+                <span class="value">¥{{ formatAmount(currentUser.totalConsume) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
@@ -282,16 +282,35 @@
             </el-col>
           </el-row>
 
+          <el-divider content-position="left">持有作品 ({{ userHeldArtworks.total || 0 }})</el-divider>
+          <div v-loading="heldArtworksLoading" class="artworks-section">
+            <div v-if="userHeldArtworks.list && userHeldArtworks.list.length > 0" class="artwork-grid">
+              <div v-for="artwork in userHeldArtworks.list" :key="artwork.id" class="artwork-item">
+                <el-image :src="getArtworkCoverUrl(artwork)" :alt="artwork.title" fit="cover" class="artwork-cover" />
+                <div class="artwork-info">
+                  <p class="artwork-title">{{ artwork.title }}</p>
+                  <p class="artwork-meta">{{ artwork.authorName || '-' }}</p>
+                  <p class="artwork-price">¥{{ formatArtworkAmount(artwork.price) }}</p>
+                  <p v-if="artwork.holderSince" class="artwork-meta">持有于 {{ artwork.holderSince }}</p>
+                </div>
+              </div>
+            </div>
+            <el-empty v-else description="暂无持有作品" :image-size="60" />
+          </div>
+          <div v-if="userHeldArtworks.total > userHeldArtworks.list?.length" class="load-more">
+            <el-button link type="primary" @click="loadMoreHeldArtworks">加载更多</el-button>
+          </div>
+
           <el-divider content-position="left">发布的作品 ({{ userArtworks.total || 0 }})</el-divider>
           <div v-loading="artworksLoading" class="artworks-section">
             <div v-if="userArtworks.list && userArtworks.list.length > 0" class="artwork-grid">
               <div v-for="artwork in userArtworks.list" :key="artwork.id" class="artwork-item">
-                <el-image :src="getFullImageUrl(artwork.cover)" :alt="artwork.title" fit="cover" class="artwork-cover" />
+                <el-image :src="getArtworkCoverUrl(artwork)" :alt="artwork.title" fit="cover" class="artwork-cover" />
                 <div class="artwork-info">
                   <p class="artwork-title">{{ artwork.title }}</p>
                   <p class="artwork-price">
-                    <span>¥{{ formatPrice(artwork.price) }}</span>
-                    <span v-if="artwork.originalPrice && artwork.originalPrice > 0" class="original-price">¥{{ formatPrice(artwork.originalPrice) }}</span>
+                    <span>¥{{ formatArtworkAmount(artwork.price) }}</span>
+                    <span v-if="artwork.originalPrice && artwork.originalPrice > 0" class="original-price">¥{{ formatArtworkAmount(artwork.originalPrice) }}</span>
                   </p>
                   <div class="artwork-actions">
                     <el-button type="primary" link size="small" @click="editArtwork(artwork)">编辑</el-button>
@@ -331,7 +350,7 @@
         <el-form-item label="身份">
           <el-checkbox-group v-model="editForm.identities">
             <el-checkbox label="artist">艺术家</el-checkbox>
-            <el-checkbox label="promoter">艺荐官</el-checkbox>
+            <el-checkbox label="promoter">经纪人</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="备注">
@@ -351,7 +370,7 @@
         <el-form-item label="身份">
           <el-checkbox-group v-model="batchIdentityForm.identities">
             <el-checkbox label="artist">艺术家</el-checkbox>
-            <el-checkbox label="promoter">艺荐官</el-checkbox>
+            <el-checkbox label="promoter">经纪人</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
         <p style="margin-top: 10px; color: #999; font-size: 12px;">注意：分配后用户将拥有选定的所有身份（默认保留"收藏者"身份）</p>
@@ -400,7 +419,7 @@
                 <div class="work-info">
                   <p class="work-title">{{ work.title }}</p>
                   <p class="work-author">{{ work.authorName }}</p>
-                  <p class="work-price">¥{{ work.price }}</p>
+                  <p class="work-price">¥{{ formatArtworkAmount(work.price) }}</p>
                 </div>
                 <div v-if="selectedExistingId === work.id" class="selected-badge">
                   <el-icon><Check /></el-icon>
@@ -513,6 +532,44 @@ import { copyId } from '@/utils/id'
 // requestApi -> /api (8080 网关) 用于调用其他微服务
 
 const getFullImageUrl = getUrl
+const DEFAULT_AVATAR_URL = '/upload/images/2026/05/11/cbebfaeaf7b241d4917a7eb8f3eaf30b.png'
+
+const getAvatarUrl = (avatar) => getFullImageUrl(avatar || DEFAULT_AVATAR_URL)
+
+const getUserAvatar = (user = {}) => {
+  return user.artistAvatar ||
+    user.artist_avatar ||
+    user.userAvatar ||
+    user.user_avatar ||
+    user.avatarUrl ||
+    user.avatar_url ||
+    user.avatar ||
+    ''
+}
+
+const getUserAvatarUrl = (user = {}) => getAvatarUrl(getUserAvatar(user))
+
+const getArtworkCoverUrl = (artwork = {}) => {
+  const raw = artwork.cover || artwork.coverImage || artwork.cover_image || getFirstImage(artwork.images)
+  return getFullImageUrl(raw)
+}
+
+const getFirstImage = (images) => {
+  if (!images) return ''
+  if (Array.isArray(images)) return images[0] || ''
+
+  const text = String(images).trim()
+  if (!text) return ''
+
+  try {
+    const parsed = JSON.parse(text)
+    if (Array.isArray(parsed)) return parsed[0] || ''
+  } catch (error) {
+    // Some legacy rows store comma-separated image paths instead of JSON.
+  }
+
+  return text.split(',').map(item => item.trim()).filter(Boolean)[0] || ''
+}
 
 const loading = ref(false)
 const tableData = ref([])
@@ -529,6 +586,10 @@ const artworksLoading = ref(false)
 const userArtworks = ref({ list: [], total: 0 })
 const artworksPage = ref(1)
 const artworksSize = 8
+const heldArtworksLoading = ref(false)
+const userHeldArtworks = ref({ list: [], total: 0 })
+const heldArtworksPage = ref(1)
+const heldArtworksSize = 8
 const artworkDialogVisible = ref(false)
 const artworkFormRef = ref()
 const artworkLoading = ref(false)
@@ -625,11 +686,18 @@ const getSourceText = (source) => {
 }
 
 // 格式化价格显示
-const formatPrice = (price) => {
-  if (!price && price !== 0) return '0'
-  const num = Number(price)
-  if (Number.isInteger(num)) return num.toString()
-  return num.toFixed(2)
+const formatAmount = (value) => {
+  return (Number(value || 0) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const formatArtworkAmount = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 // 复制文本
@@ -753,7 +821,7 @@ const openUserProfile = async (row) => {
     nickname: row.nickname || '',
     phone: row.phone || '',
     email: row.email || '',
-    avatar: row.avatar || '',
+    avatar: getUserAvatar(currentUser.value || row),
     identities: [
       row.isArtist ? 'artist' : '',
       row.isPromoter ? 'promoter' : ''
@@ -764,7 +832,12 @@ const openUserProfile = async (row) => {
   // 加载用户作品
   artworksPage.value = 1
   userArtworks.value = { list: [], total: 0 }
-  await loadUserArtworks(userId)
+  heldArtworksPage.value = 1
+  userHeldArtworks.value = { list: [], total: 0 }
+  await Promise.all([
+    loadUserArtworks(userId),
+    loadUserHeldArtworks(userId)
+  ])
 
   detailVisible.value = true
 }
@@ -786,6 +859,33 @@ const loadUserArtworks = async (userId) => {
   } finally {
     artworksLoading.value = false
   }
+}
+
+// 加载用户持有作品
+const loadUserHeldArtworks = async (userId) => {
+  heldArtworksLoading.value = true
+  try {
+    const res = await request.get(`/user/${userId}/heldArtworks`, {
+      params: { page: heldArtworksPage.value, size: heldArtworksSize }
+    })
+    if (heldArtworksPage.value === 1) {
+      userHeldArtworks.value = { list: res.list || [], total: res.total || 0 }
+    } else {
+      userHeldArtworks.value.list = [...userHeldArtworks.value.list, ...(res.list || [])]
+    }
+  } catch (e) {
+    console.error('加载持有作品失败', e)
+  } finally {
+    heldArtworksLoading.value = false
+  }
+}
+
+// 加载更多持有作品
+const loadMoreHeldArtworks = () => {
+  const userId = currentUser.value.userId
+  if (!userId) return
+  heldArtworksPage.value++
+  loadUserHeldArtworks(userId)
 }
 
 // 加载更多作品
@@ -1545,14 +1645,6 @@ onMounted(() => {
   }
 
   .profile-info {
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     .user-id {
       margin: 0 0 8px 0;
       font-size: 12px;
@@ -1564,6 +1656,14 @@ onMounted(() => {
       gap: 4px;
     }
   }
+}
+
+.profile-header .profile-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .avatar-uploader {
@@ -1641,6 +1741,15 @@ onMounted(() => {
     .artwork-title {
       margin: 0 0 4px 0;
       font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .artwork-meta {
+      margin: 0 0 4px 0;
+      font-size: 11px;
+      color: #909399;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;

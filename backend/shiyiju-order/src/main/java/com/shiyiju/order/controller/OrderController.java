@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -145,17 +146,44 @@ public class OrderController {
     }
 
     /**
+     * 转售购买 (POST /orders/resale)
+     */
+    @PostMapping("/orders/resale")
+    public Result<Order> buyResale(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Long resaleId = params.get("resaleId") != null ? ((Number) params.get("resaleId")).longValue() : null;
+        BigDecimal resalePrice = params.get("resalePrice") != null
+                ? new BigDecimal(params.get("resalePrice").toString()) : null;
+        Long artworkId = params.get("artworkId") != null ? ((Number) params.get("artworkId")).longValue() : null;
+        Long addressId = params.get("addressId") != null ? ((Number) params.get("addressId")).longValue() : -1L;
+        if (resaleId == null || resalePrice == null || artworkId == null) {
+            return Result.fail(400, "参数不完整");
+        }
+        Order order = orderService.createResaleOrder(userId, resaleId, resalePrice, artworkId, addressId);
+        return Result.success(order);
+    }
+
+    /**
      * 获取订单列表 (GET /orders)
      */
     @GetMapping("/orders")
     public Result<PageResult<OrderVO>> getOrderList(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestParam(required = false) String type,
             @RequestParam(required = false, defaultValue = "all") String status,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
+        }
+        if ("sold".equalsIgnoreCase(type) || "seller".equalsIgnoreCase(type)) {
+            return Result.success(orderService.getSellerOrderList(userId, status, page, pageSize));
         }
         return Result.success(orderService.getOrderList(userId, status, page, pageSize));
     }
@@ -211,12 +239,28 @@ public class OrderController {
     public Result<Void> applyRefund(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @PathVariable Long id,
-            @RequestBody Map<String, String> params
+            @RequestBody Map<String, Object> params
     ) {
         if (userId == null) {
             return Result.fail(401, "请先登录");
         }
-        orderService.applyRefund(id, userId, params.get("reason"));
+        orderService.applyRefund(id, userId, params);
+        return Result.success();
+    }
+
+    /**
+     * 提交退货运单 (POST /orders/{id}/refund-return-logistics)
+     */
+    @PostMapping("/orders/{id}/refund-return-logistics")
+    public Result<Void> submitRefundReturnLogistics(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        orderService.submitRefundReturnLogistics(id, userId, params);
         return Result.success();
     }
 
@@ -235,10 +279,12 @@ public class OrderController {
             return Result.fail(401, "请先登录");
         }
         String openId = params.get("openId") != null ? params.get("openId").toString() : null;
+        String payScene = params.get("payScene") != null ? params.get("payScene").toString() : "mini";
         return Result.success(orderService.unifiedOrder(
                 Long.valueOf(params.get("orderId").toString()), 
                 userId,
-                openId));
+                openId,
+                payScene));
     }
 
     /**
@@ -254,13 +300,52 @@ public class OrderController {
             return Result.fail(401, "请先登录");
         }
         String openId = params.get("openId") != null ? params.get("openId").toString() : null;
-        if (openId == null || openId.isEmpty()) {
+        String payScene = params.get("payScene") != null ? params.get("payScene").toString() : "mini";
+        boolean appScene = "app".equalsIgnoreCase(payScene);
+        if (!appScene && (openId == null || openId.isEmpty())) {
             return Result.fail(400, "缺少openId参数");
         }
         return Result.success(orderService.unifiedOrderWithParams(
                 Long.valueOf(params.get("orderId").toString()), 
                 userId,
-                openId));
+                openId,
+                payScene));
+    }
+
+    /**
+     * 支付宝手机网站支付下单 (POST /pay/alipay/wap)
+     * 返回自动提交到支付宝的表单 HTML。
+     */
+    @PostMapping("/pay/alipay/wap")
+    public Result<Map<String, Object>> createAlipayWapPay(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        String returnScene = params.get("returnScene") == null ? null : params.get("returnScene").toString();
+        return Result.success(orderService.createAlipayWapPay(
+                Long.valueOf(params.get("orderId").toString()),
+                userId,
+                returnScene));
+    }
+
+    /**
+     * 支付宝 App 支付下单 (POST /pay/alipay/app)
+     * 返回 App SDK 调起支付所需的 orderString。
+     */
+    @PostMapping("/pay/alipay/app")
+    public Result<Map<String, Object>> createAlipayAppPay(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(orderService.createAlipayAppPay(
+                Long.valueOf(params.get("orderId").toString()),
+                userId));
     }
 
     /**
@@ -279,6 +364,22 @@ public class OrderController {
             return Result.fail(404, "订单不存在");
         }
         return Result.success(orderService.queryPayStatus(order.getOrderNo()));
+    }
+
+    /**
+     * 本地开发模拟支付成功 (POST /pay/mock-success/{orderId})
+     * 走真实支付成功处理链路，方便联调订单状态、作品归属和后续流程。
+     */
+    @PostMapping("/pay/mock-success/{orderId}")
+    public Result<Void> mockPaySuccess(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long orderId
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        orderService.mockPaySuccess(orderId, userId);
+        return Result.success();
     }
 
     // ==================== 个人中心 - 地址管理 ====================

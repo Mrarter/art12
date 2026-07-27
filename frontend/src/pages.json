@@ -3,9 +3,11 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "拾艺局",
+        "navigationBarTitleText": "艺本艺术",
         "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#0D0D0D"
+        "navigationBarBackgroundColor": "#0D0D0D",
+        "enableShareAppMessage": true,
+        "enableShareTimeline": true
       }
     },
     {
@@ -21,52 +23,9 @@
       }
     },
     {
-      "path": "pages/notice/index",
+      "path": "pages/auction/index",
       "style": {
-        "navigationBarTitleText": "公告"
-      }
-    },
-    {
-      "path": "pages/notice/detail",
-      "style": {
-        "navigationBarTitleText": "公告详情"
-      }
-    },
-    {
-      "path": "pages/help/index",
-      "style": {
-        "navigationBarTitleText": "帮助中心"
-      }
-    },
-    {
-      "path": "pages/help/category",
-      "style": {
-        "navigationBarTitleText": "帮助分类"
-      }
-    },
-    {
-      "path": "pages/common/coming-soon",
-      "style": {
-        "navigationBarTitleText": "功能建设中"
-      }
-    },
-    {
-      "path": "pages/setting/message-settings",
-      "style": {
-        "navigationBarTitleText": "消息设置"
-      }
-    },
-    {
-      "path": "pages/search/index",
-      "style": {
-        "navigationBarTitleText": "搜索"
-      }
-    },
-    {
-      "path": "pages/gallery/detail",
-      "style": {
-        "navigationBarTitleText": "作品详情",
-        "navigationStyle": "custom",
+        "navigationBarTitleText": "拍卖大厅",
         "navigationBarBackgroundColor": "#0D0D0D"
       }
     },
@@ -77,111 +36,34 @@
       }
     },
     {
-      "path": "pages/order/confirm",
-      "style": {
-        "navigationBarTitleText": "确认订单"
-      }
-    },
-    {
-      "path": "pages/order/list",
-      "style": {
-        "navigationBarTitleText": "我的订单"
-      }
-    },
-    {
-      "path": "pages/order/detail",
-      "style": {
-        "navigationBarTitleText": "订单详情"
-      }
-    },
-    {
-      "path": "pages/order/pay",
-      "style": {
-        "navigationBarTitleText": "支付"
-      }
-    },
-    {
-      "path": "pages/order/logistics",
-      "style": {
-        "navigationBarTitleText": "物流详情"
-      }
-    },
-    {
-      "path": "pages/order/track",
-      "style": {
-        "navigationBarTitleText": "物流追踪"
-      }
-    },
-    {
-      "path": "pages/order/settle",
-      "style": {
-        "navigationBarTitleText": "确认订单"
-      }
-    },
-    {
-      "path": "pages/order/refund",
-      "style": {
-        "navigationBarTitleText": "申请退款"
-      }
-    },
-    {
-      "path": "pages/order/review",
-      "style": {
-        "navigationBarTitleText": "评价"
-      }
-    },
-    {
-      "path": "pages/distribution/index",
-      "style": {
-        "navigationBarTitleText": "分销中心"
-      }
-    },
-    {
-      "path": "pages/distribution/team",
-      "style": {
-        "navigationBarTitleText": "我的团队"
-      }
-    },
-    {
-      "path": "pages/distribution/customer",
-      "style": {
-        "navigationBarTitleText": "我的客户"
-      }
-    },
-    {
-      "path": "pages/distribution/performance",
-      "style": {
-        "navigationBarTitleText": "分销业绩"
-      }
-    },
-    {
-      "path": "pages/distribution/poster",
-      "style": {
-        "navigationBarTitleText": "推广海报"
-      }
-    },
-    {
-      "path": "pages/distribution/rules",
-      "style": {
-        "navigationBarTitleText": "分销规则"
-      }
-    },
-    {
-      "path": "pages/about/index",
-      "style": {
-        "navigationBarTitleText": "关于"
-      }
-    },
-    {
-      "path": "pages/setting/index",
-      "style": {
-        "navigationBarTitleText": "设置"
-      }
-    },
-    {
       "path": "pages/user/index",
       "style": {
         "navigationBarTitleText": "我的",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0D0D0D"
+      }
+    },
+    {
+      "path": "pages/gallery/detail",
+      "style": {
+        "navigationBarTitleText": "作品详情",
+        "navigationStyle": "custom",
+        "navigationBarBackgroundColor": "#0D0D0D",
+        "enableShareAppMessage": true,
+        "enableShareTimeline": true
+      }
+    },
+    {
+      "path": "pages/content/article",
+      "style": {
+        "navigationBarTitleText": "文章详情",
+        "navigationBarBackgroundColor": "#0D0D0D"
+      }
+    },
+    {
+      "path": "pages/gallery/certificate",
+      "style": {
+        "navigationBarTitleText": "收藏证书",
         "navigationStyle": "custom",
         "navigationBarBackgroundColor": "#0D0D0D"
       }
@@ -207,7 +89,7 @@
     {
       "path": "pages/user/favorites",
       "style": {
-        "navigationBarTitleText": "我的收藏"
+        "navigationBarTitleText": "我的关注"
       }
     },
     {
@@ -235,9 +117,9 @@
       }
     },
     {
-      "path": "pages/user/agreement",
+      "path": "pages/user/account-security",
       "style": {
-        "navigationBarTitleText": "协议"
+        "navigationBarTitleText": "账号安全"
       }
     },
     {
@@ -250,12 +132,6 @@
       "path": "pages/user/profile",
       "style": {
         "navigationBarTitleText": "个人资料"
-      }
-    },
-    {
-      "path": "pages/user/wallet",
-      "style": {
-        "navigationBarTitleText": "我的钱包"
       }
     },
     {
@@ -282,259 +158,589 @@
         "navigationBarTitleText": "我的积分"
       }
     },
+  ],
+  "subPackages": [
     {
-      "path": "pages/auction/index",
-      "style": {
-        "navigationBarTitleText": "拍卖大厅",
-        "navigationBarBackgroundColor": "#0D0D0D"
-      }
+      "root": "pages/appreciation",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "DAY DAY ART",
+            "navigationBarBackgroundColor": "#0D0D0D"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/auction/session",
-      "style": {
-        "navigationBarTitleText": "专场详情"
-      }
+      "root": "pages/login",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "登录"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/auction/bidding",
-      "style": {
-        "navigationBarTitleText": "竞拍出价"
-      }
+      "root": "pages/auction-flow",
+      "pages": [
+        {
+          "path": "session",
+          "style": {
+            "navigationBarTitleText": "专场详情"
+          }
+        },
+        {
+          "path": "bidding",
+          "style": {
+            "navigationBarTitleText": "竞拍出价"
+          }
+        },
+        {
+          "path": "reminder",
+          "style": {
+            "navigationBarTitleText": "竞拍提醒"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "拍品详情",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/auction/reminder",
-      "style": {
-        "navigationBarTitleText": "竞拍提醒"
-      }
+      "root": "pages/notice",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "公告"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "公告详情"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/auction/detail",
-      "style": {
-        "navigationBarTitleText": "拍品详情",
-        "navigationStyle": "custom"
-      }
+      "root": "pages/help",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "帮助中心"
+          }
+        },
+        {
+          "path": "category",
+          "style": {
+            "navigationBarTitleText": "帮助分类"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/login/index",
-      "style": {
-        "navigationBarTitleText": "登录"
-      }
+      "root": "pages/common",
+      "pages": [
+        {
+          "path": "coming-soon",
+          "style": {
+            "navigationBarTitleText": "功能建设中"
+          }
+        },
+        {
+          "path": "cropper",
+          "style": {
+            "navigationBarTitleText": "裁剪图片",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#000000"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artcircle/index",
-      "style": {
-        "navigationBarTitleText": "艺术圈"
-      }
+      "root": "pages/setting",
+      "pages": [
+        {
+          "path": "message-settings",
+          "style": {
+            "navigationBarTitleText": "消息设置"
+          }
+        },
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "设置"
+          }
+        },
+        {
+          "path": "notification",
+          "style": {
+            "navigationBarTitleText": "通知设置"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artcircle/detail",
-      "style": {
-        "navigationBarTitleText": "帖子详情"
-      }
+      "root": "pages/user-extra",
+      "pages": [
+        {
+          "path": "realname",
+          "style": {
+            "navigationBarTitleText": "实名认证"
+          }
+        },
+        {
+          "path": "agreement",
+          "style": {
+            "navigationBarTitleText": "协议"
+          }
+        },
+        {
+          "path": "wallet",
+          "style": {
+            "navigationBarTitleText": "我的钱包"
+          }
+        },
+        {
+          "path": "pay-account/list",
+          "style": {
+            "navigationBarTitleText": "收款账户"
+          }
+        },
+        {
+          "path": "pay-account/add",
+          "style": {
+            "navigationBarTitleText": "添加收款账户"
+          }
+        },
+        {
+          "path": "pay-account/bank-card",
+          "style": {
+            "navigationBarTitleText": "添加银行卡"
+          }
+        },
+        {
+          "path": "pay-account/result",
+          "style": {
+            "navigationBarTitleText": "绑定结果"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artcircle/publish",
-      "style": {
-        "navigationBarTitleText": "发布帖子"
-      }
+      "root": "pages/search",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "搜索"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artcircle/topic",
-      "style": {
-        "navigationBarTitleText": "话题广场"
-      }
+      "root": "pages/order",
+      "pages": [
+        {
+          "path": "confirm",
+          "style": {
+            "navigationBarTitleText": "确认订单"
+          }
+        },
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "我的订单"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "订单详情"
+          }
+        },
+        {
+          "path": "pay",
+          "style": {
+            "navigationBarTitleText": "支付"
+          }
+        },
+        {
+          "path": "logistics",
+          "style": {
+            "navigationBarTitleText": "物流详情"
+          }
+        },
+        {
+          "path": "track",
+          "style": {
+            "navigationBarTitleText": "物流追踪"
+          }
+        },
+        {
+          "path": "settle",
+          "style": {
+            "navigationBarTitleText": "确认订单"
+          }
+        },
+        {
+          "path": "refund",
+          "style": {
+            "navigationBarTitleText": "申请退款"
+          }
+        },
+        {
+          "path": "review",
+          "style": {
+            "navigationBarTitleText": "评价"
+          }
+        },
+        {
+          "path": "intent",
+          "style": {
+            "navigationBarTitleText": "收藏意向单"
+          }
+        },
+        {
+          "path": "intent-result",
+          "style": {
+            "navigationBarTitleText": "提交成功",
+            "navigationBarBackgroundColor": "#f7f3eb"
+          }
+        },
+        {
+          "path": "certificate-detail",
+          "style": {
+            "navigationBarTitleText": "收藏证书详情",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#0b0b0b"
+          }
+        },
+        {
+          "path": "circulation-detail",
+          "style": {
+            "navigationBarTitleText": "流通记录详情",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#0b0b0b"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/home",
-      "style": {
-        "navigationBarTitleText": "艺术家主页",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#050505"
-      }
+      "root": "pages/distribution",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "分销中心"
+          }
+        },
+        {
+          "path": "team",
+          "style": {
+            "navigationBarTitleText": "我的团队"
+          }
+        },
+        {
+          "path": "customer",
+          "style": {
+            "navigationBarTitleText": "我的客户"
+          }
+        },
+        {
+          "path": "performance",
+          "style": {
+            "navigationBarTitleText": "分销业绩"
+          }
+        },
+        {
+          "path": "poster",
+          "style": {
+            "navigationBarTitleText": "推广海报"
+          }
+        },
+        {
+          "path": "rules",
+          "style": {
+            "navigationBarTitleText": "分销规则"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/detail/index",
-      "style": {
-        "navigationBarTitleText": "艺术家主页",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#050505"
-      }
+      "root": "pages/about",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "关于"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/gallery/index",
-      "style": {
-        "navigationBarTitleText": "个人美术馆",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#050505"
-      }
+      "root": "pages/artcircle",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "艺术圈"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "帖子详情"
+          }
+        },
+        {
+          "path": "publish",
+          "style": {
+            "navigationBarTitleText": "发布帖子"
+          }
+        },
+        {
+          "path": "topic",
+          "style": {
+            "navigationBarTitleText": "话题广场"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/circulation/index",
-      "style": {
-        "navigationBarTitleText": "作品流通",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#050505"
-      }
+      "root": "pages/artist",
+      "pages": [
+        {
+          "path": "signature",
+          "style": {
+            "navigationBarTitleText": "艺术家签名",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#0D0D0D"
+          }
+        },
+        {
+          "path": "home",
+          "style": {
+            "navigationBarTitleText": "艺术家主页",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "resume-edit",
+          "style": {
+            "navigationBarTitleText": "编辑艺术履历",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "analytics",
+          "style": {
+            "navigationBarTitleText": "数据看板",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "detail/index",
+          "style": {
+            "navigationBarTitleText": "艺术家主页",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "gallery/index",
+          "style": {
+            "navigationBarTitleText": "个人美术馆",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "circulation/index",
+          "style": {
+            "navigationBarTitleText": "作品流通",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "trust/index",
+          "style": {
+            "navigationBarTitleText": "收藏信任",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "works/index",
+          "style": {
+            "navigationBarTitleText": "艺术家全部作品",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#050505"
+          }
+        },
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "艺术家"
+          }
+        },
+        {
+          "path": "cert",
+          "style": {
+            "navigationBarTitleText": "艺术家认证"
+          }
+        },
+        {
+          "path": "identity",
+          "style": {
+            "navigationBarTitleText": "艺术家文档",
+            "navigationBarBackgroundColor": "#0b0b0b"
+          }
+        },
+        {
+          "path": "manage",
+          "style": {
+            "navigationBarTitleText": "作品管理"
+          }
+        },
+        {
+          "path": "publish",
+          "style": {
+            "navigationBarTitleText": "发布作品"
+          }
+        },
+        {
+          "path": "apply",
+          "style": {
+            "navigationBarTitleText": "艺术家入驻申请"
+          }
+        },
+        {
+          "path": "score",
+          "style": {
+            "navigationBarTitleText": "评分详情"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/trust/index",
-      "style": {
-        "navigationBarTitleText": "收藏信任",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#050505"
-      }
+      "root": "pages/message",
+      "pages": [
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "消息中心"
+          }
+        },
+        {
+          "path": "chat",
+          "style": {
+            "navigationBarTitleText": "聊天",
+            "navigationStyle": "custom",
+            "navigationBarBackgroundColor": "#0b0b0b"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/works/index",
-      "style": {
-        "navigationBarTitleText": "艺术家全部作品",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#050505"
-      }
+      "root": "pages/promoter",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "推广中心"
+          }
+        },
+        {
+          "path": "earnings",
+          "style": {
+            "navigationBarTitleText": "分成明细"
+          }
+        },
+        {
+          "path": "team",
+          "style": {
+            "navigationBarTitleText": "我的团队"
+          }
+        },
+        {
+          "path": "team-detail",
+          "style": {
+            "navigationBarTitleText": "成员详情"
+          }
+        },
+        {
+          "path": "performance",
+          "style": {
+            "navigationBarTitleText": "业绩详情"
+          }
+        },
+        {
+          "path": "withdraw",
+          "style": {
+            "navigationBarTitleText": "申请提现"
+          }
+        },
+        {
+          "path": "withdrawLog",
+          "style": {
+            "navigationBarTitleText": "提现记录"
+          }
+        },
+        {
+          "path": "poster",
+          "style": {
+            "navigationBarTitleText": "邀请海报"
+          }
+        }
+      ]
     },
     {
-      "path": "pages/artist/list",
-      "style": {
-        "navigationBarTitleText": "艺术家"
-      }
-    },
-    {
-      "path": "pages/artist/cert",
-      "style": {
-        "navigationBarTitleText": "艺术家认证"
-      }
-    },
-    {
-      "path": "pages/artist/manage",
-      "style": {
-        "navigationBarTitleText": "作品管理"
-      }
-    },
-    {
-      "path": "pages/artist/publish",
-      "style": {
-        "navigationBarTitleText": "发布作品"
-      }
-    },
-    {
-      "path": "pages/artist/apply",
-      "style": {
-        "navigationBarTitleText": "艺术家入驻申请"
-      }
-    },
-    {
-      "path": "pages/artist/score",
-      "style": {
-        "navigationBarTitleText": "评分详情"
-      }
-    },
-    {
-      "path": "pages/common/cropper",
-      "style": {
-        "navigationBarTitleText": "裁剪图片",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#000000"
-      }
-    },
-    {
-      "path": "pages/order/intent",
-      "style": {
-        "navigationBarTitleText": "收藏意向单"
-      }
-    },
-    {
-      "path": "pages/order/intent-result",
-      "style": {
-        "navigationBarTitleText": "提交成功",
-        "navigationBarBackgroundColor": "#f7f3eb"
-      }
-    },
-    {
-      "path": "pages/order/certificate-detail",
-      "style": {
-        "navigationBarTitleText": "收藏证书详情",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#0b0b0b"
-      }
-    },
-    {
-      "path": "pages/order/circulation-detail",
-      "style": {
-        "navigationBarTitleText": "流通记录详情",
-        "navigationStyle": "custom",
-        "navigationBarBackgroundColor": "#0b0b0b"
-      }
-    },
-    {
-      "path": "pages/message/list",
-      "style": {
-        "navigationBarTitleText": "消息中心"
-      }
-    },
-    {
-      "path": "pages/message/chat",
-      "style": {
-        "navigationBarTitleText": "聊天"
-      }
-    },
-    {
-      "path": "pages/promoter/index",
-      "style": {
-        "navigationBarTitleText": "推广中心"
-      }
-    },
-    {
-      "path": "pages/promoter/earnings",
-      "style": {
-        "navigationBarTitleText": "佣金明细"
-      }
-    },
-    {
-      "path": "pages/promoter/team",
-      "style": {
-        "navigationBarTitleText": "我的团队"
-      }
-    },
-    {
-      "path": "pages/promoter/team-detail",
-      "style": {
-        "navigationBarTitleText": "成员详情"
-      }
-    },
-    {
-      "path": "pages/promoter/performance",
-      "style": {
-        "navigationBarTitleText": "业绩详情"
-      }
-    },
-    {
-      "path": "pages/promoter/withdraw",
-      "style": {
-        "navigationBarTitleText": "申请提现"
-      }
-    },
-    {
-      "path": "pages/promoter/withdrawLog",
-      "style": {
-        "navigationBarTitleText": "提现记录"
-      }
-    },
-    {
-      "path": "pages/promoter/poster",
-      "style": {
-        "navigationBarTitleText": "邀请海报"
-      }
-    },
-    {
-      "path": "pages/setting/notification",
-      "style": {
-        "navigationBarTitleText": "通知设置"
-      }
+      "root": "pages/resale",
+      "pages": [
+        {
+          "path": "market",
+          "style": {
+            "navigationBarTitleText": "转售市场"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "转售详情"
+          }
+        },
+        {
+          "path": "publish",
+          "style": {
+            "navigationBarTitleText": "发布转售"
+          }
+        },
+        {
+          "path": "my",
+          "style": {
+            "navigationBarTitleText": "我的转售"
+          }
+        }
+      ]
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "拾艺局",
+    "navigationBarTitleText": "艺本艺术",
     "navigationBarBackgroundColor": "#0D0D0D",
     "backgroundColor": "#0D0D0D"
   },

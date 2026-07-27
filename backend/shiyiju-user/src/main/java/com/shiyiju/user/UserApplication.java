@@ -11,7 +11,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @EnableDiscoveryClient
 @EnableFeignClients
-@MapperScan("com.shiyiju.user.mapper")
+@MapperScan({"com.shiyiju.user.mapper", "com.shiyiju.common.mapper"})
 @SpringBootApplication(scanBasePackages = {"com.shiyiju.user", "com.shiyiju.common"})
 public class UserApplication {
 

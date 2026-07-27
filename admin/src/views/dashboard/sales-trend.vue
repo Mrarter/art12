@@ -156,7 +156,7 @@
           <el-table-column label="艺术家" min-width="200">
             <template #default="{ row }">
               <div class="artist-cell">
-                <el-avatar :src="row.avatar" :size="32">{{ row.name?.charAt(0) }}</el-avatar>
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="32">{{ row.name?.charAt(0) }}</el-avatar>
                 <span class="artist-name">{{ row.name }}</span>
               </div>
             </template>
@@ -178,6 +178,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import { getFullImageUrl } from '@/api/request'
 
 const dateRange = ref([])
 const compareType = ref('week')

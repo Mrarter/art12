@@ -16,10 +16,11 @@
         <view class="mask-bottom" :style="{ bottom: 0, left: 0, right: 0, height: cropBottomGap + 'px' }"></view>
       </view>
       <!-- 裁剪框边框装饰 -->
-      <view class="crop-border" :style="{
+      <view class="crop-border" :class="{ circle: shape === 'circle' }" :style="{
         left: cropLeft + 'px', top: cropTop + 'px',
         width: cropW + 'px', height: cropH + 'px'
       }">
+        <view v-if="shape === 'circle'" class="circle-mask-ring"></view>
         <view class="corner tl"></view>
         <view class="corner tr"></view>
         <view class="corner bl"></view>
@@ -95,10 +96,11 @@ export default {
       lastScale: 1,
       isTouching: false,
       // 配置
-      currentRatio: '1:1',
+      currentRatio: 'auto',
       shape: 'square',
       outputSize: 800,
       showCanvas: false,
+      eventKey: '',
     }
   },
 
@@ -114,7 +116,7 @@ export default {
       const isRot90 = this.rotation === 90 || this.rotation === 270
       const displayW = isRot90 ? this.imageNaturalH : this.imageNaturalW
       const displayH = isRot90 ? this.imageNaturalW : this.imageNaturalH
-      const fitScale = Math.max(this.cropW / displayW, this.cropH / displayH) * 1.2
+      const fitScale = this.getImageFitScale(displayW, displayH)
       const baseW = displayW * fitScale
       const baseH = displayH * fitScale
       const w = baseW * this.scale
@@ -132,7 +134,13 @@ export default {
     },
 
     ratioOptions() {
+      if (this.shape === 'circle') {
+        return [
+          { label: '头像', value: '1:1' },
+        ]
+      }
       return [
+        { label: '原图', value: 'auto' },
         { label: '自由', value: 'free' },
         { label: '1:1', value: '1:1' },
         { label: '4:3', value: '4:3' },
@@ -145,12 +153,19 @@ export default {
     cropRatio() {
       return this.cropW / this.cropH
     },
+
+    shouldFitWholeImage() {
+      return this.currentRatio === 'auto' || this.currentRatio === 'free'
+    },
   },
 
   onLoad(options) {
-    this.imageSrc = decodeURIComponent(options.src || '')
-    this.currentRatio = options.ratio || '1:1'
+    this.imageSrc = this.decodeRouteValue(options.src || '')
+    this.currentRatio = options.ratio || 'auto'
     this.shape = options.shape || 'square'
+    this.eventKey = this.decodeRouteValue(options.eventKey || '')
+    if (this.shape === 'circle') this.currentRatio = '1:1'
+    this.outputSize = Math.max(200, Math.min(1600, Number(options.outputSize) || 800))
 
     const sys = uni.getSystemInfoSync()
     this.containerW = sys.windowWidth
@@ -164,17 +179,53 @@ export default {
   },
 
   methods: {
+    decodeRouteValue(value) {
+      let decoded = String(value || '')
+      for (let i = 0; i < 3; i += 1) {
+        let next = decoded
+        try {
+          next = decodeURIComponent(decoded)
+        } catch (e) {
+          break
+        }
+        if (next === decoded) break
+        decoded = next
+      }
+      return decoded
+    },
+
     loadImageInfo() {
+      if (process.env.UNI_PLATFORM === 'h5' && typeof Image !== 'undefined') {
+        const image = new Image()
+        if (/^https?:\/\//.test(this.imageSrc)) image.crossOrigin = 'anonymous'
+        image.onload = () => {
+          this.applyImageInfo(image.naturalWidth, image.naturalHeight)
+        }
+        image.onerror = () => {
+          uni.showToast({ title: '图片加载失败', icon: 'none' })
+        }
+        image.src = this.imageSrc
+        return
+      }
+
       uni.getImageInfo({
         src: this.imageSrc,
         success: (res) => {
-          this.imageNaturalW = res.width
-          this.imageNaturalH = res.height
+          this.applyImageInfo(res.width, res.height)
         },
         fail: () => {
           uni.showToast({ title: '图片加载失败', icon: 'none' })
         },
       })
+    },
+
+    applyImageInfo(width, height) {
+      this.imageNaturalW = width
+      this.imageNaturalH = height
+      if (this.shouldFitWholeImage) {
+        this.initCropWindow()
+        this.onReset()
+      }
     },
 
     initCropWindow() {
@@ -186,10 +237,16 @@ export default {
 
     calcCropSize(maxW, maxH) {
       if (this.currentRatio === 'free') {
-        this.cropW = maxW
-        this.cropH = maxH
+        const [rw, rh] = this.getRatioParts()
+        if (maxW / maxH > rw / rh) {
+          this.cropH = maxH
+          this.cropW = this.cropH * rw / rh
+        } else {
+          this.cropW = maxW
+          this.cropH = this.cropW * rh / rw
+        }
       } else {
-        const [rw, rh] = this.currentRatio.split(':').map(Number)
+        const [rw, rh] = this.getRatioParts()
         if (maxW / maxH > rw / rh) {
           this.cropH = maxH
           this.cropW = this.cropH * rw / rh
@@ -203,9 +260,37 @@ export default {
     },
 
     switchRatio(val) {
+      if (this.shape === 'circle' && val !== '1:1') return
       this.currentRatio = val
       this.initCropWindow()
       this.onReset()
+    },
+
+    getRatioParts() {
+      if (this.currentRatio === 'auto' || this.currentRatio === 'free') {
+        return [this.imageNaturalW || 1, this.imageNaturalH || 1]
+      }
+      return this.currentRatio.split(':').map(Number)
+    },
+
+    getImageFitScale(displayW, displayH) {
+      if (!displayW || !displayH) return 1
+      const baseScale = Math.max(this.cropW / displayW, this.cropH / displayH)
+      return this.shouldFitWholeImage ? baseScale : baseScale * 1.2
+    },
+
+    getOutputSize() {
+      const ratio = this.cropRatio || 1
+      if (ratio >= 1) {
+        return {
+          width: this.outputSize,
+          height: Math.max(1, Math.round(this.outputSize / ratio))
+        }
+      }
+      return {
+        width: Math.max(1, Math.round(this.outputSize * ratio)),
+        height: this.outputSize
+      }
     },
 
     // ========== 触摸处理 ==========
@@ -278,7 +363,7 @@ export default {
         if (currentPage && currentPage.$page && currentPage.$page.eventChannel) {
           currentPage.$page.eventChannel.emit('onCrop', result)
         }
-        uni.$emit('cropResult', result)
+        uni.$emit(this.eventKey || 'cropResult', result)
         uni.hideLoading()
         uni.navigateBack()
       } catch (e) {
@@ -305,7 +390,7 @@ export default {
       const refW = isRot90 ? naturalH : naturalW
       const refH = isRot90 ? naturalW : naturalH
 
-      const fitScale = Math.max(this.cropW / refW, this.cropH / refH) * 1.2
+      const fitScale = this.getImageFitScale(refW, refH)
       const baseW = refW * fitScale
       const baseH = refH * fitScale
       const scaledW = baseW * this.scale
@@ -343,12 +428,11 @@ export default {
     cropOnH5() {
       return new Promise((resolve, reject) => {
         const img = new Image()
-        img.crossOrigin = 'anonymous'
+        if (/^https?:\/\//.test(this.imageSrc)) img.crossOrigin = 'anonymous'
         img.onload = () => {
           try {
             const { srcX, srcY, srcW, srcH } = this.calcCropRegion(img.naturalWidth, img.naturalHeight)
-            const outW = this.cropW
-            const outH = this.cropH
+            const { width: outW, height: outH } = this.getOutputSize()
 
             const canvas = document.createElement('canvas')
             canvas.width = outW
@@ -386,8 +470,7 @@ export default {
           }
           const canvas = res[0].node
           const ctx = canvas.getContext('2d')
-          const outW = this.cropW
-          const outH = this.cropH
+          const { width: outW, height: outH } = this.getOutputSize()
           canvas.width = outW
           canvas.height = outH
 
@@ -422,8 +505,7 @@ export default {
     // 小程序旧版 canvas API 回退
     cropOnMPLegacy() {
       return new Promise((resolve, reject) => {
-        const outW = this.cropW
-        const outH = this.cropH
+        const { width: outW, height: outH } = this.getOutputSize()
         const ctx = uni.createCanvasContext('cropLegacyCanvas', this)
         const { srcX, srcY, srcW, srcH } = this.calcCropRegion(this.imageNaturalW, this.imageNaturalH)
 
@@ -489,6 +571,33 @@ export default {
 .crop-border {
   position: absolute;
   pointer-events: none;
+}
+
+.crop-border.circle {
+  border: 4rpx solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2rpx rgba(255, 255, 255, 0.16),
+    inset 0 0 0 2rpx rgba(255, 255, 255, 0.18),
+    0 0 32rpx rgba(0, 0, 0, 0.28);
+
+  .corner {
+    display: none;
+  }
+
+  .size-label {
+    bottom: 16rpx;
+    padding: 2rpx 12rpx;
+    border-radius: 999rpx;
+    background: rgba(0, 0, 0, 0.32);
+  }
+}
+
+.circle-mask-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
 }
 
 .corner {

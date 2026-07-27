@@ -1,0 +1,15 @@
+{
+  "enabledPlugins": {
+    "code-review-ai@codebuddy-plugins-official": true,
+    "frontend-design@codebuddy-plugins-official": true,
+    "codebuddy-chat-web@cb_teams_marketplace": true,
+    "frontend-design-pro@codebuddy-plugins-official": true,
+    "webapp-testing@cb_teams_marketplace": true
+  },
+  "permissions": {
+    "execute_command": "trust_all",
+    "allow_destructive": true,
+    "allow_git_force_push": true,
+    "file_operations": "trust_all"
+  }
+}

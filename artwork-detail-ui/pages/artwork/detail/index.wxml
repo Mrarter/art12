@@ -1,0 +1,86 @@
+<!-- 艺术品详情页 - 黑金风格 -->
+<view class="page">
+
+  <!-- 自定义导航栏 -->
+  <view class="nav">
+    <view class="nav-btn" bindtap="goBack">
+      <image src="/assets/icons/back.png" mode="aspectFit" class="nav-icon"/>
+    </view>
+    <text class="nav-title">作品详情</text>
+    <view class="nav-btn" bindtap="handleShare">
+      <image src="/assets/icons/share.png" mode="aspectFit" class="nav-icon"/>
+    </view>
+  </view>
+
+  <!-- 作品大图 -->
+  <view class="hero">
+    <image src="/assets/images/artwork.jpg" mode="aspectFill" class="hero-img"/>
+    <view class="hero-gradient"></view>
+    <view class="hero-overlay">
+      <text class="hero-title">静物0751</text>
+      <text class="hero-artist">孟儒</text>
+    </view>
+  </view>
+
+  <!-- 作品信息卡片 -->
+  <view class="card info-card">
+    <text class="name">静物0751</text>
+    <text class="meta">孟儒 · 布面油画 · 40×40cm · 2024</text>
+
+    <view class="price-section">
+      <text class="label">当前收藏价</text>
+      <text class="price">¥{{displayPrice}}</text>
+    </view>
+
+    <view class="stats-row">
+      <view class="stat-item">
+        <text class="growth">预计上涨 ¥1.6 — ¥2.4</text>
+        <text class="count">已被12位藏家收藏</text>
+      </view>
+    </view>
+
+    <view class="tags">
+      <text class="tag">原创</text>
+      <text class="tag">唯一原作</text>
+      <text class="tag">可流通</text>
+    </view>
+  </view>
+
+  <!-- 流通记录卡片 -->
+  <view class="card record-card">
+    <text class="section-title">流通记录</text>
+    <view class="record-line">
+      <view class="record-dot"></view>
+      <text class="record-price">¥5,200</text>
+      <text class="record-date">2023.09</text>
+    </view>
+    <view class="record-line">
+      <view class="record-dot"></view>
+      <text class="record-price">¥6,800</text>
+      <text class="record-date">2024.03</text>
+    </view>
+    <view class="record-line current">
+      <view class="record-dot gold"></view>
+      <text class="record-price gold">¥8,040</text>
+      <text class="record-date">2025.01 · 当前</text>
+    </view>
+    <text class="growth total-gain">累计上涨 +54%</text>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom">
+    <view class="action-btn" bindtap="toggleFavorite">
+      <image src="/assets/icons/heart.png" mode="aspectFit" class="action-icon"/>
+      <text class="action-text">收藏</text>
+    </view>
+    <view class="action-btn" bindtap="handleConsult">
+      <image src="/assets/icons/message.png" mode="aspectFit" class="action-icon"/>
+      <text class="action-text">咨询</text>
+    </view>
+    <view class="buy-btn" bindtap="handleBuy">
+      <text class="buy-text">立即收藏</text>
+      <text class="buy-sub">¥{{displayPrice}}</text>
+    </view>
+  </view>
+
+</view>

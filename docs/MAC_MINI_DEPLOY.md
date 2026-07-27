@@ -229,9 +229,12 @@ curl http://localhost:8080/actuator/health
 5173 -> Mac Mini IP:5173  (H5前端)
 ```
 
-### 3. 修改前端 API 地址
-将前端环境变量 `VITE_API_BASE_URL` 改为 Mac Mini 的 IP 地址
+### 3. 配置正式域名
+当前生产环境默认域名为 `https://a.art1.cn`：
+- H5/API：`https://a.art1.cn`
+- 管理后台：`https://admin.art1.cn`
+- 文件上传访问：`https://a.art1.cn/upload`
 
 ### 4. 小程序配置
 在微信小程序后台添加 request 合法域名：
-- `http://your-mac-mini-ip:8080`
+- `https://a.art1.cn`

@@ -14,9 +14,10 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
-            <el-option label="待上拍" value="pending" />
-            <el-option label="已成交" value="sold" />
-            <el-option label="未成交" value="unsold" />
+            <el-option label="待上拍" :value="0" />
+            <el-option label="竞拍中" :value="1" />
+            <el-option label="已成交" :value="2" />
+            <el-option label="流拍" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -38,7 +39,7 @@
       <el-table-column label="作品信息" min-width="250" class-name="artwork-header">
         <template #default="{ row }">
           <div class="artwork-info">
-            <el-image :src="row.cover" style="width: 60px; height: 60px" fit="cover" />
+            <el-image :src="getFullImageUrl(row.cover)" style="width: 60px; height: 60px" fit="cover" />
             <div>
               <p class="title">{{ row.title }}</p>
               <p class="artist">{{ row.artistName }}</p>
@@ -47,7 +48,7 @@
         </template>
       </el-table-column>
       <el-table-column label="专场" width="180">
-        <template #default="{ row }">{{ row.sessionName }}</template>
+        <template #default="{ row }">{{ getSessionName(row.sessionId) }}</template>
       </el-table-column>
       <el-table-column label="起拍价" width="120">
         <template #default="{ row }">¥{{ row.startPrice }}</template>
@@ -88,24 +89,52 @@
     </div>
 
     <!-- 添加/编辑拍品弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑拍品' : '添加拍品'" width="600px" destroy-on-close>
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="作品标题">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑拍品' : '添加拍品'" width="760px" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="作品标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入作品标题" />
+        </el-form-item>
+        <el-form-item label="拍品编号" prop="lotNo">
+          <el-input v-model="form.lotNo" placeholder="例如 QA-001" />
         </el-form-item>
         <el-form-item label="艺术家">
           <el-input v-model="form.artistName" placeholder="请输入艺术家名称" />
         </el-form-item>
-        <el-form-item label="所属专场">
+        <el-form-item label="所属专场" prop="sessionId">
           <el-select v-model="form.sessionId" placeholder="请选择专场" style="width: 100%">
             <el-option v-for="s in sessions" :key="s.sessionId" :label="s.name" :value="s.sessionId" />
           </el-select>
         </el-form-item>
-        <el-form-item label="起拍价">
+        <el-form-item label="封面图片">
+          <el-input v-model="form.cover" placeholder="图片 URL 或上传图片">
+            <template #append><el-button @click="triggerCoverUpload">上传</el-button></template>
+          </el-input>
+          <input ref="coverFileInput" type="file" accept="image/*" style="display:none" @change="handleCoverChange" />
+        </el-form-item>
+        <el-form-item label="起拍价" prop="startPrice">
           <el-input-number v-model="form.startPrice" :min="0" :precision="2" style="width: 100%" />
         </el-form-item>
         <el-form-item label="保留价">
           <el-input-number v-model="form.reservePrice" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="加价幅度" prop="increment">
+          <el-input-number v-model="form.increment" :min="0.01" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="保证金" prop="depositAmount">
+          <el-input-number v-model="form.depositAmount" :min="0" :precision="2" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="竞拍时间" required>
+          <el-col :span="11"><el-form-item prop="startTime"><el-date-picker v-model="form.startTime" type="datetime" placeholder="开始时间" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="2" style="text-align:center">至</el-col>
+          <el-col :span="11"><el-form-item prop="endTime"><el-date-picker v-model="form.endTime" type="datetime" placeholder="结束时间" style="width:100%" /></el-form-item></el-col>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="form.status" style="width:100%">
+            <el-option label="待上拍" :value="0" />
+            <el-option label="竞拍中" :value="1" />
+            <el-option label="已成交" :value="2" />
+            <el-option label="流拍" :value="3" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -116,7 +145,7 @@
 
     <!-- 出价记录弹窗 -->
     <el-dialog v-model="recordVisible" title="出价记录" width="600px">
-      <div v-if="currentLot.lotId" class="lot-info">
+      <div v-if="currentLot.id" class="lot-info">
         <p><strong>拍品：</strong>{{ currentLot.title }}</p>
         <p><strong>艺术家：</strong>{{ currentLot.artistName }}</p>
         <p><strong>起拍价：</strong>¥{{ currentLot.startPrice }}</p>
@@ -138,7 +167,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DocumentCopy } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { uploadFile, getFullImageUrl } from '@/api/request'
 import { copyId } from '@/utils/id'
 
 const route = useRoute()
@@ -148,6 +177,7 @@ const sessions = ref([])
 const dialogVisible = ref(false)
 const recordVisible = ref(false)
 const formRef = ref()
+const coverFileInput = ref()
 const isEdit = ref(false)
 
 const searchForm = reactive({
@@ -162,8 +192,24 @@ const form = reactive({
   cover: '',
   startPrice: 0,
   reservePrice: 0,
+  increment: 50,
+  depositAmount: 0,
+  lotNo: '',
+  startTime: '',
+  endTime: '',
+  status: 0,
   sessionId: ''
 })
+
+const rules = {
+  title: [{ required: true, message: '请输入作品标题', trigger: 'blur' }],
+  lotNo: [{ required: true, message: '请输入拍品编号', trigger: 'blur' }],
+  sessionId: [{ required: true, message: '请选择专场', trigger: 'change' }],
+  startPrice: [{ required: true, message: '请输入起拍价', trigger: 'change' }],
+  increment: [{ required: true, message: '请输入加价幅度', trigger: 'change' }],
+  startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
+  endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }]
+}
 
 const currentLot = ref({})
 const bidRecords = ref([])
@@ -175,12 +221,12 @@ const pagination = reactive({
 })
 
 const getStatusType = (status) => {
-  const map = { pending: 'warning', sold: 'success', unsold: 'info' }
+  const map = { 0: 'warning', 1: 'primary', 2: 'success', 3: 'info' }
   return map[status] || 'info'
 }
 
 const getStatusText = (status) => {
-  const map = { pending: '待上拍', sold: '已成交', unsold: '未成交' }
+  const map = { 0: '待上拍', 1: '竞拍中', 2: '已成交', 3: '流拍' }
   return map[status] || status
 }
 
@@ -199,24 +245,33 @@ const handleCopyId = async (id) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await request.get('/auction/lot/list', { params: { page: pagination.page, size: pagination.size, ...searchForm } })
-    tableData.value = data.list
-    pagination.total = data.total
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.sessionId !== '') params.sessionId = searchForm.sessionId
+    if (searchForm.status !== '') params.status = searchForm.status
+    const data = await request.get('/auction/lots', { params })
+    tableData.value = (data.records || data.list || []).map(item => ({
+      lotId: 'L' + String(item.id),
+      id: item.id,
+      title: item.title,
+      cover: item.coverImage || item.cover || '',
+      artistName: item.artistName,
+      lotNo: item.lotNo,
+      startPrice: item.startPrice,
+      currentPrice: item.currentPrice,
+      reservePrice: item.reservePrice,
+      increment: item.increment,
+      depositAmount: item.depositAmount,
+      bidCount: item.bidCount,
+      status: item.status,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      sessionId: item.sessionId
+    }))
+    pagination.total = data.total || 0
   } catch (e) {
-    // 使用本地模拟数据
-    const sessionId = route.query.sessionId || ''
-    if (!tableData.value.length) {
-      tableData.value = sessionId === 'S002' ? [
-        { lotId: 'L101', lotCode: 'LOT202604250001X7K2', title: '现代油画', artistName: '李明', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 30000, finalPrice: 0, bidCount: 5, status: 'pending' },
-        { lotId: 'L102', lotCode: 'LOT202604250002M9N5', title: '抽象艺术', artistName: '王芳', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 50000, finalPrice: 0, bidCount: 8, status: 'pending' },
-        { lotId: 'L103', lotCode: 'LOT202604250003W3T8', title: '风景写生', artistName: '赵丽', cover: '', sessionId: 'S002', sessionName: '当代艺术专场', startPrice: 20000, finalPrice: 0, bidCount: 3, status: 'pending' }
-      ] : [
-        { lotId: 'L001', lotCode: 'LOT202604240001A5K9', title: '名家山水', artistName: '张大千', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 50000, finalPrice: 68000, bidCount: 12, status: 'sold' },
-        { lotId: 'L002', lotCode: 'LOT202604240002B2F6', title: '花鸟画', artistName: '齐白石', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 80000, finalPrice: 95000, bidCount: 15, status: 'sold' },
-        { lotId: 'L003', lotCode: 'LOT202604240003C8H1', title: '书法作品', artistName: '启功', cover: '', sessionId: 'S001', sessionName: '2024春季拍卖会', startPrice: 100000, finalPrice: 0, bidCount: 2, status: 'unsold' }
-      ]
-    }
-    pagination.total = tableData.value.length
+    console.error('加载拍品列表失败:', e)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -224,13 +279,15 @@ const loadData = async () => {
 
 const loadSessions = async () => {
   try {
-    sessions.value = await request.get('/auction/sessions')
+    const data = await request.get('/auction/sessions', { params: { page: 1, size: 100 } })
+    sessions.value = (data.records || data.list || data || []).map(s => ({
+      sessionId: s.id,
+      id: s.id,
+      name: s.title || s.name
+    }))
   } catch (e) {
-    sessions.value = [
-      { sessionId: 'S001', name: '2024春季拍卖会' },
-      { sessionId: 'S002', name: '当代艺术专场' },
-      { sessionId: 'S003', name: '书画精品专场' }
-    ]
+    console.error('加载专场列表失败:', e)
+    sessions.value = []
   }
 }
 
@@ -246,7 +303,7 @@ const resetSearch = () => {
 
 const handleAdd = () => {
   isEdit.value = false
-  Object.assign(form, { lotId: '', title: '', artistName: '', cover: '', startPrice: 0, reservePrice: 0, sessionId: route.query.sessionId || '' })
+  Object.assign(form, { id: null, title: '', artistName: '', cover: '', startPrice: 0, reservePrice: 0, increment: 50, depositAmount: 0, lotNo: '', startTime: '', endTime: '', status: 0, sessionId: route.query.sessionId ? Number(route.query.sessionId) : '' })
   dialogVisible.value = true
 }
 
@@ -257,60 +314,91 @@ const handleEdit = (row) => {
 }
 
 const handleSubmit = async () => {
-  if (!form.title || !form.startPrice) {
-    ElMessage.warning('请填写完整信息')
-    return
-  }
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+  if (new Date(form.endTime).getTime() <= new Date(form.startTime).getTime()) return ElMessage.warning('结束时间必须晚于开始时间')
   try {
+    const payload = {
+      title: form.title,
+      coverImage: form.cover || '',
+      artistName: form.artistName || '',
+      sessionId: form.sessionId,
+      lotNo: form.lotNo || 0,
+      startPrice: form.startPrice,
+      reservePrice: form.reservePrice || 0,
+      increment: form.increment,
+      depositAmount: form.depositAmount || 0,
+      status: form.status,
+      startTime: form.startTime,
+      endTime: form.endTime
+    }
     if (isEdit.value) {
-      const index = tableData.value.findIndex(item => item.lotId === form.lotId)
-      if (index > -1) {
-        const session = sessions.value.find(s => s.sessionId === form.sessionId)
-        tableData.value[index] = { ...tableData.value[index], ...form, sessionName: session?.name || '' }
-        ElMessage.success('更新成功')
-      }
+      await request.put(`/auction/lots/${form.id}`, payload)
+      ElMessage.success('更新成功')
     } else {
-      const newId = 'L' + String(Math.max(...tableData.value.map(item => parseInt(item.lotId.slice(1))), 0) + 1).padStart(3, '0')
-      const session = sessions.value.find(s => s.sessionId === form.sessionId)
-      tableData.value.unshift({ lotId: newId, ...form, sessionName: session?.name || '', finalPrice: 0, bidCount: 0, status: 'pending' })
-      pagination.total++
+      await request.post('/auction/lots', payload)
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    await loadData()
   } catch (e) {
-    ElMessage.error('操作失败')
+    ElMessage.error('操作失败: ' + (e.message || '未知错误'))
   }
 }
 
-const viewRecord = (row) => {
+const viewRecord = async (row) => {
   currentLot.value = row
-  // 模拟出价记录
-  bidRecords.value = [
-    { id: 1, bidder: '用户A', price: 55000, time: '2024-03-06 10:30:00' },
-    { id: 2, bidder: '用户B', price: 58000, time: '2024-03-06 10:35:00' },
-    { id: 3, bidder: '用户C', price: 62000, time: '2024-03-06 10:40:00' },
-    { id: 4, bidder: '用户D', price: 65000, time: '2024-03-06 10:45:00' },
-    { id: 5, bidder: '用户E', price: 68000, time: '2024-03-06 10:50:00' }
-  ]
   recordVisible.value = true
+  try {
+    const data = await request.get('/auction/bids', { params: { lotId: row.id, page: 1, size: 100 } })
+    bidRecords.value = (data.records || []).map(item => ({ id: item.id, bidder: `用户 ${item.userId}`, price: item.bidPrice, time: formatDateTime(item.bidTime) }))
+  } catch (e) {
+    bidRecords.value = []
+  }
 }
 
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该拍品吗？', '提示', { type: 'warning' })
-    const index = tableData.value.findIndex(item => item.lotId === row.lotId)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      pagination.total--
-      ElMessage.success('删除成功')
-    }
-  } catch (e) {}
+    await request.delete(`/auction/lots/${row.id}`)
+    ElMessage.success('删除成功')
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败: ' + (e.message || '未知错误'))
+  }
+}
+
+const getSessionName = (id) => sessions.value.find(item => Number(item.sessionId) === Number(id))?.name || `专场 #${id}`
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false }).replaceAll('/', '-')
+}
+
+const triggerCoverUpload = () => coverFileInput.value?.click()
+const handleCoverChange = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('请选择不超过 10MB 的图片')
+    return
+  }
+  try {
+    const result = await uploadFile(file)
+    form.cover = result?.url || result || ''
+    ElMessage.success('封面上传成功')
+  } catch (e) {
+    ElMessage.error('封面上传失败: ' + (e.message || '未知错误'))
+  } finally {
+    event.target.value = ''
+  }
 }
 
 onMounted(() => {
   // 从路由参数获取专场ID
   if (route.query.sessionId) {
-    searchForm.sessionId = route.query.sessionId
+    searchForm.sessionId = Number(route.query.sessionId)
   }
   loadData()
   loadSessions()
@@ -366,16 +454,16 @@ onMounted(() => {
   padding: 12px;
   background: #f5f7fa;
   border-radius: 4px;
-  
-  p {
-    margin: 4px 0;
-  }
-  
+
   .price {
     color: #67c23a;
     font-weight: bold;
     font-size: 16px;
   }
+}
+
+.lot-info p {
+  margin: 4px 0;
 }
 
 /* UID单元格样式 */

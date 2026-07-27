@@ -30,7 +30,7 @@ echo "📋 检查环境..."
 echo ""
 
 check_service "java -version" "Java"
-check_service "mysqladmin ping -u root -proot123456" "MySQL"
+check_service "mysqladmin ping -u root -p123456" "MySQL"
 check_service "redis-cli ping" "Redis"
 
 echo ""
@@ -39,7 +39,7 @@ echo ""
 
 # 2. 检查MySQL数据库
 echo "📊 检查数据库..."
-mysql -u root -proot123456 -e "USE shiyiju; SELECT COUNT(*) as 表数量 FROM information_schema.tables WHERE table_schema = 'shiyiju';" 2>/dev/null | grep -v "mysql:"
+mysql -u root -p123456 -e "USE shiyiju_local; SELECT COUNT(*) as 表数量 FROM information_schema.tables WHERE table_schema = 'shiyiju_local';" 2>/dev/null | grep -v "mysql:"
 
 echo ""
 echo "🎨 ========================================"

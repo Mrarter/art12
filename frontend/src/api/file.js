@@ -3,20 +3,39 @@
  */
 import request from './request'
 
-const DEV_LAN_HOST = '192.168.1.109'
-const API_ORIGIN = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8082`
-  : ''
-const BASE_URL = API_ORIGIN + '/api'
-const LOCAL_FILE_ORIGIN = 'http://localhost:8087'
-const FILE_BASE_URL = process.env.UNI_PLATFORM === 'mp-weixin'
-  ? `http://${DEV_LAN_HOST}:8087`
-  : ''
+const IS_MP = process.env.UNI_PLATFORM === 'mp-weixin'
+const DEV_LAN_HOST = import.meta.env?.VITE_DEV_LAN_HOST || '192.168.1.144'
+
+// 小程序用 HTTP 直连（开发环境），H5 用相对路径
+const MP_GATEWAY_ORIGIN = import.meta.env?.VITE_MP_GATEWAY_ORIGIN || `http://${DEV_LAN_HOST}:9443`
+const MP_FILE_ORIGIN = import.meta.env?.VITE_MP_FILE_ORIGIN || `http://${DEV_LAN_HOST}:9447`
+
+const API_ORIGIN = IS_MP ? `${MP_GATEWAY_ORIGIN}/api` : ''
+const FILE_BASE_URL = IS_MP ? MP_FILE_ORIGIN : ''
+
+const normalizeUploadPath = (url) => {
+  if (typeof url !== 'string') return url
+  const value = url.trim()
+  const duplicated = value.match(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/uploads\/upload\/(.+)$/)
+  if (duplicated) return `/upload/${duplicated[1]}`
+  const localUpload = value.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/upload\/.+)$/)
+  if (localUpload) return localUpload[1]
+  return value
+}
 
 const normalizeFileUrl = (url) => {
-  return typeof url === 'string' && url.startsWith(LOCAL_FILE_ORIGIN)
-    ? FILE_BASE_URL + url.slice(LOCAL_FILE_ORIGIN.length)
-    : url
+  const normalized = normalizeUploadPath(url)
+  if (!IS_MP) return normalized
+  if (typeof normalized !== 'string') return normalized
+  if (normalized.startsWith('http://localhost:8087') || normalized.startsWith('http://127.0.0.1:8087')) {
+    return FILE_BASE_URL + normalized.slice(normalized.indexOf(':8087') + 5)
+  }
+  if (normalized.startsWith('/upload/')) return FILE_BASE_URL + normalized
+  if (normalized.startsWith('upload/')) return FILE_BASE_URL + '/' + normalized
+  if (normalized.match(/^http:\/\/192\.168\.\d+\.\d+:8087/)) {
+    return normalized.replace(/^http:\/\/192\.168\.\d+\.\d+:8087/, FILE_BASE_URL)
+  }
+  return normalized
 }
 
 const parseUploadResponse = (responseText) => {
@@ -27,6 +46,9 @@ const parseUploadResponse = (responseText) => {
   throw new Error(data.message || '上传失败')
 }
 
+/**
+ * H5 上传（使用 fetch）
+ */
 const uploadFileByFetch = async (filePath, type, token) => {
   const response = await fetch(filePath)
   if (!response.ok) throw new Error('读取图片失败: HTTP ' + response.status)
@@ -37,53 +59,43 @@ const uploadFileByFetch = async (filePath, type, token) => {
   formData.append('type', type)
 
   const headers = {}
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token
-  }
-  const uploadRes = await fetch(BASE_URL + '/product/upload', {
-    method: 'POST',
-    headers,
-    body: formData
-  })
-  if (!uploadRes.ok) {
-    throw new Error('上传失败: HTTP ' + uploadRes.status)
-  }
-  const text = await uploadRes.text()
-  return parseUploadResponse(text)
+  if (token) headers['Authorization'] = 'Bearer ' + token
+
+  const uploadPath = type === 'video' ? '/file/upload/video' : '/file/upload/image'
+  const uploadUrl = API_ORIGIN ? API_ORIGIN + uploadPath : '/api' + uploadPath
+  const uploadRes = await fetch(uploadUrl, { method: 'POST', headers, body: formData })
+  if (!uploadRes.ok) throw new Error('上传失败: HTTP ' + uploadRes.status)
+  return parseUploadResponse(await uploadRes.text())
 }
 
 /**
  * 打开图片裁剪器
- * @param {string} src - 图片临时路径
- * @param {object} opts - 裁剪选项
- * @param {string} [opts.ratio='1:1'] - 裁剪比例 (1:1, 4:3, 3:4, 16:9, free)
- * @param {string} [opts.shape='square'] - 裁剪形状 (square, circle)
- * @returns {Promise<string>} 裁剪后的图片路径
  */
 export const openCropper = (src, opts = {}) => {
   return new Promise((resolve, reject) => {
-    const { ratio = '1:1', shape = 'square' } = opts
-    const pages = getCurrentPages()
-    const currentPage = pages[pages.length - 1]
+    const { ratio = 'auto', shape = 'square', outputSize } = opts
     const route = encodeURIComponent(src)
-
-    // 监听全局事件（备用方案）
+    const eventKey = `cropResult:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
+    const query = [`src=${route}`, `ratio=${ratio}`, `shape=${shape}`, `eventKey=${encodeURIComponent(eventKey)}`]
+    if (outputSize) query.push(`outputSize=${Number(outputSize) || 800}`)
+    const cleanup = () => {
+      uni.$off(eventKey, handler)
+    }
     const handler = (result) => {
-      uni.$off('cropResult', handler)
+      cleanup()
       resolve(result)
     }
-    uni.$on('cropResult', handler)
-
+    uni.$on(eventKey, handler)
     uni.navigateTo({
-      url: `/pages/common/cropper?src=${route}&ratio=${ratio}&shape=${shape}`,
+      url: `/pages/common/cropper?${query.join('&')}`,
       events: {
         onCrop: (result) => {
-          uni.$off('cropResult', handler)
+          cleanup()
           resolve(result)
         }
       },
       fail: (err) => {
-        uni.$off('cropResult', handler)
+        cleanup()
         reject(err)
       }
     })
@@ -92,36 +104,29 @@ export const openCropper = (src, opts = {}) => {
 
 /**
  * 上传文件
- * @param {string} filePath - 文件临时路径
- * @param {string} type - 文件类型 (image/audio/video)
- * @returns {Promise<string>} 文件URL
  */
 export const uploadFile = (filePath, type = 'image') => {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token')
+    const uploadPath = type === 'video' ? '/file/upload/video' : '/file/upload/image'
+    const uploadUrl = API_ORIGIN ? API_ORIGIN + uploadPath : '/api' + uploadPath
+    console.log('[UPLOAD] 上传地址:', uploadUrl, '平台:', process.env.UNI_PLATFORM)
 
-    // H5: 使用 fetch API 上传（比 XHR 更可靠处理 blob URL）
     if (process.env.UNI_PLATFORM === 'h5') {
-      return uploadFileByFetch(filePath, type, token)
-        .then(resolve)
-        .catch((err) => {
-          console.error('上传失败:', err)
-          uni.showToast({ title: err.message || '上传失败', icon: 'none' })
-          reject(err)
-        })
-      return
+      return uploadFileByFetch(filePath, type, token).then(resolve).catch((err) => {
+        console.error('[UPLOAD] 失败:', err)
+        uni.showToast({ title: err.message || '上传失败', icon: 'none' })
+        reject(err)
+      })
     }
-    
+
+    // 小程序上传
     uni.uploadFile({
-      url: BASE_URL + '/product/upload',
+      url: uploadUrl,
       filePath: filePath,
       name: 'file',
-      header: {
-        'Authorization': token ? 'Bearer ' + token : ''
-      },
-      formData: {
-        type: type
-      },
+      header: { 'Authorization': token ? 'Bearer ' + token : '' },
+      formData: { type },
       success: (res) => {
         try {
           resolve(parseUploadResponse(res.data))
@@ -131,8 +136,8 @@ export const uploadFile = (filePath, type = 'image') => {
         }
       },
       fail: (err) => {
-        console.error('上传失败:', err)
-        uni.showToast({ title: '上传失败', icon: 'none' })
+        console.error('[UPLOAD] 失败:', err)
+        uni.showToast({ title: '上传失败: ' + (err.errMsg || '网络错误'), icon: 'none' })
         reject(err)
       }
     })
@@ -141,8 +146,6 @@ export const uploadFile = (filePath, type = 'image') => {
 
 /**
  * 获取文件上传凭证
- * @param {string} filename - 文件名
- * @param {string} type - 文件类型
  */
 export const getUploadToken = (filename, type = 'image') => {
   return request.get('/file/token', { filename, type })
@@ -150,8 +153,6 @@ export const getUploadToken = (filename, type = 'image') => {
 
 /**
  * 上传到七牛云
- * @param {string} token - 上传凭证
- * @param {string} filePath - 文件路径
  */
 export const uploadToQiniu = (token, filePath) => {
   return new Promise((resolve, reject) => {
@@ -159,20 +160,12 @@ export const uploadToQiniu = (token, filePath) => {
       url: 'https://up-z2.qiniup.com',
       filePath: filePath,
       name: 'file',
-      formData: {
-        token: token
-      },
+      formData: { token },
       success: (res) => {
         try {
           const data = JSON.parse(res.data)
-          if (data.key) {
-            resolve(data.key)
-          } else {
-            reject(new Error('上传失败'))
-          }
-        } catch (e) {
-          reject(e)
-        }
+          data.key ? resolve(data.key) : reject(new Error('上传失败'))
+        } catch (e) { reject(e) }
       },
       fail: reject
     })

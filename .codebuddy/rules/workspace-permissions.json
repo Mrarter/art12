@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "execute_command": {
+      "mode": "trust_all",
+      "allow_destructive": true,
+      "allow_git_force_push": true
+    },
+    "file_operations": {
+      "mode": "trust_all"
+    }
+  },
+  "description": "工作区最高权限规则 - 允许所有命令执行和文件操作"
+}

@@ -1,0 +1,121 @@
+========================================
+  系统健康诊断报告
+  生成时间: 2026-05-16 12:41:37
+========================================
+
+【1. 服务器资源负载】
+----------------------------------------
+--- CPU 使用率 ---
+Processes: 550 total, 4 running, 546 sleeping, 5268 threads 
+2026/05/16 12:41:38
+Load Avg: 2.39, 2.68, 2.70 
+CPU usage: 15.50% user, 15.74% sys, 68.75% idle 
+SharedLibs: 556M resident, 124M data, 74M linkedit.
+
+--- 内存使用 ---
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                5804.
+Pages active:                            247605.
+Pages inactive:                          245508.
+Pages speculative:                          779.
+Pages throttled:                              0.
+Pages wired down:                        168032.
+Pages purgeable:                          11847.
+"Translation faults":                6707316768.
+Pages copy-on-write:                  233544546.
+Pages zero filled:                   3662777750.
+Pages reactivated:                    396510358.
+Pages purged:                         124252821.
+File-backed pages:                       149193.
+Anonymous pages:                         344699.
+Pages stored in compressor:             1270355.
+Pages occupied by compressor:            333130.
+Decompressions:                       412093706.
+Compressions:                         519386757.
+Pageins:                              179434484.
+Pageouts:                               2862840.
+Swapins:                                8777832.
+Swapouts:                              11905514.
+
+--- 磁盘使用 ---
+Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s1s1   1.8Ti    16Gi   1.2Ti     2%    426k  4.3G    0%   /
+devfs            199Ki   199Ki     0Bi   100%     690     0  100%   /dev
+/dev/disk3s6     1.8Ti   7.0Gi   1.2Ti     1%       7   13G    0%   /System/Volumes/VM
+/dev/disk3s2     1.8Ti    14Gi   1.2Ti     2%    1.8k   13G    0%   /System/Volumes/Preboot
+/dev/disk3s4     1.8Ti   715Mi   1.2Ti     1%     352   13G    0%   /System/Volumes/Update
+/dev/disk1s2     500Mi   6.0Mi   481Mi     2%       1  4.9M    0%   /System/Volumes/xarts
+/dev/disk1s1     500Mi   5.8Mi   481Mi     2%      37  4.9M    0%   /System/Volumes/iSCPreboot
+/dev/disk1s3     500Mi   2.3Mi   481Mi     1%      81  4.9M    0%   /System/Volumes/Hardware
+/dev/disk3s5     1.8Ti   589Gi   1.2Ti    33%    3.7M   13G    0%   /System/Volumes/Data
+map auto_home      0Bi     0Bi     0Bi   100%       0     0     -   /System/Volumes/Data/home
+/dev/disk3s1     1.8Ti    16Gi   1.2Ti     2%    451k  4.3G    0%   /System/Volumes/Update/mnt1
+
+--- 网络连接数 ---
+ESTABLISHED 连接数: 164
+
+【2. Java 服务端口状态】
+----------------------------------------
+端口 8080: 运行中 (PID: 5776
+9482
+47151)
+端口 8081: 运行中 (PID: 27118)
+端口 8082: 运行中 (PID: 19338)
+端口 8087: 运行中 (PID: 27125)
+端口 8090: 运行中 (PID: 99103)
+
+【3. 数据库状态】
+----------------------------------------
+Variable_name	Value
+Threads_connected	51
+Variable_name	Value
+Threads_running	2
+Variable_name	Value
+Max_used_connections	100
+
+--- 慢查询日志 ---
+
+【4. 应用日志异常分析】
+----------------------------------------
+--- product.log 最近10条错误 ---
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:73) ~[spring-jdbc-6.0.13.jar!/:6.0.13]
+	at org.mybatis.spring.MyBatisExceptionTranslator.translateExceptionIfPossible(MyBatisExceptionTranslator.java:92) ~[mybatis-spring-2.1.2.jar!/:2.1.2]
+Caused by: java.sql.SQLException: Field 'artwork_id' doesn't have a default value
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar!/:8.0.33]
+
+--- user.log 最近10条错误 ---
+
+--- gateway.log 最近10条错误 ---
+2026-05-16T12:08:59.827+08:00 ERROR 5776 --- [ctor-http-nio-3] a.w.r.e.AbstractErrorWebExceptionHandler : [07721a55-39]  500 Server Error for HTTP POST "/product/upload"
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection refused: /127.0.0.1:8082
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+	*__checkpoint ⇢ HTTP POST "/product/upload" [ExceptionHandlingWebHandler]
+Caused by: java.net.ConnectException: Connection refused
+
+--- admin.log 最近10条错误 ---
+2026-05-16T09:26:41.042+08:00 ERROR 99103 --- [           main] c.b.m.core.MybatisConfiguration          : mapper[com.shiyiju.admin.mapper.PromoterRecordMapper.countByLevel] is ignored, because it exists, maybe from xml file
+
+--- order.log 最近10条错误 ---
+
+--- 近5分钟错误频率 ---
+product.log: 8 条错误
+user.log: 0
+0 条错误
+gateway.log: 6 条错误
+
+【5. API 健康检查】
+----------------------------------------
+Gateway: HTTP 404, 39ms ❌
+Product-List: HTTP 200, 102ms ✅
+Admin: HTTP 200, 37ms ✅
+
+【6. 诊断汇总】
+----------------------------------------
+❌ 日志中累计 36 条错误，需排查
+❌ artwork_id 字段缺少默认值，发布作品会失败
+⚠️ 发现 2 个问题，请查看详细日志
+
+========================================
+诊断完成，报告保存至: /Users/master/CodeBuddy/art12/backend/scripts/diagnosis-report-20260516-124137.txt
+========================================

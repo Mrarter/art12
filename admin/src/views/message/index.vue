@@ -139,7 +139,7 @@
               <span class="target-name">{{ row.targetName || row.groupName }}</span>
             </div>
             <div v-else class="user-info">
-              <el-avatar :src="row.userAvatar" :size="24" />
+              <el-avatar :src="getFullImageUrl(row.userAvatar)" :size="24" />
               <span>{{ row.userName || row.nickname || '-' }}</span>
             </div>
           </template>
@@ -211,7 +211,7 @@
             <el-option label="活跃用户" value="active_user" />
             <el-option label="VIP用户" value="vip_user" />
             <el-option label="艺术家" value="artist" />
-            <el-option label="艺荐官" value="promoter" />
+            <el-option label="经纪人" value="promoter" />
             <el-option label="未消费用户" value="no_purchase" />
           </el-select>
         </el-form-item>
@@ -303,7 +303,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Message, SuccessFilled, Clock, CircleCloseFilled, Plus } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 
 const loading = ref(false)
 const typeFilter = ref('')

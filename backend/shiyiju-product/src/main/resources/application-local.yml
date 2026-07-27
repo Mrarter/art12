@@ -1,9 +1,24 @@
-# 本地开发配置 - 禁用Nacos
+# 本地开发数据库配置
 spring:
   cloud:
     nacos:
       discovery:
         enabled: false
+  datasource:
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+
+# 本地文件存储配置
+upload:
+  local:
+    path: /Users/master/CodeBuddy/art12/uploads
+  cdn-url: http://127.0.0.1:8087
 
 # 价格增长配置
 price:

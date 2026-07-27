@@ -96,7 +96,7 @@
     <!-- 协议提示 -->
     <view class="agreement-tip">
       <text>发布即表示你同意</text>
-      <text class="link" @click="goAgreement">《拾艺局社区公约》</text>
+      <text class="link" @click="goAgreement">《艺本艺术社区公约》</text>
     </view>
   </view>
 </template>
@@ -104,6 +104,8 @@
 <script>
 import { createPost, getTopics } from '@/api/community'
 import { uploadFile, openCropper } from '@/api/file'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { guardCommunityPostPublishAccess } from '@/utils/platform.js'
 
 export default {
   data() {
@@ -124,6 +126,7 @@ export default {
   },
 
   onLoad() {
+    if (guardCommunityPostPublishAccess()) return
     this.loadTopics()
   },
 
@@ -250,12 +253,7 @@ export default {
     },
 
     formatPrice(price) {
-      if (!price) return '0'
-      const yuan = price / 100  // 分转元
-      if (yuan >= 10000) {
-        return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-      }
-      return yuan.toLocaleString()
+      return formatArtworkPriceNumber(price)
     }
   }
 }

@@ -26,7 +26,7 @@
           <el-icon><Coin /></el-icon>
         </div>
         <div class="stat-content">
-          <p class="stat-label">累计佣金总额</p>
+          <p class="stat-label">累计分成总额</p>
           <p class="stat-value">¥{{ formatNumber(stats.totalCommission) }}</p>
           <p class="stat-trend up" v-if="stats.commissionGrowth > 0">
             ↑ {{ stats.commissionGrowth }}% 较上期
@@ -38,7 +38,7 @@
           <el-icon><Wallet /></el-icon>
         </div>
         <div class="stat-content">
-          <p class="stat-label">已结算佣金</p>
+          <p class="stat-label">已结算分成</p>
           <p class="stat-value">¥{{ formatNumber(stats.settledCommission) }}</p>
           <p class="stat-trend">
             待结算 ¥{{ formatNumber(stats.unsettledCommission) }}
@@ -50,7 +50,7 @@
           <el-icon><User /></el-icon>
         </div>
         <div class="stat-content">
-          <p class="stat-label">艺荐官总数</p>
+          <p class="stat-label">经纪人总数</p>
           <p class="stat-value">{{ formatNumber(stats.totalPromoters) }}</p>
           <p class="stat-trend">
             活跃 {{ stats.activePromoters }} 人
@@ -76,7 +76,7 @@
       <el-card shadow="hover">
         <template #header>
           <div class="card-header">
-            <span>佣金趋势</span>
+            <span>分成趋势</span>
             <el-radio-group v-model="chartType" size="small">
               <el-radio-button label="daily">日</el-radio-button>
               <el-radio-button label="weekly">周</el-radio-button>
@@ -88,13 +88,13 @@
       </el-card>
     </div>
 
-    <!-- 佣金构成分析 -->
+    <!-- 分成构成分析 -->
     <div class="analysis-section">
       <el-row :gutter="20">
         <el-col :span="12">
           <el-card shadow="hover">
             <template #header>
-              <span>佣金构成</span>
+              <span>分成构成</span>
             </template>
             <div ref="compositionChartRef" class="chart-container-small"></div>
           </el-card>
@@ -102,7 +102,7 @@
         <el-col :span="12">
           <el-card shadow="hover">
             <template #header>
-              <span>艺荐官等级分布</span>
+              <span>经纪人等级分布</span>
             </template>
             <div ref="levelChartRef" class="chart-container-small"></div>
           </el-card>
@@ -115,7 +115,7 @@
       <el-card shadow="hover">
         <template #header>
           <div class="card-header">
-            <span>佣金排行榜 TOP10</span>
+            <span>分成排行榜 TOP10</span>
           </div>
         </template>
         <el-table :data="rankList" border stripe>
@@ -124,10 +124,10 @@
               <span :class="['rank', { top3: $index < 3 }]">{{ $index + 1 }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="艺荐官" min-width="200">
+          <el-table-column label="经纪人" min-width="200">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :src="row.avatar" :size="36" />
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="36" />
                 <div>
                   <p class="nickname">{{ row.nickname }}</p>
                   <p class="level">{{ row.levelName }}</p>
@@ -137,17 +137,17 @@
           </el-table-column>
           <el-table-column prop="teamSize" label="团队人数" width="100" align="center" />
           <el-table-column prop="orderCount" label="订单数" width="100" align="center" />
-          <el-table-column label="一级佣金" width="120" align="right">
+          <el-table-column label="一级分成" width="120" align="right">
             <template #default="{ row }">
               <span class="money">¥{{ formatNumber(row.level1Commission) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="二级佣金" width="120" align="right">
+          <el-table-column label="二级分成" width="120" align="right">
             <template #default="{ row }">
               <span class="money">¥{{ formatNumber(row.level2Commission) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="累计佣金" width="140" align="right">
+          <el-table-column label="累计分成" width="140" align="right">
             <template #default="{ row }">
               <span class="money total">¥{{ formatNumber(row.totalCommission) }}</span>
             </template>
@@ -164,17 +164,17 @@
             <span>团队业绩明细</span>
             <el-input
               v-model="searchKeyword"
-              placeholder="搜索艺荐官"
+              placeholder="搜索经纪人"
               style="width: 200px"
               clearable
             />
           </div>
         </template>
         <el-table :data="filteredTeamList" v-loading="loading" border stripe>
-          <el-table-column label="艺荐官" min-width="180">
+          <el-table-column label="经纪人" min-width="180">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :src="row.avatar" :size="36" />
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="36" />
                 <div>
                   <p class="nickname">{{ row.nickname }}</p>
                   <p class="phone">{{ row.phone }}</p>
@@ -199,12 +199,12 @@
           </el-table-column>
           <el-table-column prop="directOrders" label="直接订单" width="100" align="center" />
           <el-table-column prop="teamOrders" label="团队订单" width="100" align="center" />
-          <el-table-column label="本月佣金" width="120" align="right">
+          <el-table-column label="本月分成" width="120" align="right">
             <template #default="{ row }">
               <span class="money">¥{{ formatNumber(row.monthCommission) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="累计佣金" width="120" align="right">
+          <el-table-column label="累计分成" width="120" align="right">
             <template #default="{ row }">
               <span class="money total">¥{{ formatNumber(row.totalCommission) }}</span>
             </template>
@@ -224,7 +224,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Coin, Wallet, User, TrendCharts, Download } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 import * as echarts from 'echarts'
 
 const loading = ref(false)
@@ -350,7 +350,7 @@ const initTrendChart = (data) => {
   trendChart = echarts.init(trendChartRef.value)
   trendChart.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { data: ['一级佣金', '二级佣金', '总佣金'] },
+    legend: { data: ['一级分成', '二级分成', '总分成'] },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: {
       type: 'category',
@@ -358,9 +358,9 @@ const initTrendChart = (data) => {
     },
     yAxis: { type: 'value', axisLabel: { formatter: v => v >= 1000 ? `${v/1000}K` : v } },
     series: [
-      { name: '一级佣金', type: 'bar', stack: 'total', data: data.map(d => d.level1 || d.commission * 0.65) },
-      { name: '二级佣金', type: 'bar', stack: 'total', data: data.map(d => d.level2 || d.commission * 0.35) },
-      { name: '总佣金', type: 'line', data: data.map(d => d.commission), smooth: true }
+      { name: '一级分成', type: 'bar', stack: 'total', data: data.map(d => d.level1 || d.commission * 0.65) },
+      { name: '二级分成', type: 'bar', stack: 'total', data: data.map(d => d.level2 || d.commission * 0.35) },
+      { name: '总分成', type: 'line', data: data.map(d => d.commission), smooth: true }
     ]
   })
 }

@@ -154,7 +154,7 @@ const showSuccessModal = ref(false)
 const faqList = ref([
   { id: 1, question: '如何成为认证艺术家？' },
   { id: 2, question: '作品审核需要多长时间？' },
-  { id: 3, question: '佣金提现多久到账？' },
+  { id: 3, question: '分成提现多久到账？' },
   { id: 4, question: '如何参与拍卖？' },
   { id: 5, question: '保证金如何退还？' }
 ])

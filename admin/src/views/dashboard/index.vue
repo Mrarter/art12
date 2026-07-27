@@ -64,6 +64,42 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="20" class="finance-row">
+      <el-col :span="24">
+        <div class="finance-card">
+          <div class="finance-header">
+            <div>
+              <span class="finance-title">平台抽佣</span>
+              <span class="finance-subtitle">按订单实付金额统计</span>
+            </div>
+            <el-button type="primary" link @click="goPage('/system/config')">查看明细</el-button>
+          </div>
+          <div class="finance-metrics">
+            <div class="finance-metric featured">
+              <span>平台抽佣总额</span>
+              <strong>¥{{ formatCurrency(platformFinance.total) }}</strong>
+              <small>当前平台佣金流水累计</small>
+            </div>
+            <div class="finance-metric">
+              <span>支付成功后营收</span>
+              <strong>¥{{ formatCurrency(platformFinance.afterPay) }}</strong>
+              <small>{{ platformFinance.afterPayCount }} 笔未退款订单</small>
+            </div>
+            <div class="finance-metric">
+              <span>确认收货后到账</span>
+              <strong>¥{{ formatCurrency(platformFinance.afterConfirm) }}</strong>
+              <small>{{ platformFinance.afterConfirmCount }} 笔已完成订单</small>
+            </div>
+            <div class="finance-metric">
+              <span>超过退款期到账</span>
+              <strong>¥{{ formatCurrency(platformFinance.afterRefund) }}</strong>
+              <small>{{ platformFinance.afterRefundCount }} 笔已过退款周期</small>
+            </div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
     <!-- 图表区域 -->
     <el-row :gutter="20" class="chart-row">
       <el-col :span="16">
@@ -195,6 +231,15 @@ const activeAuctions = ref([])
 const recentOrders = ref([])
 const orderStatusData = ref([])
 const trendData = ref([])
+const platformFinance = reactive({
+  total: 0,
+  afterPay: 0,
+  afterPayCount: 0,
+  afterConfirm: 0,
+  afterConfirmCount: 0,
+  afterRefund: 0,
+  afterRefundCount: 0
+})
 
 const formatNumber = (num) => {
   const value = Number(num || 0)
@@ -203,6 +248,11 @@ const formatNumber = (num) => {
   }
   return value.toLocaleString()
 }
+
+const formatCurrency = (num) => Number(num || 0).toLocaleString('zh-CN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+})
 
 const getOrderStatusType = (status) => {
   const map = { pending: 'warning', paid: 'primary', shipped: 'info', completed: 'success', cancelled: 'info' }
@@ -220,6 +270,7 @@ const goPage = (path) => {
 
 const loadDashboard = async () => {
   const data = await request.get('/dashboard/stats')
+  const finance = await request.get('/config/platformCommission/finance').catch(() => ({}))
   Object.assign(stats, {
     userCount: data.userCount || 0,
     productCount: data.productCount || data.artworkCount || 0,
@@ -234,6 +285,20 @@ const loadDashboard = async () => {
   recentOrders.value = data.recentOrders || []
   orderStatusData.value = data.orderStatus || []
   trendData.value = data.trend || []
+  const afterPay = finance.afterPayCommission || {}
+  const afterConfirm = finance.afterConfirmSettlement || {}
+  const afterRefund = finance.afterRefundSettlement || {}
+  const artistCertification = finance.artistCertification || {}
+  Object.assign(platformFinance, {
+    total: Number(afterPay.amount || 0),
+    afterPay: Number(afterPay.amount || 0),
+    afterPayCount: Number(afterPay.count || 0),
+    afterConfirm: Number(afterConfirm.amount || 0),
+    afterConfirmCount: Number(afterConfirm.count || 0),
+    afterRefund: Number(afterRefund.amount || 0),
+    afterRefundCount: Number(afterRefund.count || 0),
+    artistCertification: Number(artistCertification.amount || 0)
+  })
 }
 
 const initTrendChart = () => {
@@ -376,6 +441,73 @@ onMounted(async () => {
 
 .stats-row {
   margin-bottom: 20px;
+}
+
+.finance-row {
+  margin-bottom: 20px;
+}
+
+.finance-card {
+  padding: 20px 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.finance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.finance-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.finance-subtitle {
+  margin-left: 12px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.finance-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.finance-metric {
+  padding: 16px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.finance-metric.featured {
+  border-color: #d8e4ff;
+  background: linear-gradient(135deg, #f4f7ff 0%, #fff 100%);
+}
+
+.finance-metric span,
+.finance-metric small {
+  display: block;
+  color: #909399;
+}
+
+.finance-metric strong {
+  display: block;
+  margin: 8px 0 6px;
+  color: #303133;
+  font-size: 22px;
+}
+
+.finance-metric.featured strong {
+  color: #409eff;
+}
+
+.finance-metric small {
+  font-size: 12px;
 }
 
 .stat-card {

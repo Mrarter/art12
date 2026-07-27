@@ -61,12 +61,13 @@ public class ArtworkPriceServiceImpl implements ArtworkPriceService {
         Artwork artwork = artworkMapper.selectById(artworkId);
         if (artwork == null) throw new RuntimeException("作品不存在");
 
-        Long oldPrice = artwork.getPrice();
+        BigDecimal oldPriceBD = artwork.getPrice();
+        Long oldPrice = oldPriceBD != null ? oldPriceBD.longValue() : null;
         BigDecimal rate = newPrice != null && oldPrice != null && oldPrice > 0
                 ? BigDecimal.valueOf(newPrice - oldPrice).divide(BigDecimal.valueOf(oldPrice), 4, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
-        artwork.setPrice(newPrice);
+        artwork.setPrice(newPrice != null ? BigDecimal.valueOf(newPrice) : null);
         artwork.setUpdateTime(LocalDateTime.now());
         artworkMapper.updateById(artwork);
 
@@ -98,13 +99,14 @@ public class ArtworkPriceServiceImpl implements ArtworkPriceService {
     }
 
     private Long updatePriceAndLog(Artwork artwork, BigDecimal rate, String reason, String remark) {
-        Long oldPrice = artwork.getPrice() != null ? artwork.getPrice() : 0L;
-        BigDecimal newPriceBD = BigDecimal.valueOf(oldPrice)
+        BigDecimal oldPriceBD = artwork.getPrice() != null ? artwork.getPrice() : BigDecimal.ZERO;
+        Long oldPrice = oldPriceBD.longValue();
+        BigDecimal newPriceBD = oldPriceBD
                 .multiply(BigDecimal.ONE.add(rate))
                 .setScale(0, RoundingMode.HALF_UP);
         Long newPrice = newPriceBD.longValue();
 
-        artwork.setPrice(newPrice);
+        artwork.setPrice(newPriceBD);
         artwork.setUpdateTime(LocalDateTime.now());
         artworkMapper.updateById(artwork);
 

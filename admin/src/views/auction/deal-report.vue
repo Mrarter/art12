@@ -81,7 +81,7 @@
         <template #header>
           <div class="card-header">
             <span>成交趋势</span>
-            <el-radio-group v-model="chartType" size="small">
+            <el-radio-group v-model="chartType" size="small" @change="loadData">
               <el-radio-button label="daily">日</el-radio-button>
               <el-radio-button label="weekly">周</el-radio-button>
               <el-radio-button label="monthly">月</el-radio-button>
@@ -154,7 +154,7 @@
           <el-table-column label="艺术家" min-width="200">
             <template #default="{ row }">
               <div class="artist-info">
-                <el-avatar :src="row.avatar" :size="40" />
+                <el-avatar :src="getFullImageUrl(row.avatar)" :size="40" />
                 <div>
                   <p class="name">{{ row.artistName }}</p>
                   <p class="badge" v-if="row.badge">{{ row.badge }}</p>
@@ -219,7 +219,7 @@
           <el-table-column label="拍品" min-width="200">
             <template #default="{ row }">
               <div class="lot-info">
-                <el-image :src="row.image" :preview-src-list="[row.image]" fit="cover" style="width: 60px; height: 60px; border-radius: 4px;" />
+                <el-image :src="getFullImageUrl(row.image)" :preview-src-list="row.image ? [getFullImageUrl(row.image)] : []" fit="cover" style="width: 60px; height: 60px; border-radius: 4px;" />
                 <div class="lot-detail">
                   <p class="lot-title">{{ row.title }}</p>
                   <p class="lot-artist">{{ row.artistName }}</p>
@@ -236,7 +236,7 @@
           <el-table-column label="买家" width="120">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :src="row.buyerAvatar" :size="24" />
+                <el-avatar :src="getFullImageUrl(row.buyerAvatar)" :size="24" />
                 <span>{{ row.buyerName }}</span>
               </div>
             </template>
@@ -279,7 +279,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Trophy, Goods, CircleCheck, User, Download } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 import * as echarts from 'echarts'
 
 const loading = ref(false)
@@ -352,83 +352,45 @@ const loadData = async () => {
   loading.value = true
   try {
     const params = {
-      sessionId: selectedSession.value,
-      startDate: dateRange.value?.[0],
-      endDate: dateRange.value?.[1],
       type: chartType.value,
       page: pagination.page,
       size: pagination.size
     }
+    if (selectedSession.value !== '') params.sessionId = selectedSession.value
+    if (dateRange.value?.[0]) params.startDate = dateRange.value[0]
+    if (dateRange.value?.[1]) params.endDate = dateRange.value[1]
 
-    const [statsRes, sessionRes, artistRes, dealRes, trendRes] = await Promise.all([
+    params.days = chartType.value === 'daily' ? 30 : chartType.value === 'weekly' ? 90 : 365
+    const [statsRes, sessionRes, artistRes, dealRes, trendRes, sessionsRes] = await Promise.all([
       request.get('/auction/admin/stats', { params }),
       request.get('/auction/admin/session-rank', { params }),
       request.get('/auction/admin/artist-rank', { params }),
       request.get('/auction/admin/deals', { params }),
-      request.get('/auction/admin/trend', { params })
+      request.get('/auction/admin/trend', { params }),
+      request.get('/auction/sessions', { params: { page: 1, size: 100 } })
     ])
 
     Object.assign(stats, statsRes)
-    sessionList.value = sessionRes.list || []
-    sessionRank.value = sessionRes.rank || []
-    artistRank.value = artistRes.list || []
-    dealList.value = dealRes.list || []
+    sessionList.value = (sessionsRes.records || []).map(item => ({ id: item.id, name: item.title || item.name }))
+    sessionRank.value = sessionRes || []
+    artistRank.value = artistRes || []
+    dealList.value = dealRes.records || []
     pagination.total = dealRes.total || 0
 
     nextTick(() => {
-      initTrendChart(trendRes.list || [])
+      initTrendChart(trendRes || [])
     })
   } catch (error) {
     console.error('加载数据失败', error)
-    mockData()
+    Object.assign(stats, { totalAmount: 0, totalLots: 0, unsoldLots: 0, soldRate: 0, sessionCount: 0, bidderCount: 0, activeBidders: 0, amountGrowth: 0 })
+    sessionRank.value = []
+    artistRank.value = []
+    dealList.value = []
+    pagination.total = 0
+    nextTick(() => initTrendChart([]))
   } finally {
     loading.value = false
   }
-}
-
-const mockData = () => {
-  stats.totalAmount = 5680000
-  stats.totalLots = 186
-  stats.unsoldLots = 28
-  stats.soldRate = 84.9
-  stats.sessionCount = 12
-  stats.bidderCount = 425
-  stats.activeBidders = 318
-  stats.amountGrowth = 15.6
-
-  sessionRank.value = [
-    { sessionName: '当代艺术精品专场', startDate: '2026-04-18', totalLots: 25, soldLots: 23, soldRate: 92, totalAmount: 1680000, maxPrice: 580000 },
-    { sessionName: '瓷器玉器专场', startDate: '2026-04-15', totalLots: 32, soldLots: 28, soldRate: 87.5, totalAmount: 1250000, maxPrice: 380000 },
-    { sessionName: '书画名家专场', startDate: '2026-04-12', totalLots: 28, soldLots: 24, soldRate: 85.7, totalAmount: 980000, maxPrice: 420000 },
-    { sessionName: '紫砂壶艺专场', startDate: '2026-04-08', totalLots: 20, soldLots: 16, soldRate: 80, totalAmount: 720000, maxPrice: 280000 },
-    { sessionName: '现当代油画专场', startDate: '2026-04-05', totalLots: 18, soldLots: 14, soldRate: 77.8, totalAmount: 650000, maxPrice: 350000 }
-  ]
-
-  artistRank.value = [
-    { artistName: '张大千', avatar: '', badge: '大师级', lotCount: 8, soldCount: 8, soldRate: 100, totalAmount: 1280000, maxPrice: 580000 },
-    { artistName: '齐白石', avatar: '', badge: '大师级', lotCount: 6, soldCount: 6, soldRate: 100, totalAmount: 980000, maxPrice: 420000 },
-    { artistName: '徐悲鸿', avatar: '', badge: '大师级', lotCount: 5, soldCount: 5, soldRate: 100, totalAmount: 850000, maxPrice: 380000 },
-    { artistName: '傅抱石', avatar: '', badge: '人气艺术家', lotCount: 4, soldCount: 4, soldRate: 100, totalAmount: 620000, maxPrice: 280000 },
-    { artistName: '李可染', avatar: '', badge: '人气艺术家', lotCount: 5, soldCount: 4, soldRate: 80, totalAmount: 480000, maxPrice: 220000 }
-  ]
-
-  dealList.value = [
-    { dealNo: 'AUC202604180001', title: '山水四条屏', artistName: '张大千', image: '', sessionName: '当代艺术精品专场', dealPrice: 580000, buyerName: '收藏家A', buyerAvatar: '', dealTime: '2026-04-18 21:30', status: 'completed' },
-    { dealNo: 'AUC202604180002', title: '荷花图', artistName: '张大千', image: '', sessionName: '当代艺术精品专场', dealPrice: 420000, buyerName: '收藏家B', buyerAvatar: '', dealTime: '2026-04-18 21:45', status: 'paid' },
-    { dealNo: 'AUC202604180003', title: '虾趣图', artistName: '齐白石', image: '', sessionName: '当代艺术精品专场', dealPrice: 380000, buyerName: '收藏家C', buyerAvatar: '', dealTime: '2026-04-18 22:00', status: 'pending' }
-  ]
-  pagination.total = dealList.value.length
-
-  const mockTrend = [
-    { date: '04-15', amount: 680000, count: 12 },
-    { date: '04-16', amount: 820000, count: 15 },
-    { date: '04-17', amount: 750000, count: 14 },
-    { date: '04-18', amount: 980000, count: 18 },
-    { date: '04-19', amount: 1250000, count: 22 },
-    { date: '04-20', amount: 890000, count: 16 },
-    { date: '04-21', amount: 1050000, count: 20 }
-  ]
-  nextTick(() => initTrendChart(mockTrend))
 }
 
 const initTrendChart = (data) => {
@@ -464,7 +426,17 @@ const viewDealDetail = (row) => {
 }
 
 const exportReport = () => {
-  ElMessage.success('报表导出功能开发中')
+  if (!dealList.value.length) return ElMessage.warning('暂无成交数据可导出')
+  const escape = value => `"${String(value ?? '').replaceAll('"', '""')}"`
+  const rows = [['订单号', '拍品', '艺术家', '所属专场', '成交价', '买家', '成交时间']]
+  dealList.value.forEach(item => rows.push([item.dealNo, item.title, item.artistName, item.sessionName, item.dealPrice, item.buyerName, item.dealTime]))
+  const csv = '\ufeff' + rows.map(row => row.map(escape).join(',')).join('\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `拍卖成交报表-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 onMounted(() => {

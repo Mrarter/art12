@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/admin/system/admin")
+@RequestMapping({"/admin/system/admin", "/admin/admin"})
 public class SystemAdminController {
 
     private final AdminAccountService adminAccountService;

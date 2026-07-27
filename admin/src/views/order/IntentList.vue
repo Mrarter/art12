@@ -73,7 +73,7 @@ async function refresh(){
       sub: `${item.artworkTitle || ''}｜${item.buyerName || ''}`,
       statusText: item.statusText || '待处理',
       badgeClass: item.rawStatus === 'WAIT_PAY' ? 'red' : 'gray',
-      amountText: `¥${(Number(item.totalAmount) || 0).toLocaleString()}`,
+      amountText: formatAmount(item.totalAmount || item.payAmount || item.amount || 0),
       extra: item.createTime ? (item.createTime + '').slice(0, 10) : '',
       tags: [],
       updatedAt: (item.createTime || '').slice(0, 16),
@@ -90,6 +90,10 @@ async function refresh(){
   } finally {
     loading.value = false
   }
+}
+
+function formatAmount(value) {
+  return `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 function resetFilters(){ filters.keyword=''; filters.status=''; filters.visible=''; filters.type=''; refresh() }
 function openDetail(item){ current.value=item; detailVisible.value=true }

@@ -15,7 +15,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/logistics")
+@RequestMapping({"/logistics", "/order/logistics"})
 @RequiredArgsConstructor
 public class LogisticsController {
 

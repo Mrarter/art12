@@ -9,9 +9,10 @@
       <view class="notice-content">
         <view class="notice-item">1. 申请人须为原创艺术作品的作者</view>
         <view class="notice-item">2. 需提供真实有效的个人身份信息</view>
-        <view class="notice-item">3. 上传的作品需为本人原创，禁止抄袭或盗用</view>
-        <view class="notice-item">4. 审核结果将在3-5个工作日内通知</view>
-        <view class="notice-item">5. 认证成功后可享受艺术家专属权益</view>
+        <view class="notice-item">3. 需提供20件本人原创代表作品，禁止抄袭或盗用</view>
+        <view class="notice-item">4. 认证服务费为 ¥3,600/年，每笔消费收取15%平台服务分成</view>
+        <view class="notice-item">5. 当前阶段分享并邀请好友，平台赠送 ¥3,600 年费权益</view>
+        <view class="notice-item">6. 审核结果将在3-5个工作日内通知</view>
       </view>
     </view>
 
@@ -88,10 +89,15 @@
       <!-- 所在城市 -->
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>所在城市</view>
-        <picker mode="region" @change="onCityChange">
+        <picker
+          mode="multiSelector"
+          :range="cityPickerRange"
+          :value="cityPickerIndex"
+          @columnchange="onCityColumnChange"
+          @change="onCityChange"
+        >
           <view class="picker-value">
             {{ form.city || '请选择' }}
-            
           </view>
         </picker>
       </view>
@@ -145,12 +151,12 @@
               
             </view>
           </view>
-          <view class="work-add" v-if="form.works.length < 9" @click="chooseWork">
+          <view class="work-add" v-if="form.works.length < MAX_WORK_COUNT" @click="chooseWork">
             
             <text>上传作品</text>
           </view>
         </view>
-        <view class="upload-tip">上传1-9张代表作品图片</view>
+        <view class="upload-tip">请上传20件代表作品，当前已上传 {{ form.works.length }}/{{ MAX_WORK_COUNT }} 件</view>
       </view>
     </view>
 
@@ -217,11 +223,22 @@
     <view class="form-section card">
       <view class="form-title">身份证明</view>
 
+      <!-- 身份证号 -->
+      <view class="form-item">
+        <view class="form-label"><text class="required">*</text>身份证号</view>
+        <input
+          class="form-input"
+          v-model="form.idCard"
+          placeholder="请输入18位身份证号"
+          maxlength="18"
+        />
+      </view>
+
       <!-- 身份证正面 -->
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>身份证正面</view>
         <view class="idcard-upload" @click="chooseIdCard('front')">
-          <image v-if="form.idCardFront" :src="form.idCardFront" mode="aspectFill"></image>
+          <image v-if="form.idCardFront" :src="form.idCardFront" mode="aspectFit"></image>
           <view v-else class="upload-placeholder">
             
             <text>点击上传</text>
@@ -233,7 +250,7 @@
       <view class="form-item">
         <view class="form-label"><text class="required">*</text>身份证反面</view>
         <view class="idcard-upload" @click="chooseIdCard('back')">
-          <image v-if="form.idCardBack" :src="form.idCardBack" mode="aspectFill"></image>
+          <image v-if="form.idCardBack" :src="form.idCardBack" mode="aspectFit"></image>
           <view v-else class="upload-placeholder">
             
             <text>点击上传</text>
@@ -246,8 +263,10 @@
 
     <!-- 协议确认 -->
     <view class="agreement-section">
-      <view class="agreement-check" @click="agreeAgreement">
-        
+      <view class="agreement-check" :class="{ checked: agreed }" @click="agreeAgreement">
+        <view class="check-box">
+          <text v-if="agreed">✓</text>
+        </view>
         <text>我已阅读并同意</text>
       </view>
       <text class="agreement-link" @click="showAgreement">《艺术家入驻协议》</text>
@@ -261,14 +280,55 @@
         :class="{ disabled: !canSubmit }"
         @click="submitApplication"
       >
-        提交申请
+        {{ submitting ? '提交中...' : '提交申请' }}
       </view>
     </view>
   </view>
 </template>
 
 <script>
-import { openCropper } from '@/api/file.js'
+import { openCropper, uploadFile } from '@/api/file.js'
+import { getArtistCertStatus, sendSmsCode, submitArtistCert } from '@/api/user.js'
+
+const MAX_WORK_COUNT = 20
+
+const CITY_OPTIONS = [
+  { name: '北京市', children: ['北京市'] },
+  { name: '天津市', children: ['天津市'] },
+  { name: '上海市', children: ['上海市'] },
+  { name: '重庆市', children: ['重庆市'] },
+  { name: '河北省', children: ['石家庄市', '唐山市', '秦皇岛市', '邯郸市', '保定市'] },
+  { name: '山西省', children: ['太原市', '大同市', '晋中市', '临汾市', '运城市'] },
+  { name: '辽宁省', children: ['沈阳市', '大连市', '鞍山市', '锦州市'] },
+  { name: '吉林省', children: ['长春市', '吉林市', '延边州'] },
+  { name: '黑龙江省', children: ['哈尔滨市', '齐齐哈尔市', '牡丹江市'] },
+  { name: '江苏省', children: ['南京市', '苏州市', '无锡市', '常州市', '南通市'] },
+  { name: '浙江省', children: ['杭州市', '宁波市', '温州市', '嘉兴市', '绍兴市'] },
+  { name: '安徽省', children: ['合肥市', '芜湖市', '黄山市', '安庆市'] },
+  { name: '福建省', children: ['福州市', '厦门市', '泉州市', '漳州市'] },
+  { name: '江西省', children: ['南昌市', '景德镇市', '九江市', '赣州市'] },
+  { name: '山东省', children: ['济南市', '青岛市', '烟台市', '潍坊市', '临沂市'] },
+  { name: '河南省', children: ['郑州市', '洛阳市', '开封市', '南阳市'] },
+  { name: '湖北省', children: ['武汉市', '宜昌市', '襄阳市', '黄石市'] },
+  { name: '湖南省', children: ['长沙市', '株洲市', '湘潭市', '衡阳市'] },
+  { name: '广东省', children: ['广州市', '深圳市', '珠海市', '佛山市', '东莞市'] },
+  { name: '广西壮族自治区', children: ['南宁市', '桂林市', '柳州市', '北海市'] },
+  { name: '海南省', children: ['海口市', '三亚市', '儋州市'] },
+  { name: '四川省', children: ['成都市', '绵阳市', '乐山市', '德阳市'] },
+  { name: '贵州省', children: ['贵阳市', '遵义市', '安顺市'] },
+  { name: '云南省', children: ['昆明市', '大理市', '丽江市', '曲靖市'] },
+  { name: '陕西省', children: ['西安市', '咸阳市', '宝鸡市', '延安市'] },
+  { name: '甘肃省', children: ['兰州市', '敦煌市', '天水市'] },
+  { name: '青海省', children: ['西宁市', '海东市'] },
+  { name: '宁夏回族自治区', children: ['银川市', '吴忠市'] },
+  { name: '新疆维吾尔自治区', children: ['乌鲁木齐市', '喀什市', '伊宁市'] },
+  { name: '内蒙古自治区', children: ['呼和浩特市', '包头市', '鄂尔多斯市'] },
+  { name: '西藏自治区', children: ['拉萨市', '日喀则市'] },
+  { name: '香港特别行政区', children: ['香港'] },
+  { name: '澳门特别行政区', children: ['澳门'] },
+  { name: '台湾省', children: ['台北市', '高雄市', '台中市'] }
+]
+
 export default {
   data() {
     return {
@@ -279,6 +339,7 @@ export default {
         gender: 1,
         birthYear: '',
         city: '',
+        cityArr: ['', '', ''],
         artCategory: '',
         artCategoryIndex: 0,
         style: '',
@@ -288,17 +349,26 @@ export default {
         code: '',
         email: '',
         socialMedia: '',
+        idCard: '',
         idCardFront: '',
         idCardBack: ''
       },
+      cityPickerIndex: [0, 0],
       artCategories: [],
       countdown: 0,
       agreed: false,
-      loadingCategories: true
+      loadingCategories: true,
+      submitting: false,
+      certStatus: null,
+      MAX_WORK_COUNT
     }
   },
 
-      computed: {
+  computed: {
+    cityPickerRange() {
+      const province = CITY_OPTIONS[this.cityPickerIndex[0]] || CITY_OPTIONS[0]
+      return [CITY_OPTIONS.map(item => item.name), province.children]
+    },
     canSubmit() {
       return (
         this.agreed &&
@@ -308,13 +378,20 @@ export default {
         this.form.city &&
         this.form.artCategory &&
         this.form.resume &&
-        this.form.works.length > 0 &&
+        this.form.works.length >= MAX_WORK_COUNT &&
         this.form.phone &&
         this.form.code &&
+        this.form.idCard &&
         this.form.idCardFront &&
-        this.form.idCardBack
+        this.form.idCardBack &&
+        !this.submitting
       )
     }
+  },
+
+  onLoad() {
+    this.loadCategories()
+    this.loadCertStatus()
   },
 
   methods: {
@@ -325,7 +402,7 @@ export default {
         sourceType: ['album', 'camera'],
         success: (res) => {
           const path = res.tempFilePaths[0]
-          openCropper(path, { ratio: '1:1', shape: 'circle' }).then(cropped => {
+          openCropper(path, { ratio: '1:1', shape: 'circle', outputSize: 800 }).then(cropped => {
             this.form.avatar = cropped
           }).catch(() => {
             this.form.avatar = path
@@ -338,17 +415,31 @@ export default {
       this.form.birthYear = e.detail.value
     },
 
+    onCityColumnChange(e) {
+      const { column, value } = e.detail
+      const next = [...this.cityPickerIndex]
+      next[column] = value
+      if (column === 0) next[1] = 0
+      this.cityPickerIndex = next
+    },
+
     onCityChange(e) {
-      this.form.city = e.detail.value.join('')
+      const [provinceIndex = 0, cityIndex = 0] = e.detail.value || []
+      const province = CITY_OPTIONS[provinceIndex] || CITY_OPTIONS[0]
+      const city = province.children[cityIndex] || province.children[0]
+      this.cityPickerIndex = [provinceIndex, cityIndex]
+      this.form.cityArr = [province.name, city]
+      this.form.city = province.name === city ? city : `${province.name} ${city}`
     },
 
     onArtCategoryChange(e) {
       this.form.artCategoryIndex = e.detail.value
-      this.form.artCategory = this.artCategories[e.detail.value].name
+      const category = this.artCategories[e.detail.value]
+      this.form.artCategory = category ? category.name : ''
     },
 
     chooseWork() {
-      const remain = 9 - this.form.works.length
+      const remain = Math.min(MAX_WORK_COUNT - this.form.works.length, 9)
       uni.chooseImage({
         count: remain,
         sizeType: ['compressed'],
@@ -358,7 +449,7 @@ export default {
           Promise.all(paths.map(p =>
             openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
           )).then(croppedList => {
-            this.form.works = [...this.form.works, ...croppedList]
+            this.form.works = [...this.form.works, ...croppedList].slice(0, MAX_WORK_COUNT)
           })
         }
       })
@@ -383,10 +474,17 @@ export default {
       })
     },
 
-    sendCode() {
+    async sendCode() {
       if (this.countdown > 0) return
-      if (!this.form.phone || this.form.phone.length !== 11) {
+      if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
         uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+        return
+      }
+      let result
+      try {
+        result = await sendSmsCode(this.form.phone, 'artist_cert')
+      } catch (e) {
+        uni.showToast({ title: e.message || '验证码发送失败', icon: 'none' })
         return
       }
       this.countdown = 60
@@ -396,7 +494,11 @@ export default {
           clearInterval(timer)
         }
       }, 1000)
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      if (result?.mock) {
+        uni.showToast({ title: `测试验证码 ${result.code}`, icon: 'none', duration: 2500 })
+      } else {
+        uni.showToast({ title: '验证码已发送', icon: 'success' })
+      }
     },
 
     agreeAgreement() {
@@ -404,15 +506,11 @@ export default {
     },
 
     showAgreement() {
-      uni.navigateTo({ url: '/pages/user/agreement?type=artist' })
+      uni.navigateTo({ url: '/pages/user-extra/agreement?type=artist' })
     },
 
     showPrivacy() {
-      uni.navigateTo({ url: '/pages/user/agreement?type=privacy' })
-    },
-
-    onLoad() {
-      this.loadCategories()
+      uni.navigateTo({ url: '/pages/user-extra/agreement?type=privacy' })
     },
 
     async loadCategories() {
@@ -435,27 +533,82 @@ export default {
       }
     },
 
+    async loadCertStatus() {
+      try {
+        this.certStatus = await getArtistCertStatus()
+      } catch (e) {
+        this.certStatus = null
+      }
+    },
+
+    validateForm() {
+      if (!this.agreed) return '请先阅读并同意入驻协议'
+      if (!this.form.name) return '请输入真实姓名'
+      if (!this.form.birthYear) return '请选择出生年份'
+      if (!this.form.city) return '请选择所在城市'
+      if (!this.form.artCategory) return '请选择作品分类'
+      if (!this.form.resume || this.form.resume.trim().length < 50) return '个人简介至少50字'
+      if (this.form.works.length < MAX_WORK_COUNT) return `请上传${MAX_WORK_COUNT}件代表作品`
+      if (!/^1[3-9]\d{9}$/.test(this.form.phone)) return '请输入正确的手机号'
+      if (!/^\d{4,6}$/.test(this.form.code)) return '请输入正确验证码'
+      if (!/^\d{17}[\dXx]$/.test(this.form.idCard)) return '请输入正确身份证号'
+      if (!this.form.idCardFront || !this.form.idCardBack) return '请上传身份证正反面'
+      return ''
+    },
+
+    async uploadImages(paths, type) {
+      return Promise.all(paths.map(path => {
+        if (!path || /^https?:\/\//.test(path) || path.startsWith('/upload/')) return path
+        return uploadFile(path, type)
+      }))
+    },
+
     submitApplication() {
-      if (!this.canSubmit) {
-        uni.showToast({ title: '请填写完整信息', icon: 'none' })
+      const error = this.validateForm()
+      if (error) {
+        uni.showToast({ title: error, icon: 'none' })
         return
       }
 
       uni.showModal({
         title: '确认提交',
         content: '确认提交艺术家认证申请？',
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
+            this.submitting = true
             uni.showLoading({ title: '提交中...' })
-            setTimeout(() => {
+            try {
+              const artworks = await this.uploadImages(this.form.works, 'artist-artwork')
+              const exhibits = await this.uploadImages([this.form.idCardFront, this.form.idCardBack].filter(Boolean), 'artist-cert')
+              await submitArtistCert({
+                realName: this.form.name.trim(),
+                idCard: this.form.idCard.trim(),
+                artField: this.form.artCategory,
+                resume: this.form.resume.trim(),
+                artworks,
+                exhibits,
+                phone: this.form.phone,
+                verifyCode: this.form.code,
+                city: this.form.city,
+                gender: this.form.gender,
+                birthYear: this.form.birthYear,
+                artistName: this.form.artistName,
+                style: this.form.style,
+                email: this.form.email,
+                socialMedia: this.form.socialMedia,
+                avatar: this.form.avatar
+              })
               uni.hideLoading()
-              uni.showToast({ title: '提交成功', icon: 'success' })
+              uni.showToast({ title: '提交成功，请等待审核', icon: 'success' })
               setTimeout(() => {
-                uni.redirectTo({
-                  url: '/pages/common/coming-soon?title=申请状态&desc=申请状态页正在开发中，当前可稍后在艺术家中心查看审核结果。'
-                })
+                uni.navigateBack()
               }, 1000)
-            }, 1500)
+            } catch (e) {
+              uni.hideLoading()
+              uni.showToast({ title: e.message || '提交失败，请重试', icon: 'none' })
+            } finally {
+              this.submitting = false
+            }
           }
         }
       })
@@ -671,11 +824,19 @@ export default {
   }
 
   .idcard-upload {
-    width: 320rpx;
-    height: 200rpx;
+    width: 100%;
+    height: 260rpx;
     border-radius: 12rpx;
     overflow: hidden;
     background: #f5f5f5;
+    border: 2rpx dashed #ddd;
+
+    image {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #111;
+    }
 
     .upload-placeholder {
       width: 100%;
@@ -735,6 +896,31 @@ export default {
   .agreement-check {
     display: flex;
     align-items: center;
+    min-height: 48rpx;
+
+    .check-box {
+      width: 32rpx;
+      height: 32rpx;
+      border-radius: 50%;
+      border: 3rpx solid #b8b8b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+
+      text {
+        margin-left: 0;
+        font-size: 22rpx;
+        line-height: 1;
+        color: #16130b;
+        font-weight: 800;
+      }
+    }
+
+    &.checked .check-box {
+      border-color: #667eea;
+      background: #667eea;
+    }
 
     text {
       margin-left: 8rpx;
@@ -771,6 +957,139 @@ export default {
 
     &.disabled {
       background: #ccc;
+    }
+  }
+}
+
+/* 身份入口二级页：暗色重构覆盖层 */
+.apply-page {
+  background: #0b0b0c;
+  color: #f6f2e8;
+  padding: 24rpx;
+  padding-bottom: calc(150rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.card,
+.notice-section,
+.form-section {
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.notice-section {
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.2), rgba(23, 23, 25, 0.96)),
+    #171719;
+
+  .notice-header text {
+    color: #f6f2e8;
+    margin-left: 0;
+    font-size: 34rpx;
+    line-height: 42rpx;
+    font-weight: 800;
+  }
+
+  .notice-content .notice-item {
+    color: #9b958a;
+  }
+}
+
+.form-section {
+  .form-title {
+    color: #f6f2e8;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .form-item {
+    .form-label {
+      color: #f6f2e8;
+    }
+
+    .form-input,
+    .picker-value,
+    .form-textarea {
+      background: #202024;
+      color: #f6f2e8;
+    }
+
+    .radio-group .radio-item {
+      background: #202024;
+      color: #9b958a;
+
+      &.active {
+        color: #16130b;
+        background: #c9a227;
+        border-color: #c9a227;
+      }
+    }
+
+    .word-count {
+      color: #68645c;
+    }
+  }
+
+  .avatar-upload,
+  .works-upload .work-add,
+  .idcard-upload {
+    background: #202024;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .avatar-upload .upload-placeholder text,
+  .works-upload .work-add text,
+  .idcard-upload .upload-placeholder text,
+  .upload-tip,
+  .idcard-tip {
+    color: #9b958a;
+  }
+
+  .code-input .code-btn {
+    color: #c9a227;
+    background: rgba(201, 162, 39, 0.14);
+
+    &.disabled {
+      color: #68645c;
+      background: #202024;
+    }
+  }
+}
+
+.agreement-section {
+  .agreement-check {
+    .check-box {
+      border-color: #68645c;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    &.checked .check-box {
+      border-color: #c9a227;
+      background: #c9a227;
+      box-shadow: 0 0 0 6rpx rgba(201, 162, 39, 0.12);
+    }
+  }
+
+  .agreement-check text {
+    color: #9b958a;
+  }
+
+  .agreement-link {
+    color: #c9a227;
+  }
+}
+
+.submit-section {
+  background: rgba(11, 11, 12, 0.96);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+
+  .submit-btn {
+    background: #c9a227;
+    color: #16130b;
+
+    &.disabled {
+      background: #343436;
+      color: #68645c;
     }
   }
 }

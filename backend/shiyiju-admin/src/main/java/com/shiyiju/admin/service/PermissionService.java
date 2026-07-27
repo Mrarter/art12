@@ -236,7 +236,8 @@ public class PermissionService {
 
     @Transactional
     public String resetPassword(Long id) {
-        String newPassword = "Shiyiju" + System.currentTimeMillis() % 10000;
+        // 使用 UUID 随机部分生成安全密码
+        String newPassword = "Admin" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         String encodedPassword = passwordEncoder.encode(newPassword);
         jdbcTemplate.update("UPDATE admin_user SET password = ?, update_time = ? WHERE id = ?",
             encodedPassword, LocalDateTime.now(), id);

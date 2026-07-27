@@ -44,17 +44,17 @@
       <view class="stats-row">
         <view class="stat-item">
           <text class="stat-label">累计提现</text>
-          <text class="stat-value primary">¥{{ stats.totalAmount }}</text>
+          <text class="stat-value primary">¥{{ formatMoney(stats.totalAmount) }}</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-label">待处理</text>
-          <text class="stat-value warning">¥{{ stats.pendingAmount }}</text>
+          <text class="stat-value warning">¥{{ formatMoney(stats.pendingAmount) }}</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item">
           <text class="stat-label">已到账</text>
-          <text class="stat-value success">¥{{ stats.completedAmount }}</text>
+          <text class="stat-value success">¥{{ formatMoney(stats.completedAmount) }}</text>
         </view>
       </view>
     </view>
@@ -64,7 +64,7 @@
       <view class="list-item" v-for="item in filteredList" :key="item.id" @click="showDetail(item)">
         <view class="item-header">
           <view class="item-left">
-            <text class="item-amount">¥{{ item.amount }}</text>
+            <text class="item-amount">¥{{ formatMoney(item.amount) }}</text>
             <view class="status-badge" :class="item.status">
               {{ getStatusText(item.status) }}
             </view>
@@ -77,11 +77,11 @@
         <view class="item-body">
           <view class="info-row">
             <text class="info-label">手续费</text>
-            <text class="info-value">¥{{ item.fee }}</text>
+            <text class="info-value">¥{{ formatMoney(item.fee) }}</text>
           </view>
           <view class="info-row">
             <text class="info-label">实际到账</text>
-            <text class="info-value highlight">¥{{ item.actualAmount }}</text>
+            <text class="info-value highlight">¥{{ formatMoney(item.actualAmount) }}</text>
           </view>
           <view class="info-row">
             <text class="info-label">到账方式</text>
@@ -133,15 +133,15 @@
           </view>
           <view class="detail-row">
             <text class="detail-label">提现金额</text>
-            <text class="detail-value primary">¥{{ currentItem.amount }}</text>
+            <text class="detail-value primary">¥{{ formatMoney(currentItem.amount) }}</text>
           </view>
           <view class="detail-row">
             <text class="detail-label">手续费</text>
-            <text class="detail-value">¥{{ currentItem.fee }}</text>
+            <text class="detail-value">¥{{ formatMoney(currentItem.fee) }}</text>
           </view>
           <view class="detail-row">
             <text class="detail-label">实际到账</text>
-            <text class="detail-value highlight">¥{{ currentItem.actualAmount }}</text>
+            <text class="detail-value highlight">¥{{ formatMoney(currentItem.actualAmount) }}</text>
           </view>
         </view>
 
@@ -192,6 +192,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getWithdrawList } from '@/api/promoter'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 // 状态
 const statusFilter = ref('all')
@@ -200,98 +203,16 @@ const hasMore = ref(true)
 const page = ref(1)
 const showDetailModal = ref(false)
 const currentItem = ref(null)
+const pageSize = 20
 
 // 统计数据
 const stats = ref({
-  totalAmount: 56800.00,
-  pendingAmount: 2888.00,
-  completedAmount: 52120.00
+  totalAmount: 0,
+  pendingAmount: 0,
+  completedAmount: 0
 })
 
-// 提现记录列表（模拟数据）
-const allList = ref([
-  {
-    id: 'WD202604210001',
-    amount: 2888.00,
-    fee: 14.44,
-    actualAmount: 2873.56,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'pending',
-    createTime: '2026-04-21 14:30:00',
-    completedTime: null,
-    reason: null,
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-21 14:30:00' }
-    ]
-  },
-  {
-    id: 'WD202604190002',
-    amount: 5200.00,
-    fee: 26.00,
-    actualAmount: 5174.00,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'completed',
-    createTime: '2026-04-19 10:20:00',
-    completedTime: '2026-04-20 09:15:00',
-    reason: null,
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-19 10:20:00' },
-      { title: '审核通过', time: '2026-04-19 14:00:00' },
-      { title: '财务处理中', time: '2026-04-19 16:30:00' },
-      { title: '已到账', time: '2026-04-20 09:15:00' }
-    ]
-  },
-  {
-    id: 'WD202604150003',
-    amount: 1500.00,
-    fee: 7.50,
-    actualAmount: 1492.50,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'rejected',
-    createTime: '2026-04-15 09:00:00',
-    completedTime: null,
-    reason: '账户信息有误，请核实后重新申请',
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-15 09:00:00' },
-      { title: '审核中', time: '2026-04-15 11:00:00' },
-      { title: '审核拒绝', time: '2026-04-15 14:00:00' }
-    ]
-  },
-  {
-    id: 'WD202604120004',
-    amount: 3800.00,
-    fee: 19.00,
-    actualAmount: 3781.00,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'completed',
-    createTime: '2026-04-12 16:00:00',
-    completedTime: '2026-04-14 10:30:00',
-    reason: null,
-    traces: [
-      { title: '提现申请已提交', time: '2026-04-12 16:00:00' },
-      { title: '审核通过', time: '2026-04-12 18:00:00' },
-      { title: '财务处理中', time: '2026-04-13 09:00:00' },
-      { title: '已到账', time: '2026-04-14 10:30:00' }
-    ]
-  },
-  {
-    id: 'WD202604100005',
-    amount: 2000.00,
-    fee: 10.00,
-    actualAmount: 1990.00,
-    paymentMethod: '微信零钱',
-    account: 'wechat_***8821',
-    status: 'completed',
-    createTime: '2026-04-10 11:00:00',
-    completedTime: '2026-04-11 15:20:00',
-    reason: null,
-    traces: []
-  }
-])
+const allList = ref([])
 
 // 筛选后的列表
 const filteredList = computed(() => {
@@ -300,6 +221,8 @@ const filteredList = computed(() => {
   }
   return allList.value.filter(item => item.status === statusFilter.value)
 })
+
+const formatMoney = (value) => formatYuanNumber(fenToYuan(value))
 
 // 获取状态文本
 const getStatusText = (status) => {
@@ -320,14 +243,15 @@ const changeStatus = (status) => {
 }
 
 // 加载更多
-const loadMore = () => {
+const loadMore = async () => {
   if (loading.value || !hasMore.value) return
   loading.value = true
-  setTimeout(() => {
+  try {
     page.value++
+    await loadRecords(true)
+  } finally {
     loading.value = false
-    hasMore.value = false // 模拟数据加载完毕
-  }, 1000)
+  }
 }
 
 // 查看详情
@@ -360,8 +284,85 @@ const goWithdraw = () => {
   uni.navigateBack()
 }
 
-onLoad(() => {
-  // 加载提现记录
+const normalizeStatus = (status) => {
+  const map = {
+    0: 'pending',
+    1: 'processing',
+    2: 'rejected',
+    3: 'completed',
+    pending: 'pending',
+    processing: 'processing',
+    rejected: 'rejected',
+    completed: 'completed'
+  }
+  return map[status] || 'pending'
+}
+
+const parsePage = (data) => {
+  const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.items || [])
+  const total = data?.total ?? data?.totalCount ?? records.length
+  return { records, total }
+}
+
+const formatTime = (value) => {
+  if (!value) return ''
+  return String(value).replace('T', ' ').slice(0, 16)
+}
+
+const normalizeRecord = (item) => {
+  const status = normalizeStatus(item.status)
+  return {
+    id: item.id,
+    amount: Number(item.amount || 0),
+    fee: Number(item.feeAmount || item.fee || 0),
+    actualAmount: Number(item.actualAmount || 0),
+    status,
+    paymentMethod: item.accountType === 'bank' ? '银行卡' : (item.accountType || '提现账户'),
+    account: item.accountInfo || '',
+    accountName: item.accountName || '',
+    createTime: formatTime(item.createTime || item.createdTime),
+    completedTime: formatTime(item.transferTime || item.processTime),
+    reason: item.rejectReason || '',
+    traces: [
+      { title: '提交提现申请', time: formatTime(item.createTime || item.createdTime) },
+      ...(status === 'completed' ? [{ title: '平台已打款', time: formatTime(item.transferTime || item.processTime) }] : []),
+      ...(status === 'rejected' ? [{ title: '申请已拒绝', time: formatTime(item.processTime) }] : [])
+    ].filter(trace => trace.time)
+  }
+}
+
+const updateStats = () => {
+  const list = allList.value
+  stats.value = {
+    totalAmount: list.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    pendingAmount: list
+      .filter(item => item.status === 'pending' || item.status === 'processing')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    completedAmount: list
+      .filter(item => item.status === 'completed')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  }
+}
+
+const loadRecords = async (append = false) => {
+  loading.value = true
+  try {
+    const data = await getWithdrawList({ page: page.value, pageSize })
+    const { records, total } = parsePage(data)
+    const next = records.map(normalizeRecord)
+    allList.value = append ? allList.value.concat(next) : next
+    hasMore.value = allList.value.length < total
+    updateStats()
+  } catch (e) {
+    uni.showToast({ title: e.message || '提现记录加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
+}
+
+onShow(() => {
+  page.value = 1
+  loadRecords(false)
 })
 </script>
 

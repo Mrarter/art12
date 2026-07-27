@@ -100,6 +100,7 @@
           艺术家
         </view>
         <view 
+          v-if="auctionEnabled"
           class="tab-item" 
           :class="{ active: resultTab === 'auction' }"
           @click="switchResultTab('auction')"
@@ -160,7 +161,7 @@
       </view>
 
       <!-- 拍卖结果 -->
-      <view class="result-list" v-if="resultTab === 'all' || resultTab === 'auction'">
+      <view class="result-list" v-if="auctionEnabled && (resultTab === 'all' || resultTab === 'auction')">
         <view class="result-subtitle" v-if="resultTab === 'all'">相关拍卖</view>
         <view class="auction-list">
           <view 
@@ -215,7 +216,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { formatArtworkPriceNumber } from '@/utils/price'
+import { AUCTION_ENABLED } from '@/utils/platform'
 
 // 状态
 const keyword = ref('')
@@ -224,6 +228,7 @@ const hasSearched = ref(false)
 const loading = ref(false)
 const resultTab = ref('all')
 const totalCount = ref(0)
+const auctionEnabled = AUCTION_ENABLED
 
 // 搜索历史
 const historyList = ref(['张大千', '山水画', '油画', '书法', '当代艺术'])
@@ -281,7 +286,7 @@ const artistResults = ref([
     badge: '认证艺术家',
     desc: '当代艺术，油画，水墨',
     worksCount: 128,
-    fansCount: '2.3万',
+    fansCount: '23,000',
     isFollowed: false
   },
   {
@@ -291,7 +296,7 @@ const artistResults = ref([
     badge: '签约艺术家',
     desc: '油画，风景，抽象',
     worksCount: 86,
-    fansCount: '1.8万',
+    fansCount: '18,000',
     isFollowed: true
   }
 ])
@@ -319,12 +324,7 @@ const auctionResults = ref([
 
 // 格式化价格
 const formatPrice = (price) => {
-  if (!price) return '0'
-  const yuan = price / 100  // 分转元
-  if (yuan >= 10000) {
-    return (yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1) + '万'
-  }
-  return yuan.toLocaleString()
+  return formatArtworkPriceNumber(price)
 }
 
 // 返回
@@ -374,7 +374,7 @@ const search = (kw) => {
   // 模拟搜索
   setTimeout(() => {
     loading.value = false
-    totalCount.value = artworkResults.value.length + artistResults.value.length + auctionResults.value.length
+    totalCount.value = artworkResults.value.length + artistResults.value.length + (auctionEnabled ? auctionResults.value.length : 0)
   }, 500)
 }
 
@@ -426,6 +426,10 @@ const selectSuggestion = (item) => {
 
 // 切换结果标签
 const switchResultTab = (tab) => {
+  if (!auctionEnabled && tab === 'auction') {
+    resultTab.value = 'all'
+    return
+  }
   resultTab.value = tab
 }
 
@@ -446,7 +450,7 @@ const goArtist = (artist) => {
 
 // 跳转拍卖
 const goAuction = (auction) => {
-  uni.navigateTo({ url: `/pages/auction/detail?id=${auction.id}` })
+  uni.navigateTo({ url: `/pages/auction-flow/detail?id=${auction.id}` })
 }
 
 // 切换关注

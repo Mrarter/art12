@@ -19,7 +19,9 @@
         <el-table-column prop="artworkId" label="作品ID" width="100" />
         <el-table-column prop="title" label="作品名称" min-width="160" />
         <el-table-column prop="artistName" label="艺术家" width="140" />
-        <el-table-column prop="currentPrice" label="当前价格" width="140" />
+        <el-table-column label="当前价格" width="140">
+          <template #default="{ row }">{{ formatYuan(row.currentPrice) }}</template>
+        </el-table-column>
         <el-table-column prop="collectCount" label="收藏数" width="100" />
         <el-table-column prop="saleCount" label="成交数" width="100" />
         <el-table-column prop="status" label="状态" width="100" />
@@ -37,10 +39,10 @@
           <el-input v-model="form.artworkId" disabled />
         </el-form-item>
         <el-form-item label="当前价格">
-          <el-input v-model="form.oldPrice" disabled />
+          <el-input :model-value="formatYuan(form.oldPrice)" disabled />
         </el-form-item>
         <el-form-item label="新价格">
-          <el-input-number v-model="form.newPrice" :min="0" :precision="2" />
+          <el-input-number v-model="form.newPriceYuan" :min="0" :precision="2" />
         </el-form-item>
         <el-form-item label="调价原因">
           <el-input v-model="form.reason" type="textarea" :rows="4" placeholder="必须填写原因" />
@@ -67,6 +69,7 @@ const form = ref({
   artworkId: '',
   oldPrice: 0,
   newPrice: 0,
+  newPriceYuan: 0,
   reason: ''
 })
 
@@ -76,13 +79,20 @@ async function loadData() {
 }
 
 function openAdjust(row) {
+  const currentPrice = Number(row.currentPrice || 0)
   form.value = {
     artworkId: row.artworkId,
-    oldPrice: row.currentPrice,
-    newPrice: row.currentPrice,
+    oldPrice: currentPrice,
+    newPrice: currentPrice,
+    newPriceYuan: currentPrice,
     reason: ''
   }
   visible.value = true
+}
+
+function formatYuan(value) {
+  const amount = Number(value || 0)
+  return `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 async function submitAdjust() {
@@ -91,7 +101,10 @@ async function submitAdjust() {
     return
   }
 
-  await manualAdjustArtworkPrice(form.value)
+  await manualAdjustArtworkPrice({
+    ...form.value,
+    newPrice: Math.round(Number(form.value.newPriceYuan || 0))
+  })
   ElMessage.success('调价成功，已写入价格日志')
   visible.value = false
   loadData()

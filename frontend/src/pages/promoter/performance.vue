@@ -173,6 +173,7 @@
 
 <script>
 import { getEarningsTrend, getRankingList, getEarningsDetail } from '@/api/promoter.js'
+import { formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -210,8 +211,8 @@ export default {
       ],
       typeOptions: [
         { label: '全部', value: 'all' },
-        { label: '一级佣金', value: 'level1' },
-        { label: '二级佣金', value: 'level2' },
+        { label: '一级分成', value: 'level1' },
+        { label: '二级分成', value: 'level2' },
         { label: '团队奖励', value: 'team' }
       ]
     }
@@ -312,7 +313,7 @@ export default {
 
     formatMoney(amount) {
       if (!amount) return '0.00'
-      return amount.toLocaleString()
+      return formatYuanNumber(amount)
     },
 
     getStatusText(status) {

@@ -12,9 +12,10 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
-            <el-option label="预展中" value="preview" />
-            <el-option label="进行中" value="ongoing" />
-            <el-option label="已结束" value="ended" />
+            <el-option label="草稿" :value="0" />
+            <el-option label="预展中" :value="1" />
+            <el-option label="拍卖中" :value="2" />
+            <el-option label="已结束" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -36,13 +37,13 @@
       <el-table-column prop="name" label="专场名称" min-width="200" />
       <el-table-column label="封面" width="120">
         <template #default="{ row }">
-          <el-image :src="row.cover" style="width: 80px; height: 60px" fit="cover" />
+          <el-image :src="getFullImageUrl(row.cover)" style="width: 80px; height: 60px" fit="cover" />
         </template>
       </el-table-column>
       <el-table-column label="时间" width="180">
         <template #default="{ row }">
-          <p>{{ row.auctionStart || row.startTime }}</p>
-          <p>至 {{ row.auctionEnd || row.endTime }}</p>
+          <p>{{ formatDateTime(row.startTime) }}</p>
+          <p>至 {{ formatDateTime(row.endTime) }}</p>
         </template>
       </el-table-column>
       <el-table-column label="状态" width="100">
@@ -50,8 +51,8 @@
           <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="成交额" width="120">
-        <template #default="{ row }">¥{{ row.totalAmount }}</template>
+      <el-table-column label="拍品 / 出价" width="120">
+        <template #default="{ row }">{{ row.totalLots }} / {{ row.totalBids }}</template>
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
@@ -111,34 +112,26 @@
           </div>
         </el-form-item>
         
-        <el-form-item label="预展时间" required>
-          <el-col :span="10">
-            <el-form-item prop="previewStart">
-              <el-date-picker v-model="form.previewStart" type="datetime" placeholder="开始时间" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="2" style="text-align: center">至</el-col>
-          <el-col :span="10">
-            <el-form-item prop="previewEnd">
-              <el-date-picker v-model="form.previewEnd" type="datetime" placeholder="结束时间" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-form-item>
         <el-form-item label="拍卖时间" required>
           <el-col :span="10">
-            <el-form-item prop="auctionStart">
-              <el-date-picker v-model="form.auctionStart" type="datetime" placeholder="开始时间" style="width: 100%" />
+            <el-form-item prop="startTime">
+              <el-date-picker v-model="form.startTime" type="datetime" placeholder="开始时间" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="2" style="text-align: center">至</el-col>
           <el-col :span="10">
-            <el-form-item prop="auctionEnd">
-              <el-date-picker v-model="form.auctionEnd" type="datetime" placeholder="结束时间" style="width: 100%" />
+            <el-form-item prop="endTime">
+              <el-date-picker v-model="form.endTime" type="datetime" placeholder="结束时间" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-form-item>
-        <el-form-item label="保证金" prop="deposit">
-          <el-input-number v-model="form.deposit" :min="0" :precision="2" />
+        <el-form-item label="初始状态" prop="status">
+          <el-select v-model="form.status" style="width: 220px">
+            <el-option label="草稿" :value="0" />
+            <el-option label="预展中" :value="1" />
+            <el-option label="拍卖中" :value="2" />
+            <el-option label="已结束" :value="3" />
+          </el-select>
         </el-form-item>
         <el-form-item label="描述" prop="description">
           <div class="description-editor">
@@ -225,16 +218,16 @@ const searchForm = reactive({
 const form = reactive({
   name: '',
   cover: '',
-  previewStart: '',
-  previewEnd: '',
-  auctionStart: '',
-  auctionEnd: '',
-  deposit: 1000,
+  startTime: '',
+  endTime: '',
+  status: 1,
   description: ''
 })
 
 const rules = {
-  name: [{ required: true, message: '请输入专场名称', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入专场名称', trigger: 'blur' }],
+  startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
+  endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }]
 }
 
 const dialogTitle = computed(() => isEdit.value ? '编辑专场' : '创建专场')
@@ -248,7 +241,7 @@ const pagination = reactive({
 const getStatusType = (status) => {
   // 支持数值和字符串状态
   if (typeof status === 'number') {
-    const map = { 1: 'primary', 2: 'success', 3: 'info' }
+    const map = { 0: 'warning', 1: 'primary', 2: 'success', 3: 'info', 4: 'info' }
     return map[status] || 'info'
   }
   const map = { preview: 'primary', ongoing: 'success', ended: 'info' }
@@ -258,11 +251,18 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   // 支持数值和字符串状态
   if (typeof status === 'number') {
-    const map = { 1: '预展中', 2: '拍卖中', 3: '已结束' }
+    const map = { 0: '草稿', 1: '预展中', 2: '拍卖中', 3: '已结束', 4: '已结算' }
     return map[status] || status
   }
   const map = { preview: '预展中', ongoing: '进行中', ended: '已结束' }
   return map[status] || status
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false }).replaceAll('/', '-')
 }
 
 // 复制专场编号
@@ -282,31 +282,28 @@ const loadData = async () => {
   try {
     const params = { page: pagination.page, size: pagination.size }
     if (searchForm.name) params.name = searchForm.name
-    if (searchForm.status) params.status = searchForm.status
+    if (searchForm.status !== '') params.status = searchForm.status
     const data = await request.get('/auction/sessions', { params })
     
-    // 映射API字段到前端期望的字段
+    // 映射API字段到前端期望的字段（对齐后端返回格式）
     tableData.value = (data.records || data.list || []).map(item => ({
       sessionId: item.id,
+      id: item.id,
       sessionCode: item.sessionCode || `SES${String(item.id).padStart(10, '0')}`,
       name: item.title || item.name,
-      cover: item.cover || item.coverImage,
-      previewStart: item.previewStart || item.startTime,
-      previewEnd: item.previewEnd || item.endTime,
-      auctionStart: item.auctionStart || item.startTime,
-      auctionEnd: item.auctionEnd || item.endTime,
-      status: item.statusText?.toLowerCase() || (item.status === 1 ? 'preview' : item.status === 2 ? 'ongoing' : 'ended'),
-      totalAmount: item.totalAmount || 0,
-      totalLots: item.totalLots || item.lotCount || 0
+      cover: item.coverImage || item.cover || '',
+      startTime: item.startTime,
+      endTime: item.endTime,
+      status: typeof item.status === 'number' ? item.status : (item.status === 'preview' ? 1 : item.status === 'ongoing' ? 2 : 3),
+      totalLots: item.lotCount || item.totalLots || 0,
+      totalBids: item.totalBids || 0,
+      description: item.description || ''
     }))
     pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = [
-      { sessionId: 'S001', sessionCode: 'SES202604240001M5K8', name: '2024春季艺术品拍卖会', cover: '', previewStart: '2024-02-01 09:00', previewEnd: '2024-02-05 18:00', auctionStart: '2024-02-06 10:00', auctionEnd: '2024-02-06 18:00', status: 'ended', totalAmount: 2580000 },
-      { sessionId: 'S002', sessionCode: 'SES202604250001A3F2', name: '当代艺术专场', cover: '', previewStart: '2024-03-01 09:00', previewEnd: '2024-03-05 18:00', auctionStart: '2024-03-06 10:00', auctionEnd: '2024-03-06 18:00', status: 'ongoing', totalAmount: 0 },
-      { sessionId: 'S003', sessionCode: 'SES202604250002W7N9', name: '书画精品专场', cover: '', previewStart: '2024-03-15 09:00', previewEnd: '2024-03-20 18:00', auctionStart: '2024-03-21 10:00', auctionEnd: '2024-03-21 18:00', status: 'preview', totalAmount: 0 }
-    ]
-    pagination.total = 3
+    console.error('加载拍卖专场失败:', e)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -325,7 +322,7 @@ const resetSearch = () => {
 const showDialog = (type, row = null) => {
   if (type === 'add') {
     isEdit.value = false
-    Object.assign(form, { name: '', cover: '', previewStart: '', previewEnd: '', auctionStart: '', auctionEnd: '', deposit: 1000, description: '' })
+    Object.assign(form, { id: null, name: '', cover: '', startTime: '', endTime: '', status: 1, description: '' })
   } else {
     isEdit.value = true
     Object.assign(form, row)
@@ -412,24 +409,30 @@ const handleSubmit = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
   
+  if (new Date(form.endTime).getTime() <= new Date(form.startTime).getTime()) {
+    ElMessage.warning('结束时间必须晚于开始时间')
+    return
+  }
   try {
+    const payload = {
+      title: form.name,
+      coverImage: form.cover,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      status: form.status,
+      description: form.description || ''
+    }
     if (isEdit.value) {
-      // 本地更新
-      const index = tableData.value.findIndex(item => item.sessionId === form.sessionId)
-      if (index > -1) {
-        tableData.value[index] = { ...tableData.value[index], ...form }
-        ElMessage.success('更新成功')
-      }
+      await request.put(`/auction/sessions/${form.id}`, payload)
+      ElMessage.success('更新成功')
     } else {
-      // 本地添加
-      const newId = 'S' + String(Math.max(...tableData.value.map(item => parseInt(item.sessionId.slice(1))), 0) + 1).padStart(3, '0')
-      tableData.value.unshift({ sessionId: newId, ...form, status: 'preview', totalAmount: 0 })
-      pagination.total++
+      await request.post('/auction/sessions', payload)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
+    await loadData()
   } catch (e) {
-    ElMessage.error('操作失败')
+    ElMessage.error('操作失败: ' + (e.message || '未知错误'))
   }
 }
 
@@ -441,14 +444,12 @@ const manageLots = (row) => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除该专场吗？', '提示', { type: 'warning' })
-    // 本地删除
-    const index = tableData.value.findIndex(item => item.sessionId === row.sessionId)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      pagination.total--
-      ElMessage.success('删除成功')
-    }
-  } catch (e) {}
+    await request.delete(`/auction/sessions/${row.id}`)
+    ElMessage.success('删除成功')
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败: ' + (e.message || '未知错误'))
+  }
 }
 
 onMounted(() => {

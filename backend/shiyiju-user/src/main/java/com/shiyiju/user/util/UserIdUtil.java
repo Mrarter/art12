@@ -6,10 +6,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 用户UID生成工具类
- * 格式: [分类前缀(3位)][日期YYYYMMDD(8位)][4位序号][4位随机码]
+ * 格式: [分类前缀(3位)][日期YYYYMMDD(8位)][4位序号][4位用户ID]
  * 总长度: 19位
  * 
- * 示例: USR202604250001A7KM
+ * 示例: USR2026042500010135
  */
 public class UserIdUtil {
     
@@ -24,12 +24,20 @@ public class UserIdUtil {
     
     /**
      * 生成用户UID
-     * 格式: USR + 日期(YYYYMMDD) + 4位序号 + 4位随机码
+     * 格式: USR + 日期(YYYYMMDD) + 4位序号 + 4位用户ID
      * 总长度: 19位
      * 
-     * @return 生成的UID，如 USR202604250001A7KM
+     * @return 生成的UID，如 USR2026042500010135
      */
+    public static synchronized String generateUid(Long userId) {
+        return generateId(PREFIX_USER, userId);
+    }
+
     public static synchronized String generateUid() {
+        return generateId(PREFIX_USER, null);
+    }
+
+    private static synchronized String generateId(String prefix, Long userId) {
         String today = LocalDate.now().format(DATE_FORMAT);
         
         // 获取或创建当日计数器
@@ -39,10 +47,7 @@ public class UserIdUtil {
         int seq = counter.incrementAndGet();
         String seqStr = String.format("%04d", seq);
         
-        // 生成4位随机码
-        String randomCode = generateRandomCode(4);
-        
-        return PREFIX_USER + today + seqStr + randomCode;
+        return prefix + today + seqStr + userIdSuffix(userId);
     }
     
     /**
@@ -57,6 +62,13 @@ public class UserIdUtil {
         String seqStr = String.format("%04d", seq);
         String randomCode = generateRandomCode(4);
         return prefix + today + seqStr + randomCode;
+    }
+
+    private static String userIdSuffix(Long userId) {
+        if (userId == null || userId < 0) {
+            return "0000";
+        }
+        return String.format("%04d", userId % 10000);
     }
     
     /**

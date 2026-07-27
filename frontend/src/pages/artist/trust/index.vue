@@ -7,11 +7,11 @@
     </view>
 
     <view class="hero">
-      <image class="hero-image" src="/static/artist-ui/collection-trust.png" mode="aspectFill"></image>
+      <image class="hero-image" src="../static/artist-ui/collection-trust.png" mode="aspectFill"></image>
       <view class="hero-copy">
         <text class="kicker">PLATFORM TRUST</text>
         <text class="hero-title">从认证到流通，每一步都有记录</text>
-        <text class="hero-desc">拾艺局为艺术家作品提供收藏证书、流通记录、保管支持和顾问服务。</text>
+        <text class="hero-desc">艺本艺术为艺术家作品提供收藏证书、流通记录、保管支持和顾问服务。</text>
       </view>
     </view>
 

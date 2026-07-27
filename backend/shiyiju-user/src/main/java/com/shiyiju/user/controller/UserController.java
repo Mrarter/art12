@@ -2,11 +2,19 @@ package com.shiyiju.user.controller;
 
 import com.shiyiju.common.result.Result;
 import com.shiyiju.user.dto.ArtistCertDTO;
+import com.shiyiju.user.dto.ArtistIdCardVerifyDTO;
+import com.shiyiju.user.dto.AccountSecurityDTO;
+import com.shiyiju.user.dto.RealnameAlipayStartDTO;
+import com.shiyiju.user.dto.RegisterDTO;
 import com.shiyiju.user.dto.WxLoginDTO;
 import com.shiyiju.user.entity.User;
 import com.shiyiju.user.service.UserService;
 import com.shiyiju.user.vo.LoginVO;
+import com.shiyiju.user.vo.AccountSecurityVO;
+import com.shiyiju.user.vo.ArtistIdCardVerifyVO;
+import com.shiyiju.user.vo.RealnameAlipayStartVO;
 import com.shiyiju.user.vo.UserInfoVO;
+import com.shiyiju.user.vo.UserInteractionStatsVO;
 import com.shiyiju.user.vo.ArtistCertStatusVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +56,24 @@ public class UserController {
     }
 
     /**
+     * 刷新 Token (POST /user/auth/refresh)
+     * 用于 Token 即将过期时无感刷新
+     */
+    @PostMapping("/auth/refresh")
+    public Result<LoginVO> refreshToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Result.fail(401, "无效的 Token");
+        }
+        String token = authHeader.substring(7);
+        log.info("Token 刷新请求, token: {}", token.substring(0, Math.min(20, token.length())));
+        LoginVO vo = userService.refreshToken(token);
+        if (vo == null) {
+            return Result.fail(401, "Token 已过期，请重新登录");
+        }
+        return Result.success(vo);
+    }
+
+    /**
      * 获取用户信息 (GET /user/info)
      */
     @GetMapping("/info")
@@ -75,6 +101,38 @@ public class UserController {
     }
 
     /**
+     * 更新艺术家主页版式 (PUT /user/artist/homepage-style)
+     */
+    @PutMapping("/artist/homepage-style")
+    public Result<Void> updateArtistHomepageStyle(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Object style = params.getOrDefault("style", params.get("homepageStyle"));
+        userService.updateArtistHomepageStyle(userId, style == null ? null : String.valueOf(style));
+        return Result.success();
+    }
+
+    /**
+     * 更新艺术家履历 (PUT /user/artist/resume)
+     */
+    @PutMapping("/artist/resume")
+    public Result<Void> updateArtistResume(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody Map<String, Object> params
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        Object resume = params.get("resume");
+        userService.updateArtistResume(userId, resume == null ? "" : String.valueOf(resume));
+        return Result.success();
+    }
+
+    /**
      * 绑定手机号 (POST /user/bind-phone)
      */
     @PostMapping("/user/bind-phone")
@@ -92,6 +150,61 @@ public class UserController {
     }
 
     /**
+     * 账号安全概览 (GET /user/security)
+     */
+    @GetMapping("/security")
+    public Result<AccountSecurityVO> getAccountSecurity(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.getAccountSecurity(userId));
+    }
+
+    /**
+     * 生成微信小程序码 (GET /user/share/minicode)
+     */
+    @GetMapping("/share/minicode")
+    public Result<Map<String, String>> getMiniProgramCode(
+            @RequestParam(defaultValue = "pages/gallery/detail") String page,
+            @RequestParam(defaultValue = "id=0") String scene
+    ) {
+        String image = userService.generateMiniProgramCodeDataUrl(page, scene);
+        return Result.success(Map.of("image", image, "page", page, "scene", scene));
+    }
+
+    /**
+     * 绑定/换绑手机号 (POST /user/security/phone)
+     */
+    @PostMapping("/security/phone")
+    public Result<Void> updateSecurityPhone(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody AccountSecurityDTO dto
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        userService.bindPhone(userId, dto.getPhone(), dto.getCode());
+        return Result.success();
+    }
+
+    /**
+     * 设置/修改登录密码 (POST /user/security/password)
+     */
+    @PostMapping("/security/password")
+    public Result<Void> updateSecurityPassword(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody AccountSecurityDTO dto
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        userService.updatePassword(userId, dto.getCurrentPassword(), dto.getNewPassword(), dto.getCode());
+        return Result.success();
+    }
+
+    /**
      * 艺术家认证申请 (POST /user/artist/cert)
      */
     @PostMapping("/user/artist/cert")
@@ -104,6 +217,20 @@ public class UserController {
         }
         userService.applyArtistCert(userId, dto);
         return Result.success();
+    }
+
+    /**
+     * 身份证 OCR 识别校验 (POST /user/artist/cert/id-card/verify)
+     */
+    @PostMapping("/artist/cert/id-card/verify")
+    public Result<ArtistIdCardVerifyVO> verifyArtistIdCard(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Valid @RequestBody ArtistIdCardVerifyDTO dto
+    ) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.verifyArtistIdCard(dto));
     }
 
     /**
@@ -190,8 +317,18 @@ public class UserController {
      * 获取艺术家主页信息 (GET /artist/{userId})
      */
     @GetMapping("/artist/{artistId}")
-    public Result<Map<String, Object>> getArtistHomepage(@PathVariable Long artistId) {
-        return Result.success(userService.getArtistHomepage(artistId));
+    public Result<Map<String, Object>> getArtistHomepage(
+            @PathVariable Long artistId,
+            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId
+    ) {
+        Map<String, Object> data = userService.getArtistHomepage(artistId);
+        if (currentUserId != null) {
+            boolean following = userService.isFollowing(currentUserId, artistId);
+            data.put("isFollowing", following);
+            data.put("followed", following);
+            data.put("isOwner", currentUserId.equals(artistId));
+        }
+        return Result.success(data);
     }
 
     /**
@@ -208,10 +345,19 @@ public class UserController {
      * 用于作品服务关联艺术家信息
      */
     @GetMapping("/artist/info/{artistId}")
-    public Result<java.util.Map<String, Object>> getArtistInfo(@PathVariable Long artistId) {
+    public Result<java.util.Map<String, Object>> getArtistInfo(
+            @PathVariable Long artistId,
+            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId
+    ) {
         java.util.Map<String, Object> data = userService.getArtistInfo(artistId);
         if (data == null) {
             return Result.fail(404, "艺术家不存在");
+        }
+        if (currentUserId != null) {
+            boolean following = userService.isFollowing(currentUserId, artistId);
+            data.put("isFollowing", following);
+            data.put("followed", following);
+            data.put("isOwner", currentUserId.equals(artistId));
         }
         return Result.success(data);
     }
@@ -257,10 +403,131 @@ public class UserController {
      * @param params 包含 userId 和 uid
      */
     @PostMapping("/admin/update-uid")
-    public Result<Void> updateUid(@RequestBody java.util.Map<String, Object> params) {
+    public Result<Void> updateUid(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody java.util.Map<String, Object> params) {
+        if (authorization == null && params.get("adminKey") == null) {
+            return Result.fail(401, "需要管理员权限");
+        }
         Long userId = ((Number) params.get("userId")).longValue();
         String uid = params.get("uid").toString();
         userService.updateUid(userId, uid);
         return Result.success();
     }
+
+    // ===================== 实名认证 API =====================
+
+    /**
+     * 提交实名认证申请 (POST /user/realname/submit)
+     */
+    @PostMapping("/realname/submit")
+    public Result<Void> submitRealnameCert(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Valid @RequestBody com.shiyiju.user.dto.RealnameCertSubmitDTO dto) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        userService.submitRealnameCert(userId, dto);
+        return Result.success();
+    }
+
+    /**
+     * 查询实名认证状态 (GET /user/realname/status)
+     */
+    @GetMapping("/realname/status")
+    public Result<com.shiyiju.user.vo.RealnameCertStatusVO> getRealnameCertStatus(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.getRealnameCertStatus(userId));
+    }
+
+    /**
+     * 发起支付宝实名认证 (POST /user/realname/alipay/start)
+     */
+    @PostMapping("/realname/alipay/start")
+    public Result<RealnameAlipayStartVO> startAlipayRealname(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Valid @RequestBody RealnameAlipayStartDTO dto) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        return Result.success(userService.startAlipayRealname(userId, dto));
+    }
+
+    /**
+     * 同步支付宝实名认证结果 (POST /user/realname/alipay/sync)
+     */
+    @PostMapping("/realname/alipay/sync")
+    public Result<com.shiyiju.user.vo.RealnameCertStatusVO> syncAlipayRealname(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody(required = false) Map<String, String> params) {
+        if (userId == null) {
+            return Result.fail(401, "请先登录");
+        }
+        String certifyId = params == null ? null : params.get("certifyId");
+        return Result.success(userService.syncAlipayRealnameStatus(userId, certifyId));
+    }
+
+    /**
+     * 校验用户真实互动数据 (GET /user/interaction/stats)
+     * 从数据库精准聚合关注数、收藏数、点赞数，排除虚假/无效记录
+     *
+     * @param userId 用户 ID（必填）
+     */
+    @GetMapping("/interaction/stats")
+    public Result<UserInteractionStatsVO> verifyInteractionStats(@RequestParam Long userId) {
+        if (userId == null || userId <= 0) {
+            return Result.fail(400, "无效的用户 ID");
+        }
+        UserInteractionStatsVO vo = userService.verifyInteractionStats(userId);
+        return Result.success(vo);
+    }
+
+    /**
+     * 用户注册 (POST /user/register)
+     * 手机号 + 验证码注册
+     */
+    @PostMapping("/register")
+    public Result<LoginVO> register(@Valid @RequestBody RegisterDTO dto) {
+        log.info("用户注册请求, phone: {}", dto.getPhone());
+        LoginVO vo = userService.register(dto);
+        return Result.success(vo);
+    }
+
+    /**
+     * 手机号登录 (POST /user/phone-login)
+     * 手机号 + 验证码登录（已注册用户）
+     */
+    @PostMapping("/phone-login")
+    public Result<LoginVO> phoneLogin(@Valid @RequestBody RegisterDTO dto) {
+        log.info("手机号登录请求, phone: {}", dto.getPhone());
+        LoginVO vo = userService.phoneLogin(dto);
+        return Result.success(vo);
+    }
+
+    /**
+     * 密码登录 (POST /user/password-login)
+     * 手机号 + 密码登录（已注册用户）
+     */
+    @PostMapping("/password-login")
+    public Result<LoginVO> passwordLogin(@RequestBody RegisterDTO dto) {
+        log.info("密码登录请求, phone: {}", dto.getPhone());
+        LoginVO vo = userService.passwordLogin(dto);
+        return Result.success(vo);
+    }
+
+    /**
+     * 发送短信验证码 (POST /user/sms-code)
+     */
+    @PostMapping("/sms-code")
+    public Result<Void> sendSmsCode(@RequestBody Map<String, String> params) {
+        String phone = params.get("phone");
+        String type = params.get("type");
+        log.info("发送短信验证码请求, phone: {}, type: {}", phone, type);
+        userService.sendSmsCode(phone, type);
+        return Result.success();
+    }
+
 }

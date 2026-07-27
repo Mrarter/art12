@@ -4,7 +4,7 @@
  */
 
 // 图片CDN基础URL
-const IMAGE_BASE_URL = 'https://cdn.shiyiju.com'
+const IMAGE_BASE_URL = import.meta.env?.VITE_IMAGE_BASE_URL || 'https://a.art1.cn'
 
 /**
  * 获取完整的图片URL
@@ -16,19 +16,38 @@ export const getFullImageUrl = (url, defaultUrl = '/static/images/placeholder.pn
   if (!url) {
     return defaultUrl
   }
+
+  const value = String(url).trim()
+  const missingArtworkPlaceholders = [
+    '/images/default-artwork.png',
+    'images/default-artwork.png',
+    '/static/icons/artwork-default.png'
+  ]
+
+  if (missingArtworkPlaceholders.includes(value)) {
+    return defaultUrl
+  }
   
   // 如果已经是完整URL（以 http:// 或 https:// 开头），直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+
+  // 上传资源在 App 端需要补全图片服务域名
+  if (value.startsWith('/upload/')) {
+    return IMAGE_BASE_URL + value
+  }
+  if (value.startsWith('upload/')) {
+    return IMAGE_BASE_URL + '/' + value
   }
   
   // 如果是本地静态资源（以 / 开头），直接返回
-  if (url.startsWith('/static/') || url.startsWith('/')) {
-    return url
+  if (value.startsWith('/static/') || value.startsWith('/')) {
+    return value
   }
   
   // 相对路径，拼接CDN基础URL
-  return IMAGE_BASE_URL + '/' + url
+  return IMAGE_BASE_URL + '/' + value
 }
 
 /**

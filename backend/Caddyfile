@@ -1,0 +1,12 @@
+# 拾艺局本地开发 HTTP 代理（开发环境，无 HTTPS）
+# 微信开发者工具无需证书校验
+
+# gateway API -> 8080
+http://192.168.1.144:9443 {
+    reverse_proxy localhost:8080
+}
+
+# file service -> 8087
+http://192.168.1.144:9447 {
+    reverse_proxy localhost:8087
+}

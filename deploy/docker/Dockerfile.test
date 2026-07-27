@@ -1,0 +1,27 @@
+# 拾艺局测试环境 Dockerfile（使用预构建 JAR）
+# 构建: docker build -t shiyiju-test-backend -f Dockerfile.test .
+
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# 复制预构建 JAR
+COPY services/*.jar /app/
+
+# 创建启动脚本
+RUN printf '%s\n' \
+  '#!/bin/sh' \
+  'case $SERVICE in' \
+  '  gateway)   exec java -jar /app/shiyiju-gateway-1.0.0-SNAPSHOT.jar ;;' \
+  '  user)      exec java -jar /app/shiyiju-user-1.0.0-SNAPSHOT.jar ;;' \
+  '  product)   exec java -jar /app/shiyiju-product-1.0.0-SNAPSHOT.jar ;;' \
+  '  order)     exec java -jar /app/shiyiju-order-1.0.0-SNAPSHOT.jar ;;' \
+  '  auction)   exec java -jar /app/shiyiju-auction-1.0.0-SNAPSHOT.jar ;;' \
+  '  promotion) exec java -jar /app/shiyiju-promotion-1.0.0-SNAPSHOT.jar ;;' \
+  '  community) exec java -jar /app/shiyiju-community-1.0.0-SNAPSHOT.jar ;;' \
+  '  file)      exec java -jar /app/shiyiju-file-1.0.0-SNAPSHOT.jar ;;' \
+  '  message)   exec java -jar /app/shiyiju-message-1.0.0-SNAPSHOT.jar ;;' \
+  '  admin)     exec java -jar /app/shiyiju-admin-1.0.0-SNAPSHOT.jar ;;' \
+  'esac' > /start.sh && chmod +x /start.sh
+
+CMD ["sh", "/start.sh"]

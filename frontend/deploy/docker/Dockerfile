@@ -1,4 +1,4 @@
-# 拾艺局前端 Dockerfile
+# 艺本艺术前端 Dockerfile
 # 构建 Vue 3 应用为 Nginx 静态资源
 
 # 构建阶段
@@ -15,14 +15,14 @@ RUN npm install
 # 复制源代码
 COPY . .
 
-# 构建生产版本
-RUN npm run build
+# 仅构建 H5 产物，最终静态目录位于 dist/build/h5
+RUN npm run build:h5
 
 # 运行阶段
 FROM nginx:alpine
 
-# 复制构建产物
-COPY --from=builder /app/dist /usr/share/nginx/html
+# 仅复制 H5 根目录，避免把整个 dist/build 层级挂进来导致 Nginx 根目录错位
+COPY --from=builder /app/dist/build/h5/ /usr/share/nginx/html/
 
 # 复制 Nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf

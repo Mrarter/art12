@@ -33,9 +33,10 @@ public class AuctionAdminController {
     public Result<PageResult<Map<String, Object>>> getSessions(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Integer status) {
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String name) {
 
-        PageResult<Map<String, Object>> result = auctionService.getSessions(page, size, status);
+        PageResult<Map<String, Object>> result = auctionService.getSessions(page, size, status, name);
         return Result.success(result);
     }
 
@@ -63,14 +64,10 @@ public class AuctionAdminController {
         }
 
         try {
-            Map<String, Object> sessionParams = new HashMap<>();
-            sessionParams.put("title", title);
-            sessionParams.put("description", params.get("description"));
-            sessionParams.put("startTime", params.get("startTime"));
-            sessionParams.put("endTime", params.get("endTime"));
-            sessionParams.put("status", params.get("status") != null ? Integer.parseInt(params.get("status").toString()) : 0);
-            
-            Long id = auctionService.createSession(sessionParams);
+            if (params.get("startTime") == null || params.get("endTime") == null) {
+                return Result.fail("拍卖开始和结束时间不能为空");
+            }
+            Long id = auctionService.createSession(params);
             log.info("创建专场成功: {}", title);
             Map<String, Object> result = new HashMap<>();
             result.put("id", id);
@@ -124,9 +121,10 @@ public class AuctionAdminController {
     public Result<PageResult<Map<String, Object>>> getLots(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long sessionId) {
+            @RequestParam(required = false) Long sessionId,
+            @RequestParam(required = false) Integer status) {
 
-        PageResult<Map<String, Object>> result = auctionService.getLots(page, size, sessionId);
+        PageResult<Map<String, Object>> result = auctionService.getLots(page, size, sessionId, status);
         return Result.success(result);
     }
 
@@ -147,8 +145,12 @@ public class AuctionAdminController {
      */
     @PostMapping("/lots")
     public Result<Map<String, Object>> createLot(@RequestBody Map<String, Object> params) {
-        if (params.get("sessionId") == null || params.get("title") == null) {
-            return Result.fail("专场ID和拍品名称不能为空");
+        if (params.get("sessionId") == null || params.get("title") == null || params.get("lotNo") == null) {
+            return Result.fail("专场、拍品编号和拍品名称不能为空");
+        }
+        if (params.get("startPrice") == null || params.get("increment") == null
+                || params.get("startTime") == null || params.get("endTime") == null) {
+            return Result.fail("起拍价、加价幅度和竞拍时间不能为空");
         }
 
         try {
@@ -206,9 +208,11 @@ public class AuctionAdminController {
     public Result<PageResult<Map<String, Object>>> getBids(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) Long lotId) {
+            @RequestParam(required = false) Long lotId,
+            @RequestParam(required = false) Long sessionId,
+            @RequestParam(required = false) Long userId) {
 
-        PageResult<Map<String, Object>> result = auctionService.getBids(page, size, lotId);
+        PageResult<Map<String, Object>> result = auctionService.getBids(page, size, lotId, sessionId, userId);
         return Result.success(result);
     }
 

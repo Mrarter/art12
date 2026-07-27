@@ -10,7 +10,7 @@
       <view class="tab-item" 
             :class="{ active: currentTab === 'artists' }" 
             @click="switchTab('artists')">
-        艺术家足迹
+        看过的艺术家
       </view>
     </view>
 
@@ -61,7 +61,7 @@
       <!-- 空状态 -->
       <view class="empty-state" v-if="artistsList.length === 0">
         <image class="empty-icon" src="/static/empty-history.png" mode="aspectFit" />
-        <text class="empty-text">暂无艺术家足迹</text>
+        <text class="empty-text">暂无看过的艺术家</text>
         <text class="empty-hint">快去关注喜欢的艺术家吧</text>
       </view>
     </scroll-view>
@@ -80,6 +80,8 @@
 </template>
 
 <script>
+import { formatArtworkPriceNumber } from '@/utils/price'
+
 export default {
   data() {
     return {
@@ -129,9 +131,9 @@ export default {
       return `${diff}天前`
     },
     formatPrice(price) {
-      const yuan = Number(price || 0) / 100
+      const yuan = Number(price || 0)
       if (yuan >= 10000) return `${(yuan / 10000).toFixed(yuan % 10000 === 0 ? 0 : 1)}万`
-      return yuan.toLocaleString()
+      return formatArtworkPriceNumber(yuan)
     },
     switchTab(tab) {
       this.currentTab = tab
@@ -320,6 +322,8 @@ export default {
 }
 
 .tag {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 22rpx;
   background: #f0f0f0;
   color: #666;

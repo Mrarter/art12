@@ -1,4 +1,4 @@
-# 本地开发配置 - 不需要Nacos
+# 本地开发配置 - 不需要 Nacos
 server:
   port: 8080
 
@@ -7,140 +7,188 @@ spring:
     name: shiyiju-gateway
   cloud:
     gateway:
+      default-filters:
+        - XUserId
       discovery:
         locator:
           enabled: false
       routes:
-        # 用户服务
         - id: shiyiju-user
-          uri: http://localhost:8081
+          uri: http://127.0.0.1:8081
           predicates:
             - Path=/api/user/**
           filters:
             - StripPrefix=1
-        # 商品服务
         - id: shiyiju-product
-          uri: http://localhost:8082
+          uri: http://127.0.0.1:8082
           predicates:
             - Path=/api/product/**
           filters:
             - StripPrefix=1
-        # 订单服务
         - id: shiyiju-order
-          uri: http://localhost:8083
+          uri: http://127.0.0.1:8083
           predicates:
             - Path=/api/order/**
           filters:
             - StripPrefix=1
-        # 拍卖服务
         - id: shiyiju-auction
-          uri: http://localhost:8084
+          uri: http://127.0.0.1:8084
           predicates:
             - Path=/api/auction/**
           filters:
             - StripPrefix=1
-        # 分销服务
         - id: shiyiju-promotion
-          uri: http://localhost:8085
+          uri: http://127.0.0.1:8085
           predicates:
             - Path=/api/promotion/**
           filters:
             - StripPrefix=1
-        # 社区服务
+        - id: shiyiju-promoter
+          uri: http://127.0.0.1:8085
+          predicates:
+            - Path=/api/promoter/**
+          filters:
+            - StripPrefix=1
         - id: shiyiju-community
-          uri: http://localhost:8086
+          uri: http://127.0.0.1:8086
           predicates:
             - Path=/api/community/**
           filters:
             - StripPrefix=1
-        # 消息服务
         - id: shiyiju-message
-          uri: http://localhost:8087
+          uri: http://127.0.0.1:8088
           predicates:
             - Path=/api/message/**
           filters:
             - StripPrefix=1
-        # 文件服务
         - id: shiyiju-file
-          uri: http://localhost:8088
+          uri: http://127.0.0.1:8087
           predicates:
             - Path=/api/file/**
           filters:
             - StripPrefix=1
-        # 运营后台管理接口
         - id: shiyiju-admin-product
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/product/list,/product/categories,/product/audit/list
           filters:
             - RewritePath=/product(?<segment>/?.*), /admin/product$\{segment}
-        - id: shiyiju-admin
-          uri: http://localhost:8090
+        - id: shiyiju-product-update
+          uri: http://127.0.0.1:8082
           predicates:
-            - Path=/api/admin/**
+            - Path=/product/create,/product/update,/product/publish,/product/delete,/product/upload,/product/favorite,/product/favorites
           filters:
-            - RewritePath=/api/admin(?<segment>/?.*), /admin$\{segment}
+            - RewritePath=/product(?<segment>/?.*), /product$\{segment}
+        - id: shiyiju-product-direct
+          uri: http://127.0.0.1:8082
+          predicates:
+            - Path=/product/{id}/**,/product/{id}
+          filters:
+            - RewritePath=/product/(?<segment>.*), /product/$\{segment}
         - id: shiyiju-admin-order
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/order/list,/order/aftersale/list
           filters:
             - RewritePath=/order(?<segment>/?.*), /admin/order$\{segment}
         - id: shiyiju-admin-artist
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/user/artist/list,/user/artist/approve,/user/artist/reject
           filters:
             - RewritePath=/user/artist(?<segment>/?.*), /admin/user/artist$\{segment}
+        - id: shiyiju-user-artist-search
+          uri: http://127.0.0.1:8081
+          predicates:
+            - Path=/user/artist/search
+          filters:
+            - RewritePath=/user/artist(?<segment>/?.*), /artist$\{segment}
         - id: shiyiju-admin-promoter
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/user/promoter/list,/user/promoter/add,/user/promoter/freeze
           filters:
             - RewritePath=/user/promoter(?<segment>/?.*), /admin/user/promoter$\{segment}
         - id: shiyiju-admin-community
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/community/topic/list,/community/comment/list,/community/post/list
           filters:
             - RewritePath=/community(?<segment>/?.*), /admin/community$\{segment}
-        - id: shiyiju-admin-system
-          uri: http://localhost:8090
-          predicates:
-            - Path=/system/admin/list,/system/banner/list,/system/operation-log/list,/system/operation-log/stats
-          filters:
-            - RewritePath=/system(?<segment>/?.*), /admin$\{segment}
-        - id: shiyiju-admin-message
-          uri: http://localhost:8090
-          predicates:
-            - Path=/message/list,/message/send,/message/template/list
-          filters:
-            - RewritePath=/message(?<segment>/?.*), /admin/message$\{segment}
         - id: shiyiju-admin-auction
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/auction/session/list
           filters:
             - RewritePath=/auction/session/list, /admin/auction/sessions
         - id: shiyiju-admin-auction-other
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/auction/lot/list,/auction/record/list,/auction/admin/stats,/auction/admin/session-rank,/auction/admin/artist-rank,/auction/admin/deals,/auction/admin/trend,/auction/sessions
           filters:
             - RewritePath=/auction(?<segment>/?.*), /admin/auction$\{segment}
         - id: shiyiju-admin-promotion
-          uri: http://localhost:8090
+          uri: http://127.0.0.1:8090
           predicates:
             - Path=/promotion/commission/list,/promotion/withdraw/list,/promotion/admin/stats,/promotion/admin/rank,/promotion/admin/team-list,/promotion/admin/trend
           filters:
             - RewritePath=/promotion(?<segment>/?.*), /admin/promotion$\{segment}
+        - id: shiyiju-admin-system
+          uri: http://127.0.0.1:8090
+          predicates:
+            - Path=/system/admin/list,/system/banner/list,/system/operation-log/list,/system/operation-log/stats
+          filters:
+            - RewritePath=/system(?<segment>/?.*), /admin/system$\{segment}
+        - id: shiyiju-admin-message
+          uri: http://127.0.0.1:8090
+          predicates:
+            - Path=/message/list,/message/send,/message/template/list
+          filters:
+            - RewritePath=/message(?<segment>/?.*), /admin/message$\{segment}
+        - id: shiyiju-admin-artwork-price
+          uri: http://127.0.0.1:8082
+          predicates:
+            - Path=/api/admin/artwork/price/**
+          filters:
+            - RewritePath=/api/admin/artwork/price(?<segment>/?.*), /admin/artwork/price$\{segment}
+        - id: shiyiju-admin
+          uri: http://127.0.0.1:8090
+          predicates:
+            - Path=/api/admin/**
+          filters:
+            - RewritePath=/api/admin(?<segment>/?.*), /admin$\{segment}
+        - id: shiyiju-pay-callback
+          uri: http://127.0.0.1:8083
+          predicates:
+            - Path=/pay/callback/**,/pay/alipay/**
+          filters:
+            - StripPrefix=0
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
 
-# 禁用Nacos
 spring.cloud.nacos.discovery.enabled: false
 spring.cloud.nacos.config.enabled: false
 
-# 日志配置
 logging:
   level:
     root: INFO
     com.shiyiju: DEBUG
+
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing

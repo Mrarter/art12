@@ -1,18 +1,30 @@
 package com.shiyiju.order.controller;
 
+import com.shiyiju.common.constant.OrderConstant;
+import com.shiyiju.common.event.FinanceEvent;
+import com.shiyiju.common.event.FinanceEventPublisher;
+import com.shiyiju.common.event.FinanceEventType;
 import com.shiyiju.common.service.WxPayService;
+import com.shiyiju.order.entity.Order;
+import com.shiyiju.order.entity.PaymentOrder;
+import com.shiyiju.order.mapper.OrderMapper;
+import com.shiyiju.order.service.OrderService;
+import com.shiyiju.order.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
- * 微信支付回调接口
- * 
- * 微信支付完成后会通知此地址
- * 注意: 此接口不能使用网关的统一前缀 /api/order/
- * 因为微信支付回调不支持自定义Header
+ * 微信支付回调接口 — Phase 5.3 终极一致性版
+ *
+ * 支付：仅更新本地订单状态，资金由 FinanceEvent 异步处理
+ * 退款：Redis 幂等锁 + 完整资金回滚 + 转售状态恢复
  */
 @Slf4j
 @RestController
@@ -21,93 +33,76 @@ import java.util.Map;
 public class WxPayCallbackController {
 
     private final WxPayService wxPayService;
+    private final OrderMapper orderMapper;
+    private final OrderService orderService;
+    private final PaymentService paymentService;
+    private final FinanceEventPublisher financeEventPublisher;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    /**
-     * 微信支付回调通知 (V2版本)
-     * 
-     * 微信服务器会POST XML格式的支付结果通知
-     * 需要返回 SUCCESS 表示已收到通知
-     */
+    @Value("${resale.platform-wallet-user-id:0}")
+    private Long platformWalletUserId;
+
     @PostMapping("/notify")
     public String handlePayNotify(@RequestBody String xmlData) {
         log.info("收到微信支付回调: {}", xmlData);
-        
         try {
-            // 解析回调数据
             Map<String, String> params = wxPayService.parseCallbackNotify(xmlData);
-            
-            // 验证签名
             String sign = params.get("sign");
             if (!wxPayService.verifyCallbackSign(params, sign)) {
-                log.warn("微信支付回调签名验证失败");
+                log.warn("签名验证失败");
+                paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "PAY",
+                        params.get("out_trade_no"), null, params.get("transaction_id"),
+                        params, false, "FAILED", "签名验证失败");
                 return wxPayService.buildFailResponse("签名验证失败");
             }
-            
-            // 返回状态
-            String returnCode = params.get("return_code");
-            String resultCode = params.get("result_code");
-            
-            if ("SUCCESS".equals(returnCode) && "SUCCESS".equals(resultCode)) {
-                // 支付成功
-                String orderNo = params.get("out_trade_no");      // 商户订单号
-                String transactionId = params.get("transaction_id"); // 微信支付订单号
-                String totalFee = params.get("total_fee");          // 订单金额(分)
-                String openid = params.get("openid");                // 用户openid
-                
-                log.info("支付成功 - 订单号: {}, 微信交易号: {}, 金额: {}分",
-                        orderNo, transactionId, totalFee);
-                
-                // 处理支付成功业务逻辑
-                handlePaySuccess(orderNo, transactionId, totalFee, openid);
-                
+            if ("SUCCESS".equals(params.get("return_code"))
+                    && "SUCCESS".equals(params.get("result_code"))) {
+                String outTradeNo = params.get("out_trade_no");
+                PaymentOrder payment = paymentService.markPaySuccess(outTradeNo, PaymentService.CHANNEL_WECHAT,
+                        params.get("transaction_id"), params);
+                String orderNo = payment != null ? payment.getBizNo() : outTradeNo;
+                paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "PAY",
+                        outTradeNo, orderNo, params.get("transaction_id"),
+                        params, true, "SUCCESS", null);
+                log.info("支付成功: outTradeNo={}, orderNo={}", outTradeNo, orderNo);
+                orderService.handlePayCallback(orderNo, params.get("transaction_id"));
                 return wxPayService.buildSuccessResponse();
-            } else {
-                // 支付失败
-                String errCode = params.get("err_code");
-                String errMsg = params.get("err_code_des");
-                log.error("支付失败 - 错误码: {}, 错误信息: {}", errCode, errMsg);
-                
-                return wxPayService.buildFailResponse(errMsg);
             }
-            
+            paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "PAY",
+                    params.get("out_trade_no"), null, params.get("transaction_id"),
+                    params, true, "FAILED", params.get("err_code_des"));
+            return wxPayService.buildFailResponse(params.get("err_code_des"));
         } catch (Exception e) {
-            log.error("处理微信支付回调异常", e);
+            log.error("处理支付回调异常", e);
             return wxPayService.buildFailResponse("系统异常");
         }
     }
 
-    /**
-     * 微信支付退款回调
-     */
     @PostMapping("/refund")
     public String handleRefundNotify(@RequestBody String xmlData) {
-        log.info("收到微信退款回调: {}", xmlData);
-        
+        log.info("收到退款回调: {}", xmlData);
         try {
             Map<String, String> params = wxPayService.parseCallbackNotify(xmlData);
-            
-            String returnCode = params.get("return_code");
-            String resultCode = params.get("result_code");
-            
-            if ("SUCCESS".equals(returnCode)) {
-                if ("SUCCESS".equals(resultCode)) {
-                    // 退款成功
-                    String orderNo = params.get("out_trade_no");
-                    String refundId = params.get("refund_id");
-                    
-                    log.info("退款成功 - 订单号: {}, 退款ID: {}", orderNo, refundId);
-                    handleRefundSuccess(orderNo, refundId);
-                    
-                    return wxPayService.buildSuccessResponse();
-                } else {
-                    // 退款失败
-                    log.error("退款失败: {}", params.get("err_code_des"));
-                    return wxPayService.buildFailResponse(params.get("err_code_des"));
+            if ("SUCCESS".equals(params.get("return_code"))
+                    && "SUCCESS".equals(params.get("result_code"))) {
+                String orderNo = params.get("out_trade_no");
+                PaymentOrder payment = paymentService.findByPayNo(orderNo);
+                if (payment != null) {
+                    orderNo = payment.getBizNo();
                 }
-            } else {
-                return wxPayService.buildFailResponse(params.get("return_msg"));
+                log.info("退款成功: orderNo={}", orderNo);
+                paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "REFUND",
+                        params.get("out_trade_no"), orderNo, params.get("transaction_id"),
+                        params, true, "SUCCESS", null);
+                paymentService.markRefundSuccessByBizNo(orderNo,
+                        params.getOrDefault("refund_id", params.get("out_refund_no")), params);
+                handleRefundSuccess(orderNo);
+                return wxPayService.buildSuccessResponse();
             }
-            
+            paymentService.recordNotify(PaymentService.CHANNEL_WECHAT, "REFUND",
+                    params.get("out_trade_no"), null, params.get("transaction_id"),
+                    params, true, "FAILED", params.get("err_code_des"));
+            return wxPayService.buildFailResponse(params.get("err_code_des"));
         } catch (Exception e) {
             log.error("处理退款回调异常", e);
             return wxPayService.buildFailResponse("系统异常");
@@ -115,23 +110,87 @@ public class WxPayCallbackController {
     }
 
     /**
-     * 支付成功业务处理
+     * 退款成功 — 幂等锁 + 事件驱动回滚
+     *
+     * 1. Redis 幂等锁（refund:lock:{orderNo}，30秒自动过期）
+     * 2. 订单状态幂等检查
+     * 3. 发布退款事件（RESALE_ROLLBACK / REFUND_ARTIST）
+     * 4. 更新订单为 REFUNDED
      */
-    private void handlePaySuccess(String orderNo, String transactionId, String totalFee, String openid) {
-        // 此处调用订单服务更新订单状态
-        // 由于在order模块中，可以通过Feign调用或直接注入服务
-        log.info("订单 {} 支付成功，微信交易号: {}", orderNo, transactionId);
-        
-        // TODO: 调用订单服务更新状态
-        // orderService.updateOrderStatus(orderNo, transactionId);
+    @Transactional(rollbackFor = Exception.class)
+    public void handleRefundSuccess(String orderNo) {
+        // 1. Redis 幂等锁
+        String lockKey = "refund:lock:" + orderNo;
+        Boolean locked = acquireLock(lockKey);
+        if (Boolean.FALSE.equals(locked)) {
+            log.warn("退款处理中，幂等返回: orderNo={}", orderNo);
+            return;
+        }
+        try {
+            // 2. 订单幂等检查
+            Order order = orderMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Order>()
+                            .eq(Order::getOrderNo, orderNo));
+            if (order == null) {
+                log.error("退款：订单不存在, orderNo={}", orderNo);
+                return;
+            }
+            if ("REFUNDED".equals(order.getStatus())) {
+                log.info("订单 {} 已退款，幂等返回", orderNo);
+                return;
+            }
+
+            // 3. 发布退款事件
+            FinanceEvent event = FinanceEvent.builder()
+                    .orderNo(orderNo)
+                    .relatedId(order.getId())
+                    .relatedType("order_refund")
+                    .platformWalletUserId(platformWalletUserId)
+                    .build();
+
+            if (OrderConstant.SOURCE_RESALE.equals(order.getSource())) {
+                String remark = order.getRemark();
+                Long resaleId = remark != null && remark.startsWith("resale:")
+                        ? Long.parseLong(remark.substring("resale:".length())) : null;
+                event.setType(FinanceEventType.RESALE_ROLLBACK);
+                event.setResaleId(resaleId);
+                event.setArtworkId(orderService.getFirstArtworkId(order.getId()));
+            } else {
+                event.setType(FinanceEventType.REFUND_ARTIST);
+            }
+
+            financeEventPublisher.publish(event);
+            log.info("退款事件已发布: orderNo={}, type={}", orderNo, event.getType());
+
+            // 4. 更新订单状态
+            order.setStatus("REFUNDED");
+            order.setPaymentStatus("REFUNDED");
+            orderMapper.updateById(order);
+            paymentService.markRefundSuccessByBizNo(orderNo, null, Map.of("source", "wechat_refund_callback"));
+            log.info("订单 {} 退款完成", orderNo);
+
+        } catch (Exception e) {
+            log.error("退款处理异常: orderNo={}", orderNo, e);
+            throw e;
+        } finally {
+            releaseLock(lockKey);
+        }
     }
 
-    /**
-     * 退款成功业务处理
-     */
-    private void handleRefundSuccess(String orderNo, String refundId) {
-        log.info("订单 {} 退款成功，退款ID: {}", orderNo, refundId);
-        
-        // TODO: 调用订单服务更新退款状态
+    private Boolean acquireLock(String key) {
+        try {
+            return redisTemplate.opsForValue().setIfAbsent(key, "1", Duration.ofSeconds(30));
+        } catch (Exception e) {
+            log.warn("Redis不可用，降级: key={}", key);
+            return true;
+        }
+    }
+
+    private void releaseLock(String key) {
+        try {
+            redisTemplate.delete(key);
+        } catch (Exception e) {
+            log.warn("Redis释放失败: key={}", key);
+        }
     }
 }

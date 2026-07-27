@@ -40,7 +40,7 @@ public class PromotionStatsController {
                 BigDecimal totalCommission = jdbcTemplate.queryForObject(
                     "SELECT COALESCE(SUM(commission_amount), 0) FROM commission_record", BigDecimal.class);
                 BigDecimal pendingWithdraw = jdbcTemplate.queryForObject(
-                    "SELECT COALESCE(SUM(amount), 0) FROM withdraw_record WHERE status = 'pending'", BigDecimal.class);
+                    "SELECT COALESCE(SUM(amount), 0) / 100 FROM withdraw_records WHERE status = 0", BigDecimal.class);
                 
                 stats.put("totalPromoters", totalPromoters != null ? totalPromoters : 0);
                 stats.put("totalCommission", totalCommission != null ? totalCommission : BigDecimal.ZERO);

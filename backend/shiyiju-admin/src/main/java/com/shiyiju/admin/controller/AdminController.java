@@ -223,14 +223,16 @@ public class AdminController {
      */
     @GetMapping("/info")
     public Result<Map<String, Object>> getAdminInfo(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return Result.success(adminAccountService.getAdminInfo(authorization));
+        Map<String, Object> admin = adminAccountService.getAdminInfo(authorization);
+        return admin == null ? Result.fail("登录已失效") : Result.success(admin);
     }
 
     /**
      * 退出登录
      */
     @PostMapping("/logout")
-    public Result<Void> logout() {
+    public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        adminAccountService.logout(authorization);
         return Result.success();
     }
 }

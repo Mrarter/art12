@@ -1,6 +1,42 @@
-# 本地开发配置 - 禁用Nacos
+# 本地开发数据库配置
 spring:
-  cloud:
-    nacos:
-      discovery:
-        enabled: false
+  datasource:
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+
+# JWT 配置
+jwt:
+  secret: shiyiju-secret-key-2026-very-long-and-secure-key-for-jwt-signing
+  expiration: 604800000
+
+# 微信小程序配置
+wechat:
+  appid: ${WECHAT_APPID:wx4b7015f42a4fa49c}
+  secret: ${WECHAT_SECRET:your-wechat-secret}
+  official-appid: ${WECHAT_OFFICIAL_APPID:}
+  official-secret: ${WECHAT_OFFICIAL_SECRET:}
+  open-appid: ${WECHAT_OPEN_APPID:}
+  open-secret: ${WECHAT_OPEN_SECRET:}
+
+alipay:
+  enabled: ${ALIPAY_ENABLED:false}
+  app-id: ${ALIPAY_APP_ID:}
+  private-key: ${ALIPAY_PRIVATE_KEY:}
+  alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
+  gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+  notify-url: ${ALIPAY_NOTIFY_URL:}
+  return-url: ${ALIPAY_RETURN_URL:}
+  realname-enabled: ${ALIPAY_REALNAME_ENABLED:false}
+  realname-return-url: ${ALIPAY_REALNAME_RETURN_URL:https://a.art1.cn/#/pages/user/realname}
+  realname-biz-code: ${ALIPAY_REALNAME_BIZ_CODE:FACE}
+
+# 日志配置
+logging:
+  level:
+    com.shiyiju: DEBUG

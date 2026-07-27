@@ -1,0 +1,7 @@
+/* 全局样式 - 黑金主题 */
+page {
+  background-color: #0F0F10;
+  color: #EDEDED;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  overflow-x: hidden;
+}

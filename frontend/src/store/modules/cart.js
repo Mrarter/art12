@@ -36,7 +36,13 @@ export const useCartStore = defineStore('cart', {
     hasSelected: (state) => state.selectedIds.length > 0,
     
     // 购物车总数
-    cartCount: (state) => state.cartList.reduce((sum, item) => sum + item.quantity, 0)
+    cartCount: (state) => state.cartList.reduce((sum, item) => sum + (item.quantity || item.num || 1), 0),
+
+    selectedList: (state) => state.selectedIds,
+
+    selectedItems: (state) => state.cartList.filter(item => state.selectedIds.includes(item.id)),
+
+    totalPrice: (state) => state.totalAmount
   },
   
   actions: {
@@ -66,7 +72,17 @@ export const useCartStore = defineStore('cart', {
     async fetchCartList() {
       try {
         const list = await getCartList()
-        this.cartList = list || []
+        this.cartList = (list || []).map(item => ({
+          ...item,
+          num: item.quantity || item.num || 1,
+          productId: item.artworkId || item.productId,
+          title: item.title || item.artworkTitle || item.productTitle,
+          cover: item.cover || item.coverImage,
+          artistName: item.artistName || item.authorName,
+          publisherId: item.publisherId || item.sellerId || item.authorId,
+          publisherName: item.publisherName || item.sellerName || item.authorName,
+          publisherAvatar: item.publisherAvatar || item.sellerAvatar || item.authorAvatar
+        }))
         this.recalculate()
         return list
       } catch (e) {
@@ -94,6 +110,7 @@ export const useCartStore = defineStore('cart', {
         const item = this.cartList.find(i => i.id === id)
         if (item) {
           item.quantity = quantity
+          item.num = quantity
         }
         this.recalculate()
         return true
@@ -152,8 +169,8 @@ export const useCartStore = defineStore('cart', {
     // 重新计算总价和数量
     recalculate() {
       const selectedItems = this.cartList.filter(item => this.selectedIds.includes(item.id))
-      this.totalCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0)
-      this.totalAmount = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+      this.totalCount = selectedItems.reduce((sum, item) => sum + (item.quantity || item.num || 1), 0)
+      this.totalAmount = selectedItems.reduce((sum, item) => sum + item.price * (item.quantity || item.num || 1), 0)
       this.saveToStorage()
     },
 

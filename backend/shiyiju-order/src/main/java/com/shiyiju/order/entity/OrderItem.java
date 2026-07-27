@@ -3,6 +3,7 @@ package com.shiyiju.order.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -44,21 +45,21 @@ public class OrderItem implements Serializable {
     /** 封面图 */
     private String coverImage;
     
-    /** 单价 */
-    private Long price;
+    /** 单价（元，DECIMAL） */
+    private BigDecimal price;
     
     /** 数量 */
     private Integer quantity;
     
-    /** 小计金额 */
-    private Long subtotal;
+    /** 小计金额（元） */
+    private BigDecimal subtotal;
     
     /** 归属艺荐官ID */
     private Long promoterId;
     
     /** 佣金状态：0-未结算，1-已结算 */
     private Integer commissionStatus;
-    
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

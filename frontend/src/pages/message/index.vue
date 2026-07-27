@@ -17,7 +17,7 @@
       <!-- 系统通知 -->
       <view class="message-group" v-if="currentTab === 'all' || currentTab === 'system'">
         <view class="group-header" v-if="currentTab === 'all'">系统通知</view>
-        <view class="message-item" v-for="(msg, index) in systemMessages" :key="index" @click="viewDetail(msg)">
+        <view class="message-item" v-for="(msg, index) in visibleSystemMessages" :key="index" @click="viewDetail(msg)">
           <view class="message-icon" :class="'icon-' + msg.type">
             <image src="/static/icon-system.png" mode="aspectFit" v-if="msg.type === 'system'" />
             <image src="/static/icon-activity.png" mode="aspectFit" v-else-if="msg.type === 'activity'" />
@@ -54,7 +54,7 @@
       <!-- 交易消息 -->
       <view class="message-group" v-if="currentTab === 'all' || currentTab === 'transaction'">
         <view class="group-header" v-if="currentTab === 'all'">交易消息</view>
-        <view class="message-item" v-for="(msg, index) in transactionMessages" :key="index" @click="viewDetail(msg)">
+        <view class="message-item" v-for="(msg, index) in visibleTransactionMessages" :key="index" @click="viewDetail(msg)">
           <view class="message-icon order">
             <text class="icon-text">订单</text>
           </view>
@@ -89,6 +89,8 @@
 </template>
 
 <script>
+import { AUCTION_ENABLED } from '@/utils/platform.js'
+
 export default {
   data() {
     return {
@@ -143,15 +145,23 @@ export default {
     }
   },
   computed: {
+    visibleSystemMessages() {
+      if (AUCTION_ENABLED) return this.systemMessages
+      return this.systemMessages.filter(msg => !String(msg.title || '').includes('拍卖') && !String(msg.content || '').includes('拍卖') && !String(msg.content || '').includes('竞拍'))
+    },
+    visibleTransactionMessages() {
+      if (AUCTION_ENABLED) return this.transactionMessages
+      return this.transactionMessages.filter(msg => !String(msg.title || '').includes('拍卖') && !String(msg.content || '').includes('竞拍'))
+    },
     isEmpty() {
       if (this.currentTab === 'all') {
-        return this.systemMessages.length === 0 && this.interactMessages.length === 0
+        return this.visibleSystemMessages.length === 0 && this.interactMessages.length === 0 && this.visibleTransactionMessages.length === 0
       } else if (this.currentTab === 'system') {
-        return this.systemMessages.length === 0
+        return this.visibleSystemMessages.length === 0
       } else if (this.currentTab === '互动') {
         return this.interactMessages.length === 0
       } else {
-        return this.transactionMessages.length === 0
+        return this.visibleTransactionMessages.length === 0
       }
     }
   },

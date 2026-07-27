@@ -41,13 +41,19 @@ const routes = [
             path: 'promoter',
             name: 'PromoterList',
             component: () => import('@/views/user/promoter.vue'),
-            meta: { title: '艺荐官管理' }
+            meta: { title: '经纪人管理' }
           },
           {
             path: 'user-profile',
             name: 'UserProfile',
             component: () => import('@/views/user/user-profile.vue'),
             meta: { title: '用户画像' }
+          },
+          {
+            path: 'realname',
+            name: 'RealnameAudit',
+            component: () => import('@/views/user/realname.vue'),
+            meta: { title: '实名认证' }
           },
         ]
       },
@@ -135,7 +141,7 @@ const routes = [
             path: 'commission',
             name: 'Commission',
             component: () => import('@/views/promotion/commission.vue'),
-            meta: { title: '佣金记录' }
+            meta: { title: '经纪人分成记录' }
           },
           {
             path: 'withdraw',
@@ -179,6 +185,19 @@ const routes = [
             name: 'ContentReview',
             component: () => import('@/views/community/content-review.vue'),
             meta: { title: '内容审核' }
+          }
+        ]
+      },
+      {
+        path: 'content',
+        name: 'Content',
+        meta: { title: '内容管理', icon: 'Document' },
+        children: [
+          {
+            path: 'article',
+            name: 'ArticlePublish',
+            component: () => import('@/views/content/article.vue'),
+            meta: { title: '文章发布' }
           }
         ]
       },
@@ -233,6 +252,25 @@ const routes = [
         ]
       },
       {
+        path: 'resale',
+        name: 'Resale',
+        meta: { title: '转售管理', icon: 'RefreshRight' },
+        children: [
+          {
+            path: 'list',
+            name: 'ResaleList',
+            component: () => import('@/views/resale/ResaleList.vue'),
+            meta: { title: '转售记录' }
+          },
+          {
+            path: 'stats',
+            name: 'ResaleStats',
+            component: () => import('@/views/resale/ResaleStats.vue'),
+            meta: { title: '流通数据统计' }
+          }
+        ]
+      },
+      {
         path: 'system',
         name: 'System',
         meta: { title: '系统设置', icon: 'Setting' },
@@ -280,7 +318,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
-    document.title = `${to.meta.title} - 拾艺局后台`
+    document.title = `${to.meta.title} - 艺本艺术后台`
   }
   const token = localStorage.getItem('admin_token')
   if (!token && to.path !== '/login') {

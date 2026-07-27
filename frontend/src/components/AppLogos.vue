@@ -4,9 +4,9 @@
 <template>
   <view class="container">
     <view class="uni-helper-logo">
-      <image class="uni-helper-logo__image" src="/static/logo.svg" />
+      <image class="uni-helper-logo__image" src="/static/logo.png" />
       <text class="uni-helper-logo__label green">
-        uni-helper
+        艺本艺术
       </text>
     </view>
     <text class="link-bar">

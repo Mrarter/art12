@@ -3,7 +3,7 @@
     <!-- 消息提醒设置 -->
     <view class="settings-section">
       <text class="section-title">消息提醒</text>
-      <view class="setting-item">
+      <view class="setting-item" v-if="auctionEnabled">
         <view class="setting-info">
           <text class="setting-name">系统通知</text>
           <text class="setting-desc">接收系统公告、活动通知等</text>
@@ -79,6 +79,8 @@
 </template>
 
 <script>
+import { AUCTION_ENABLED } from '@/utils/platform.js'
+
 export default {
   data() {
     return {
@@ -93,6 +95,11 @@ export default {
         startTime: '22:00',
         endTime: '08:00'
       }
+    }
+  },
+  computed: {
+    auctionEnabled() {
+      return AUCTION_ENABLED
     }
   },
   methods: {

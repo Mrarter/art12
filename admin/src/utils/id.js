@@ -57,7 +57,7 @@ export function getIdType(id) {
     'CMT': '评论',
     'TOP': '话题',
     'WTH': '提现',
-    'COM': '佣金',
+    'COM': '分成',
     'BID': '竞拍',
     'ASM': '售后',
     'ART': '作品'
@@ -153,7 +153,7 @@ export const ID_TYPE_MAP = {
   'CMT': { name: '评论', color: '' },
   'TOP': { name: '话题', color: 'danger' },
   'WTH': { name: '提现', color: 'success' },
-  'COM': { name: '佣金', color: 'warning' },
+  'COM': { name: '分成', color: 'warning' },
   'BID': { name: '竞拍', color: 'info' },
   'ASM': { name: '售后', color: 'danger' },
   'ART': { name: '作品', color: 'primary' }

@@ -10,7 +10,7 @@
       <el-table-column label="管理员" min-width="200">
         <template #default="{ row }">
           <div class="admin-info">
-            <el-avatar :src="row.avatar" :size="40" icon="UserFilled" />
+            <el-avatar :src="getFullImageUrl(row.avatar)" :size="40" icon="UserFilled" />
             <div>
               <p>{{ row.username }}</p>
               <p class="email">{{ row.email }}</p>
@@ -20,8 +20,8 @@
       </el-table-column>
       <el-table-column label="角色" width="150">
         <template #default="{ row }">
-          <el-tag :type="row.role === 'super' ? 'danger' : 'primary'" size="small">
-            {{ row.role === 'super' ? '超级管理员' : '普通管理员' }}
+          <el-tag :type="roleMeta(row.role).type" size="small">
+            {{ roleMeta(row.role).label }}
           </el-tag>
         </template>
       </el-table-column>
@@ -58,8 +58,15 @@
         </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="form.role" placeholder="请选择角色">
-            <el-option label="超级管理员" value="super" />
-            <el-option label="普通管理员" value="admin" />
+            <el-option
+              v-for="role in roleOptions"
+              :key="role.value"
+              :label="role.label"
+              :value="role.value"
+            >
+              <span>{{ role.label }}</span>
+              <span class="role-description">{{ role.description }}</span>
+            </el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="状态" prop="status">
@@ -80,13 +87,21 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
+import request, { getFullImageUrl } from '@/api/request'
 
 const loading = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref()
 const tableData = ref([])
 const isEdit = ref(false)
+
+const roleOptions = [
+  { value: 'super', label: '超级管理员', description: '全部权限' },
+  { value: 'operation', label: '运营管理员', description: '用户、作品、订单、内容运营' },
+  { value: 'finance', label: '财务管理员', description: '订单、售后、提现、分销、平台抽佣' },
+  { value: 'audit', label: '审核管理员', description: '艺术家、作品、拍品、社区审核' },
+  { value: 'admin', label: '普通管理员', description: '兼容旧账号，日常维护' }
+]
 
 const form = reactive({
   id: null,
@@ -109,6 +124,14 @@ const rules = {
 }
 
 const dialogTitle = computed(() => isEdit.value ? '编辑管理员' : '添加管理员')
+
+const roleMeta = (role) => {
+  const item = roleOptions.find(option => option.value === role)
+  return {
+    label: item?.label || '普通管理员',
+    type: role === 'super' ? 'danger' : role === 'finance' ? 'warning' : role === 'audit' ? 'success' : 'primary'
+  }
+}
 
 const loadData = async () => {
   loading.value = true
@@ -191,5 +214,12 @@ onMounted(() => {
     font-size: 12px;
     color: #999;
   }
+}
+
+.role-description {
+  float: right;
+  margin-left: 16px;
+  color: #909399;
+  font-size: 12px;
 }
 </style>

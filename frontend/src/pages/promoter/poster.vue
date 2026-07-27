@@ -103,7 +103,7 @@ export default {
         userName: '张三',
         userAvatar: '/static/images/avatar.png',
         qrCodeUrl: '',
-        appName: '拾艺局',
+        appName: '艺本艺术',
         slogan: '发现艺术，分享价值',
         inviteCode: 'ABC123456',
         bgImage: '/static/poster/bg-default.jpg'
@@ -123,7 +123,7 @@ export default {
         this.qrcodeUrl = res.data.qrCodeUrl
         this.posterData.qrCodeUrl = res.data.qrCodeUrl
       } catch (e) {
-        // 使用模拟数据
+        // API 加载失败，使用默认占位图（待对接真实二维码接口后移除）
         this.qrcodeUrl = '/static/qrcode-demo.png'
         this.posterData.qrCodeUrl = '/static/qrcode-demo.png'
       }

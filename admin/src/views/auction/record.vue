@@ -47,23 +47,16 @@
       <el-table-column label="用户" min-width="150">
         <template #default="{ row }">
           <p>{{ row.userName }}</p>
-          <p class="phone">{{ row.phone }}</p>
+          <p class="phone">用户 ID：{{ row.userId }}</p>
         </template>
       </el-table-column>
       <el-table-column label="出价" width="120">
         <template #default="{ row }">¥{{ row.bidPrice }}</template>
       </el-table-column>
-      <el-table-column label="类型" width="80">
-        <template #default="{ row }">
-          <el-tag :type="row.bidType === 'manual' ? 'primary' : 'warning'" size="small">
-            {{ row.bidType === 'manual' ? '手动' : '代理' }}
-          </el-tag>
-        </template>
-      </el-table-column>
       <el-table-column label="结果" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.isWin ? 'success' : 'info'" size="small">
-            {{ row.isWin ? '中标' : '出局' }}
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            {{ row.status === 1 ? '当前领先' : '已被超越' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -121,16 +114,21 @@ const handleCopyId = async (id) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await request.get('/auction/record/list', { params: { page: pagination.page, size: pagination.size, ...searchForm } })
-    tableData.value = data.list
-    pagination.total = data.total
+    const params = { page: pagination.page, size: pagination.size }
+    if (searchForm.sessionId !== '') params.sessionId = searchForm.sessionId
+    if (searchForm.userId) params.userId = searchForm.userId
+    const data = await request.get('/auction/bids', { params })
+    tableData.value = (data.records || []).map(item => ({
+      ...item,
+      bidCode: `BID${String(item.id).padStart(12, '0')}`,
+      lotCode: item.lotNo || `LOT${String(item.lotId).padStart(12, '0')}`,
+      userName: `用户 ${item.userId}`,
+      bidTime: formatDateTime(item.bidTime)
+    }))
+    pagination.total = data.total || 0
   } catch (e) {
-    tableData.value = [
-      { bidCode: 'BID202604250001A3K7', lotCode: 'LOT202604240001A5K9', lotTitle: '名家山水', artistName: '张大千', userName: '张三', phone: '13800138001', bidPrice: 68000, bidType: 'manual', isWin: true, bidTime: '2024-02-06 14:30:00' },
-      { bidCode: 'BID202604250002M8P2', lotCode: 'LOT202604240001A5K9', lotTitle: '名家山水', artistName: '张大千', userName: '李四', phone: '13800138002', bidPrice: 65000, bidType: 'manual', isWin: false, bidTime: '2024-02-06 14:25:00' },
-      { bidCode: 'BID202604250003W5T9', lotCode: 'LOT202604240002B2F6', lotTitle: '花鸟画', artistName: '齐白石', userName: '王五', phone: '13800138003', bidPrice: 95000, bidType: 'proxy', isWin: true, bidTime: '2024-02-06 14:20:00' }
-    ]
-    pagination.total = 3
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -138,9 +136,10 @@ const loadData = async () => {
 
 const loadSessions = async () => {
   try {
-    sessions.value = await request.get('/auction/sessions')
+    const data = await request.get('/auction/sessions', { params: { page: 1, size: 100 } })
+    sessions.value = (data.records || []).map(item => ({ sessionId: item.id, name: item.title || item.name }))
   } catch (e) {
-    sessions.value = [{ sessionId: 'S001', name: '2024春季拍卖会' }]
+    sessions.value = []
   }
 }
 
@@ -152,6 +151,12 @@ const handleSearch = () => {
 const resetSearch = () => {
   Object.assign(searchForm, { sessionId: '', userId: '' })
   handleSearch()
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false }).replaceAll('/', '-')
 }
 
 onMounted(() => {

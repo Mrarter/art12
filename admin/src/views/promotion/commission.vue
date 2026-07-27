@@ -1,18 +1,18 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <span class="title">佣金记录</span>
+      <span class="title">经纪人分成记录</span>
     </div>
     
     <div class="search-form">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="艺荐官">
+        <el-form-item label="经纪人">
           <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
         </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="searchForm.type" placeholder="全部" clearable>
-            <el-option label="直接佣金" value="direct" />
-            <el-option label="团队佣金" value="team" />
+            <el-option label="直接分成" value="direct" />
+            <el-option label="团队分成" value="team" />
           </el-select>
         </el-form-item>
         <el-form-item label="时间">
@@ -33,12 +33,12 @@
     </div>
     
     <el-table :data="tableData" v-loading="loading" border stripe>
-      <el-table-column prop="commissionCode" label="佣金编号" width="200">
+      <el-table-column prop="commissionCode" label="经纪人分成编号" width="200">
         <template #default="{ row }">
-          <IdCell :value="row.commissionCode" success-message="已复制佣金编号" />
+          <IdCell :value="row.commissionCode" success-message="已复制经纪人分成编号" />
         </template>
       </el-table-column>
-      <el-table-column label="艺荐官" min-width="150">
+      <el-table-column label="经纪人" min-width="150">
         <template #default="{ row }">
           <p>{{ row.promoterName }}</p>
           <p class="phone">{{ row.promoterPhone }}</p>
@@ -47,7 +47,7 @@
       <el-table-column label="类型" width="100">
         <template #default="{ row }">
           <el-tag :type="row.type === 'direct' ? 'primary' : 'warning'" size="small">
-            {{ row.type === 'direct' ? '直接佣金' : '团队佣金' }}
+            {{ row.type === 'direct' ? '直接分成' : '团队分成' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -58,13 +58,13 @@
         </template>
       </el-table-column>
       <el-table-column label="订单金额" width="120">
-        <template #default="{ row }">¥{{ row.orderAmount }}</template>
+        <template #default="{ row }">¥{{ formatFen(row.orderAmount) }}</template>
       </el-table-column>
-      <el-table-column label="佣金比例" width="100">
+      <el-table-column label="经纪人分成比例" width="100">
         <template #default="{ row }">{{ (row.rate * 100).toFixed(1) }}%</template>
       </el-table-column>
-      <el-table-column label="佣金金额" width="120">
-        <template #default="{ row }" class="amount">¥{{ row.commission }}</template>
+      <el-table-column label="经纪人分成金额" width="120">
+        <template #default="{ row }" class="amount">¥{{ formatFen(row.commission) }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
@@ -104,11 +104,11 @@
             <span v-else>用户ID: {{ orderDetail.userId }}</span>
             <span v-if="orderDetail.buyerPhone" class="phone">{{ orderDetail.buyerPhone }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="商品金额">¥{{ orderDetail.goodsAmount }}</el-descriptions-item>
-          <el-descriptions-item label="运费">¥{{ orderDetail.freightAmount || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="优惠金额">-¥{{ orderDetail.discountAmount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="商品金额">¥{{ formatFen(orderDetail.goodsAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="运费">¥{{ formatFen(orderDetail.freightAmount || 0) }}</el-descriptions-item>
+          <el-descriptions-item label="优惠金额">-¥{{ formatFen(orderDetail.discountAmount || 0) }}</el-descriptions-item>
           <el-descriptions-item label="实付金额" class="highlight">
-            <strong>¥{{ orderDetail.payAmount }}</strong>
+            <strong>¥{{ formatFen(orderDetail.payAmount) }}</strong>
           </el-descriptions-item>
           <el-descriptions-item label="支付状态">
             <el-tag :type="orderDetail.paymentStatus === 'PAID' ? 'success' : 'warning'" size="small">
@@ -131,10 +131,10 @@
           </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" align="center" />
           <el-table-column label="单价" width="120" align="right">
-            <template #default="{ row }">¥{{ row.price }}</template>
+            <template #default="{ row }">¥{{ formatFen(row.price) }}</template>
           </el-table-column>
           <el-table-column label="小计" width="120" align="right">
-            <template #default="{ row }">¥{{ (row.price * row.quantity).toFixed(2) }}</template>
+            <template #default="{ row }">¥{{ formatFen(row.price * row.quantity) }}</template>
           </el-table-column>
         </el-table>
       </div>
@@ -155,6 +155,14 @@ const loading = ref(false)
 const tableData = ref([])
 const orderDialogVisible = ref(false)
 const orderDetail = ref(null)
+
+const formatFen = (value) => {
+  if (value === null || value === undefined || value === '') return '0.00'
+  return (Number(value) / 100).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
 
 const searchForm = reactive({
   userId: '',
@@ -180,12 +188,9 @@ const loadData = async () => {
     tableData.value = data.list
     pagination.total = data.total
   } catch (e) {
-    tableData.value = [
-      { id: 1, commissionCode: 'CMS202604250001A7K3', promoterName: '艺荐官A', promoterPhone: '13900139001', type: 'direct', orderNo: 'SYJ20240120001', buyerName: '张三', orderAmount: 58000, rate: 0.1, commission: 5800, status: 'settled', createTime: '2024-01-20 10:30:00' },
-      { id: 2, commissionCode: 'CMS202604250002D4P8', promoterName: '艺荐官A', promoterPhone: '13900139001', type: 'team', orderNo: 'SYJ20240120002', buyerName: '李四', orderAmount: 42000, rate: 0.05, commission: 2100, status: 'settled', createTime: '2024-01-19 14:20:00' },
-      { id: 3, commissionCode: 'CMS202604250003H2N5', promoterName: '艺荐官B', promoterPhone: '13900139002', type: 'direct', orderNo: 'SYJ20240120003', buyerName: '王五', orderAmount: 65000, rate: 0.1, commission: 6500, status: 'pending', createTime: '2024-01-18 09:15:00' }
-    ]
-    pagination.total = 1
+    tableData.value = []
+    pagination.total = 0
+    ElMessage.error('经纪人分成记录加载失败')
   } finally {
     loading.value = false
   }
@@ -211,26 +216,8 @@ const showOrderDetail = async (orderNo) => {
       ElMessage.warning('订单详情加载失败')
     }
   } catch (e) {
-    // 模拟数据
-    orderDetail.value = {
-      orderNo: orderNo,
-      orderStatus: 'COMPLETED',
-      statusText: '已完成',
-      buyerNickname: '张三',
-      buyerUid: 'USR202604250001VKO5',
-      buyerPhone: '139****1234',
-      userId: 1,
-      goodsAmount: 58000,
-      freightAmount: 0,
-      discountAmount: 0,
-      payAmount: 58000,
-      paymentStatus: 'PAID',
-      createTime: '2024-01-20 10:30:00',
-      items: [
-        { artwork_title: '山水国画', cover_image: 'https://picsum.photos/100/100', quantity: 1, price: 58000 }
-      ]
-    }
-    orderDialogVisible.value = true
+    console.error('加载订单详情失败:', e)
+    ElMessage.error('获取订单详情失败')
   }
 }
 

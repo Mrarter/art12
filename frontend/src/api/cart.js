@@ -9,7 +9,7 @@ import request from './request'
  * GET /cart/list
  */
 export const getCartList = () => {
-  return request.get('/cart/list')
+  return request.get('/order/cart/list')
 }
 
 /**
@@ -19,7 +19,7 @@ export const getCartList = () => {
  * @param {number} quantity - 数量(默认1)
  */
 export const addToCart = (artworkId, quantity = 1) => {
-  return request.post('/cart/add', { artworkId, quantity })
+  return request.post('/order/cart/add', { artworkId, quantity })
 }
 
 /**
@@ -29,7 +29,7 @@ export const addToCart = (artworkId, quantity = 1) => {
  * @param {number} quantity - 数量
  */
 export const updateCartQuantity = (id, quantity) => {
-  return request.put('/cart/update', { id, quantity })
+  return request.put('/order/cart/update', { cartId: id, quantity })
 }
 
 /**
@@ -38,7 +38,7 @@ export const updateCartQuantity = (id, quantity) => {
  * @param {Array<number>} ids - 购物车项ID数组
  */
 export const deleteCartItems = (ids) => {
-  return request.delete('/cart/delete', { ids })
+  return request.delete('/order/cart/delete', ids)
 }
 
 /**
@@ -47,7 +47,7 @@ export const deleteCartItems = (ids) => {
  * @param {Array<number>} ids - 购物车项ID数组
  */
 export const lockCartItems = (ids) => {
-  return request.post('/cart/lock', { ids })
+  return request.post('/order/cart/lock', ids)
 }
 
 /**
@@ -56,7 +56,7 @@ export const lockCartItems = (ids) => {
  * @param {Array<number>} ids - 购物车项ID数组
  */
 export const unlockCartItems = (ids) => {
-  return request.post('/cart/unlock', { ids })
+  return request.post('/order/cart/unlock', ids)
 }
 
 // 更新购物车数量（别名）

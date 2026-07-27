@@ -15,8 +15,8 @@
         <text class="stat-label">二级成员</text>
       </view>
       <view class="stat-item">
-        <text class="stat-value">¥{{ stats.totalCommission || 0 }}</text>
-        <text class="stat-label">累计佣金</text>
+        <text class="stat-value">¥{{ formatMoney(stats.totalCommission) }}</text>
+        <text class="stat-label">累计分成</text>
       </view>
     </view>
 
@@ -36,7 +36,7 @@
             </view>
             <view class="member-stats">
               <text class="member-order-count">{{ item.orderCount }}单</text>
-              <text class="member-commission">¥{{ item.commission || 0 }}</text>
+              <text class="member-commission">¥{{ formatMoney(item.commission) }}</text>
             </view>
           </view>
         </view>
@@ -52,13 +52,14 @@
     <view class="empty-state" v-if="members.length === 0 && !loading">
       <image class="empty-icon" src="/static/icons/empty-team.png" mode="aspectFit"></image>
       <text class="empty-text">暂无比员</text>
-      <text class="empty-hint">邀请好友加入，获得更多团队佣金奖励</text>
+      <text class="empty-hint">邀请好友加入，获得更多团队分成奖励</text>
     </view>
   </view>
 </template>
 
 <script>
 import { getTeamList } from '@/api/promoter.js'
+import { fenToYuan, formatYuanNumber } from '@/utils/price'
 
 export default {
   data() {
@@ -94,6 +95,9 @@ export default {
   },
 
   methods: {
+    formatMoney(value) {
+      return formatYuanNumber(fenToYuan(value))
+    },
     async loadData() {
       this.loading = true
       try {
@@ -103,15 +107,16 @@ export default {
         })
         
         if (this.page === 1) {
-          this.members = res.list || []
+          this.members = res.records || res.list || []
           if (res.stats) {
             this.stats = res.stats
           }
         } else {
-          this.members = [...this.members, ...(res.list || [])]
+          this.members = [...this.members, ...(res.records || res.list || [])]
         }
         
-        this.hasMore = res.list && res.list.length === this.pageSize
+        const pageRecords = res.records || res.list || []
+        this.hasMore = pageRecords.length === this.pageSize
       } catch (e) {
         console.error('加载团队列表失败', e)
       }

@@ -21,6 +21,10 @@ request.silentGet = (url, config = {}) => {
   return request.get(url, { ...config, silent: true })
 }
 
+request.silentPut = (url, data, config = {}) => {
+  return request.put(url, data, { ...config, silent: true })
+}
+
 requestApi.silentGet = (url, config = {}) => {
   return requestApi.get(url, { ...config, silent: true })
 }
@@ -117,12 +121,12 @@ requestApi.interceptors.response.use(
 
 export { requestApi }
 
-// 文件上传方法（直接调用后端上传接口）
+// 文件上传方法（统一走 file 服务，避免不同容器写入各自本地目录）
 export const uploadFile = async (file, onProgress) => {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await axios.post('/api/product/upload', formData, {
+  const response = await axios.post('/api/file/upload/image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
       ...(localStorage.getItem('admin_token') && {
@@ -147,24 +151,81 @@ export const uploadFile = async (file, onProgress) => {
 // 图片完整 URL 处理
 export const getFullImageUrl = (url) => {
   if (!url) return ''
-  if (url.startsWith('/')) {
-    return CDN_URL + url
+  if (url === '/images/default-artwork.png') {
+    return '/images/default-artwork.png?v=20260617'
   }
+  const isLocalRuntime = typeof window !== 'undefined'
+    && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname)
 
-  // 本地上传文件统一走 Vite 的 /upload 代理，避免数据库里旧局域网 IP 失效。
+  // 已有完整域名（包括 http://, https://）
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    try {
-      const parsed = new URL(url)
-      if (parsed.pathname.startsWith('/upload/')) {
-        return parsed.pathname
-      }
-    } catch (e) {
-      return url
+    // 历史遗留的本地/内网文件服务绝对路径 → 转为相对路径走站点代理
+    const localUploadPath = normalizePrivateUploadUrl(url)
+    if (localUploadPath) {
+      return ensureUploadPrefix(localUploadPath)
+    }
+    if (isLocalRuntime && /^https?:\/\/(?:a\.)?art1\.cn\/upload\//.test(url)) {
+      const path = url.replace(/^https?:\/\/[^/]+/, '')
+      return ensureUploadPrefix(path)
     }
     return url
   }
-  // 否则拼接 CDN 地址
-  return CDN_URL + url
+  if (url.startsWith('//')) {
+    // 协议相对 URL，补全 https
+    return 'https:' + url
+  }
+  // 相对路径：拼接 CDN 地址或当前域名
+  if (CDN_URL && !isLocalRuntime) {
+    return CDN_URL + url
+  }
+  // 无 CDN 时，确保路径以 /upload/ 或 /uploads/ 开头走 Vite 代理
+  return ensureUploadPrefix(url)
+}
+
+export const getImageThumbnailUrl = (url, width = 360) => {
+  const source = getFullImageUrl(url)
+  if (!source) return ''
+  if (source.startsWith('/images/')) return source
+
+  try {
+    const parsed = new URL(source, window.location.origin)
+    if (!parsed.pathname.startsWith('/upload/')) {
+      return source
+    }
+    return `${parsed.origin}/api/file/upload/thumb?url=${encodeURIComponent(source)}&w=${width}`
+  } catch (error) {
+    if (source.startsWith('/upload/') || source.startsWith('upload/')) {
+      return `/api/file/upload/thumb?url=${encodeURIComponent(source)}&w=${width}`
+    }
+    return source
+  }
+}
+
+// 确保路径经过 upload 代理
+const ensureUploadPrefix = (path) => {
+  if (path.startsWith('/upload/') || path.startsWith('/uploads/')) return path
+  // /images/ 走 admin 服务代理
+  if (path.startsWith('/images/')) return path
+  // 其他情况补 /upload/ 前缀
+  return '/upload' + (path.startsWith('/') ? path : '/' + path)
+}
+
+const normalizePrivateUploadUrl = (url) => {
+  try {
+    const parsed = new URL(url)
+    const { hostname, pathname } = parsed
+    if (!pathname.startsWith('/upload/') && !pathname.startsWith('/uploads/')) {
+      return ''
+    }
+    const isLoopbackHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname)
+    const isPrivateIpv4Host =
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+    return (isLoopbackHost || isPrivateIpv4Host) ? pathname : ''
+  } catch (error) {
+    return ''
+  }
 }
 
 export default request

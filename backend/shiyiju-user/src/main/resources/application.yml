@@ -10,9 +10,9 @@ spring:
         enabled: false
         server-addr: 127.0.0.1:8848
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/shiyiju?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/shiyiju_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: root
+    password: 123456
   data:
     redis:
       host: 127.0.0.1
@@ -38,10 +38,58 @@ jwt:
 
 # 微信小程序配置
 wechat:
-  appid: wx4b7015f42a4fa49c
-  secret: your-wechat-secret
+  appid: ${WECHAT_APPID:wx4b7015f42a4fa49c}
+  secret: ${WECHAT_SECRET:your-wechat-secret}
+  official-appid: ${WECHAT_OFFICIAL_APPID:}
+  official-secret: ${WECHAT_OFFICIAL_SECRET:}
+  open-appid: ${WECHAT_OPEN_APPID:}
+  open-secret: ${WECHAT_OPEN_SECRET:}
+
+alipay:
+  enabled: ${ALIPAY_ENABLED:false}
+  app-id: ${ALIPAY_APP_ID:}
+  private-key: ${ALIPAY_PRIVATE_KEY:}
+  alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
+  gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+  notify-url: ${ALIPAY_NOTIFY_URL:}
+  return-url: ${ALIPAY_RETURN_URL:}
+  realname-enabled: ${ALIPAY_REALNAME_ENABLED:false}
+  realname-return-url: ${ALIPAY_REALNAME_RETURN_URL:https://a.art1.cn/#/pages/user/realname}
+  realname-biz-code: ${ALIPAY_REALNAME_BIZ_CODE:FACE}
 
 # 日志配置
 logging:
   level:
     com.shiyiju: DEBUG
+
+# ===================== 转售系统配置 =====================
+resale:
+  # 艺术家持续收益比例（5%）
+  artist-income-rate: 0.05
+  # 平台服务费比例（15%）
+  platform-fee-rate: 0.15
+  # 平台收款钱包用户ID（如需入账到平台账户，设为对应 user_id）
+  platform-wallet-user-id: 1
+
+# ===================== 腾讯云短信配置 =====================
+sms:
+  # API密钥（留空则使用日志模拟模式）
+  secret-id: ${TENCENT_SMS_SECRET_ID:}
+  secret-key: ${TENCENT_SMS_SECRET_KEY:}
+  # 短信应用ID
+  sdk-app-id: ${TENCENT_SMS_SDK_APP_ID:}
+  # 短信签名
+  sign-name: ${TENCENT_SMS_SIGN_NAME:艺本艺术}
+  # 短信模板ID（验证码模板）
+  template-id: ${TENCENT_SMS_TEMPLATE_ID:}
+  # 是否启用真实短信发送（需配置完整的secret-id/secret-key/sdk-app-id/template-id）
+  enabled: ${TENCENT_SMS_ENABLED:false}
+  # 验证码配置
+  code-length: ${SMS_CODE_LENGTH:6}
+  code-expire-minutes: ${SMS_CODE_EXPIRE_MINUTES:5}
+  resend-interval-seconds: ${SMS_RESEND_INTERVAL_SECONDS:60}
+  test-code: ${SMS_TEST_CODE:888888}
+
+user:
+  register:
+    sms-code-required: ${USER_REGISTER_SMS_CODE_REQUIRED:true}

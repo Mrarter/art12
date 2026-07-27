@@ -6,7 +6,7 @@
         <text class="section-title">消息通知</text>
       </view>
       <view class="setting-list">
-        <view class="setting-item">
+        <view class="setting-item" v-if="auctionEnabled">
           <view class="item-info">
             <text class="item-title">订单消息</text>
             <text class="item-desc">订单状态变更、发货提醒等</text>
@@ -53,7 +53,7 @@
         <view class="setting-item">
           <view class="item-info">
             <text class="item-title">推广收益</text>
-            <text class="item-desc">佣金到账、团队收益通知</text>
+            <text class="item-desc">分成到账、团队收益通知</text>
           </view>
           <switch 
             :checked="notifications.promotion" 
@@ -148,13 +148,14 @@
 
     <!-- 版本信息 -->
     <view class="version-info">
-      <text class="version-text">拾艺局 v1.0.0</text>
+      <text class="version-text">艺本艺术 v1.0.0</text>
     </view>
   </view>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { AUCTION_ENABLED } from '@/utils/platform'
 
 const notifications = ref({
   order: true,
@@ -177,6 +178,7 @@ const quietMode = ref({
 })
 
 const cacheSize = ref('128 MB')
+const auctionEnabled = AUCTION_ENABLED
 
 const toggleSwitch = (key, value) => {
   notifications.value[key] = value
@@ -313,6 +315,71 @@ onMounted(() => {
   .version-text {
     font-size: 24rpx;
     color: #ccc;
+  }
+}
+
+/* 暗金视觉优化 */
+.setting-page {
+  background: #0b0b0c;
+  padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.setting-section {
+  margin-top: 0;
+  margin-bottom: 24rpx;
+
+  .section-header {
+    padding: 6rpx 4rpx 16rpx;
+
+    .section-title {
+      color: #c9a227;
+      font-size: 26rpx;
+      font-weight: 700;
+    }
+  }
+
+  .setting-list {
+    background: #171719;
+    border: 1rpx solid rgba(255, 255, 255, 0.08);
+    border-radius: 18rpx;
+    overflow: hidden;
+
+    .setting-item {
+      padding: 28rpx 24rpx;
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+
+      &.danger {
+        .item-title {
+          color: #ff6b6b;
+        }
+      }
+
+      .item-info {
+        .item-title {
+          color: #f6f2e8;
+          font-size: 30rpx;
+          font-weight: 700;
+        }
+
+        .item-desc {
+          color: #8f8a80;
+          line-height: 34rpx;
+        }
+      }
+
+      .item-value {
+        color: #9b958a;
+      }
+    }
+  }
+}
+
+.version-info {
+  padding: 40rpx 0 12rpx;
+
+  .version-text {
+    color: #68645c;
   }
 }
 </style>

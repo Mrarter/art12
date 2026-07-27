@@ -16,10 +16,17 @@ public class Order implements Serializable {
     private Long id;
     
     private String orderNo;
+
+    /** 客户端下单幂等号 */
+    private String requestId;
     
     /** 买家用户ID */
     @TableField("buyer_user_id")
     private Long userId;
+
+    /** 卖家用户ID */
+    @TableField("seller_user_id")
+    private Long sellerUserId;
     
     /** 订单类型: DIRECT(立即购买), CART(购物车), AUCTION(拍卖) */
     @TableField("order_type")
@@ -62,6 +69,12 @@ public class Order implements Serializable {
     /** 取消时间 */
     @TableField("cancelled_at")
     private LocalDateTime cancelTime;
+
+    /** 待付款失效时间 */
+    private LocalDateTime payExpireTime;
+
+    /** 取消原因 */
+    private String cancelReason;
     
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

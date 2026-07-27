@@ -1,34 +1,30 @@
 <template>
   <view class="message-page">
-    <!-- 消息分类标签 -->
-    <view class="message-tabs">
-      <view 
-        class="tab-item" 
-        :class="{ active: currentTab === 'system' }"
-        @click="switchTab('system')"
-      >
-        <text>系统消息</text>
-        <view class="tab-badge" v-if="unreadCount.system > 0">{{ unreadCount.system > 99 ? '99+' : unreadCount.system }}</view>
+    <view class="page-glow"></view>
+
+    <view class="page-header">
+      <view>
+        <text class="page-title">消息中心</text>
+        <text class="page-desc">订单、系统通知和私信集中查看</text>
       </view>
-      <view 
-        class="tab-item" 
-        :class="{ active: currentTab === 'order' }"
-        @click="switchTab('order')"
-      >
-        <text>订单通知</text>
-        <view class="tab-badge" v-if="unreadCount.order > 0">{{ unreadCount.order > 99 ? '99+' : unreadCount.order }}</view>
-      </view>
-      <view 
-        class="tab-item" 
-        :class="{ active: currentTab === 'chat' }"
-        @click="switchTab('chat')"
-      >
-        <text>私信</text>
-        <view class="tab-badge" v-if="unreadCount.chat > 0">{{ unreadCount.chat > 99 ? '99+' : unreadCount.chat }}</view>
+      <view class="header-action" @click="goMessageSettings">
+        <image class="header-icon" src="/static/icons/gear.svg" mode="aspectFit"></image>
       </view>
     </view>
 
-    <!-- 系统/订单消息列表 -->
+    <view class="message-tabs">
+      <view
+        class="tab-item"
+        v-for="item in tabs"
+        :key="item.value"
+        :class="{ active: currentTab === item.value }"
+        @click="switchTab(item.value)"
+      >
+        <text>{{ item.label }}</text>
+        <view class="tab-badge" v-if="unreadCount[item.value] > 0">{{ formatBadge(unreadCount[item.value]) }}</view>
+      </view>
+    </view>
+
     <scroll-view 
       class="message-list" 
       scroll-y 
@@ -41,9 +37,7 @@
         :key="item.id"
         @click="goMessageDetail(item)"
       >
-        <view class="message-icon" :class="item.type">
-          
-        </view>
+        <view class="message-icon" :class="item.type">{{ getIconName(item.type) }}</view>
         <view class="message-content">
           <view class="message-header">
             <text class="message-title">{{ item.title }}</text>
@@ -54,24 +48,19 @@
             <view class="tag" v-for="(tag, index) in item.tags" :key="index">{{ tag }}</view>
           </view>
         </view>
-        <view class="message-arrow">
-          
-        </view>
+        <text class="message-arrow">›</text>
       </view>
 
-      <!-- 空状态 -->
       <view class="empty-state" v-if="messageList.length === 0 && !loading">
-        <image src="/static/empty/message.png" mode="aspectFit" class="empty-icon"></image>
+        <view class="empty-icon">息</view>
         <text class="empty-text">暂无消息</text>
       </view>
 
-      <!-- 加载更多 -->
       <view class="load-more" v-if="loading">
         <text class="loading-text">加载中...</text>
       </view>
     </scroll-view>
 
-    <!-- 私信列表 -->
     <scroll-view 
       class="message-list chat-list" 
       scroll-y 
@@ -100,9 +89,8 @@
         </view>
       </view>
 
-      <!-- 空状态 -->
-      <view class="empty-state" v-if="chatList.length === 0 && !loading">
-        <image src="/static/empty/chat.png" mode="aspectFit" class="empty-icon"></image>
+      <view class="empty-state" v-if="chatList.length === 0 && !chatLoading">
+        <view class="empty-icon">私</view>
         <text class="empty-text">暂无私信</text>
       </view>
     </scroll-view>
@@ -110,96 +98,81 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import {
+  getChatConversations,
+  getMessageList,
+  getSystemMessageList,
+  markMessageRead,
+  markSystemMessageRead
+} from '@/api/message'
+import { useUserStore } from '@/store/modules/user'
+import { getFullImageUrl } from '@/utils/image'
+import {
+  getUnreadCertificateSignNoticeCount,
+  getUserCertificateSignNotices,
+  markCertificateSignNoticeRead
+} from '@/utils/certificateNotice'
+import { AUCTION_ENABLED } from '@/utils/platform'
 
 const currentTab = ref('system')
-const loading = ref(false)
+const userStore = useUserStore()
+const orderLoading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
+const systemLoading = ref(false)
+const systemPage = ref(1)
+const systemHasMore = ref(true)
+const chatLoading = ref(false)
+const chatPage = ref(1)
+const chatHasMore = ref(true)
+
+const tabs = [
+  { value: 'system', label: '系统' },
+  { value: 'order', label: '订单' },
+  { value: 'chat', label: '私信' }
+]
 
 const unreadCount = ref({
   system: 0,
-  order: 3,
-  chat: 2
+  order: 0,
+  chat: 0
 })
 
-const messageList = ref([
-  {
-    id: 1,
-    type: 'order',
-    title: '订单已发货',
-    content: '您的订单 #ORDER20240101001 已发货，快递单号：SF1234567890',
-    createTime: Date.now() - 3600000,
-    tags: ['订单'],
-    link: '/pages/order/detail?id=1'
-  },
-  {
-    id: 2,
-    type: 'promotion',
-    title: '恭喜获得优惠券',
-    content: '您已获得一张满500减50的优惠券，有效期至2024-01-31',
-    createTime: Date.now() - 86400000,
-    tags: ['优惠券']
-  },
-  {
-    id: 3,
-    type: 'auction',
-    title: '拍卖提醒',
-    content: '您关注的「江南春晓」拍卖即将开始，1月15日 20:00 开拍',
-    createTime: Date.now() - 172800000,
-    tags: ['拍卖']
-  },
-  {
-    id: 4,
-    type: 'system',
-    title: '账户安全提醒',
-    content: '您的账户在新设备登录，如非本人操作请及时修改密码',
-    createTime: Date.now() - 259200000,
-    tags: ['安全']
-  }
-])
+const systemMessages = ref([])
+const certificateMessages = ref([])
+const systemServiceUnreadCount = ref(0)
+const orderMessages = ref([])
+const orderMessagesLoaded = ref(false)
 
-const chatList = ref([
-  {
-    id: 1,
-    name: '李明（艺术家）',
-    avatar: 'https://pic.imgdb.cn/item/1.jpg',
-    lastMessage: '好的，我这边的作品已经准备好了...',
-    lastTime: Date.now() - 600000,
-    unread: 2,
-    online: true,
-    userId: 1001
-  },
-  {
-    id: 2,
-    name: '张伟（收藏家）',
-    avatar: 'https://pic.imgdb.cn/item/2.jpg',
-    lastMessage: '这幅画很有意思，想了解更多...',
-    lastTime: Date.now() - 3600000,
-    unread: 0,
-    online: false,
-    userId: 1002
-  },
-  {
-    id: 3,
-    name: '王芳',
-    avatar: 'https://pic.imgdb.cn/item/3.jpg',
-    lastMessage: '请问这幅作品还在吗？',
-    lastTime: Date.now() - 86400000,
-    unread: 1,
-    online: true,
-    userId: 1003
+const loading = computed(() => currentTab.value === 'system' ? systemLoading.value : orderLoading.value)
+
+const messageList = computed(() => {
+  if (currentTab.value === 'order') {
+    return orderMessages.value
   }
-])
+  const merged = [...certificateMessages.value, ...systemMessages.value]
+    .filter(item => AUCTION_ENABLED || item.type !== 'auction')
+    .sort((a, b) => Number(b.createTime || 0) - Number(a.createTime || 0))
+  return merged
+})
+
+const chatList = ref([])
 
 const getIconName = (type) => {
   const icons = {
-    order: 'file-text',
-    promotion: 'gift',
-    auction: 'hammer',
-    system: 'info-circle'
+    order: '单',
+    promotion: '券',
+    auction: '拍',
+    system: '系',
+    certificate: '证'
   }
-  return icons[type] || 'bell'
+  return icons[type] || '息'
+}
+
+const formatBadge = (count) => {
+  return count > 99 ? '99+' : count
 }
 
 const formatTime = (timestamp) => {
@@ -222,88 +195,345 @@ const switchTab = (tab) => {
   currentTab.value = tab
   page.value = 1
   hasMore.value = true
+  if (tab === 'order' && !orderMessagesLoaded.value) {
+    fetchOrderMessages(true)
+  }
+  if (tab === 'system' && systemMessages.value.length === 0) {
+    fetchSystemMessages(true)
+  }
+  if (tab === 'chat') {
+    fetchChatConversations(true)
+  }
+}
+
+const refreshCertificateMessages = () => {
+  const notices = getUserCertificateSignNotices().map(item => ({
+    ...item,
+    type: 'certificate'
+  }))
+  certificateMessages.value = notices
+  refreshSystemUnreadCount()
+}
+
+const refreshSystemUnreadCount = () => {
+  unreadCount.value.system = getUnreadCertificateSignNoticeCount() + systemServiceUnreadCount.value
+}
+
+const normalizeMessageItem = (item = {}) => {
+  let extra = {}
+  try {
+    extra = item.data ? JSON.parse(item.data) : {}
+  } catch (e) {
+    extra = {}
+  }
+
+  return {
+    ...item,
+    type: item.type || 'system',
+    createTime: parseDateTime(item.createTime),
+    tags: Array.isArray(extra.tags) ? extra.tags : (item.type === 'order' ? ['订单'] : []),
+    link: extra.link || (extra.orderId ? `/pages/order/detail?id=${encodeURIComponent(extra.orderId)}` : '')
+  }
+}
+
+const fetchSystemMessages = async (reset = false) => {
+  if (!userStore.isLogin || systemLoading.value) {
+    if (!userStore.isLogin) {
+      systemMessages.value = []
+      systemServiceUnreadCount.value = 0
+      refreshSystemUnreadCount()
+    }
+    return
+  }
+  if (reset) {
+    systemPage.value = 1
+    systemHasMore.value = true
+  }
+  systemLoading.value = true
+  try {
+    const result = await getSystemMessageList({ page: systemPage.value, pageSize: 20 })
+    const records = Array.isArray(result?.records)
+      ? result.records.filter(item => item.type !== 'order').map(normalizeMessageItem)
+      : []
+    systemMessages.value = reset
+      ? records
+      : [...systemMessages.value, ...records.filter(item => !systemMessages.value.some(row => String(row.id) === String(item.id)))]
+    systemServiceUnreadCount.value = systemMessages.value.filter(item => Number(item.isRead || 0) === 0).length
+    systemHasMore.value = Number(result?.page || systemPage.value) * Number(result?.pageSize || 20) < Number(result?.total || 0)
+    if (systemHasMore.value) systemPage.value += 1
+    refreshSystemUnreadCount()
+  } catch (e) {
+    if (reset) systemMessages.value = []
+  } finally {
+    systemLoading.value = false
+  }
+}
+
+const refreshOrderUnreadCount = () => {
+  unreadCount.value.order = orderMessages.value.filter(item => Number(item.isRead || 0) === 0).length
+}
+
+const fetchOrderMessages = async (reset = false) => {
+  if (orderLoading.value) return
+  if (reset) {
+    page.value = 1
+    hasMore.value = true
+  }
+  orderLoading.value = true
+  try {
+    const result = await getMessageList({
+      type: 'order',
+      page: page.value,
+      pageSize: 20
+    })
+    const records = Array.isArray(result?.records) ? result.records : []
+    const normalized = records.map(normalizeMessageItem)
+    orderMessages.value = reset
+      ? normalized
+      : [...orderMessages.value, ...normalized.filter(item => !orderMessages.value.some(row => String(row.id) === String(item.id)))]
+    orderMessagesLoaded.value = true
+    hasMore.value = records.length >= 20
+    if (hasMore.value) {
+      page.value += 1
+    }
+    refreshOrderUnreadCount()
+  } catch (e) {
+    if (reset) {
+      orderMessages.value = []
+    }
+  } finally {
+    orderLoading.value = false
+  }
+}
+
+const parseDateTime = (value) => {
+  if (typeof value === 'number') return value
+  const timestamp = new Date(String(value || '').replace(' ', 'T')).getTime()
+  return Number.isFinite(timestamp) ? timestamp : Date.now()
+}
+
+const conversationPreview = (item = {}) => {
+  if (item.lastMessageType === 'image') return '[图片]'
+  if (item.lastMessageType === 'work') return '[作品]'
+  if (item.lastMessageType === 'order') return '[订单]'
+  return item.lastContent || '暂无消息'
+}
+
+const conversationRole = (identities) => {
+  const value = String(identities || '').toLowerCase()
+  if (value.includes('artist')) return '认证艺术家'
+  if (value.includes('collector')) return '收藏家'
+  return '平台用户'
+}
+
+const normalizeConversation = (item = {}) => ({
+  id: item.peerId,
+  userId: item.peerId,
+  name: item.peerName || `用户 ${item.peerId}`,
+  avatar: getFullImageUrl(item.peerAvatar || '/static/images/avatar.png', '/static/images/avatar.png'),
+  lastMessage: conversationPreview(item),
+  lastTime: parseDateTime(item.lastTime),
+  unread: Number(item.unreadCount || 0),
+  online: false,
+  role: conversationRole(item.peerIdentities)
+})
+
+const refreshChatUnreadCount = () => {
+  unreadCount.value.chat = chatList.value.reduce((total, item) => total + Number(item.unread || 0), 0)
+}
+
+const fetchChatConversations = async (reset = false) => {
+  if (!userStore.isLogin || chatLoading.value) {
+    if (!userStore.isLogin) {
+      chatList.value = []
+      unreadCount.value.chat = 0
+    }
+    return
+  }
+  if (reset) {
+    chatPage.value = 1
+    chatHasMore.value = true
+  }
+  chatLoading.value = true
+  try {
+    const result = await getChatConversations({ page: chatPage.value, pageSize: 20 })
+    const records = Array.isArray(result?.records) ? result.records.map(normalizeConversation) : []
+    chatList.value = reset
+      ? records
+      : [...chatList.value, ...records.filter(item => !chatList.value.some(row => String(row.userId) === String(item.userId)))]
+    chatHasMore.value = chatList.value.length < Number(result?.total || 0)
+    if (chatHasMore.value) chatPage.value += 1
+    refreshChatUnreadCount()
+  } catch (e) {
+    if (reset) chatList.value = []
+  } finally {
+    chatLoading.value = false
+  }
 }
 
 const loadMore = () => {
-  if (!hasMore.value || loading.value) return
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-    // hasMore.value = false // 模拟没有更多数据
-  }, 1000)
+  if (currentTab.value === 'system' && systemHasMore.value && !systemLoading.value) {
+    fetchSystemMessages(false)
+  }
+  if (currentTab.value === 'order' && hasMore.value && !orderLoading.value) {
+    fetchOrderMessages(false)
+  }
 }
 
 const loadMoreChat = () => {
-  if (!hasMore.value || loading.value) return
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-  }, 1000)
+  if (!chatHasMore.value || chatLoading.value) return
+  fetchChatConversations(false)
 }
 
-const goMessageDetail = (item) => {
+const goMessageDetail = async (item) => {
+  if (item.noticeType === 'certificate_sign') {
+    markCertificateSignNoticeRead(item.id)
+    refreshCertificateMessages()
+  }
+  if (currentTab.value === 'system' && item.id && !item.noticeType && Number(item.isRead || 0) === 0) {
+    try {
+      await markSystemMessageRead(item.id)
+      item.isRead = 1
+      systemServiceUnreadCount.value = Math.max(0, systemServiceUnreadCount.value - 1)
+      refreshSystemUnreadCount()
+    } catch (e) {}
+  }
+  if (currentTab.value === 'order' && item.id && Number(item.isRead || 0) === 0) {
+    try {
+      await markMessageRead(item.id)
+      item.isRead = 1
+      refreshOrderUnreadCount()
+    } catch (e) {}
+  }
   if (item.link) {
     uni.navigateTo({ url: item.link })
   }
 }
 
 const goChat = (item) => {
-  uni.navigateTo({ url: `/pages/message/chat?userId=${item.userId}&name=${item.name}` })
+  if (item.unread > 0) {
+    item.unread = 0
+    refreshChatUnreadCount()
+  }
+  uni.navigateTo({
+    url: `/pages/message/chat?userId=${encodeURIComponent(item.userId || '')}&name=${encodeURIComponent(item.name || '')}&avatar=${encodeURIComponent(item.avatar || '')}&role=${encodeURIComponent(item.role || '')}`
+  })
+}
+
+const goMessageSettings = () => {
+  uni.navigateTo({ url: '/pages/setting/message-settings' })
 }
 
 onMounted(() => {
-  // 获取消息列表
-  // getMessageList()
+  refreshCertificateMessages()
+  fetchSystemMessages(true)
+  fetchChatConversations(true)
+  fetchOrderMessages(true)
+})
+
+onShow(() => {
+  refreshCertificateMessages()
+  fetchSystemMessages(true)
+  fetchChatConversations(true)
+  fetchOrderMessages(true)
 })
 </script>
 
 <style lang="scss" scoped>
 .message-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f6f8;
+  background: #0b0b0c;
+  color: #f6f2e8;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.page-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 320rpx;
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.18), transparent);
+  pointer-events: none;
+}
+
+.page-header {
+  position: relative;
+  z-index: 1;
+  padding: 28rpx 24rpx 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-title,
+.page-desc {
+  display: block;
+}
+
+.page-title {
+  font-size: 38rpx;
+  line-height: 48rpx;
+  font-weight: 800;
+}
+
+.page-desc {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #9b958a;
+}
+
+.header-action {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon {
+  width: 34rpx;
+  height: 34rpx;
 }
 
 .message-tabs {
+  position: relative;
+  z-index: 1;
   display: flex;
-  padding: 0 20rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #eee;
+  gap: 12rpx;
+  padding: 0 24rpx 20rpx;
 
   .tab-item {
     flex: 1;
-    height: 96rpx;
+    height: 66rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8rpx;
-    font-size: 28rpx;
-    color: #666;
+    border-radius: 12rpx;
+    font-size: 25rpx;
+    color: #9b958a;
+    background: #202024;
     position: relative;
 
     &.active {
-      color: #667eea;
-      font-weight: 600;
-
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 48rpx;
-        height: 4rpx;
-        background: #667eea;
-        border-radius: 2rpx;
-      }
+      color: #16130b;
+      background: #c9a227;
+      font-weight: 700;
     }
 
     .tab-badge {
       min-width: 32rpx;
       height: 32rpx;
       padding: 0 8rpx;
-      background: #ff4d4f;
+      background: #c96262;
       color: #fff;
       font-size: 20rpx;
       border-radius: 16rpx;
@@ -315,19 +545,23 @@ onMounted(() => {
 }
 
 .message-list {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  padding: 20rpx;
+  padding: 0 24rpx 24rpx;
+  box-sizing: border-box;
 
   &.chat-list {
-    padding: 0;
+    padding: 0 24rpx 24rpx;
   }
 }
 
 .message-item {
   display: flex;
   align-items: flex-start;
-  padding: 30rpx;
-  background: #fff;
+  padding: 24rpx;
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
   border-radius: 16rpx;
   margin-bottom: 16rpx;
 
@@ -339,26 +573,34 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     margin-right: 20rpx;
+    color: #f6f2e8;
+    font-size: 28rpx;
+    font-weight: 800;
 
     &.order {
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: rgba(95, 143, 199, 0.22);
+      color: #5f8fc7;
     }
 
     &.promotion {
-      background: linear-gradient(135deg, #f093fb, #f5576c);
+      background: rgba(201, 162, 39, 0.18);
+      color: #c9a227;
     }
 
     &.auction {
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      background: rgba(201, 98, 98, 0.2);
+      color: #c96262;
     }
 
     &.system {
-      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      background: rgba(88, 185, 130, 0.18);
+      color: #58b982;
     }
   }
 
   .message-content {
     flex: 1;
+    min-width: 0;
 
     .message-header {
       display: flex;
@@ -369,18 +611,24 @@ onMounted(() => {
       .message-title {
         font-size: 28rpx;
         font-weight: 600;
-        color: #333;
+        color: #f6f2e8;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .message-time {
         font-size: 22rpx;
-        color: #999;
+        color: #68645c;
+        flex-shrink: 0;
+        margin-left: 16rpx;
       }
     }
 
     .message-desc {
       font-size: 26rpx;
-      color: #666;
+      color: #9b958a;
       line-height: 1.5;
       display: block;
     }
@@ -391,9 +639,11 @@ onMounted(() => {
       margin-top: 12rpx;
 
       .tag {
+        flex-shrink: 0;
+        white-space: nowrap;
         padding: 6rpx 16rpx;
-        background: #f0f2f5;
-        color: #666;
+        background: rgba(201, 162, 39, 0.13);
+        color: #c9a227;
         font-size: 22rpx;
         border-radius: 6rpx;
       }
@@ -403,15 +653,19 @@ onMounted(() => {
   .message-arrow {
     margin-left: 16rpx;
     align-self: center;
+    color: #68645c;
+    font-size: 34rpx;
   }
 }
 
 .chat-item {
   display: flex;
   align-items: center;
-  padding: 30rpx 20rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #f0f0f0;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  background: #171719;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
 
   .chat-avatar {
     position: relative;
@@ -429,8 +683,8 @@ onMounted(() => {
       right: 4rpx;
       width: 20rpx;
       height: 20rpx;
-      background: #4caf50;
-      border: 4rpx solid #fff;
+      background: #58b982;
+      border: 4rpx solid #171719;
       border-radius: 50%;
     }
   }
@@ -448,18 +702,18 @@ onMounted(() => {
       .chat-name {
         font-size: 30rpx;
         font-weight: 600;
-        color: #333;
+        color: #f6f2e8;
       }
 
       .chat-time {
         font-size: 22rpx;
-        color: #999;
+        color: #68645c;
       }
     }
 
     .chat-preview {
       font-size: 26rpx;
-      color: #999;
+      color: #9b958a;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -471,7 +725,7 @@ onMounted(() => {
     min-width: 36rpx;
     height: 36rpx;
     padding: 0 10rpx;
-    background: #ff4d4f;
+    background: #c96262;
     color: #fff;
     font-size: 22rpx;
     border-radius: 18rpx;
@@ -490,15 +744,22 @@ onMounted(() => {
   padding: 120rpx 0;
 
   .empty-icon {
-    width: 200rpx;
-    height: 200rpx;
-    opacity: 0.5;
+    width: 112rpx;
+    height: 112rpx;
+    border-radius: 28rpx;
+    background: rgba(201, 162, 39, 0.14);
+    color: #c9a227;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42rpx;
+    font-weight: 800;
   }
 
   .empty-text {
     margin-top: 30rpx;
     font-size: 28rpx;
-    color: #999;
+    color: #9b958a;
   }
 }
 
@@ -506,5 +767,6 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 30rpx;
+  color: #9b958a;
 }
 </style>

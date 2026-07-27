@@ -46,6 +46,16 @@ public class PriceGrowthConfig {
     private Integer viewThreshold = 100;
     /** 浏览量加成系数 */
     private BigDecimal viewRate = new BigDecimal("1.1");
+    /** 是否启用全局浏览量自动增长 */
+    private Boolean viewAutoGrowthEnabled = false;
+    /** 浏览量自动增长随机浮动比例，0.58 表示基数上下 58% */
+    private BigDecimal viewGrowthRandomRate = new BigDecimal("0.58");
+    /** 每日浏览量自动增长 */
+    private Integer dailyViewGrowth = 0;
+    /** 每周浏览量自动增长 */
+    private Integer weeklyViewGrowth = 0;
+    /** 每月浏览量自动增长 */
+    private Integer monthlyViewGrowth = 0;
     /** 收藏量阈值 */
     private Integer favoriteThreshold = 5;
     /** 收藏量加成系数 */

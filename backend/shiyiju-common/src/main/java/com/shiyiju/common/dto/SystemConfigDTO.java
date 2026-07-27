@@ -38,7 +38,7 @@ public class SystemConfigDTO implements Serializable {
         private BigDecimal directCommission = new BigDecimal("5");      // 一级佣金比例
         private BigDecimal teamCommission = new BigDecimal("2");        // 二级佣金比例
         private String settlementType = "after_pay";                     // 结算时机
-        private BigDecimal minWithdraw = new BigDecimal("100");         // 最低提现金额
+        private BigDecimal minWithdraw = BigDecimal.ZERO;               // 最低提现金额
         private BigDecimal withdrawFee = BigDecimal.ZERO;                // 提现手续费
         private Integer withdrawDays = 3;                              // 提现周期
         private String promoterCondition = "free";                       // 成为艺荐官条件

@@ -101,6 +101,24 @@ npm run dev:h5
 3. 填入 AppID: `wx4b7015f42a4fa49c`
 4. 编译运行
 
+### 6. 微信一键登录配置
+
+项目当前支持两种微信一键登录：
+
+1. 小程序登录：后端读取 `WECHAT_APPID`、`WECHAT_SECRET`
+2. 微信内 H5 登录：前端读取 `VITE_WECHAT_OFFICIAL_APP_ID`，后端读取 `WECHAT_OFFICIAL_APPID`、`WECHAT_OFFICIAL_SECRET`
+
+其中：
+
+- H5 OAuth 回调入口是站点根路径 `/`
+- 前端会在回调后自动跳转到 `/#/pages/login/index`
+- 生产部署时必须在微信公众平台配置网页授权域名
+
+部署模板可直接参考：
+
+- `deploy-lighthouse/.env.example`
+- `deploy-lighthouse-light/.env.example`
+
 ## 核心功能
 
 ### 用户体系

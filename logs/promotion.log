@@ -1,5 +1,5 @@
 Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
-2026-04-27T22:38:22.567+08:00  WARN 90578 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-05-17T22:02:54.288+08:00  WARN 14084 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -9,27 +9,54 @@ Standard Commons Logging discovery in action with spring-jcl: please remove comm
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.1.5)
 
-2026-04-27T22:38:22.780+08:00  WARN 90578 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
-2026-04-27T22:38:22.787+08:00  INFO 90578 --- [           main] c.s.promotion.PromotionApplication       : Starting PromotionApplication using Java 17.0.19 with PID 90578 (/Users/master/CodeBuddy/art12/backend/shiyiju-promotion/target/shiyiju-promotion-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
-2026-04-27T22:38:22.787+08:00 DEBUG 90578 --- [           main] c.s.promotion.PromotionApplication       : Running with Spring Boot v3.1.5, Spring v6.0.13
-2026-04-27T22:38:22.788+08:00  INFO 90578 --- [           main] c.s.promotion.PromotionApplication       : No active profile set, falling back to 1 default profile: "default"
-2026-04-27T22:38:24.422+08:00  INFO 90578 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2026-04-27T22:38:24.425+08:00  INFO 90578 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-04-27T22:38:24.455+08:00  INFO 90578 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 11 ms. Found 0 Redis repository interfaces.
-2026-04-27T22:38:24.633+08:00  INFO 90578 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=ed0b2345-952d-3e44-a363-e62bb1a4c3e6
-2026-04-27T22:38:25.605+08:00  INFO 90578 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8085 (http)
-2026-04-27T22:38:25.612+08:00  INFO 90578 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-27T22:38:25.612+08:00  INFO 90578 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
-2026-04-27T22:38:25.849+08:00  INFO 90578 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-27T22:38:25.849+08:00  INFO 90578 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2718 ms
+2026-05-17T22:02:54.552+08:00  WARN 14084 --- [           main] c.a.nacos.client.logging.NacosLogging    : Load Logback Configuration of Nacos fail, message: Could not initialize Logback Nacos logging from classpath:nacos-logback.xml
+2026-05-17T22:02:54.655+08:00  INFO 14084 --- [           main] c.s.promotion.PromotionApplication       : Starting PromotionApplication using Java 17.0.19 with PID 14084 (/Users/master/CodeBuddy/art12/backend/shiyiju-promotion/target/shiyiju-promotion-1.0.0-SNAPSHOT.jar started by master in /Users/master/CodeBuddy/art12)
+2026-05-17T22:02:54.656+08:00 DEBUG 14084 --- [           main] c.s.promotion.PromotionApplication       : Running with Spring Boot v3.1.5, Spring v6.0.13
+2026-05-17T22:02:54.656+08:00  INFO 14084 --- [           main] c.s.promotion.PromotionApplication       : The following 1 profile is active: "local"
+2026-05-17T22:02:56.812+08:00  INFO 14084 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-17T22:02:56.816+08:00  INFO 14084 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-17T22:02:56.878+08:00  INFO 14084 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 48 ms. Found 0 Redis repository interfaces.
+2026-05-17T22:02:57.285+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'artworkPriceHistoryMapper' and 'com.shiyiju.user.mapper.ArtworkPriceHistoryMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.285+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'payAccountMapper' and 'com.shiyiju.user.mapper.PayAccountMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'financeEventOutboxMapper' and 'com.shiyiju.user.mapper.FinanceEventOutboxMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'artistProfileMapper' and 'com.shiyiju.user.mapper.ArtistProfileMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'financeEventDlqMapper' and 'com.shiyiju.user.mapper.FinanceEventDlqMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'userMapper' and 'com.shiyiju.user.mapper.UserMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'commissionRecordMapper' and 'com.shiyiju.user.mapper.CommissionRecordMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'realnameCertificationMapper' and 'com.shiyiju.user.mapper.RealnameCertificationMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'artworkTradeRecordMapper' and 'com.shiyiju.user.mapper.ArtworkTradeRecordMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'ledgerTransactionMapper' and 'com.shiyiju.user.mapper.LedgerTransactionMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.286+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'promoterRecordMapper' and 'com.shiyiju.user.mapper.PromoterRecordMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.287+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'resaleRecordMapper' and 'com.shiyiju.user.mapper.ResaleRecordMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.287+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'walletMapper' and 'com.shiyiju.user.mapper.WalletMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.287+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'ledgerAccountMapper' and 'com.shiyiju.user.mapper.LedgerAccountMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.287+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'walletBillMapper' and 'com.shiyiju.user.mapper.WalletBillMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.287+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'mqConsumeLogMapper' and 'com.shiyiju.user.mapper.MqConsumeLogMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.287+08:00  WARN 14084 --- [           main] o.m.s.mapper.ClassPathMapperScanner      : Skipping MapperFactoryBean with name 'artistCertificationMapper' and 'com.shiyiju.user.mapper.ArtistCertificationMapper' mapperInterface. Bean already defined with the same name!
+2026-05-17T22:02:57.544+08:00  INFO 14084 --- [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=71e234bc-883a-3337-a418-eb1e7155f2b0
+2026-05-17T22:02:58.672+08:00  INFO 14084 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8085 (http)
+2026-05-17T22:02:58.773+08:00  INFO 14084 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-17T22:02:58.774+08:00  INFO 14084 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2026-05-17T22:02:58.969+08:00  INFO 14084 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-17T22:02:58.969+08:00  INFO 14084 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 4168 ms
 Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
  _ _   |_  _ _|_. ___ _ |    _ 
 | | |\/|_)(_| | |_\  |_)||_|_\ 
      /               |         
                         3.5.8 
-2026-04-27T22:38:27.515+08:00  INFO 90578 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8085 (http) with context path ''
-2026-04-27T22:38:27.527+08:00  INFO 90578 --- [           main] c.s.promotion.PromotionApplication       : Started PromotionApplication in 5.827 seconds (process running for 6.513)
-2026-04-28T08:47:34.494+08:00  INFO 90578 --- [nio-8085-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-04-28T08:47:34.495+08:00  INFO 90578 --- [nio-8085-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-04-28T08:47:34.501+08:00  INFO 90578 --- [nio-8085-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 6 ms
-2026-04-28T08:47:34.527+08:00  WARN 90578 --- [nio-8085-exec-2] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.promotion.controller.PromotionController
+2026-05-17T22:03:00.054+08:00  INFO 14084 --- [           main] com.shiyiju.common.util.JwtUtil          : JWT 密钥已通过配置注入
+2026-05-17T22:03:00.063+08:00  INFO 14084 --- [           main] com.shiyiju.common.util.AESUtil          : AES 密钥已通过配置注入
+2026-05-17T22:03:00.915+08:00  INFO 14084 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-17T22:03:01.134+08:00  INFO 14084 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@69d6a7cd
+2026-05-17T22:03:01.135+08:00  INFO 14084 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-17T22:03:01.722+08:00  INFO 14084 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8085 (http) with context path ''
+2026-05-17T22:03:01.731+08:00  INFO 14084 --- [           main] c.s.promotion.PromotionApplication       : Started PromotionApplication in 8.897 seconds (process running for 10.262)
+2026-05-17T22:03:33.925+08:00  INFO 14084 --- [nio-8085-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-17T22:03:33.926+08:00  INFO 14084 --- [nio-8085-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-17T22:03:33.931+08:00  INFO 14084 --- [nio-8085-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 5 ms
+2026-05-17T22:03:33.952+08:00  WARN 14084 --- [nio-8085-exec-1] ocalVariableTableParameterNameDiscoverer : Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection: com.shiyiju.promotion.controller.PromotionController
+2026-05-17T22:36:01.452+08:00  WARN 14084 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s871ms), soft-evicting connections from pool.
+2026-05-18T01:39:04.055+08:00  WARN 14084 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s848ms), soft-evicting connections from pool.
+2026-05-18T02:25:34.632+08:00  WARN 14084 --- [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Retrograde clock change detected (housekeeper delta=29s869ms), soft-evicting connections from pool.
+2026-05-18T14:42:58.024+08:00  INFO 14084 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-05-18T14:42:58.034+08:00  INFO 14084 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.

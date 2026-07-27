@@ -37,4 +37,7 @@ public class OrderConstant {
 
     /** 订单来源 - 拍卖成交 */
     public static final String SOURCE_AUCTION = "AUCTION";
+
+    /** 订单来源 - 转售 */
+    public static final String SOURCE_RESALE = "RESALE";
 }

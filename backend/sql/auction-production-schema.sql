@@ -1,0 +1,4 @@
+-- Canonical auction schema is created idempotently by AuctionSchemaInitializer.
+-- This file documents the production migration entry point. Start shiyiju-auction
+-- once with AUCTION_SEED_DEMO=false; the initializer creates/extends only schema
+-- and never inserts demonstration auctions.

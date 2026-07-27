@@ -10,26 +10,58 @@
       </view>
     </view>
 
-    <view class="publish-hero">
-      <view class="hero-kicker">Artist Work Entry</view>
-      <view class="hero-title">作品发布入口</view>
-      <view class="hero-desc">完善作品资料后将同步进入平台作品库、艺术家主页与前端展示链路。</view>
-    </view>
-
     <view class="form-section cover-section">
       <view class="section-head">
         <view>
-          <view class="section-title">作品封面</view>
-          <view class="section-subtitle">建议上传 1:1 或 4:3 高清作品图</view>
+          <view class="section-title required-title">
+            作品图片
+            <text class="section-tip">最多9张</text>
+          </view>
+          <view class="section-subtitle">可直接上传多张，拖动调整顺序，第一张为主图</view>
         </view>
         <view class="section-chip">必填</view>
       </view>
-      <view class="cover-upload" @click="chooseCover">
-        <image v-if="formData.cover" :src="formData.cover" mode="aspectFill" class="cover-preview"></image>
-        <view v-else class="upload-placeholder">
-          <image class="upload-icon" src="/static/art-icons/icon-preview.svg" mode="aspectFit"></image>
-          <text class="upload-text">上传封面图</text>
-          <text class="upload-tip">支持相册或拍摄</text>
+      <view class="images-grid publish-images-grid">
+        <view
+          class="image-item"
+          :class="{ 'main-image': index === 0, dragging: draggingImageIndex === index, uploading: img.status === 'uploading', failed: img.status === 'failed' }"
+          v-for="(img, index) in formData.images"
+          :key="img.id || getImagePreview(img) + '-' + index"
+          :data-image-index="index"
+          :draggable="true"
+          @dragstart="onImageDragStart(index)"
+          @dragover.prevent="onImageDragOver(index)"
+          @drop.prevent="onImageDrop(index)"
+          @dragend="onImageDragEnd"
+          @touchstart="onImageTouchStart(index, $event)"
+          @touchmove.prevent="onImageTouchMove"
+          @touchend="onImageTouchEnd"
+          @touchcancel="onImageTouchEnd"
+        >
+          <image :src="getImagePreview(img)" mode="aspectFill" @click.stop="previewImage(index)"></image>
+          <view class="image-badge" v-if="index === 0">主图</view>
+          <view class="image-upload-mask" v-if="img.status === 'uploading'">
+            <view class="upload-spinner"></view>
+            <text>上传中</text>
+          </view>
+          <view class="image-upload-mask failed-mask" v-else-if="img.status === 'failed'">
+            <text>上传失败</text>
+          </view>
+          <view class="image-delete" @click.stop="removeImage(index)">×</view>
+          <view class="image-order-actions">
+            <text v-if="index > 0" @click.stop="setMainImage(index)">设主图</text>
+            <text v-if="index > 0" @click.stop="moveImage(index, index - 1)">前移</text>
+            <text v-if="index < formData.images.length - 1" @click.stop="moveImage(index, index + 1)">后移</text>
+          </view>
+        </view>
+        <view
+          class="image-add"
+          v-if="formData.images.length < 9"
+          @click="chooseImages"
+        >
+          <image src="/static/art-icons/icon-preview.svg" mode="aspectFit"></image>
+          <text>{{ formData.images.length ? '继续添加' : '上传图片' }}</text>
+          <text class="image-add-tip">相册或拍摄</text>
         </view>
       </view>
     </view>
@@ -43,7 +75,7 @@
       </view>
       
       <view class="form-item">
-        <text class="form-label">作品名称</text>
+        <text class="form-label required-label">作品名称</text>
         <input 
           class="form-input" 
           v-model="formData.title" 
@@ -55,7 +87,7 @@
       <!-- 艺术家搜索 -->
       <view class="form-item artist-form-item">
         <view class="artist-label-row">
-          <text class="form-label">作者</text>
+          <text class="form-label required-label">作者</text>
           <text class="artist-id-display" v-if="formData.authorUid">UID: {{ formData.authorUid }}</text>
         </view>
         <view class="artist-input-wrapper">
@@ -121,7 +153,7 @@
       </view>
 
       <view class="form-item">
-        <text class="form-label">作品分类</text>
+        <text class="form-label required-label">作品分类</text>
         <view class="category-select-wrapper">
           <view class="category-select-trigger" @click="toggleCategoryDropdown">
             <text :class="['category-value', { placeholder: !formData.category }]">{{ formData.category || '请选择作品分类' }}</text>
@@ -151,7 +183,7 @@
       </view>
       
       <view class="form-item">
-        <text class="form-label">出售价格</text>
+        <text class="form-label required-label">出售价格</text>
         <view class="price-input">
           <text class="price-unit">¥</text>
           <input 
@@ -164,10 +196,35 @@
       </view>
 
       <view class="form-item">
+        <text class="form-label">运费</text>
+        <view class="price-input">
+          <text class="price-unit">¥</text>
+          <input 
+            class="form-input price-value" 
+            v-model="formData.freight" 
+            placeholder="请输入运费，0为包邮"
+            type="digit"
+          />
+        </view>
+      </view>
+
+      <view class="form-item">
         <text class="form-label">参与分销</text>
         <switch 
           :checked="formData.allowDistribution" 
           @change="(e) => formData.allowDistribution = e.detail.value"
+          color="#F2C14E"
+        />
+      </view>
+
+      <view class="form-item strategy-item">
+        <view class="strategy-copy">
+          <text class="form-label">使用平台涨价策略</text>
+          <text class="strategy-desc">开启后作品从发布次日开始参与平台涨价计算；发布当天前台仍按基础价显示。</text>
+        </view>
+        <switch
+          :checked="formData.platformPriceGrowthEnabled"
+          @change="(e) => formData.platformPriceGrowthEnabled = e.detail.value"
           color="#F2C14E"
         />
       </view>
@@ -208,42 +265,11 @@
       <view class="word-count">{{ formData.description.length }}/2000</view>
     </view>
 
-    <view class="form-section">
-      <view class="section-head">
-        <view>
-          <view class="section-title">
-            作品详情图
-            <text class="section-tip">最多9张</text>
-          </view>
-          <view class="section-subtitle">可上传局部、装裱、场景图</view>
-        </view>
-      </view>
-      <view class="images-grid">
-        <view 
-          class="image-item" 
-          v-for="(img, index) in formData.images" 
-          :key="index"
-        >
-          <image :src="img" mode="aspectFill"></image>
-          <view class="image-delete" @click="removeImage(index)">
-          </view>
-        </view>
-        <view 
-          class="image-add" 
-          v-if="formData.images.length < 9" 
-          @click="chooseImages"
-        >
-          <image src="/static/art-icons/icon-preview.svg" mode="aspectFit"></image>
-          <text>添加图片</text>
-        </view>
-      </view>
-    </view>
-
     <view class="safe-bottom-space"></view>
 
     <view class="submit-bar">
       <view class="save-draft" @click="saveDraft">保存草稿</view>
-      <view class="submit-btn" @click="submit">发布作品</view>
+      <view class="submit-btn" :class="{ disabled: submitting }" @click="submit" @touchstart.prevent="submit">{{ submitting ? '提交中...' : '发布作品' }}</view>
     </view>
 
   </view>
@@ -254,6 +280,18 @@ import { getArtworkDetail, getCategories, publishArtwork, updateArtwork } from '
 import { searchArtists, searchUsers, findOrCreateArtist } from '@/api/user.js'
 import { useUserStore } from '@/store/modules/user.js'
 import { uploadFile, openCropper } from '@/api/file.js'
+
+const normalizeYuanAmount = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return null
+  return Math.round(amount * 100) / 100
+}
+
+const yuanToInput = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount <= 0) return ''
+  return amount.toFixed(2)
+}
 
 export default {
   data() {
@@ -273,7 +311,9 @@ export default {
         material: '',
         category: '',
         price: '',
+        freight: '',
         allowDistribution: false,
+        platformPriceGrowthEnabled: true,
         allowAuction: false,
         stock: 1,
         description: '',
@@ -296,6 +336,11 @@ export default {
       ],
       categoryRange: [],
       showCategoryDropdown: false,
+      submitting: false, // 防重复提交
+      lastContentHash: '', // 上一次提交的内容hash
+      lastSubmitTime: 0,  // 上一次提交的时间戳
+      draggingImageIndex: null,
+      imageEntrySeq: 0,
     }
   },
 
@@ -310,12 +355,22 @@ export default {
     }
   },
 
-  onLoad(options) {
+  async onLoad(options) {
+    const userStore = useUserStore()
+    if (!userStore.userInfo && userStore.token) {
+      await userStore.fetchUserInfo()
+    }
+
+    if (!this.hasPublishPermission(userStore)) {
+      uni.showToast({ title: '认证艺术家才可发布作品', icon: 'none' })
+      setTimeout(() => this.goBack(), 800)
+      return
+    }
+
     this.loadCategories()
     
     // 自动填入当前用户名称作为作者
     if (!options.id) {
-      const userStore = useUserStore()
       if (userStore.userInfo) {
         const nickname = userStore.userInfo.nickname || userStore.userInfo.name || ''
         if (nickname) {
@@ -334,14 +389,36 @@ export default {
   },
 
   mounted() {
-    document.addEventListener('click', this.handleClickOutside)
+    if (typeof document !== 'undefined') {
+      document.addEventListener('click', this.handleClickOutside)
+    }
   },
 
-  beforeDestroy() {
-    document.removeEventListener('click', this.handleClickOutside)
+  beforeUnmount() {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('click', this.handleClickOutside)
+    }
   },
 
   methods: {
+    hasPublishPermission(userStore = useUserStore()) {
+      const userInfo = userStore.userInfo || {}
+      const rawIdentities = userStore.identities || userInfo.identities || userInfo.identity_json || userInfo.identity || []
+      const identities = Array.isArray(rawIdentities)
+        ? rawIdentities
+        : String(rawIdentities || '').split(',').map(item => item.trim()).filter(Boolean)
+      const normalized = identities.map(item => String(item).trim().toLowerCase())
+      const artistFlags = [
+        userStore.isArtist,
+        userInfo.isArtist,
+        userInfo.certifiedArtist,
+        userInfo.artistCertified,
+        userInfo.certStatus === 1,
+        userInfo.artistStatus === 1
+      ]
+      return artistFlags.some(Boolean) || normalized.some(item => ['artist', 'certified_artist', 'verified_artist', '艺术家', '认证艺术家'].includes(item))
+    },
+
     goBack() {
       const pages = getCurrentPages()
       if (pages && pages.length > 1) {
@@ -356,8 +433,9 @@ export default {
       try {
         const res = await getArtworkDetail(id)
         if (res) {
+          const artworkImages = this.mergeArtworkImages(res.cover || res.coverImage || '', res.images)
           this.formData = {
-            cover: res.cover || '',
+            cover: artworkImages[0] || '',
             title: res.title || '',
             authorId: res.authorId || null,
             authorName: res.authorName || '',
@@ -367,11 +445,14 @@ export default {
             height: res.height || '',
             material: res.material || res.medium || '',
             category: res.category || res.categoryName || '',
-            price: res.price || '',
+            price: yuanToInput(res.price),
+            freight: yuanToInput(res.freight || res.postageFee),
+            allowDistribution: res.distributionEnabled === true || res.allowDistribution === true,
+            platformPriceGrowthEnabled: res.platformPriceGrowthEnabled !== false,
             allowAuction: res.allowAuction || false,
             stock: res.stock || 1,
             description: res.description || '',
-            images: res.images || []
+            images: artworkImages.map(url => this.createImageEntry(url, 'uploaded', url))
           }
           this.artistKeyword = res.authorName || ''
           if (res.authorId) {
@@ -559,22 +640,6 @@ export default {
       }, 200)
     },
 
-    chooseCover() {
-      uni.chooseImage({
-        count: 1,
-        sizeType: ['compressed'],
-        sourceType: ['album', 'camera'],
-        success: (res) => {
-          const path = res.tempFilePaths[0]
-          openCropper(path, { ratio: '4:3', shape: 'square' }).then(cropped => {
-            this.formData.cover = cropped
-          }).catch(() => {
-            this.formData.cover = path
-          })
-        }
-      })
-    },
-
     chooseImages() {
       const remain = 9 - this.formData.images.length
       uni.chooseImage({
@@ -588,14 +653,148 @@ export default {
             openCropper(p, { ratio: 'free', shape: 'square' }).catch(() => p)
           )
           Promise.all(cropPromises).then(croppedList => {
-            this.formData.images = [...this.formData.images, ...croppedList]
+            const entries = croppedList.map(path => this.createImageEntry(path, 'uploading'))
+            this.formData.images = [...this.formData.images, ...entries]
+            this.syncCoverFromImages()
+            entries.forEach(item => this.uploadImageEntry(item))
           })
         }
       })
     },
 
+    createImageEntry(src, status = 'uploaded', url = '') {
+      return {
+        id: `img-${Date.now()}-${++this.imageEntrySeq}`,
+        src,
+        url: url || (/^https?:\/\//.test(src) || String(src).startsWith('/upload/') ? src : ''),
+        status
+      }
+    },
+
+    getImagePreview(image) {
+      if (!image) return ''
+      return typeof image === 'string' ? image : (image.src || image.url || '')
+    },
+
+    getImageUrl(image) {
+      if (!image) return ''
+      if (typeof image === 'string') return image
+      return image.url || ''
+    },
+
+    async uploadImageEntry(entry) {
+      try {
+        const url = await uploadFile(entry.src, 'image')
+        const index = this.formData.images.findIndex(item => item.id === entry.id)
+        if (index === -1) return
+        const next = [...this.formData.images]
+        next.splice(index, 1, { ...next[index], src: url, url, status: 'uploaded' })
+        this.formData.images = next
+        this.syncCoverFromImages()
+      } catch (e) {
+        const index = this.formData.images.findIndex(item => item.id === entry.id)
+        if (index === -1) return
+        const next = [...this.formData.images]
+        next.splice(index, 1, { ...next[index], status: 'failed' })
+        this.formData.images = next
+      }
+    },
+
     removeImage(index) {
       this.formData.images.splice(index, 1)
+      this.syncCoverFromImages()
+    },
+
+    setMainImage(index) {
+      this.moveImage(index, 0)
+    },
+
+    moveImage(from, to) {
+      if (from === to || from < 0 || to < 0 || from >= this.formData.images.length || to >= this.formData.images.length) {
+        return
+      }
+      const next = [...this.formData.images]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      this.formData.images = next
+      this.syncCoverFromImages()
+    },
+
+    onImageDragStart(index) {
+      this.draggingImageIndex = index
+    },
+
+    onImageDragOver(index) {
+      if (this.draggingImageIndex === null || this.draggingImageIndex === index) return
+      const from = this.draggingImageIndex
+      this.moveImage(from, index)
+      this.draggingImageIndex = index
+    },
+
+    onImageDrop(index) {
+      if (this.draggingImageIndex !== null && this.draggingImageIndex !== index) {
+        this.moveImage(this.draggingImageIndex, index)
+      }
+      this.draggingImageIndex = null
+    },
+
+    onImageDragEnd() {
+      this.draggingImageIndex = null
+    },
+
+    onImageTouchStart(index) {
+      this.draggingImageIndex = index
+    },
+
+    onImageTouchMove(event) {
+      if (this.draggingImageIndex === null || typeof document === 'undefined') return
+      const touch = event.touches?.[0] || event.changedTouches?.[0]
+      if (!touch) return
+      const el = document.elementFromPoint(touch.clientX, touch.clientY)
+      const item = el?.closest?.('[data-image-index]')
+      if (!item) return
+      const targetIndex = Number(item.dataset.imageIndex)
+      if (Number.isInteger(targetIndex) && targetIndex !== this.draggingImageIndex) {
+        this.moveImage(this.draggingImageIndex, targetIndex)
+        this.draggingImageIndex = targetIndex
+      }
+    },
+
+    onImageTouchEnd() {
+      this.draggingImageIndex = null
+    },
+
+    syncCoverFromImages() {
+      const first = this.formData.images[0]
+      this.formData.cover = this.getImageUrl(first) || this.getImagePreview(first) || ''
+    },
+
+    normalizeImageList(images) {
+      if (Array.isArray(images)) return images.map(item => this.getImageUrl(item) || this.getImagePreview(item)).filter(Boolean)
+      if (typeof images === 'string') {
+        const trimmed = images.trim()
+        if (!trimmed) return []
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) return parsed.filter(Boolean)
+        } catch (e) {
+          // The product API also returns comma-separated image strings.
+        }
+        return trimmed.split(',').map(item => item.trim()).filter(Boolean)
+      }
+      return []
+    },
+
+    mergeArtworkImages(cover, images) {
+      const ordered = [cover, ...this.normalizeImageList(images)].filter(Boolean)
+      return ordered.filter((item, index) => ordered.indexOf(item) === index).slice(0, 9)
+    },
+
+    previewImage(index) {
+      uni.previewImage({
+        urls: this.formData.images.map(item => this.getImagePreview(item)).filter(Boolean),
+        current: index
+      })
     },
 
     onYearChange(e) {
@@ -630,8 +829,16 @@ export default {
     },
 
     validate() {
-      if (!this.formData.cover) {
-        uni.showToast({ title: '请上传封面图', icon: 'none' })
+      if (!this.formData.images.length) {
+        uni.showToast({ title: '请上传作品图片', icon: 'none' })
+        return false
+      }
+      if (this.formData.images.some(item => item.status === 'uploading')) {
+        uni.showToast({ title: '请等待图片上传完成', icon: 'none' })
+        return false
+      }
+      if (this.formData.images.some(item => item.status === 'failed')) {
+        uni.showToast({ title: '图片上传失败，请删除后重新上传', icon: 'none' })
         return false
       }
       if (!this.formData.title.trim()) {
@@ -650,6 +857,10 @@ export default {
         uni.showToast({ title: '价格必须大于0', icon: 'none' })
         return false
       }
+      if (this.formData.freight && (!Number.isFinite(Number(this.formData.freight)) || Number(this.formData.freight) < 0)) {
+        uni.showToast({ title: '运费不能小于0', icon: 'none' })
+        return false
+      }
       if (!this.formData.category) {
         uni.showToast({ title: '请填写作品分类', icon: 'none' })
         return false
@@ -663,15 +874,27 @@ export default {
 
     async submit() {
       if (!this.validate()) return
+      if (this.submitting) return
+
+      // ---- 客户端内容 hash 防重：30 秒内相同内容直接拦截 ----
+      const now = Date.now()
+      this.syncCoverFromImages()
+      const contentForHash = `${this.formData.title.trim()}|${this.artistKeyword.trim()}|${this.formData.images.map(item => this.getImageUrl(item)).join(',')}`
+      const currentHash = this.simpleHash(contentForHash)
+      if (currentHash === this.lastContentHash && now - this.lastSubmitTime < 30000) {
+        uni.showToast({ title: '请勿重复提交', icon: 'none' })
+        return
+      }
+      this.lastContentHash = currentHash
+      this.lastSubmitTime = now
+
+      this.submitting = true
 
       uni.showLoading({ title: '提交中...' })
 
       try {
-        const coverUrl = await this.ensureUploaded(this.formData.cover)
-        const imageUrls = []
-        for (const image of this.formData.images) {
-          imageUrls.push(await this.ensureUploaded(image))
-        }
+        const coverUrl = this.getImageUrl(this.formData.images[0])
+        const imageUrls = this.formData.images.map(item => this.getImageUrl(item)).filter(Boolean)
 
         // 如果艺术家名称已输入但未选择，需要查找或创建
         if (this.artistKeyword.trim() && !this.formData.authorId) {
@@ -702,12 +925,16 @@ export default {
           medium: this.formData.category,
           year: this.formData.year ? Number(this.formData.year) : null,
           size: `${this.formData.width}×${this.formData.height}cm`,
-          price: this.formData.price ? Number(this.formData.price) : null,
-          allowDistribution: this.formData.allowDistribution || false,
+          // Product service stores artwork prices in yuan decimals.
+          price: this.formData.price ? normalizeYuanAmount(this.formData.price) : null,
+          freight: this.formData.freight ? normalizeYuanAmount(this.formData.freight) : 0,
+          distributionEnabled: this.formData.allowDistribution || false,
+          platformPriceGrowthEnabled: this.formData.platformPriceGrowthEnabled !== false,
           stock: this.formData.stock ? Number(this.formData.stock) : 1,
           description: this.formData.description,
           status: 1,
-          ownershipType: 1
+          ownershipType: 1,
+          requestId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
         }
 
         if (this.isEdit) {
@@ -724,8 +951,24 @@ export default {
       } catch (e) {
         console.error('发布作品失败', e)
         uni.hideLoading()
-        uni.showToast({ title: e.message || '发布失败，请重试', icon: 'none' })
+        this.submitting = false // 仅失败时允许重新提交
+        if (e.message && e.message.includes('重复')) {
+          uni.showToast({ title: '请勿重复提交', icon: 'none' })
+        } else {
+          uni.showToast({ title: e.message || '发布失败，请重试', icon: 'none' })
+        }
       }
+    },
+
+    /** 简易字符串哈希（不依赖外部库） */
+    simpleHash(str) {
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash |= 0
+      }
+      return hash.toString(36)
     },
 
     async ensureUploaded(path) {
@@ -764,17 +1007,22 @@ export default {
   }
 }
 
-.cover-upload {
-  width: 300rpx;
-  min-height: 200rpx;
-  border-radius: 16rpx;
-  overflow: hidden;
-  background: #f9f9f9;
+.strategy-item {
+  align-items: flex-start;
+  gap: 24rpx;
 }
 
-.cover-preview {
-  width: 100%;
-  display: block;
+.strategy-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.strategy-desc {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8b7d58;
 }
 
 .upload-placeholder {
@@ -816,6 +1064,14 @@ export default {
   font-size: 28rpx;
   color: #333;
   width: 160rpx;
+}
+
+.required-title::before,
+.required-label::before {
+  content: '*';
+  color: #e65b5b;
+  margin-right: 8rpx;
+  font-weight: 800;
 }
 
 .artist-label-row {
@@ -1039,6 +1295,7 @@ export default {
   aspect-ratio: 1;
   border-radius: 12rpx;
   overflow: hidden;
+  background: #151515;
 
   image {
     width: 100%;
@@ -1047,6 +1304,7 @@ export default {
 
   .image-delete {
     position: absolute;
+    z-index: 5;
     top: 8rpx;
     right: 8rpx;
     width: 36rpx;
@@ -1056,6 +1314,89 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #fff;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 1;
+  }
+}
+
+.image-item.dragging {
+  opacity: 0.72;
+  transform: scale(0.98);
+}
+
+.image-item.uploading image,
+.image-item.failed image {
+  filter: brightness(0.58);
+}
+
+.image-item.main-image {
+  box-shadow: 0 0 0 3rpx rgba(242, 193, 78, 0.9);
+}
+
+.image-badge {
+  position: absolute;
+  left: 8rpx;
+  top: 8rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  color: #111;
+  background: linear-gradient(180deg, #f6d98a, #d9a935);
+  font-size: 20rpx;
+  font-weight: 800;
+}
+
+.image-order-actions {
+  position: absolute;
+  z-index: 4;
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 8rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6rpx;
+
+  text {
+    padding: 4rpx 8rpx;
+    border-radius: 999rpx;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    font-size: 18rpx;
+  }
+}
+
+.image-upload-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.failed-mask {
+  background: rgba(88, 20, 20, 0.58);
+}
+
+.upload-spinner {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.35);
+  border-top-color: #f2c14e;
+  animation: image-upload-spin 0.9s linear infinite;
+}
+
+@keyframes image-upload-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -1074,6 +1415,11 @@ export default {
     color: #999;
     margin-top: 8rpx;
   }
+}
+
+.image-add .image-add-tip {
+  margin-top: 4rpx;
+  font-size: 18rpx;
 }
 
 .submit-bar {
@@ -1169,7 +1515,7 @@ export default {
 /* ===== v1.2 黑金发布页重构 ===== */
 .publish-page {
   min-height: 100vh;
-  padding: calc(96rpx + env(safe-area-inset-top)) 24rpx calc(170rpx + env(safe-area-inset-bottom));
+  padding: calc(88rpx + env(safe-area-inset-top)) 24rpx calc(170rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   color: #f5f2ea;
   background:
@@ -1218,37 +1564,6 @@ export default {
   background: rgba(242, 193, 78, 0.08);
 }
 
-.publish-hero {
-  margin: 8rpx 0 22rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  border: 1rpx solid rgba(242, 193, 78, 0.18);
-  background:
-    linear-gradient(135deg, rgba(242, 193, 78, 0.14), rgba(255, 255, 255, 0.03)),
-    #111;
-}
-
-.hero-kicker {
-  color: #d8b24c;
-  font-size: 20rpx;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.hero-title {
-  margin-top: 10rpx;
-  color: #fff;
-  font-size: 42rpx;
-  font-weight: 900;
-}
-
-.hero-desc {
-  margin-top: 12rpx;
-  color: #a9a39a;
-  font-size: 24rpx;
-  line-height: 1.55;
-}
-
 .form-section {
   margin: 18rpx 0 0;
   padding: 28rpx;
@@ -1256,6 +1571,10 @@ export default {
   border: 1rpx solid rgba(216, 178, 76, 0.16);
   background: linear-gradient(145deg, #1c1c1c, #101010);
   box-shadow: 0 18rpx 44rpx rgba(0, 0, 0, 0.28);
+}
+
+.cover-section {
+  margin-top: 0;
 }
 
 .section-head {
@@ -1300,20 +1619,6 @@ export default {
   font-weight: 800;
 }
 
-.cover-upload {
-  width: 100%;
-  min-height: 410rpx;
-  border-radius: 22rpx;
-  overflow: hidden;
-  background: #151515;
-}
-
-.cover-preview {
-  width: 100%;
-  height: 410rpx;
-  display: block;
-}
-
 .upload-placeholder {
   min-height: 410rpx;
   border: 2rpx dashed rgba(242, 193, 78, 0.35);
@@ -1354,6 +1659,11 @@ export default {
   color: #f5f2ea;
   font-size: 28rpx;
   font-weight: 700;
+}
+
+.required-title::before,
+.required-label::before {
+  color: #ff6b6b;
 }
 
 .form-input {
@@ -1507,6 +1817,10 @@ export default {
   gap: 18rpx;
 }
 
+.publish-images-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .image-item,
 .image-add {
   border-radius: 18rpx;
@@ -1525,6 +1839,21 @@ export default {
 
 .image-add text {
   color: #a9a39a;
+}
+
+.image-item.main-image {
+  box-shadow: 0 0 0 3rpx rgba(242, 193, 78, 0.9);
+}
+
+.image-badge {
+  color: #111;
+  background: linear-gradient(180deg, #f6d98a, #d9a935);
+}
+
+.image-order-actions text {
+  color: #f5f2ea;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1rpx solid rgba(242, 193, 78, 0.22);
 }
 
 .safe-bottom-space {
@@ -1558,5 +1887,11 @@ export default {
 .submit-btn {
   color: #111;
   background: linear-gradient(180deg, #f5d36f, #d8b24c);
+}
+
+.submit-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none !important;
+  background: #c0c0c0 !important;
 }
 </style>

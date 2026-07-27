@@ -117,6 +117,21 @@ services:
       MYSQL_PORT: 3306
       MYSQL_DATABASE: shiyiju
       REDIS_HOST: redis
+      WECHAT_APPID: ${WECHAT_APPID}
+      WECHAT_SECRET: ${WECHAT_SECRET}
+      WECHAT_OFFICIAL_APPID: ${WECHAT_OFFICIAL_APPID}
+      WECHAT_OFFICIAL_SECRET: ${WECHAT_OFFICIAL_SECRET}
+      WECHAT_OPEN_APPID: ${WECHAT_OPEN_APPID}
+      WECHAT_OPEN_SECRET: ${WECHAT_OPEN_SECRET}
+      WXPAY_APP_ID: ${WXPAY_APP_ID}
+      WXPAY_MINI_APP_ID: ${WXPAY_MINI_APP_ID}
+      WXPAY_OFFICIAL_APP_ID: ${WXPAY_OFFICIAL_APP_ID}
+      WXPAY_MCH_ID: ${WXPAY_MCH_ID}
+      WXPAY_API_KEY: ${WXPAY_API_KEY}
+      WXPAY_MCH_KEY: ${WXPAY_MCH_KEY}
+      WXPAY_KEY_PATH: /opt/shiyiju/certs/wxpay/apiclient_cert.p12
+    volumes:
+      - ./certs/wxpay:/opt/shiyiju/certs/wxpay:ro
     depends_on:
       - nacos
       - mysql
@@ -140,6 +155,20 @@ services:
       MYSQL_PORT: 3306
       MYSQL_DATABASE: shiyiju
       REDIS_HOST: redis
+      WXPAY_APP_ID: ${WXPAY_APP_ID}
+      WXPAY_MINI_APP_ID: ${WXPAY_MINI_APP_ID}
+      WXPAY_OFFICIAL_APP_ID: ${WXPAY_OFFICIAL_APP_ID}
+      WXPAY_MCH_ID: ${WXPAY_MCH_ID}
+      WXPAY_API_KEY: ${WXPAY_API_KEY}
+      WXPAY_MCH_KEY: ${WXPAY_MCH_KEY}
+      WXPAY_KEY_PATH: /opt/shiyiju/certs/wxpay/apiclient_cert.p12
+      ALIPAY_ENABLED: ${ALIPAY_ENABLED}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID}
+      ALIPAY_PRIVATE_KEY: ${ALIPAY_PRIVATE_KEY}
+      ALIPAY_PUBLIC_KEY: ${ALIPAY_PUBLIC_KEY}
+      ALIPAY_GATEWAY_URL: ${ALIPAY_GATEWAY_URL}
+    volumes:
+      - ./certs/wxpay:/opt/shiyiju/certs/wxpay:ro
     depends_on:
       - nacos
       - mysql
@@ -163,6 +192,20 @@ services:
       MYSQL_PORT: 3306
       MYSQL_DATABASE: shiyiju
       REDIS_HOST: redis
+      WXPAY_APP_ID: ${WXPAY_APP_ID}
+      WXPAY_MINI_APP_ID: ${WXPAY_MINI_APP_ID}
+      WXPAY_OFFICIAL_APP_ID: ${WXPAY_OFFICIAL_APP_ID}
+      WXPAY_MCH_ID: ${WXPAY_MCH_ID}
+      WXPAY_API_KEY: ${WXPAY_API_KEY}
+      WXPAY_MCH_KEY: ${WXPAY_MCH_KEY}
+      WXPAY_KEY_PATH: /opt/shiyiju/certs/wxpay/apiclient_cert.p12
+      ALIPAY_ENABLED: ${ALIPAY_ENABLED}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID}
+      ALIPAY_PRIVATE_KEY: ${ALIPAY_PRIVATE_KEY}
+      ALIPAY_PUBLIC_KEY: ${ALIPAY_PUBLIC_KEY}
+      ALIPAY_GATEWAY_URL: ${ALIPAY_GATEWAY_URL}
+    volumes:
+      - ./certs/wxpay:/opt/shiyiju/certs/wxpay:ro
     depends_on:
       - nacos
       - mysql
@@ -272,6 +315,7 @@ services:
     expose:
       - "8088"
     environment:
+      SERVICE: message
       SPRING_PROFILES_ACTIVE: prod
       NACOS_SERVER_ADDR: nacos:8848
       MYSQL_HOST: mysql
@@ -301,6 +345,20 @@ services:
       MYSQL_PORT: 3306
       MYSQL_DATABASE: shiyiju
       REDIS_HOST: redis
+      WXPAY_APP_ID: ${WXPAY_APP_ID}
+      WXPAY_MINI_APP_ID: ${WXPAY_MINI_APP_ID}
+      WXPAY_OFFICIAL_APP_ID: ${WXPAY_OFFICIAL_APP_ID}
+      WXPAY_MCH_ID: ${WXPAY_MCH_ID}
+      WXPAY_API_KEY: ${WXPAY_API_KEY}
+      WXPAY_MCH_KEY: ${WXPAY_MCH_KEY}
+      WXPAY_KEY_PATH: /opt/shiyiju/certs/wxpay/apiclient_cert.p12
+      ALIPAY_ENABLED: ${ALIPAY_ENABLED}
+      ALIPAY_APP_ID: ${ALIPAY_APP_ID}
+      ALIPAY_PRIVATE_KEY: ${ALIPAY_PRIVATE_KEY}
+      ALIPAY_PUBLIC_KEY: ${ALIPAY_PUBLIC_KEY}
+      ALIPAY_GATEWAY_URL: ${ALIPAY_GATEWAY_URL}
+    volumes:
+      - ./certs/wxpay:/opt/shiyiju/certs/wxpay:ro
     depends_on:
       - nacos
       - mysql

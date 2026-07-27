@@ -166,6 +166,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Van, CircleCheck, Clock, Package, Warning } from '@element-plus/icons-vue'
+import request from '@/api/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -182,6 +183,82 @@ const logisticsForm = reactive({
 const logisticsRules = {
   expressName: [{ required: true, message: '请选择快递公司', trigger: 'change' }],
   expressNo: [{ required: true, message: '请输入快递单号', trigger: 'blur' }]
+}
+
+const normalizeStatus = (data) => {
+  if (data.status) return data.status
+  const raw = data.orderStatus || data.order_status
+  const payment = data.paymentStatus || data.payment_status
+  const map = {
+    PENDING_PAYMENT: 'pending',
+    UNPAID: 'pending',
+    PAID: 'paid',
+    WAIT_DELIVER: 'paid',
+    WAIT_SHIP: 'paid',
+    SHIPPED: 'shipped',
+    DELIVERED: 'shipped',
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled',
+    CANCELED: 'cancelled'
+  }
+  return map[raw] || (payment === 'PAID' ? 'paid' : 'unknown')
+}
+
+const formatAmount = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const normalizeProduct = (item) => ({
+  cover: item.cover || item.coverUrl || item.cover_url || item.coverImage || item.cover_image || '',
+  title: item.title || item.itemTitle || item.item_title || item.artworkTitle || item.artwork_title || '作品',
+  artistName: item.artistName || item.artist_name || item.authorName || item.author_name || '',
+  spec: item.spec || item.specName || item.spec_name || item.skuName || item.sku_name || '',
+  price: formatAmount(item.price || item.unitPrice || item.unit_price || item.subtotal || item.subtotalAmount || item.subtotal_amount),
+  count: item.count || item.quantity || 1
+})
+
+const normalizeLogistics = (logistics) => {
+  if (!logistics) return null
+  return {
+    expressName: logistics.expressName || logistics.companyName || '',
+    expressNo: logistics.expressNo || logistics.trackingNo || '',
+    statusText: logistics.statusText || '',
+    traces: (logistics.traces || logistics.tracks || []).map(item => ({
+      time: item.time || item.trackTime || item.track_time || '',
+      desc: item.desc || item.description || '',
+      location: item.location || ''
+    }))
+  }
+}
+
+const normalizeOrderDetail = (data) => {
+  const products = data.products || data.items || data.goodsList || []
+  return {
+    ...data,
+    type: data.type || data.orderType || data.order_type,
+    status: normalizeStatus(data),
+    buyerName: data.buyerName || data.buyerNickname || data.nickname || `用户${data.userId || ''}`,
+    buyerPhone: data.buyerPhone || data.receiverPhone || data.phone || '暂无',
+    address: data.address || data.receiverAddress || '暂无收货地址',
+    goodsAmount: formatAmount(data.goodsAmount || data.goods_amount || 0),
+    freight: formatAmount(data.freight || data.freightAmount || data.freight_amount || 0),
+    couponAmount: formatAmount(data.couponAmount || data.discountAmount || data.discount_amount || 0),
+    payAmount: formatAmount(data.payAmount || data.pay_amount || data.amount || 0),
+    products: products.map(normalizeProduct),
+    logistics: normalizeLogistics(data.logistics)
+  }
+}
+
+const fetchOrderDetail = async (orderId) => {
+  try {
+    const data = await request.get(`/order/detail/${orderId}`)
+    orderDetail.value = normalizeOrderDetail(data)
+  } catch (error) {
+    ElMessage.error(error.message || '获取订单详情失败')
+  }
 }
 
 const getStatusIcon = (status) => {
@@ -246,50 +323,24 @@ const copyExpressNo = () => {
 const saveLogistics = async () => {
   const valid = await logisticsFormRef.value?.validate().catch(() => false)
   if (!valid) return
-  
-  // 本地模拟
-  orderDetail.value.logistics = {
-    expressName: logisticsForm.expressName,
-    expressNo: logisticsForm.expressNo,
-    traces: [
-      { time: new Date().toLocaleString('zh-CN'), desc: '包裹已发出，正在运输中' }
-    ]
+
+  try {
+    await request.post('/order/ship', {
+      orderId: orderDetail.value.id,
+      expressCompany: logisticsForm.expressName,
+      expressNo: logisticsForm.expressNo
+    })
+    logisticsDialogVisible.value = false
+    ElMessage.success('物流信息已保存')
+    await fetchOrderDetail(orderDetail.value.id)
+  } catch (error) {
+    ElMessage.error(error.message || '保存物流信息失败')
   }
-  orderDetail.value.status = 'shipped'
-  logisticsDialogVisible.value = false
-  ElMessage.success('物流信息已保存')
 }
 
 onMounted(() => {
-  const orderId = route.query.orderId || 'SYJ20240120001'
-  
-  // 模拟订单数据
-  orderDetail.value = {
-    orderNo: orderId,
-    createTime: '2024-01-20 14:15:00',
-    type: 'normal',
-    payMethod: 'wechat',
-    remark: '请尽快发货，谢谢',
-    buyerName: '李四',
-    buyerPhone: '138****8002',
-    address: '广东省深圳市南山区科技园xx路xx号xx室',
-    status: 'paid',
-    goodsAmount: 32000,
-    freight: 200,
-    couponAmount: 100,
-    payAmount: 32100,
-    products: [
-      {
-        cover: 'https://pic.imgdb.cn/item/1.jpg',
-        title: '油画风景·夕阳',
-        artistName: '王建国',
-        spec: '原作 80x60cm',
-        price: 32000,
-        count: 1
-      }
-    ],
-    logistics: null
-  }
+  const orderId = route.query.orderId || route.query.id || route.params?.id || ''
+  if (orderId) fetchOrderDetail(orderId)
 })
 </script>
 

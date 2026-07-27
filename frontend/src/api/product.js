@@ -4,13 +4,95 @@
  */
 import request from './request'
 
-const normalizeArtwork = (item = {}) => ({
-  ...item,
-  cover: item.coverImage || item.cover,
-  artistName: item.artistName || item.authorName,
-  artistId: item.artistId || item.authorId,
-  artistUid: item.artistUid || item.authorUid || item.displayAuthorId
-})
+const IMAGE_BASE_URL = (import.meta.env?.VITE_IMAGE_BASE_URL || '').replace(/\/$/, '')
+
+const encodeThumbSource = (value) => encodeURIComponent(String(value || '').trim())
+
+export const normalizeImageUrl = (url) => {
+  if (typeof url !== 'string') return url
+  const value = url.trim()
+  const withBase = (path) => IMAGE_BASE_URL ? `${IMAGE_BASE_URL}${path}` : path
+  const duplicated = value.match(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/uploads\/upload\/(.+)$/)
+  if (duplicated) return withBase(`/upload/${duplicated[1]}`)
+  const localUpload = value.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/upload\/.+)$/)
+  if (localUpload) {
+    return withBase(localUpload[1])
+  }
+  if (value.startsWith('/upload/')) {
+    return withBase(value)
+  }
+  if (value.startsWith('upload/')) {
+    return withBase(`/${value}`)
+  }
+  return value
+}
+
+export const buildImageThumbnailUrl = (url, width = 960) => {
+  const source = normalizeImageUrl(url)
+  if (typeof source !== 'string' || !source.trim()) return ''
+  const value = source.trim()
+
+  if (value.startsWith('/images/')) {
+    return value
+  }
+
+  try {
+    const parsed = new URL(value)
+    if (!parsed.pathname.startsWith('/upload/')) {
+      return value
+    }
+    return `${parsed.origin}/api/file/upload/thumb?url=${encodeThumbSource(value)}&w=${width}`
+  } catch {
+    if (value.startsWith('/upload/') || value.startsWith('upload/')) {
+      return `/api/file/upload/thumb?url=${encodeThumbSource(value)}&w=${width}`
+    }
+    return value
+  }
+}
+
+const normalizeImages = (images) => {
+  if (Array.isArray(images)) return images.map(normalizeImageUrl)
+  if (typeof images !== 'string') return images
+  return images.split(',').map(item => normalizeImageUrl(item)).filter(Boolean).join(',')
+}
+
+const firstImage = (images) => {
+  if (Array.isArray(images)) return images.find(Boolean) || ''
+  if (typeof images === 'string') return images.split(',').map(item => item.trim()).find(Boolean) || ''
+  return ''
+}
+
+const normalizeArtwork = (item = {}) => {
+  const normalizedImages = normalizeImages(item.images)
+  const artworkImage = firstImage(normalizedImages)
+  const cover = normalizeImageUrl(item.coverImage || item.cover || artworkImage)
+  const publishPrice = item.publishPrice ?? item.publish_price ?? item.originalPrice ?? item.original_price ?? item.price
+  const originalPrice = item.originalPrice ?? item.original_price ?? item.publishPrice ?? item.publish_price
+  const resaleListing = item.resaleListing || item.activeResaleListing || null
+  const resaleStatus = String(resaleListing?.status || '').toLowerCase()
+  const activeResaleListing = resaleListing && (!resaleStatus || resaleStatus === 'pending')
+    ? resaleListing
+    : null
+  return {
+    ...item,
+    // Product API prices are returned in yuan. Keep them in yuan and convert only
+    // at explicit order/payment boundaries.
+    price: item.price,
+    publishPrice,
+    currentPrice: item.currentPrice ?? item.current_price,
+    originalPrice,
+    tomorrowIncreaseMin: item.tomorrowIncreaseMin,
+    tomorrowIncreaseMax: item.tomorrowIncreaseMax,
+    cover,
+    coverImage: cover || item.coverImage,
+    images: normalizedImages,
+    artistName: item.artistName || item.authorName,
+    artistId: item.artistId || item.authorId,
+    artistUid: item.artistUid || item.authorUid || item.displayAuthorId,
+    resaleListing,
+    activeResaleListing
+  }
+}
 
 const normalizeArtworkPage = (data) => {
   if (!data) return data
@@ -35,7 +117,11 @@ const normalizeArtworkPage = (data) => {
  * @param {number} params.pageSize - 每页数量
  */
 export const getProductList = (params) => {
-  return request.get('/product/list', params).then(normalizeArtworkPage)
+  const query = { ...(params || {}) }
+  if (query.status === undefined || query.status === null || query.status === '') {
+    query.status = 1
+  }
+  return request.get('/product/list', query).then(normalizeArtworkPage)
 }
 
 // 获取画廊列表（别名）
@@ -53,7 +139,7 @@ export const getGalleryList = (params) => {
  * GET /product/{id}
  */
 export const getProductDetail = (id) => {
-  return request.get(`/product/${id}`)
+  return request.get(`/product/${id}`).then(normalizeArtwork)
 }
 
 /**
@@ -61,7 +147,7 @@ export const getProductDetail = (id) => {
  * GET /product/{id}
  */
 export const getArtworkDetail = (id) => {
-  return request.get(`/product/${id}`)
+  return request.get(`/product/${id}`).then(normalizeArtwork)
 }
 
 /**
@@ -70,7 +156,7 @@ export const getArtworkDetail = (id) => {
  * @param {string} params.keyword - 搜索关键词
  */
 export const searchProduct = (params) => {
-  return request.get('/product/search', params)
+  return request.get('/product/search', params).then(normalizeArtworkPage)
 }
 
 /**
@@ -78,7 +164,24 @@ export const searchProduct = (params) => {
  * GET /product/banners
  */
 export const getBanners = () => {
-  return request.get('/product/banners')
+  return request.get('/product/banners').then((list = []) => {
+    if (!Array.isArray(list)) return list
+    const normalizeBannerLinkType = (linkType) => {
+      const normalized = String(linkType || '').trim().toLowerCase()
+      if (normalized === 'banner' || normalized === 'home') return 'home'
+      if (normalized === 'auction') return 'auction'
+      if (normalized === 'article') return 'article'
+      if (normalized === 'artist') return 'artist'
+      if (normalized === 'gallery') return 'gallery'
+      return normalized
+    }
+    return list.map(item => ({
+      ...item,
+      linkType: normalizeBannerLinkType(item.linkType || item.type),
+      imageUrl: normalizeImageUrl(item.imageUrl || item.image || item.coverImage || item.cover),
+      thumbImageUrl: buildImageThumbnailUrl(item.imageUrl || item.image || item.coverImage || item.cover, 1280)
+    }))
+  })
 }
 
 /**
@@ -95,7 +198,7 @@ export const getCategories = () => {
  * @param {number} artworkId - 作品ID
  */
 export const addFavorite = (artworkId) => {
-  return request.post('/product/favorite', artworkId)
+  return request.post('/product/favorite', { artworkId })
 }
 
 /**
@@ -116,8 +219,8 @@ export const getFavorites = (params) => {
       const list = Array.isArray(data) ? data : (data.records || [])
       // 字段映射：coverImage -> cover
       return Array.isArray(data) 
-        ? list.map(item => ({ ...item, cover: item.coverImage || item.cover }))
-        : { ...data, records: list.map(item => ({ ...item, cover: item.coverImage || item.cover })) }
+        ? list.map(normalizeArtwork)
+        : { ...data, records: list.map(normalizeArtwork) }
     }
     return data
   })
@@ -128,7 +231,7 @@ export const getFavorites = (params) => {
  * GET /product/recommend
  */
 export const getRecommend = (params) => {
-  return request.get('/product/recommend', params).then(normalizeArtworkPage)
+  return getProductList(params)
 }
 
 /**
@@ -141,8 +244,8 @@ export const getFollowingWorks = (params) => {
       const list = Array.isArray(data) ? data : (data.records || [])
       // 字段映射：coverImage -> cover
       return Array.isArray(data) 
-        ? list.map(item => ({ ...item, cover: item.coverImage || item.cover }))
-        : { ...data, records: list.map(item => ({ ...item, cover: item.coverImage || item.cover })) }
+        ? list.map(normalizeArtwork)
+        : { ...data, records: list.map(normalizeArtwork) }
     }
     return data
   })
@@ -153,7 +256,7 @@ export const getFollowingWorks = (params) => {
  * GET /product/my-works
  */
 export const getMyWorks = (params) => {
-  return request.get('/product/my-works', params)
+  return request.get('/product/my-works', params).then(normalizeArtworkPage)
 }
 
 /**
@@ -182,7 +285,8 @@ export const updateArtwork = (id, data) => {
  * @param {string} status - 状态: online/offline
  */
 export const updateWorkStatus = (id, status) => {
-  return request.put(`/product/${id}/status`, { status })
+  const statusValue = status === 'online' ? 1 : status === 'offline' ? 0 : status
+  return request.put(`/product/${id}/status`, { status: statusValue })
 }
 
 /**

@@ -49,9 +49,9 @@
           <span v-else class="editable-text" @click="editingTitle = row.id">{{ row.title || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="120">
+        <el-table-column label="类型" width="120">
         <template #default="{ row }">
-          <el-tag size="small">{{ row.linkType === 'home' ? '首页' : row.linkType === 'gallery' ? '作品详情' : row.linkType === 'auction' ? '拍卖' : '其他' }}</el-tag>
+          <el-tag size="small">{{ getLinkTypeLabel(row.linkType) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="跳转链接" min-width="180">
@@ -82,12 +82,17 @@
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入标题" />
+          <el-input
+            v-model="form.title"
+            :disabled="form.linkType === 'article'"
+            :placeholder="form.linkType === 'article' ? '选择文章后自动同步标题' : '请输入标题'"
+          />
+          <div v-if="form.linkType === 'article'" class="field-tip">文章 Banner 的标题会直接使用文章标题。</div>
         </el-form-item>
         
         <!-- 图片上传区域 -->
         <el-form-item label="图片" prop="imageUrl">
-          <div class="upload-area" @click="triggerUpload">
+          <div class="upload-area" :class="{ disabled: form.linkType === 'article' }" @click="triggerUpload">
             <el-image 
               v-if="form.imageUrl" 
               :src="getFullImageUrl(form.imageUrl)" 
@@ -108,23 +113,55 @@
             type="file" 
             accept="image/*" 
             style="display: none" 
+            :disabled="form.linkType === 'article'"
             @change="handleFileChange"
           />
-          <div class="upload-tip">支持 JPG、PNG 格式，文件大小不超过 10MB</div>
+          <div class="upload-tip">
+            {{ form.linkType === 'article' ? '文章 Banner 的图片会直接使用文章封面。' : '支持 JPG、PNG 格式，文件大小不超过 10MB' }}
+          </div>
           <div v-if="uploading" class="upload-progress">
             <el-progress :percentage="uploadProgress" />
           </div>
         </el-form-item>
         
         <el-form-item label="类型" prop="linkType">
-          <el-select v-model="form.linkType" placeholder="请选择类型">
+          <el-select v-model="form.linkType" placeholder="请选择类型" @change="handleLinkTypeChange">
             <el-option label="首页" value="home" />
             <el-option label="作品详情" value="gallery" />
             <el-option label="拍卖专场" value="auction" />
+            <el-option label="文章内容" value="article" />
             <el-option label="其他" value="other" />
           </el-select>
         </el-form-item>
-        <el-form-item label="跳转值" prop="linkValue">
+        <el-form-item v-if="form.linkType === 'article'" label="选择文章" prop="linkValue">
+          <el-select
+            v-model="form.linkValue"
+            class="article-select"
+            clearable
+            filterable
+            remote
+            reserve-keyword
+            placeholder="搜索并选择已发布文章"
+            :remote-method="searchArticles"
+            :loading="articleLoading"
+            @visible-change="handleArticleVisibleChange"
+            @change="handleArticleChange"
+          >
+            <el-option
+              v-for="item in articleOptions"
+              :key="item.id"
+              :label="item.title"
+              :value="String(item.id)"
+            >
+              <div class="article-option">
+                <span class="article-option__title">{{ item.title }}</span>
+                <span class="article-option__meta">{{ item.categoryLabel }} · ID {{ item.id }}</span>
+              </div>
+            </el-option>
+          </el-select>
+          <div class="field-tip">仅展示已发布文章，保存后 Banner 将直接跳到该文章详情。</div>
+        </el-form-item>
+        <el-form-item v-else label="跳转值" prop="linkValue">
           <el-input v-model="form.linkValue" placeholder="请输入跳转链接或ID" />
         </el-form-item>
         <el-form-item label="排序" prop="sort">
@@ -163,6 +200,9 @@ const isEdit = ref(false)
 const editingTitle = ref(null)
 const uploading = ref(false)
 const uploadProgress = ref(0)
+const articleLoading = ref(false)
+const articleOptions = ref([])
+const articleDetailCache = new Map()
 
 const form = reactive({
   id: null,
@@ -177,10 +217,158 @@ const form = reactive({
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   imageUrl: [{ required: true, message: '请上传图片', trigger: 'change' }],
-  linkType: [{ required: true, message: '请选择类型', trigger: 'change' }]
+  linkType: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  linkValue: [{ validator: validateLinkValue, trigger: ['change', 'blur'] }]
 }
 
 const dialogTitle = computed(() => isEdit.value ? '编辑Banner' : '添加Banner')
+
+function validateLinkValue(rule, value, callback) {
+  if (form.linkType === 'home') {
+    callback()
+    return
+  }
+  if (String(value || '').trim()) {
+    callback()
+    return
+  }
+  callback(new Error(form.linkType === 'article' ? '请选择文章' : '请输入跳转值'))
+}
+
+const LINK_TYPE_LABELS = {
+  home: '首页',
+  gallery: '作品详情',
+  auction: '拍卖',
+  article: '文章内容',
+  other: '其他'
+}
+
+const mapBannerTypeToLinkType = (type) => {
+  const normalized = String(type || '').trim().toUpperCase()
+  if (normalized === 'BANNER' || normalized === 'HOME') return 'home'
+  if (normalized === 'AUCTION') return 'auction'
+  if (normalized === 'ARTICLE') return 'article'
+  if (normalized === 'ARTIST' || normalized === 'GALLERY') return 'gallery'
+  return 'other'
+}
+
+const mapLinkTypeToBannerType = (linkType) => {
+  if (linkType === 'home') return 'BANNER'
+  if (linkType === 'gallery') return 'ARTIST'
+  if (linkType === 'auction') return 'AUCTION'
+  if (linkType === 'article') return 'ARTICLE'
+  return 'OTHER'
+}
+
+const getLinkTypeLabel = (linkType) => LINK_TYPE_LABELS[linkType] || LINK_TYPE_LABELS.other
+
+const categoryLabel = (category) => {
+  const map = {
+    APPRECIATION: 'DAY DAY ART',
+    CURATION: '专题策展',
+    ARTIST: '艺术家故事',
+    NOTICE: '平台公告'
+  }
+  return map[category] || '未分类'
+}
+
+const normalizeArticleOption = (item = {}) => ({
+  id: item.id,
+  title: item.title || `文章 ${item.id}`,
+  category: item.category || '',
+  categoryLabel: categoryLabel(item.category)
+})
+
+const upsertArticleOption = (article) => {
+  const normalized = normalizeArticleOption(article)
+  if (!normalized.id) return
+  const exists = articleOptions.value.some(item => String(item.id) === String(normalized.id))
+  articleOptions.value = exists
+    ? articleOptions.value.map(item => (String(item.id) === String(normalized.id) ? normalized : item))
+    : [normalized, ...articleOptions.value]
+}
+
+const syncArticleFieldsToForm = (article) => {
+  if (!article || form.linkType !== 'article') return
+  form.title = article.title || ''
+  form.imageUrl = article.coverImage || ''
+}
+
+const loadArticleOptions = async (keyword = '') => {
+  articleLoading.value = true
+  try {
+    const data = await request.get('/content/article/list', {
+      params: {
+        page: 1,
+        size: 20,
+        status: 'PUBLISHED',
+        keyword: keyword || undefined
+      }
+    })
+    articleOptions.value = (data?.list || []).map(normalizeArticleOption)
+  } catch (e) {
+    if (e.message !== 'backend_offline') {
+      ElMessage.error('文章列表加载失败')
+    }
+    articleOptions.value = []
+  } finally {
+    articleLoading.value = false
+  }
+}
+
+const ensureSelectedArticleOption = async () => {
+  if (form.linkType !== 'article' || !form.linkValue) return
+  const articleId = String(form.linkValue)
+  const cached = articleDetailCache.get(articleId)
+  if (cached) {
+    upsertArticleOption(cached)
+    syncArticleFieldsToForm(cached)
+    return
+  }
+  try {
+    const detail = await request.get(`/content/article/${articleId}`)
+    articleDetailCache.set(articleId, detail)
+    upsertArticleOption(detail)
+    syncArticleFieldsToForm(detail)
+  } catch (e) {
+    if (e.message !== 'backend_offline') {
+      ElMessage.error('文章详情加载失败')
+    }
+  }
+}
+
+const searchArticles = (keyword) => {
+  loadArticleOptions(keyword)
+}
+
+const handleArticleVisibleChange = (visible) => {
+  if (visible && articleOptions.value.length === 0) {
+    loadArticleOptions()
+  }
+}
+
+const handleArticleChange = async (articleId) => {
+  if (articleId) {
+    form.linkValue = String(articleId)
+    await ensureSelectedArticleOption()
+  } else {
+    form.title = ''
+    form.imageUrl = ''
+  }
+  formRef.value?.validateField('linkValue').catch(() => false)
+}
+
+const handleLinkTypeChange = (linkType) => {
+  if (linkType === 'home') {
+    form.linkValue = ''
+    form.title = ''
+    form.imageUrl = ''
+  } else if (linkType === 'article') {
+    form.linkValue = form.linkValue ? String(form.linkValue) : ''
+    ensureSelectedArticleOption()
+  }
+  formRef.value?.validateField('linkValue').catch(() => false)
+}
 
 const loadData = async () => {
   loading.value = true
@@ -191,8 +379,8 @@ const loadData = async () => {
       id: item.id,
       title: item.title,
       imageUrl: item.imageUrl,
-      linkType: item.type === 'BANNER' ? 'home' : item.type === 'ARTIST' ? 'gallery' : item.type === 'AUCTION' ? 'auction' : 'other',
-      linkValue: item.target || '',
+      linkType: mapBannerTypeToLinkType(item.type),
+      linkValue: item.target == null ? '' : String(item.target),
       sort: item.sortNo || 0,
       status: item.status === 'ENABLED' ? 1 : 0
     }))
@@ -211,6 +399,7 @@ const handleImageClick = (row) => {
 
 // 触发文件上传
 const triggerUpload = () => {
+  if (form.linkType === 'article') return
   fileInput.value?.click()
 }
 
@@ -265,7 +454,7 @@ const saveTitle = async (row) => {
     await request.put(`/system/banner/${row.id}`, {
       title: row.title,
       imageUrl: row.imageUrl,
-      type: row.linkType === 'home' ? 'BANNER' : row.linkType === 'gallery' ? 'ARTIST' : row.linkType === 'auction' ? 'AUCTION' : 'OTHER',
+      type: mapLinkTypeToBannerType(row.linkType),
       target: row.linkValue,
       sortNo: row.sort,
       status: row.status === 1 ? 'ENABLED' : 'DISABLED'
@@ -303,10 +492,13 @@ const showDialog = (type, row = null) => {
       title: row.title || '', 
       imageUrl: row.imageUrl || '', 
       linkType: row.linkType || 'home', 
-      linkValue: row.linkValue || '', 
+      linkValue: row.linkValue == null ? '' : String(row.linkValue), 
       sort: row.sort || 0, 
       status: row.status ?? 1 
     })
+  }
+  if (form.linkType === 'article') {
+    ensureSelectedArticleOption()
   }
   dialogVisible.value = true
 }
@@ -319,7 +511,7 @@ const handleSubmit = async () => {
   const params = {
     title: form.title,
     imageUrl: form.imageUrl,
-    type: form.linkType === 'home' ? 'BANNER' : form.linkType === 'gallery' ? 'ARTIST' : form.linkType === 'auction' ? 'AUCTION' : 'OTHER',
+    type: mapLinkTypeToBannerType(form.linkType),
     target: form.linkValue,
     sortNo: form.sort,
     status: form.status === 1 ? 'ENABLED' : 'DISABLED'
@@ -453,6 +645,13 @@ onMounted(() => {
   overflow: hidden;
   transition: border-color 0.3s;
 }
+.upload-area.disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.upload-area.disabled:hover {
+  border-color: #dcdfe6;
+}
 .upload-area:hover {
   border-color: #409eff;
 }
@@ -501,5 +700,26 @@ onMounted(() => {
 .upload-progress {
   margin-top: 10px;
   width: 240px;
+}
+.article-select {
+  width: 100%;
+}
+.article-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+.article-option__title {
+  color: #303133;
+}
+.article-option__meta {
+  font-size: 12px;
+  color: #909399;
+}
+.field-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 </style>
