@@ -16,6 +16,9 @@ public class Order implements Serializable {
     private Long id;
     
     private String orderNo;
+
+    /** 客户端下单幂等号 */
+    private String requestId;
     
     /** 买家用户ID */
     @TableField("buyer_user_id")
@@ -66,6 +69,12 @@ public class Order implements Serializable {
     /** 取消时间 */
     @TableField("cancelled_at")
     private LocalDateTime cancelTime;
+
+    /** 待付款失效时间 */
+    private LocalDateTime payExpireTime;
+
+    /** 取消原因 */
+    private String cancelReason;
     
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

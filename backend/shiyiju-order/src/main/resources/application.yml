@@ -18,6 +18,11 @@ spring:
       port: 6379
       database: 0
 
+order:
+  payment-expire-minutes: ${ORDER_PAYMENT_EXPIRE_MINUTES:30}
+  payment-expiry-grace-minutes: ${ORDER_PAYMENT_EXPIRY_GRACE_MINUTES:5}
+  expiry-scan-delay-ms: ${ORDER_EXPIRY_SCAN_DELAY_MS:30000}
+
 # 微信支付配置
 wxpay:
   # 公众号 AppID（H5/公众号 JSAPI 支付）

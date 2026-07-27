@@ -90,11 +90,23 @@ public class OrderService {
     @Value("${shiyiju.services.product-url:http://shiyiju-product:8082}")
     private String productServiceUrl;
 
+    @Value("${order.payment-expire-minutes:30}")
+    private int paymentExpireMinutes;
+
+    @Value("${order.payment-expiry-grace-minutes:5}")
+    private int paymentExpiryGraceMinutes;
+
     @PostConstruct
     public void initArtworkFreightColumn() {
         try {
             addColumnIfMissing("artwork", "freight", "DECIMAL(10,2) DEFAULT 0 COMMENT '运费（元）'");
             addColumnIfMissing("trade_order", "seller_user_id", "BIGINT DEFAULT NULL COMMENT '卖家用户ID'");
+            addColumnIfMissing("trade_order", "request_id", "VARCHAR(64) DEFAULT NULL COMMENT '下单幂等号'");
+            addColumnIfMissing("trade_order", "pay_expire_time", "DATETIME DEFAULT NULL COMMENT '待付款失效时间'");
+            addColumnIfMissing("trade_order", "cancel_reason", "VARCHAR(255) DEFAULT NULL COMMENT '取消原因'");
+            ensureStockReservationTable();
+            ensureIndex("trade_order", "uk_order_buyer_request",
+                    "CREATE UNIQUE INDEX uk_order_buyer_request ON trade_order (buyer_user_id, request_id)");
             backfillHistoricalSellerUserIds();
         } catch (Exception e) {
             log.warn("初始化订单卖家字段失败，后续下单时将重试", e);
@@ -102,6 +114,9 @@ public class OrderService {
     }
 
     private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final String RESERVATION_RESERVED = "RESERVED";
+    private static final String RESERVATION_CONFIRMED = "CONFIRMED";
+    private static final String RESERVATION_RELEASED = "RELEASED";
     
     // 佣金比例
     private static final BigDecimal DIRECT_COMMISSION_RATE = new BigDecimal("0.05"); // 一级佣金 5%
@@ -125,6 +140,36 @@ public class OrderService {
                   AND column_name = ?
                 """, Integer.class, tableName, columnName);
         return count != null && count > 0;
+    }
+
+    private void ensureIndex(String tableName, String indexName, String ddl) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = ?
+                  AND index_name = ?
+                """, Integer.class, tableName, indexName);
+        if (count == null || count == 0) {
+            jdbcTemplate.execute(ddl);
+        }
+    }
+
+    private void ensureStockReservationTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS order_stock_reservation (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    order_id BIGINT NOT NULL,
+                    artwork_id BIGINT NOT NULL,
+                    quantity INT NOT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'RESERVED',
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_order_artwork (order_id, artwork_id),
+                    KEY idx_reservation_status (status),
+                    KEY idx_reservation_artwork (artwork_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单库存预占流水'
+                """);
     }
 
     private void ensureSellerUserIdReady() {
@@ -372,13 +417,20 @@ public class OrderService {
         ensureCartTable();
         for (Long cartId : cartIds) {
             String itemLockKey = "cart:item:lock:" + cartId;
-            redisTemplate.delete(itemLockKey);
+            Object lockedUserId = redisTemplate.opsForValue().get(itemLockKey);
+            if (lockedUserId != null && userId.toString().equals(lockedUserId.toString())) {
+                redisTemplate.delete(itemLockKey);
+            }
         }
     }
 
     /** 从购物车创建订单（带异常捕获与失败记录） */
     @Transactional(rollbackFor = Exception.class)
     public Order createOrderFromCart(Long userId, CreateOrderDTO dto) {
+        Order existingOrder = findExistingOrder(userId, dto.getRequestId());
+        if (existingOrder != null) {
+            return existingOrder;
+        }
         if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
             for (Long cartId : dto.getCartIds()) {
                 String itemLockKey = "cart:item:lock:" + cartId;
@@ -395,7 +447,33 @@ public class OrderService {
     /** 直接购买（带异常捕获与失败记录） */
     @Transactional(rollbackFor = Exception.class)
     public Order createDirectOrder(Long userId, CreateOrderDTO dto) {
+        Order existingOrder = findExistingOrder(userId, dto.getRequestId());
+        if (existingOrder != null) {
+            return existingOrder;
+        }
         return executeOrderCreation(userId, dto, "DIRECT");
+    }
+
+    private Order findExistingOrder(Long userId, String requestId) {
+        String normalizedRequestId = normalizeRequestId(requestId);
+        if (normalizedRequestId == null) {
+            return null;
+        }
+        return orderMapper.selectOne(new LambdaQueryWrapper<Order>()
+                .eq(Order::getUserId, userId)
+                .eq(Order::getRequestId, normalizedRequestId)
+                .last("LIMIT 1"));
+    }
+
+    private String normalizeRequestId(String requestId) {
+        if (requestId == null || requestId.isBlank()) {
+            return null;
+        }
+        String normalized = requestId.trim();
+        if (normalized.length() > 64) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "下单请求号长度不能超过64位");
+        }
+        return normalized;
     }
 
     /**
@@ -465,7 +543,6 @@ public class OrderService {
      * 外部调用请使用 createDirectOrder / createOrderFromCart
      */
     public Order createOrderInternal(Long userId, CreateOrderDTO dto) {
-        addColumnIfMissing("artwork", "freight", "DECIMAL(10,2) DEFAULT 0 COMMENT '运费（元）'");
         // 获取地址：优先使用传入的地址；-1 或无匹配时使用默认地址
         Address address = resolveUserAddress(userId, dto.getAddressId());
 
@@ -525,12 +602,12 @@ public class OrderService {
         }
 
         // 生成订单号
-        String orderNo = "SYJ" + LocalDateTime.now().format(ORDER_NO_FORMAT) + 
-                         String.format("%04d", userId % 10000);
+        String orderNo = generateOrderNo();
 
         // 创建订单
         Order order = new Order();
         order.setOrderNo(orderNo);
+        order.setRequestId(normalizeRequestId(dto.getRequestId()));
         order.setUserId(userId);
         order.setTotalAmount(totalAmount);
         order.setDiscountAmount(BigDecimal.ZERO);
@@ -544,7 +621,10 @@ public class OrderService {
         order.setRemark(dto.getRemark());
         order.setSource(dto.getCartIds() != null ? OrderConstant.SOURCE_CART : OrderConstant.SOURCE_DIRECT);
         order.setStatus(OrderConstant.STATUS_PENDING_PAYMENT);
-        order.setCreateTime(LocalDateTime.now());
+        order.setPaymentStatus("UNPAID");
+        LocalDateTime createdAt = LocalDateTime.now();
+        order.setCreateTime(createdAt);
+        order.setPayExpireTime(createdAt.plusMinutes(Math.max(paymentExpireMinutes, 1)));
         
         // 设置卖家信息（从第一个订单项的作者获取）
         if (!orderItems.isEmpty()) {
@@ -567,6 +647,8 @@ public class OrderService {
             item.setCreateTime(LocalDateTime.now());
             orderItemMapper.insert(item);
         }
+
+        reserveOrderStock(order, orderItems);
 
         finalizeZeroAmountOrder(order);
 
@@ -592,6 +674,7 @@ public class OrderService {
                     dto.setQuantity(originalDto.getQuantity() != null ? originalDto.getQuantity() : 1);
                     dto.setAddressId(originalDto.getAddressId() != null ? originalDto.getAddressId() : -1L);
                     dto.setRemark(originalDto.getRemark());
+                    dto.setRequestId(originalDto.getRequestId());
                     if (originalDto.getCartIds() != null) dto.setCartIds(originalDto.getCartIds());
                 }
             } catch (Exception e) {
@@ -600,6 +683,74 @@ public class OrderService {
         }
 
         return createOrderInternal(record.getUserId(), dto);
+    }
+
+    private String generateOrderNo() {
+        String random = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT);
+        return "SYJ" + LocalDateTime.now().format(ORDER_NO_FORMAT) + random;
+    }
+
+    /**
+     * 创建订单时原子预占库存。订单和预占流水处于同一数据库事务，任一商品失败都会整体回滚。
+     */
+    private void reserveOrderStock(Order order, List<OrderItem> items) {
+        for (OrderItem item : items) {
+            int quantity = Math.max(item.getQuantity() == null ? 1 : item.getQuantity(), 1);
+            int updated = jdbcTemplate.update("""
+                    UPDATE artwork
+                    SET status = CASE
+                            WHEN stock IS NULL OR stock <= 0 OR stock - ? <= 0 THEN ?
+                            ELSE status
+                        END,
+                        stock = CASE
+                            WHEN stock IS NULL OR stock <= 0 THEN 0
+                            ELSE stock - ?
+                        END,
+                        update_time = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                      AND deleted = 0
+                      AND status = ?
+                      AND (((stock IS NULL OR stock <= 0) AND ? = 1) OR stock >= ?)
+                    """,
+                    quantity, ProductConstant.STATUS_SOLD_OUT, quantity,
+                    item.getArtworkId(), ProductConstant.STATUS_ON_SALE, quantity, quantity);
+            if (updated != 1) {
+                throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
+                        "作品【" + item.getTitle() + "】已售出或库存不足");
+            }
+            jdbcTemplate.update("""
+                    INSERT INTO order_stock_reservation (order_id, artwork_id, quantity, status)
+                    VALUES (?, ?, ?, ?)
+                    """, order.getId(), item.getArtworkId(), quantity, RESERVATION_RESERVED);
+        }
+    }
+
+    /** 取消或超时订单释放库存；通过流水状态条件更新保证重复调用不会重复回补。 */
+    private void releaseOrderStock(Long orderId) {
+        List<Map<String, Object>> reservations = jdbcTemplate.queryForList("""
+                SELECT artwork_id, quantity
+                FROM order_stock_reservation
+                WHERE order_id = ? AND status = ?
+                """, orderId, RESERVATION_RESERVED);
+        for (Map<String, Object> reservation : reservations) {
+            Long artworkId = toLong(reservation.get("artwork_id"));
+            int quantity = Optional.ofNullable(toLong(reservation.get("quantity"))).orElse(1L).intValue();
+            int released = jdbcTemplate.update("""
+                    UPDATE order_stock_reservation
+                    SET status = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE order_id = ? AND artwork_id = ? AND status = ?
+                    """, RESERVATION_RELEASED, orderId, artworkId, RESERVATION_RESERVED);
+            if (released == 1) {
+                jdbcTemplate.update("""
+                        UPDATE artwork
+                        SET stock = COALESCE(stock, 0) + ?,
+                            status = CASE WHEN status = ? THEN ? ELSE status END,
+                            update_time = CURRENT_TIMESTAMP
+                        WHERE id = ? AND deleted = 0
+                        """, quantity, ProductConstant.STATUS_SOLD_OUT,
+                        ProductConstant.STATUS_ON_SALE, artworkId);
+            }
+        }
     }
 
     /**
@@ -1037,9 +1188,47 @@ public class OrderService {
             throw new BusinessException(ResultCode.ORDER_CANNOT_CANCEL);
         }
 
-        order.setStatus(OrderConstant.STATUS_CANCELLED);
-        order.setCancelTime(LocalDateTime.now());
-        orderMapper.updateById(order);
+        LocalDateTime now = LocalDateTime.now();
+        int updated = orderMapper.update(null, new LambdaUpdateWrapper<Order>()
+                .eq(Order::getId, orderId)
+                .eq(Order::getUserId, userId)
+                .eq(Order::getStatus, OrderConstant.STATUS_PENDING_PAYMENT)
+                .set(Order::getStatus, OrderConstant.STATUS_CANCELLED)
+                .set(Order::getCancelTime, now)
+                .set(Order::getCancelReason, "USER_CANCELLED")
+                .set(Order::getUpdateTime, now));
+        if (updated != 1) {
+            throw new BusinessException(ResultCode.ORDER_CANNOT_CANCEL);
+        }
+        releaseOrderStock(orderId);
+    }
+
+    /** 定时关闭已超过支付期限的订单，单批限制数量避免长事务。 */
+    @Transactional(rollbackFor = Exception.class)
+    public int expirePendingOrders(int batchSize) {
+        int safeBatchSize = Math.min(Math.max(batchSize, 1), 500);
+        List<Order> expiredOrders = orderMapper.selectList(new LambdaQueryWrapper<Order>()
+                .eq(Order::getStatus, OrderConstant.STATUS_PENDING_PAYMENT)
+                .le(Order::getPayExpireTime,
+                        LocalDateTime.now().minusMinutes(Math.max(paymentExpiryGraceMinutes, 0)))
+                .orderByAsc(Order::getPayExpireTime)
+                .last("LIMIT " + safeBatchSize));
+        int expiredCount = 0;
+        for (Order order : expiredOrders) {
+            LocalDateTime now = LocalDateTime.now();
+            int updated = orderMapper.update(null, new LambdaUpdateWrapper<Order>()
+                    .eq(Order::getId, order.getId())
+                    .eq(Order::getStatus, OrderConstant.STATUS_PENDING_PAYMENT)
+                    .set(Order::getStatus, OrderConstant.STATUS_CANCELLED)
+                    .set(Order::getCancelTime, now)
+                    .set(Order::getCancelReason, "PAYMENT_TIMEOUT")
+                    .set(Order::getUpdateTime, now));
+            if (updated == 1) {
+                releaseOrderStock(order.getId());
+                expiredCount++;
+            }
+        }
+        return expiredCount;
     }
 
     /** 确认收货 */
@@ -1461,17 +1650,7 @@ public class OrderService {
 
     public String unifiedOrder(Long orderId, Long userId, String openId, String payScene) {
         validateWechatPayRequest(openId, payScene);
-        Order order = orderMapper.selectOne(
-                new LambdaQueryWrapper<Order>()
-                        .eq(Order::getId, orderId)
-                        .eq(Order::getUserId, userId)
-        );
-        if (order == null) {
-            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
-        }
-        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
-        }
+        Order order = getPayableOrder(orderId, userId);
 
         long totalAmount = toPaymentFen(order.getPayAmount());
         
@@ -1531,17 +1710,7 @@ public class OrderService {
 
     public Map<String, Object> unifiedOrderWithParams(Long orderId, Long userId, String openId, String payScene) {
         validateWechatPayRequest(openId, payScene);
-        Order order = orderMapper.selectOne(
-                new LambdaQueryWrapper<Order>()
-                        .eq(Order::getId, orderId)
-                        .eq(Order::getUserId, userId)
-        );
-        if (order == null) {
-            throw new BusinessException(ResultCode.ORDER_NOT_FOUND);
-        }
-        if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
-        }
+        Order order = getPayableOrder(orderId, userId);
 
         long totalAmount = toPaymentFen(order.getPayAmount());
         
@@ -1744,6 +1913,9 @@ public class OrderService {
         if (!OrderConstant.STATUS_PENDING_PAYMENT.equals(order.getStatus())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "订单状态不允许支付");
         }
+        if (order.getPayExpireTime() != null && !order.getPayExpireTime().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.PAYMENT_TIMEOUT, "订单已超过支付期限，请重新下单");
+        }
         return order;
     }
 
@@ -1791,11 +1963,22 @@ public class OrderService {
             return;
         }
 
+        LocalDateTime paidAt = LocalDateTime.now();
+        int updated = orderMapper.update(null, new LambdaUpdateWrapper<Order>()
+                .eq(Order::getId, order.getId())
+                .eq(Order::getStatus, OrderConstant.STATUS_PENDING_PAYMENT)
+                .set(Order::getStatus, OrderConstant.STATUS_PAID)
+                .set(Order::getPaymentStatus, OrderConstant.STATUS_PAID)
+                .set(Order::getPayTime, paidAt)
+                .set(Order::getUpdateTime, paidAt));
+        if (updated != 1) {
+            log.info("订单 {} 已由其他回调处理", orderNo);
+            return;
+        }
         order.setStatus(OrderConstant.STATUS_PAID);
         order.setPaymentStatus(OrderConstant.STATUS_PAID);
-        order.setPayTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
-        orderMapper.updateById(order);
+        order.setPayTime(paidAt);
+        order.setUpdateTime(paidAt);
 
         processPaidOrder(order);
     }
@@ -2087,7 +2270,7 @@ public class OrderService {
         }
     }
 
-    /** 支付成功后才确认作品归属和已收藏状态。 */
+    /** 支付成功后确认预占库存，并更新作品成交信息。历史未预占订单走兼容扣减。 */
     private void markOrderArtworksSold(Order order, List<OrderItem> items) {
         if (items == null || items.isEmpty()) {
             return;
@@ -2097,10 +2280,6 @@ public class OrderService {
             if (artwork == null) {
                 continue;
             }
-            if (ProductConstant.STATUS_SOLD_OUT.equals(artwork.getStatus())
-                    && Objects.equals(artwork.getHolderId(), order.getUserId())) {
-                continue;
-            }
             int quantity = Math.max(item.getQuantity() == null ? 1 : item.getQuantity(), 1);
             BigDecimal settledPrice = item.getPrice();
             BigDecimal basePrice = artwork.getOriginalPrice() != null
@@ -2108,23 +2287,17 @@ public class OrderService {
                     ? artwork.getOriginalPrice()
                     : artwork.getPrice();
 
+            boolean reserved = confirmStockReservation(order.getId(), artwork.getId());
+            if (!reserved) {
+                reserveLegacyPaidOrderStock(artwork, quantity);
+            }
             LambdaUpdateWrapper<Artwork> update = new LambdaUpdateWrapper<Artwork>()
                     .eq(Artwork::getId, artwork.getId())
-                    .eq(Artwork::getStatus, ProductConstant.STATUS_ON_SALE)
-                    .setSql("stock = GREATEST(COALESCE(stock, 1) - " + quantity + ", 0)")
-                    .set(Artwork::getStatus, ProductConstant.STATUS_SOLD_OUT)
-                    .set(Artwork::getHolderId, order.getUserId())
-                    .set(Artwork::getHolderSince, LocalDateTime.now())
+                    .setSql("status = CASE WHEN COALESCE(stock, 0) <= 0 THEN "
+                            + ProductConstant.STATUS_SOLD_OUT + " ELSE " + ProductConstant.STATUS_ON_SALE + " END")
+                    .setSql("holder_id = CASE WHEN COALESCE(stock, 0) <= 0 THEN " + order.getUserId() + " ELSE holder_id END")
+                    .setSql("holder_since = CASE WHEN COALESCE(stock, 0) <= 0 THEN CURRENT_TIMESTAMP ELSE holder_since END")
                     .setSql("sale_count = COALESCE(sale_count, 0) + " + quantity);
-
-            if (quantity <= 1) {
-                update.and(wrapper -> wrapper.isNull(Artwork::getStock)
-                        .or().le(Artwork::getStock, 0)
-                        .or().ge(Artwork::getStock, quantity));
-            } else {
-                update.and(wrapper -> wrapper.isNull(Artwork::getStock)
-                        .or().ge(Artwork::getStock, quantity));
-            }
 
             if (item.getPrice() != null && item.getPrice().compareTo(BigDecimal.ZERO) > 0) {
                 update.set(Artwork::getPrice, settledPrice);
@@ -2141,6 +2314,52 @@ public class OrderService {
                 throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
                         "作品【" + artwork.getTitle() + "】已售出或库存不足");
             }
+        }
+    }
+
+    private boolean confirmStockReservation(Long orderId, Long artworkId) {
+        int confirmed = jdbcTemplate.update("""
+                UPDATE order_stock_reservation
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE order_id = ? AND artwork_id = ? AND status = ?
+                """, RESERVATION_CONFIRMED, orderId, artworkId, RESERVATION_RESERVED);
+        if (confirmed == 1) {
+            return true;
+        }
+        List<String> statuses = jdbcTemplate.queryForList("""
+                SELECT status FROM order_stock_reservation
+                WHERE order_id = ? AND artwork_id = ?
+                """, String.class, orderId, artworkId);
+        if (statuses.isEmpty()) {
+            return false;
+        }
+        if (RESERVATION_CONFIRMED.equals(statuses.get(0))) {
+            return true;
+        }
+        throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH, "订单库存预占已释放，请重新下单");
+    }
+
+    private void reserveLegacyPaidOrderStock(Artwork artwork, int quantity) {
+        int updated = jdbcTemplate.update("""
+                UPDATE artwork
+                SET status = CASE
+                        WHEN stock IS NULL OR stock <= 0 OR stock - ? <= 0 THEN ?
+                        ELSE status
+                    END,
+                    stock = CASE
+                        WHEN stock IS NULL OR stock <= 0 THEN 0
+                        ELSE stock - ?
+                    END,
+                    update_time = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND deleted = 0
+                  AND status = ?
+                  AND (((stock IS NULL OR stock <= 0) AND ? = 1) OR stock >= ?)
+                """, quantity, ProductConstant.STATUS_SOLD_OUT, quantity,
+                artwork.getId(), ProductConstant.STATUS_ON_SALE, quantity, quantity);
+        if (updated != 1) {
+            throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
+                    "作品【" + artwork.getTitle() + "】已售出或库存不足");
         }
     }
 
